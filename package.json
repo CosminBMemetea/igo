@@ -1,0 +1,36 @@
+{
+  "name": "igo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask",
+    "smoke:calc": "tsx scripts/smoke-calc.mts",
+    "smoke:i18n": "tsx scripts/smoke-i18n.mts",
+    "smoke:rules": "tsx scripts/smoke-rules.mts",
+    "smoke:ask": "tsx scripts/smoke-ask.mts"
+  },
+  "dependencies": {
+    "leaflet": "1.9.4",
+    "leaflet.markercluster": "1.5.3",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.12",
+    "@types/leaflet.markercluster": "^1.5.4",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "tsx": "^4.19.0",
+    "typescript": "^5"
+  }
+}

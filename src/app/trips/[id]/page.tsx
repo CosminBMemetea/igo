@@ -1,0 +1,59 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getPrefs } from "@/lib/prefs";
+import { load } from "@/lib/data";
+import { fmtDate, fmtMoney, fmtNum, fmtPct, t } from "@/lib/i18n";
+import { DEMO_NOW_MIN } from "@/lib/fleet/data";
+import { mapLabels } from "@/lib/labels";
+import { CountUp } from "@/components/CountUp";
+import FleetMap from "@/components/FleetMap";
+
+export const dynamic = "force-dynamic";
+export default async function TripDetail({ params }: { params: { id: string } }) {
+  const prefs = getPrefs(), { loc } = prefs;
+  const d = await load();
+  const r = d.views.find((x) => x.id === params.id);
+  if (!r) notFound();
+  const agri = r.vehicle.kind === "agri";
+  const unit = r.vehicle.per100 ? "L/100km" : "L/ha";
+  const p = r.p, max = Math.max(p.revenue, p.costs);
+  const segs: [string, number, string][] = [
+    [t(loc, "trip.fuel"), p.fuel, `${fmtNum(loc, r.litres)} L × ${fmtMoney(loc, r.fuelPrice, 2)}`],
+    [t(loc, "trip.tolls"), p.tolls, agri ? "—" : ""],
+    [t(loc, agri ? "trip.operator" : "trip.driver"), p.driver, agri ? `${fmtNum(loc, r.hours, 1)} h` : ""],
+    [t(loc, "trip.other"), p.other, agri ? `${r.ha} ha` : `${fmtNum(loc, r.km)} km`],
+  ];
+  let acc = 0;
+  const client = d.clients.find((c) => c.id === r.clientId)!;
+  const liveV = d.live().find((x) => x.id === r.vehicleId);
+  return (
+    <main>
+      <div className="eyebrow fade">{t(loc, agri ? "job.detail" : "trip.detail")}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
+      <h1 className="h1 fade">{agri ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</h1>
+      <p className="sub fade d1">{r.vehicle.name} · {r.vehicle.driver} · {fmtDate(loc, r.date, true)} · {agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`} · {client.name} · {r.tariffNote}</p>
+      <section className="hero" style={{ marginTop: 56 }}>
+        <div className="fade d1"><div className="eyebrow">{t(loc, "col.profit")}</div><div className={`big ${p.profit < 0 ? "neg" : "pos"}`}><CountUp value={Math.round(p.profit)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub">{fmtPct(loc, p.margin)} {t(loc, "col.margin")}</p></div>
+        <div className="fade d2"><div className="eyebrow">{t(loc, "home.savings")}</div><div className="big"><CountUp value={r.s.pct * 100} d={1} loc={loc} /><small>%</small></div>
+          <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "trip.vsBase", { actual: fmtNum(loc, r.actualRate, 1), unit, base: fmtNum(loc, r.vehicle.baselineRate, 1), litres: fmtNum(loc, r.s.savedLitres), lei: fmtMoney(loc, r.s.savedLei) }) }} /></div>
+      </section>
+      <section className="wf section">
+        <div className="r"><span>{t(loc, "col.revenue")}</span><div className="bar"><i style={{ left: 0, width: `${(p.revenue / max) * 100}%`, background: "var(--fg)" }} /></div><span className="v">{fmtMoney(loc, p.revenue)}</span></div>
+        {segs.map(([name, val, note], i) => {
+          const left = acc; acc += val;
+          return <div className="r" key={name}><span>{name}{note ? <><br /><small style={{ color: "var(--fg3)" }}>{note}</small></> : null}</span><div className="bar"><i style={{ left: `${(left / max) * 100}%`, width: `${(val / max) * 100}%`, background: "var(--fg2)", animationDelay: `${0.1 * (i + 1)}s` }} /></div><span className="v">− {fmtMoney(loc, val)}</span></div>;
+        })}
+        <div className="r" style={{ paddingTop: 24 }}><b style={{ fontWeight: 500 }}>{t(loc, "col.profit")}</b><div className="bar">{p.profit > 0 ? <i style={{ left: `${(p.costs / max) * 100}%`, width: `${(p.profit / max) * 100}%`, background: "var(--pos)", animationDelay: ".5s" }} /> : <i style={{ left: `${(p.revenue / max) * 100}%`, width: `${(-p.profit / max) * 100}%`, background: "var(--neg)", animationDelay: ".5s" }} />}</div><span className={`v ${p.profit < 0 ? "neg" : "pos"}`} style={{ fontSize: 22 }}>{fmtMoney(loc, p.profit)}</span></div>
+        <p className="sub" style={{ fontSize: 12 }}>{t(loc, "trip.formula")}</p>
+      </section>
+      {r.active && liveV ? (
+        <Link href={`/live?v=${r.vehicleId}`} className="mapstrip" style={{ display: "block" }}>
+          <FleetMap mode="strip" vehicles={[liveV]} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
+        </Link>
+      ) : null}
+      <section className="section" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <Link className="btn sec" href={`/vehicles/${r.vehicleId}`}>{r.vehicle.name}</Link>
+        {r.invoiceNo ? <Link className="btn sec" href={`/invoices?trip=${r.id}`}>{t(loc, "trip.invoice")} {r.invoiceNo}</Link> : null}
+      </section>
+    </main>
+  );
+}
