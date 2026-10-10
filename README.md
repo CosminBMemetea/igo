@@ -36,3 +36,14 @@ The demo uses Esri **World Dark/Light Gray Canvas** tiles (no key) with OpenStre
 
 ## Environment
 See `.env.example`. `GROQ_API_KEY` is optional.
+
+## Accounts and roles
+- `/login`: admin signs in with `ADMIN_EMAIL` + password, checked server-side against `ADMIN_PASSWORD_HASH` (scrypt). Missing env vars mean admin login is disabled (no default password).
+- "Intră ca demo" creates a regular **user** session on the demo company.
+- Session: httpOnly cookie `igo-session`, HMAC-SHA256 signed with `SESSION_SECRET`, 7 days. All pages and `/api/*` (except `/api/auth/*`) require it.
+- **Admin** sees everything unlocked, plus an account menu with *Mod: Admin / Utilizator* and a plan preview (Probă/Start/Pro/Business). `?plan=` and `?view=` work only for admins. A **user** sees only the company's plan.
+
+Generate the hash locally (the password is typed masked and never stored):
+```
+npm run hash-password
+```

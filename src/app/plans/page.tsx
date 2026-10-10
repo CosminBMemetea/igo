@@ -30,7 +30,7 @@ export default function Plans({ searchParams }: { searchParams: { unit?: string 
               <div className="price">{fmtNum(loc, price)} €<small>{agri ? t(loc, "plans.perMachine") : t(loc, "plans.perVehicle")}</small></div>
               <ul>{P.top.map((x) => <li key={x}><Icon name="check" /><span>{tri(loc, x)}</span></li>)}</ul>
               <div className="sub" style={{ fontSize: 13 }}>{i ? t(loc, "plans.plus", { prev: PLANS[PLAN_ORDER[i - 1]].name, n: own }) : t(loc, "plans.base", { n: own })}</div>
-              <a className={`btn ${P.recommended ? "pri" : "sec"}`} style={{ marginTop: "auto" }} href={`/features?plan=${p}`}>{plan === "trial" ? t(loc, "plans.start") : t(loc, "plans.choose", { plan: P.name })}</a>
+              <a className={`btn ${P.recommended ? "pri" : "sec"}`} style={{ marginTop: "auto" }} href="/features">{plan === "trial" ? t(loc, "plans.start") : t(loc, "plans.choose", { plan: P.name })}</a>
             </div>
           );
         })}

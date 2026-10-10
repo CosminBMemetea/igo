@@ -7,16 +7,16 @@ import { Icon } from "@/components/icons";
 const LINK: Partial<Record<FeatureId, string>> = { profit: "/trips", savings: "/", live: "/live", receipts: "/receipts", documents: "/documents", driverApp: "/driver", crm: "/crm", invoicing: "/invoices", replay: "/live", maintenance: "/documents?tab=service", agri: "/vehicles/lexion760", ai: "/", alertsCenter: "/alerts", fuelAlerts: "/alerts", efactura: "/invoices" };
 export const dynamic = "force-dynamic";
 export default function Features() {
-  const { loc, plan, trialLeft } = getPrefs();
+  const { loc, plan, trialLeft, role } = getPrefs();
   const on = FEATURES.filter((f) => planIncludes(plan, f.id)).length;
   return (
     <main>
       <div className="eyebrow fade">{t(loc, "nav.features")}</div>
       <h1 className="h1 fade">{plan === "trial" ? t(loc, "feat.title.trial", { n: FEATURES.length }) : t(loc, "feat.title.plan", { on, n: FEATURES.length, plan: PLANS[plan].name })}</h1>
       <p className="sub fade d1">{plan === "trial" ? t(loc, "feat.lead.trial", { d: trialLeft }) : t(loc, "feat.lead.plan")}</p>
-      <div className="seg fade d2" style={{ marginTop: 32 }}>
-        {(["trial", "start", "pro", "business"] as const).map((p) => <a key={p} href={`/features?plan=${p}`} className={p === plan ? "on" : ""} style={{ padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500 }}>{p === "trial" ? t(loc, "feat.trial") : PLANS[p].name}</a>)}
-      </div>
+      {role === "admin" ? <div className="seg fade d2" style={{ marginTop: 32 }}>
+        {(["trial", "start", "pro", "business"] as const).map((p) => <a key={p} href={`/features?plan=${p}&view=user`} className={p === plan ? "on" : ""} style={{ padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500 }}>{p === "trial" ? t(loc, "feat.trial") : PLANS[p].name}</a>)}
+      </div> : null}
       {(Object.keys(CATS) as (keyof typeof CATS)[]).map((c) => (
         <section key={c} className="section" style={{ marginTop: 56 }}>
           <div className="head"><h2>{tri(loc, CATS[c])}</h2></div>

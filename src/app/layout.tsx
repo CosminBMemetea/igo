@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const prefs = getPrefs();
   return (
     <html lang={prefs.loc} data-theme={prefs.theme} className={inter.variable}>
-      <body className={prefs.plan === "trial" ? "has-trial" : undefined}>
+      <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView ? "has-trial" : undefined}>
         <Header prefs={prefs} />
         {children}
       </body>
