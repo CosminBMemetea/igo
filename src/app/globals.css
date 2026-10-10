@@ -190,3 +190,13 @@ body.has-trial .panel,body.has-trial .filters{top:130px}
 .seg a{color:var(--fg2);padding:9px 18px;border-radius:999px;font-size:13px;font-weight:500}.seg a.on{background:var(--bg);color:var(--fg);box-shadow:0 2px 8px rgba(0,0,0,.2)}
 body:has(.livemap) .demo{bottom:100px;left:24px;transform:none}
 @media (max-width:760px){body:has(.livemap) .demo{display:none}}
+.leaflet-marker-icon.cl{display:grid!important;place-items:center}
+.big.md{font-size:clamp(56px,7.5vw,112px)}
+.grid2.inv{grid-template-columns:1.3fr 1fr}
+.row.r3{grid-template-columns:1.4fr 1fr 1fr}.row.r4{grid-template-columns:1.3fr 1fr 1fr 1fr}
+@media (max-width:760px){
+ .grid2.inv{grid-template-columns:1fr}
+ .row.r3{grid-template-columns:1fr auto auto;gap:12px}
+ .row.r4{grid-template-columns:1fr auto;gap:12px}.row.r4>:nth-child(2),.row.r4>:nth-child(3){display:none}
+ .big.md{font-size:64px}
+}

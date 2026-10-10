@@ -30,9 +30,9 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 const TRUCK_BASE: Record<string, number> = { bh21qrt: 32.0, cj08qrt: 33.1, tm33qrt: 33.4, b120qrt: 34.6, ar45qrt: 33.0, bh77qrt: 31.4, cj52qrt: 34.2, bv19qrt: 32.6 };
 export const VEHICLES: Vehicle[] = [
   ...TRUCKS.map((t): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model, driver: t.driver, baselineRate: TRUCK_BASE[t.id], per100: true, tankL: t.tankL })),
-  { id: "lexion760", name: "Claas Lexion 760", kind: "agri", model: "Combină · 2019", driver: "Gheorghe Nagy", baselineRate: 19.2, per100: false, tankL: 800, lph: 34.2, engineHours: 2412 },
-  { id: "fendt724", name: "Fendt 724 Vario", kind: "agri", model: "Tractor · 2021", driver: "Ion Bara", baselineRate: 24.0, per100: false, tankL: 400, lph: 21.6, engineHours: 3180 },
-  { id: "puma240", name: "Case IH Puma 240", kind: "agri", model: "Tractor · 2018", driver: "Radu Fodor", baselineRate: 9.6, per100: false, tankL: 390, lph: 18.9, engineHours: 5640 },
+  { id: "lexion760", name: "Claas Lexion 760", kind: "agri", model: "2019", driver: "Gheorghe Nagy", baselineRate: 19.2, per100: false, tankL: 800, lph: 34.2, engineHours: 2412 },
+  { id: "fendt724", name: "Fendt 724 Vario", kind: "agri", model: "2021", driver: "Ion Bara", baselineRate: 24.0, per100: false, tankL: 400, lph: 21.6, engineHours: 3180 },
+  { id: "puma240", name: "Case IH Puma 240", kind: "agri", model: "2018", driver: "Radu Fodor", baselineRate: 9.6, per100: false, tankL: 390, lph: 18.9, engineHours: 5640 },
   { id: "bh05qrt", name: "BH 05 QRT", kind: "van", model: "Iveco Daily 35S", driver: "Andrei Sabău", baselineRate: 11.6, per100: true, tankL: 90 },
 ];
 export const vehicleById = (id: string) => VEHICLES.find((v) => v.id === id);
@@ -57,8 +57,8 @@ export const PARCELS: Parcel[] = [
   { id: "tinca4", name: "Tinca 4", ha: 37, crop: "wheat", poly: rect(46.76, 21.93, 0.015, 0.042) },
 ];
 export const ZONES: Zone[] = [
-  { id: "dep-oradea", name: "Depozit Oradea", kind: "depot", at: [47.0465, 21.9189], radiusM: 1500 },
-  { id: "dep-cluj", name: "Depozit Cluj", kind: "depot", at: [46.7712, 23.6236], radiusM: 1500 },
+  { id: "dep-oradea", name: "Hub Oradea", kind: "depot", at: [47.0465, 21.9189], radiusM: 1500 },
+  { id: "dep-cluj", name: "Hub Cluj", kind: "depot", at: [46.7712, 23.6236], radiusM: 1500 },
   { id: "cl-metro", name: "Metro Kft · Budapesta", kind: "client", at: [47.4979, 19.0402], radiusM: 3000 },
   { id: "cl-dedeman", name: "Dedeman · Sibiu", kind: "client", at: [45.7983, 24.1256], radiusM: 2000 },
   { id: "ferma", name: "Ferma Gepiu", kind: "depot", at: [46.93, 21.77], radiusM: 800 },
@@ -124,7 +124,7 @@ function buildTrips(): Trip[] {
   // utilitara
   for (let day = 2; day <= 14; day += 3) {
     const km = 140 + day * 3;
-    out.push({ id: `bh05qrt-${pad(day)}`, vehicleId: "bh05qrt", clientId: "dedeman", type: "transport", date: `2026-10-${pad(day)}`, title: "Oradea · livrări oraș", km, hours: 7, ha: 0, units: km, revenue: 1450, litres: Math.round(km * 0.104), fuelPrice: FUEL_PRICE, tolls: 0, driver: 380, other: Math.round(km * 0.3), actualRate: 10.4, active: false, payment: day < 5 ? "paid" : "due", invoiceNo: `IGO-2026-U${pad(day)}`, tariffNote: "1.450 lei / zi" });
+    out.push({ id: `bh05qrt-${pad(day)}`, vehicleId: "bh05qrt", clientId: "dedeman", type: "transport", date: `2026-10-${pad(day)}`, title: "Oradea · local", km, hours: 7, ha: 0, units: km, revenue: 1450, litres: Math.round(km * 0.104), fuelPrice: FUEL_PRICE, tolls: 0, driver: 380, other: Math.round(km * 0.3), actualRate: 10.4, active: false, payment: day < 5 ? "paid" : "due", invoiceNo: `IGO-2026-U${pad(day)}`, tariffNote: "1.450 lei / zi" });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date) || b.revenue - a.revenue);
 }

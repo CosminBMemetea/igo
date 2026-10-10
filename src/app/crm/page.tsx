@@ -20,8 +20,8 @@ export default async function Crm({ searchParams }: { searchParams: { c?: string
       <main>
         <div className="eyebrow fade">{t(loc, "crm.title")}</div>
         <section className="hero" style={{ marginTop: 8 }}>
-          <div className="fade"><div className="big"><CountUp value={Math.round(total)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.profit", { n: cs.length }) }} /></div>
-          <div className="fade d1"><div className="big" style={{ color: "var(--fg2)" }}><CountUp value={Math.round(collect)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.toCollect", { overdue: fmtMoney(loc, overdue) }) }} /></div>
+          <div className="fade"><div className="big md"><CountUp value={Math.round(total)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.profit", { n: cs.length }) }} /></div>
+          <div className="fade d1"><div className="big md" style={{ color: "var(--fg2)" }}><CountUp value={Math.round(collect)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.toCollect", { overdue: fmtMoney(loc, overdue) }) }} /></div>
         </section>
         <section className="grid2 section">
           <div className="list fade">
@@ -43,7 +43,7 @@ export default async function Crm({ searchParams }: { searchParams: { c?: string
             <div className="kv">{sel.client.contacts.map((c) => [<div key={c.name + "a"}>{c.name} · {t(loc, `role.${c.role}`)}</div>, <div key={c.name + "b"}>{c.phone}<br /><span style={{ color: "var(--fg2)", fontSize: 13 }}>{c.email}</span></div>])}</div>
             <div className="eyebrow" style={{ marginTop: 32 }}>{t(loc, "crm.orders")}</div>
             {sel.trips.slice(0, 8).map((r) => (
-              <Link key={r.id} className="row" href={`/trips/${r.id}`} style={{ gridTemplateColumns: "1.4fr 1fr 1fr" }}>
+              <Link key={r.id} className="row r3" href={`/trips/${r.id}`}>
                 <div><div className="t">{r.title}</div><div className="m">{fmtDate(loc, r.date)} · {r.vehicle.name}{r.invoiceNo ? ` · ${r.invoiceNo}` : ""}</div></div>
                 <div className={`v ${r.p.profit < 0 ? "neg" : "pos"}`}>{fmtMoney(loc, r.p.profit)}</div>
                 <div style={{ textAlign: "right" }}><span className={`badge ${r.active ? "acc" : BADGE[r.payment]}`}>{r.active ? t(loc, "trip.active") : t(loc, `pay.${r.payment}`)}</span></div>

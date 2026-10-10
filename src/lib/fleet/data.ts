@@ -178,7 +178,7 @@ function buildFills(): FillUp[] {
       const prev = out.filter((f) => f.truckId === t.id).slice(-1)[0];
       const km = Math.round(pump.kmStart + 360);
       const litres = Math.round((km * t.normalL100) / 100);
-      out.push({ id: `${t.id}-today`, truckId: t.id, time: `${DEMO_DAY}T${minToHHMM(pump.start + 8)}`, station: `${BRANDS[ti % BRANDS.length]} ${nearestWaypoint(t, at).name} (traseu)`, stationAt: at, gpsAt: at, litres, priceLei: Math.round(litres * 7.31 * 100) / 100, odometerKm: (prev?.odometerKm ?? 0) + km, card: CARDS[ti % CARDS.length] });
+      out.push({ id: `${t.id}-today`, truckId: t.id, time: `${DEMO_DAY}T${minToHHMM(pump.start + 8)}`, station: `${BRANDS[ti % BRANDS.length]} ${nearestWaypoint(t, at).name}`, stationAt: at, gpsAt: at, litres, priceLei: Math.round(litres * 7.31 * 100) / 100, odometerKm: (prev?.odometerKm ?? 0) + km, card: CARDS[ti % CARDS.length] });
     }
   });
   return out.sort((a, b) => a.time.localeCompare(b.time));

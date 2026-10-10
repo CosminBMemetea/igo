@@ -22,7 +22,7 @@ export default async function Invoices({ searchParams }: { searchParams: { trip?
         <div className="eyebrow fade">{t(loc, "inv.title")}</div>
         <h1 className="h1 fade">{sel.invoiceNo}</h1>
         <p className="sub fade d1">{t(loc, "inv.sub")}</p>
-        <section className="grid2 section" style={{ gridTemplateColumns: "1.3fr 1fr", marginTop: 40 }}>
+        <section className="grid2 inv section" style={{ marginTop: 40 }}>
           <div className="paper fade d1">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
               <div><div style={{ letterSpacing: ".3em", fontWeight: 500 }}>QUERRA TRANS SRL</div><div style={{ color: "#8a8c92", marginTop: 6 }}>RO 41234567 · J05/1234/2019<br />Oradea</div></div>
@@ -51,9 +51,8 @@ export default async function Invoices({ searchParams }: { searchParams: { trip?
         </section>
         <section className="section">
           {inv.slice(0, 14).map((r) => (
-            <Link key={r.id} href={`/invoices?trip=${r.id}`} className="row" style={{ gridTemplateColumns: "1fr 1.4fr 1fr 1fr" }}>
-              <div className="t">{r.invoiceNo}</div>
-              <div><div className="t">{r.title}</div><div className="m">{fmtDate(loc, r.date)} · {d.clients.find((c) => c.id === r.clientId)?.name}</div></div>
+            <Link key={r.id} href={`/invoices?trip=${r.id}`} className="row r3">
+              <div><div className="t">{r.invoiceNo} · {r.title}</div><div className="m">{fmtDate(loc, r.date)} · {d.clients.find((c) => c.id === r.clientId)?.name}</div></div>
               <div className="v">{fmtMoney(loc, r.revenue)}</div>
               <div style={{ textAlign: "right" }}><span className={`badge ${BADGE[r.payment]}`}>{t(loc, `pay.${r.payment}`)}</span></div>
             </Link>

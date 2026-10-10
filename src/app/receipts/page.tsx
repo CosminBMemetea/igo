@@ -32,7 +32,7 @@ export default async function Receipts() {
           {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead })), ...fills.slice(0, 16).map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: haversineKm(f.gpsAt, f.stationAt) <= 5, ai: false }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
-              <div key={f.id} className="row" style={{ gridTemplateColumns: "1.3fr 1fr 1fr 1fr", cursor: "default" }}>
+              <div key={f.id} className="row r4" style={{ cursor: "default" }}>
                 <div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div>
                 <div className="v">{fmtNum(loc, f.litres)} L</div>
                 <div className="v">{fmtMoney(loc, f.amount)}</div>
