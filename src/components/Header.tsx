@@ -49,7 +49,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       ) : null}
     </div>
   );
-  const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : role === "admin" && !firm.blobOk ? <div className="dbbar" role="status">{t(loc, "files.noBlob")}</div> : null;
+  const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : null;
   // fără sesiune (login/înscriere/invitație): pagina are deja logo-ul mare → antetul arată doar limba și tema
   if (!role) return <><header className="top"><span />{prefsBox}</header>{dbBar}</>;
   if (role === "driver") return <><header className="top"><span className="logo"><Logo /></span>{prefsBox}</header>{dbBar}</>;

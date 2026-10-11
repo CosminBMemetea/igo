@@ -19,7 +19,7 @@ async function compress(f: File): Promise<Blob> {
   return f;
 }
 let LOC = "ro-RO";
-const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(LOC, { hour: "2-digit", minute: "2-digit", hour12: false }) : "—");
+const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(LOC, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Bucharest" }) : "—");
 export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial, L, loc }: { loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
   LOC = loc === "en" ? "en-GB" : loc === "pl" ? "pl-PL" : "ro-RO";
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
