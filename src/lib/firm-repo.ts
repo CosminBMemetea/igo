@@ -1,4 +1,4 @@
-// iGo: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
+// Querra Fleet: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
 import type { FleetData } from "./fleet/rules";
 import type { Client, Doc, Trip, Vehicle } from "./fleet/seed";
 import { businessAlerts, sortAlerts, type AppAlert, type DriverFill, type IgoRepository, type Shift } from "./repo";
@@ -9,7 +9,7 @@ export const DEFAULT_L100 = 30;
 const slug = (s: string) => s.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "client";
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-/** Baza de consum a camionului: istoricul cardului de dinainte de iGo (≥ 500 km), altfel consumul normal declarat, altfel 30. */
+/** Baza de consum a camionului: istoricul cardului de dinainte de Querra Fleet (≥ 500 km), altfel consumul normal declarat, altfel 30. */
 export function truckBaseline(t: TruckRow, tx: FuelTxRow[], since: string): { l100: number; kind: "history" | "normal" | "default"; km: number } {
   const h = fillToFill(tx.filter((x) => x.truckId === t.id && x.at < since).map(toR));
   if (h.l100) return { l100: h.l100, kind: "history", km: h.km };

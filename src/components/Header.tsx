@@ -51,11 +51,11 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : null;
   // fără sesiune (login/înscriere/invitație): pagina are deja logo-ul mare → antetul arată doar limba și tema
   if (!role) return <><header className="top"><span />{prefsBox}</header>{dbBar}</>;
-  if (role === "driver") return <><header className="top"><span className="logo"><Logo /><small>by Querra</small></span>{prefsBox}</header>{dbBar}</>;
+  if (role === "driver") return <><header className="top"><span className="logo"><Logo /></span>{prefsBox}</header>{dbBar}</>;
   return (
     <>
       <header className="top">
-        <Link href="/" className="logo" aria-label="iGo"><Logo /><small>by Querra</small></Link>
+        <Link href="/" className="logo" aria-label="Querra Fleet"><Logo /></Link>
         <NavIcons labels={{ home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />
         {prefsBox}
       </header>

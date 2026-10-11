@@ -1,4 +1,4 @@
-// igo: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
+// Querra Fleet: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
 import { tripProfit, savings, sumSavings, type ProfitBreakdown, type Savings } from "./calc";
 import { DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
 import { FUEL_PRICE, type Client, type Parcel, type Trip, type Vehicle, type Zone } from "./fleet/seed";

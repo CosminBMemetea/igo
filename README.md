@@ -1,4 +1,4 @@
-# igo
+# Querra Fleet
 
 Fleet product for trucks, agricultural machinery and vans. The owner sees two numbers first: **Economie %** (fuel saved vs the baseline) and **Profit pe cursă** (revenue − diesel − tolls − driver − other).
 

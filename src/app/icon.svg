@@ -1,12 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <title>iGo</title>
+  <title>Querra Fleet</title>
   <rect width="512" height="512" rx="112" fill="#0b0b0c"/>
-  <g transform="translate(-14 -26)">
-    <g fill="none" stroke="#fff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M130 252v118"/>
-      <path d="M273.4 266.6A62 62 0 1 0 292 310h-50"/>
-    </g>
-    <circle cx="130" cy="196" r="22" fill="#fff"/>
-    <path fill="#fff" fill-rule="evenodd" d="M372 396 L326 322 A55 55 0 1 1 418 322 Z M372 268 a21 21 0 1 0 0.01 0 Z"/>
+  <g transform="translate(14 8)">
+    <circle cx="232" cy="232" r="128" fill="none" stroke="#fff" stroke-width="36"/>
+    <path d="M262 300 C300 356 340 380 392 380" fill="none" stroke="#fff" stroke-width="36" stroke-linecap="round"/>
+    <circle cx="402" cy="380" r="50" fill="#3B82F6" opacity=".22"/>
+    <circle cx="402" cy="380" r="27" fill="#3B82F6"/>
   </g>
 </svg>

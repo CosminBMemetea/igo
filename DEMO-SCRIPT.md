@@ -1,4 +1,4 @@
-# iGo — scenariu demo (10 minute) pentru un patron de firmă de transport
+# Querra Fleet — scenariu demo (10 minute) pentru un patron de firmă de transport
 
 Prod: https://igo-kappa.vercel.app · date FICTIVE (firma demo, 8 camioane + 3 utilaje + 1 utilitară, ziua demo 15.10.2026, ora 14:00).
 Cifrele de mai jos sunt cele afișate acum; dacă diferă cu puțin, contează ecranul.
@@ -15,7 +15,7 @@ Pregătire (înainte de întâlnire): deschide https://igo-kappa.vercel.app/logi
 | 5:30 | „Cardul de motorină e un haos.” | `/import` (cont propriu, nu demo) **sau** spune: „trageți CSV-ul DKV/OMV/MOL/Shell/E100 aici” | Recunoaște formatul singur, leagă cardurile de camioane, nu dublează la reimport, rulează regulile pe ultimele 90 de zile → primele anomalii în prima oră. (Pe firma demo pagina îți spune să oprești „Date demo”.) |
 | 6:30 | „Cât mă costă hârtiile și amenzile?” | `/documents` | ITP, RCA, CASCO, rovinietă, tahograf: ce expiră în 30 de zile, cu roșu. O amendă evitată ≈ 3.000 lei + o zi de camion oprit. |
 | 7:30 | Șoferul: „nu vreau aplicații complicate” | Pe telefon: `/driver` | Un ecran: pornește tura, checklist în 4 bife, **Alimentare** cu poza bonului (AI citește litrii și suma). Bonul ajunge la patron în `/receipts`, legat de camion și cursă. |
-| 8:30 | „Cât mă scoate iGo pe lună?” | `/savings` (sau „Toate economiile →” de pe Acasă) | **≈ 20.300 lei (≈ 3.800 €) în 30 de zile** pentru 12 vehicule: motorină față de bază (măsurat), furt prins (măsurat), plus estimări prudente (amenzi, timp de birou 36 h, încasări). **Proiecție 12 luni ≈ 244.000 lei.** Ipotezele sunt pe ecran (curs BNR 5,3414 din 09.10.2026). |
+| 8:30 | „Cât mă scoate Querra Fleet pe lună?” | `/savings` (sau „Toate economiile →” de pe Acasă) | **≈ 20.300 lei (≈ 3.800 €) în 30 de zile** pentru 12 vehicule: motorină față de bază (măsurat), furt prins (măsurat), plus estimări prudente (amenzi, timp de birou 36 h, încasări). **Proiecție 12 luni ≈ 244.000 lei.** Ipotezele sunt pe ecran (curs BNR 5,3414 din 09.10.2026). |
 | 9:15 | „Cât costă / cum încep?” | `/plans` → `/features` | Probă 14 zile, totul deblocat; Start / Pro / Business (prețuri propuse). Pornire: `/signup` → 5 pași ghidați (firmă, camioane, șoferi prin link, documente, CSV card) sau **Asistență Querra** (`/support`) — „o facem împreună în 30 de minute”. |
 
 ## Fraze-cheie

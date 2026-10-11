@@ -1,4 +1,4 @@
-// iGo: schema Postgres (Drizzle). Orice rând de date are firm_id; depozitul filtrează MEREU după el.
+// Querra Fleet: schema Postgres (Drizzle). Orice rând de date are firm_id; depozitul filtrează MEREU după el.
 import { boolean, date, doublePrecision, index, integer, pgTable, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const firms = pgTable("firms", {

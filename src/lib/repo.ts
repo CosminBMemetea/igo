@@ -1,4 +1,4 @@
-// igo: stratul de date. Paginile și API-urile citesc DOAR prin IgoRepository,
+// Querra Fleet: stratul de date. Paginile și API-urile citesc DOAR prin IgoRepository,
 // ca o implementare Postgres (Neon, Frankfurt) să înlocuiască demo-ul fără alte schimbări.
 import { FILLS, TRUCKS, levelSeries, type LevelPoint } from "./fleet/data";
 import { computeAlerts, type FleetData, type RuleId, type Severity } from "./fleet/rules";

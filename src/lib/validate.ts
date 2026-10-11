@@ -1,4 +1,4 @@
-// iGo: validări și normalizări pentru formulare (pure; testate în smoke:tenant).
+// Querra Fleet: validări și normalizări pentru formulare (pure; testate în smoke:tenant).
 export const normEmail = (s: string) => s.trim().toLowerCase();
 export const isEmail = (s: string) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i.test(s);
 /** Telefon: doar cifre și „+” inițial; 07xx… → +407xx…. */

@@ -9,7 +9,7 @@ const ok = (n: string, c: boolean) => { console.log(`${c ? "PASS" : "FAIL"} ${n}
 const SECRET = randomBytes(32).toString("base64url");
 const now = Math.floor(Date.now() / 1000);
 const admin: Session = { role: "admin", email: "a@x.ro", firm: "demo", exp: now + 3600 };
-const user: Session = { role: "user", email: "demo@igo.demo", firm: "demo", exp: now + 3600 };
+const user: Session = { role: "user", email: "demo@querrafleet.demo", firm: "demo", exp: now + 3600 };
 const tok = await signSession(admin, SECRET);
 ok("sesiune validă se verifică", (await verifySession(tok, SECRET))?.role === "admin");
 const [b, s] = tok.split(".");

@@ -1,4 +1,4 @@
-// iGo: ecranul „Economii” — măsurat din datele firmei + proiecție. Ipotezele (estimări) vin din VALUE-PLAN.md §3.
+// Querra Fleet: ecranul „Economii” — măsurat din datele firmei + proiecție. Ipotezele (estimări) vin din VALUE-PLAN.md §3.
 import { sumSavings } from "./calc";
 import type { TripView } from "./query";
 import type { AppAlert } from "./repo";

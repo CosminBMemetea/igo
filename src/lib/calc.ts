@@ -1,4 +1,4 @@
-// igo: formulele de bază. Pure, fără I/O; testate în scripts/smoke-calc.mts.
+// Querra Fleet: formulele de bază. Pure, fără I/O; testate în scripts/smoke-calc.mts.
 // Vezi CONCEPT.md §4.
 
 export interface TripCosts {

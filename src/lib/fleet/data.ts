@@ -1,5 +1,5 @@
 import ROADS from "./roads.json";
-// igo — DATE DEMO simulate (portate din prototipul /flota din qerradoc), generate determinist (fără backend).
+// Querra Fleet — DATE DEMO simulate (portate din prototipul /flota din qerradoc), generate determinist (fără backend).
 // Toate valorile sunt inventate; nu provin de la niciun camion real.
 
 export type LatLng = [number, number];

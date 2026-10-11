@@ -1,4 +1,4 @@
-// igo: sesiune semnată HMAC-SHA256 (Web Crypto, merge și în middleware edge și în Node).
+// Querra Fleet: sesiune semnată HMAC-SHA256 (Web Crypto, merge și în middleware edge și în Node).
 /** admin = ADMIN_EMAIL (toate firmele); owner = proprietarul firmei; driver = șofer invitat; user = „Intră ca demo”. */
 export type Role = "admin" | "owner" | "driver" | "user";
 export const ROLES: Role[] = ["admin", "owner", "driver", "user"];

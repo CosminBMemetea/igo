@@ -1,4 +1,4 @@
-// iGo: import CSV card carburant. Pur (fără I/O), testat în smoke:fuel.
+// Querra Fleet: import CSV card carburant. Pur (fără I/O), testat în smoke:fuel.
 // Detectează separatorul, formatul (DKV, OMV/Routex, MOL, Shell, E100, generic) și coloanele; numere și date RO/PL/EN.
 
 export type Source = "dkv" | "omv" | "mol" | "shell" | "e100" | "generic";

@@ -1,4 +1,4 @@
-// igo: reguli de acces (pure, testate în smoke:auth). Folosite de middleware.
+// Querra Fleet: reguli de acces (pure, testate în smoke:auth). Folosite de middleware.
 import type { Session } from "./session";
 import type { PlanState } from "./features";
 

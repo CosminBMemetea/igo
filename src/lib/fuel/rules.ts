@@ -1,4 +1,4 @@
-// iGo: reguli anti-furt / consum pe datele firmei (CSV card + bonuri șofer + poziții GPS). Pure; testate în smoke:fuel.
+// Querra Fleet: reguli anti-furt / consum pe datele firmei (CSV card + bonuri șofer + poziții GPS). Pure; testate în smoke:fuel.
 import type { Severity } from "../fleet/rules";
 
 export type FirmRule = "peste-capacitate" | "l100-mare" | "consum-peste-normal" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend" | "card-fara-camion";

@@ -1,4 +1,4 @@
-// iGo: ce firmă vede cererea curentă. Rolul/firma vin DOAR din antetele puse de middleware după verificarea sesiunii.
+// Querra Fleet: ce firmă vede cererea curentă. Rolul/firma vin DOAR din antetele puse de middleware după verificarea sesiunii.
 import { cookies, headers } from "next/headers";
 import { demoRepo, type IgoRepository } from "./repo";
 import { FirmRepository } from "./firm-repo";

@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { tenant } from "@/lib/tenant";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"], weight: ["200", "300", "400", "500", "600"], variable: "--font-inter", display: "swap" });
-export const metadata: Metadata = { title: "iGo", manifest: "/manifest.webmanifest", description: "iGo: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
+export const metadata: Metadata = { title: "Querra Fleet", manifest: "/manifest.webmanifest", description: "Querra Fleet: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b0b0c" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

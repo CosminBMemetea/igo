@@ -1,4 +1,4 @@
-// igo: asistentul. Modelul (Groq) DOAR alege o funcție; cifrele și textul le construim aici din date.
+// Querra Fleet: asistentul. Modelul (Groq) DOAR alege o funcție; cifrele și textul le construim aici din date.
 import { fmtDate, fmtMoney, fmtNum, fmtPct, t, type Locale, type MsgKey } from "./i18n";
 import { clientSummaries, monthSummary, tripViews, vehicleSummary } from "./query";
 import type { AppAlert } from "./repo";

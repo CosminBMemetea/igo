@@ -1,4 +1,4 @@
-// iGo: importul CSV pe server — parsare, potrivire card/plăcuță → camion, deduplicare, salvare.
+// Querra Fleet: importul CSV pe server — parsare, potrivire card/plăcuță → camion, deduplicare, salvare.
 import { createHash } from "node:crypto";
 import { parseFuelCsv, txKey, SOURCE_NAME, type FuelRow, type Mapping } from "./parse";
 import { normPlate } from "../validate";

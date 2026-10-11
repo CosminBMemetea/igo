@@ -1,4 +1,4 @@
-// igo: DATE DEMO (inventate, deterministe). Nu provin de la vehicule sau clienți reali.
+// Querra Fleet: DATE DEMO (inventate, deterministe). Nu provin de la vehicule sau clienți reali.
 import { DEMO_DAY, TRUCKS, mulberry32, routeTotalKm, type LatLng } from "./data";
 
 export type VehicleKind = "truck" | "agri" | "van";
@@ -26,7 +26,7 @@ export const FUEL_PRICE = 7.3;
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 // ---------- vehicule ----------
-/** Baza = consumul de dinainte de igo (din istoricul cardului, 60–90 zile). Demo: ~11–14% peste consumul actual. */
+/** Baza = consumul de dinainte de Querra Fleet (din istoricul cardului, 60–90 zile). Demo: ~11–14% peste consumul actual. */
 const TRUCK_BASE: Record<string, number> = { bh21qrt: 32.0, cj08qrt: 33.1, tm33qrt: 33.4, b120qrt: 34.6, ar45qrt: 33.0, bh77qrt: 31.4, cj52qrt: 34.2, bv19qrt: 32.6 };
 export const VEHICLES: Vehicle[] = [
   ...TRUCKS.map((t): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model, driver: t.driver, baselineRate: TRUCK_BASE[t.id], per100: true, tankL: t.tankL })),
@@ -94,7 +94,7 @@ function buildTrips(): Trip[] {
       const ageDays = 15 - day;
       const client = CLIENTS.find((c) => c.id === clientId)!;
       const payment: Trip["payment"] = ageDays > client.payDays ? "overdue" : ageDays > 10 ? "paid" : "due";
-      out.push({ id: `${t.id}-${pad(day)}`, vehicleId: t.id, clientId, type: "transport", date, title, km, hours: r1(km / 64), ha: 0, units: km, revenue, litres, fuelPrice: FUEL_PRICE, tolls, driver: days * 450, other: Math.round(km * 0.55), actualRate, active: false, payment, invoiceNo: `IGO-2026-${String(inv++).padStart(4, "0")}`, tariffNote: `${rate} lei/km` });
+      out.push({ id: `${t.id}-${pad(day)}`, vehicleId: t.id, clientId, type: "transport", date, title, km, hours: r1(km / 64), ha: 0, units: km, revenue, litres, fuelPrice: FUEL_PRICE, tolls, driver: days * 450, other: Math.round(km * 0.55), actualRate, active: false, payment, invoiceNo: `QF-2026-${String(inv++).padStart(4, "0")}`, tariffNote: `${rate} lei/km` });
     }
     // cursa de azi = traseul din harta live
     const kmToday = Math.round(routeTotalKm(t));
@@ -102,7 +102,7 @@ function buildTrips(): Trip[] {
     out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId: CLIENTS[ti % 4].id, type: "transport", date: DEMO_DAY, title: t.routeName, km: kmToday, hours: r1(kmToday / 64), ha: 0, units: kmToday, revenue: Math.round((kmToday * 8.1) / 10) * 10, litres: Math.round((kmToday * ar) / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(kmToday * (t.id === "tm33qrt" || t.id === "bh77qrt" ? 1.78 : 0.42)), driver: Math.max(1, Math.ceil(kmToday / 450)) * 450, other: Math.round(kmToday * 0.55), actualRate: ar, active: true, payment: "due", invoiceNo: null, tariffNote: "8.1 lei/km" });
   });
   // cursă pe pierdere: retur gol, taxe mari
-  out.push({ id: "tm33qrt-milano", vehicleId: "tm33qrt", clientId: "transitalia", type: "transport", date: "2026-10-13", title: "Timișoara → Milano", km: 1180, hours: 18.4, ha: 0, units: 1180, revenue: 9800, litres: 352, fuelPrice: FUEL_PRICE, tolls: 2140, driver: 3 * 450, other: 649 + 3510, actualRate: 29.8, active: false, payment: "overdue", invoiceNo: "IGO-2026-0118", tariffNote: "9.800 lei / cursă" });
+  out.push({ id: "tm33qrt-milano", vehicleId: "tm33qrt", clientId: "transitalia", type: "transport", date: "2026-10-13", title: "Timișoara → Milano", km: 1180, hours: 18.4, ha: 0, units: 1180, revenue: 9800, litres: 352, fuelPrice: FUEL_PRICE, tolls: 2140, driver: 3 * 450, other: 649 + 3510, actualRate: 29.8, active: false, payment: "overdue", invoiceNo: "QF-2026-0118", tariffNote: "9.800 lei / cursă" });
   // utilaje agricole: lucrări pe parcele
   const AG: [string, string, JobType, number, number, number, number, number][] = [
     // vehicul, parcelă, tip, L/ha real, ha/h, tarif lei/ha, uzură lei/ha, zi
@@ -119,12 +119,12 @@ function buildTrips(): Trip[] {
     const p = PARCELS.find((x) => x.id === pid)!;
     const ha = day === 15 ? Math.round(p.ha * 0.45) : p.ha;
     const hours = r1(ha / haph);
-    out.push({ id: `${vid}-${pid}-${pad(day)}`, vehicleId: vid, clientId: "agrogepiu", type, date: `2026-10-${pad(day)}`, title: p.name, km: 0, hours, ha, units: ha, revenue: ha * tariff, litres: Math.round(ha * lha), fuelPrice: FUEL_PRICE, tolls: 0, driver: Math.round(hours * 60), other: ha * wear, actualRate: lha, active: day === 15, payment: day < 10 ? "paid" : "due", invoiceNo: day === 15 ? null : `IGO-2026-A${pad(day)}`, parcelId: pid, tariffNote: `${tariff} lei/ha` });
+    out.push({ id: `${vid}-${pid}-${pad(day)}`, vehicleId: vid, clientId: "agrogepiu", type, date: `2026-10-${pad(day)}`, title: p.name, km: 0, hours, ha, units: ha, revenue: ha * tariff, litres: Math.round(ha * lha), fuelPrice: FUEL_PRICE, tolls: 0, driver: Math.round(hours * 60), other: ha * wear, actualRate: lha, active: day === 15, payment: day < 10 ? "paid" : "due", invoiceNo: day === 15 ? null : `QF-2026-A${pad(day)}`, parcelId: pid, tariffNote: `${tariff} lei/ha` });
   }
   // utilitara
   for (let day = 2; day <= 14; day += 3) {
     const km = 140 + day * 3;
-    out.push({ id: `bh05qrt-${pad(day)}`, vehicleId: "bh05qrt", clientId: "dedeman", type: "transport", date: `2026-10-${pad(day)}`, title: "Oradea · local", km, hours: 7, ha: 0, units: km, revenue: 1450, litres: Math.round(km * 0.104), fuelPrice: FUEL_PRICE, tolls: 0, driver: 380, other: Math.round(km * 0.3), actualRate: 10.4, active: false, payment: day < 5 ? "paid" : "due", invoiceNo: `IGO-2026-U${pad(day)}`, tariffNote: "1.450 lei / zi" });
+    out.push({ id: `bh05qrt-${pad(day)}`, vehicleId: "bh05qrt", clientId: "dedeman", type: "transport", date: `2026-10-${pad(day)}`, title: "Oradea · local", km, hours: 7, ha: 0, units: km, revenue: 1450, litres: Math.round(km * 0.104), fuelPrice: FUEL_PRICE, tolls: 0, driver: 380, other: Math.round(km * 0.3), actualRate: 10.4, active: false, payment: day < 5 ? "paid" : "due", invoiceNo: `QF-2026-U${pad(day)}`, tariffNote: "1.450 lei / zi" });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date) || b.revenue - a.revenue);
 }

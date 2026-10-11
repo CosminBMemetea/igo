@@ -1,14 +1,19 @@
-/** iGo, varianta 1: wordmark subțire, punctul lui „i” = punct GPS albastru (#3B82F6). Vector desenat de mână, fără font. */
-export function Logo({ height = 26, title = "iGo" }: { height?: number; title?: string }) {
+/** Querra Fleet: semnul Q (coada = drum, cu punct GPS albastru #3B82F6) + wordmark „Querra” normal, „Fleet” subțire în accent. */
+export function QMark({ size = 24 }: { size?: number }) {
   return (
-    <svg className="wordmark" viewBox="2 3 86 42" height={height} role="img" aria-label={title}>
-      <g fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 20v22" />
-        <path d="M45.9 18.1A14 14 0 1 0 50 28h-11" />
-        <circle cx="72" cy="31" r="11" />
-      </g>
-      <circle cx="8" cy="10.5" r="3.8" fill="#3B82F6" />
-      <circle cx="8" cy="10.5" r="7" fill="#3B82F6" opacity=".18" />
+    <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden>
+      <circle cx="22" cy="21" r="14" fill="none" stroke="currentColor" strokeWidth="3.2" />
+      <path d="M24 26.5 C27.5 32 31 34.5 36 34.5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+      <circle cx="38.5" cy="34.5" r="6.5" fill="#3B82F6" opacity=".2" />
+      <circle cx="38.5" cy="34.5" r="3.6" fill="#3B82F6" />
     </svg>
+  );
+}
+export function Logo({ height = 26, title = "Querra Fleet" }: { height?: number; title?: string }) {
+  return (
+    <span className="wordmark" role="img" aria-label={title} style={{ fontSize: height * 0.72, gap: height * 0.28 }}>
+      <QMark size={height} />
+      <span className="wm"><b>Querra</b> <i>Fleet</i></span>
+    </span>
   );
 }

@@ -1,4 +1,4 @@
-// igo: matricea de funcții și planuri. O singură sursă, refolosibilă în aplicație.
+// Querra Fleet: matricea de funcții și planuri. O singură sursă, refolosibilă în aplicație.
 // Prețurile sunt PROPUNERI (aliniate cu /workspace/fleet-research/competitors-pricing.md), fără TVA.
 // Text: "ro|en|pl" (tri() din @/lib/i18n). Portat din fleet-concept/mockups/features.js; ACESTA e acum sursa de adevăr.
 export type PlanId = "start" | "pro" | "business";

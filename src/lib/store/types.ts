@@ -1,4 +1,4 @@
-// iGo: depozitul de conturi și date per firmă. Toate metodele cu date primesc firmId și filtrează după el.
+// Querra Fleet: depozitul de conturi și date per firmă. Toate metodele cu date primesc firmId și filtrează după el.
 export type Currency = "RON" | "EUR";
 export type DocType = "itp" | "rca" | "casco" | "vignette" | "tacho";
 export const DOC_TYPES: DocType[] = ["itp", "rca", "casco", "vignette", "tacho"];
