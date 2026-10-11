@@ -1,20 +1,19 @@
-// Neon (host *.neon.tech): driverul serverless Neon (WebSocket, pool). Altfel (Postgres local/CI): node-postgres.
-import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
-import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+// Neon / any remote Postgres over HTTPS: driverul HTTP Neon (fetch, fără WebSocket). Local/CI: node-postgres.
+import { neon } from "@neondatabase/serverless";
+import { drizzle as drizzleNeonHttp } from "drizzle-orm/neon-http";
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import ws from "ws";
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzlePg<typeof schema>>;
 const g = globalThis as unknown as { __igoDb?: Db };
 export const dbConfigured = () => !!process.env.DATABASE_URL;
+const isLocal = (url: string) => /@(localhost|127\.0\.0\.1|\[::1\])(:|\/)/.test(url) || /host=\/|@\/|localhost/.test(new URL(url).hostname || "localhost");
 export function db(): Db {
   if (g.__igoDb) return g.__igoDb;
   const url = process.env.DATABASE_URL!;
-  if (/\.neon\.tech\b/.test(url)) {
-    neonConfig.webSocketConstructor = ws;
-    g.__igoDb = drizzleNeon(new NeonPool({ connectionString: url }), { schema }) as unknown as Db;
+  if (!isLocal(url) && process.env.DB_DRIVER !== "pg") {
+    g.__igoDb = drizzleNeonHttp(neon(url), { schema }) as unknown as Db;
   } else {
     g.__igoDb = drizzlePg(new pg.Pool({ connectionString: url, max: 5 }), { schema });
   }
