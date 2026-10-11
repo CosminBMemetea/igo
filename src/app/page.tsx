@@ -11,12 +11,24 @@ import { AskBox } from "@/components/AskBox";
 import FleetMap from "@/components/FleetMap";
 import { Gate } from "@/components/Gate";
 import { TripRows } from "./TripRows";
+import { EmptyState } from "@/components/EmptyState";
+import { setupState } from "@/lib/setup";
+import { store } from "@/lib/store";
 import { AlertList } from "./AlertList";
 
 export const dynamic = "force-dynamic";
 export default async function Home() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
+  const canSetup = d.tn.role === "owner" || d.tn.role === "admin";
+  const st = !d.demo && d.tn.firm && canSetup ? await setupState(store(), d.tn.firm.id) : null;
+  const welcome = st && !st.complete ? (
+    <Link href={`/setup${st.next ? `?step=${st.next}` : ""}`} className="welcome fade">
+      <div><div className="eyebrow">{t(loc, "home.welcome", { firm: d.tn.firm!.name })}</div><div style={{ fontSize: 22, fontWeight: 300, marginTop: 8 }}>{t(loc, "home.setupLeft", { n: 5 - st.n })}</div><div className="pbar"><i style={{ width: `${(st.n / 5) * 100}%` }} /></div></div>
+      <span className="btn pri">{t(loc, "home.setupGo")}</span>
+    </Link>
+  ) : null;
+  if (!d.demo && !d.trips.length) return <main>{welcome}<EmptyState kind="home" loc={loc} canSetup={canSetup} /></main>;
   const m = monthSummary(d.views);
   const live = d.live();
   const km = d.views.filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = d.views.filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);
@@ -24,6 +36,7 @@ export default async function Home() {
   const moving = live.filter((x) => x.status === "moving" || x.status === "working").length;
   return (
     <main>
+      {welcome}
       <section className="hero">
         <div className="fade">
           <div className="eyebrow">{t(loc, "home.savings")}</div>
@@ -39,17 +52,17 @@ export default async function Home() {
       <Gate feature="ai" prefs={prefs} inline>
         <AskBox loc={loc} labels={{ ph: t(loc, "ask.ph"), fallback: t(loc, "ask.fallback"), ai: t(loc, "ask.ai"), error: t(loc, "ask.error") }} />
       </Gate>
-      <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
+      {live.length ? <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
         <FleetMap mode="strip" vehicles={live} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         <span className="chip" style={{ left: "5%", top: "10%", zIndex: 500 }}><b>{t(loc, "home.now")}</b><span>{moving} / {live.length}</span></span>
-      </Link>
+      </Link> : null}
       <section className="section">
         <div className="head"><h2>{t(loc, "home.recent")}</h2><Link className="link" href="/trips">{t(loc, "home.all")}</Link></div>
         <TripRows rows={recent} loc={loc} />
       </section>
       <section className="section">
         <div className="head"><h2>{t(loc, "home.attn")}</h2><Link className="link" href="/alerts">{t(loc, "home.allAlerts")}</Link></div>
-        <AlertList alerts={d.alerts.slice(0, 3)} vehicles={d.vehicles} loc={loc} />
+        {d.alerts.length ? <AlertList alerts={d.alerts.slice(0, 3)} vehicles={d.vehicles} loc={loc} /> : <p className="sub">{t(loc, "home.noAlerts")}</p>}
       </section>
     </main>
   );

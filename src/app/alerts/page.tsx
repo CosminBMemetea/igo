@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { t, type MsgKey } from "@/lib/i18n";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function Alerts() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
+  if (!d.demo && !d.alerts.length) return <main><EmptyState kind="alerts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const rules = [...RULES, "loss", "agri-over", "doc-expiry"];
   return (
     <Gate feature="alertsCenter" prefs={prefs}>

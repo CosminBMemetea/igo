@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { repo } from "@/lib/repo";
+import { tenant } from "@/lib/tenant";
 import { TOOLS, detectLocale, parseToolCall, render, ruleIntent, type ToolCall } from "@/lib/ask";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { groqChat } from "@/lib/groq";
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const q = typeof body.question === "string" ? body.question.trim() : "";
   if (!q || q.length > 500) return NextResponse.json({ error: "question" }, { status: 400 });
   const loc: Locale = detectLocale(q, isLocale(body.locale) ? body.locale : "ro");
-  const r = repo();
+  const r = (await tenant()).repo;
   const [vehicles, trips, clients, alerts] = await Promise.all([r.vehicles(), r.trips(), r.clients(), r.alerts()]);
   const data = { vehicles, trips, clients, alerts };
   let reason: string | null = null;

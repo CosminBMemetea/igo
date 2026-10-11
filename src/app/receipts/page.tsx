@@ -1,6 +1,7 @@
+import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
-import { repo } from "@/lib/repo";
+import { tenant } from "@/lib/tenant";
 import { load } from "@/lib/data";
 import { fmtDate, fmtMoney, fmtNum, t } from "@/lib/i18n";
 import { haversineKm } from "@/lib/fleet/data";
@@ -10,8 +11,9 @@ export const dynamic = "force-dynamic";
 export default async function Receipts() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
-  const fd = await repo().fleetData();
-  const driver = await repo().driverFills();
+  if (!d.demo && !(await d.tn.repo.driverFills()).length) return <main><EmptyState kind="receipts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
+  const fd = await (await tenant()).repo.fleetData();
+  const driver = await (await tenant()).repo.driverFills();
   const fills = fd.fills.filter((f) => f.time >= "2026-10-01").sort((a, b) => b.time.localeCompare(a.time));
   const fuel = fills.reduce((s, f) => s + f.priceLei, 0);
   const tolls = d.views.filter((v) => !v.active && v.date >= "2026-10-01").reduce((s, v) => s + v.tolls, 0);

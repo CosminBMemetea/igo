@@ -22,7 +22,7 @@ export default async function VehiclePage({ params }: { params: { id: string } }
   const agri = v.kind === "agri";
   const unit = agri ? t(loc, "veh.lha") : t(loc, "veh.l100");
   const myParcels = d.parcels.filter((p) => s.trips.some((x) => x.parcelId === p.id));
-  const liveV = d.live().find((x) => x.id === v.id)!;
+  const liveV = d.live().find((x) => x.id === v.id);
   const body = (
     <main>
       <section className="vehicle">
@@ -52,9 +52,9 @@ export default async function VehiclePage({ params }: { params: { id: string } }
         )}
         <div className="card fade d2"><div className="k">{t(loc, "veh.saved")}</div><div className="n pos">{fmtMoney(loc, s.savings.savedLei)}</div><div className="d">({fmtNum(loc, v.baselineRate, 1)} − {fmtNum(loc, s.actualRate, 1)}) × {fmtNum(loc, s.units)} {agri ? "ha" : "km"}{v.per100 ? " / 100" : ""} × {fmtNum(loc, 7.3, 2)}</div></div>
       </section>
-      <Link href={`/live?v=${v.id}`} className="mapstrip" style={{ display: "block" }}>
+      {liveV ? <Link href={`/live?v=${v.id}`} className="mapstrip" style={{ display: "block" }}>
         <FleetMap mode="strip" vehicles={[liveV]} zones={d.zones} parcels={agri ? myParcels : []} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
-      </Link>
+      </Link> : null}
       <section className="section">
         <div className="head"><h2>{t(loc, agri ? "veh.jobs" : "veh.trips")}</h2><span className="link">{t(loc, "veh.profit")}: {fmtMoney(loc, s.profit)}</span></div>
         {agri ? <p className="sub" style={{ marginBottom: 12 }}>{t(loc, "veh.parcels")}: {myParcels.map((p) => `${p.name} (${p.ha} ha, ${t(loc, `crop.${p.crop}`)})`).join(" · ")}</p> : null}

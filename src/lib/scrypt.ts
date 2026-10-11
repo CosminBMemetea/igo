@@ -1,4 +1,9 @@
-import { scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+const N = 16384, R = 8, P = 1;
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16);
+  return `scrypt:${N}:${R}:${P}:${salt.toString("base64")}:${scryptSync(password, salt, 32, { N, r: R, p: P }).toString("base64")}`;
+}
 // Format: scrypt:N:r:p:salt(b64):hash(b64) (fără „$”, ca să nu fie expandat în .env) — generat cu `npm run hash-password`.
 export function verifyPassword(password: string, stored: string | undefined): boolean {
   if (!stored) return false;

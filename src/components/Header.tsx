@@ -6,7 +6,8 @@ import { Icon } from "./icons";
 import { NavIcons } from "./NavIcons";
 import { Logo } from "./Logo";
 
-export function Header({ prefs }: { prefs: Prefs }) {
+export interface FirmCtx { name: string | null; demo: boolean; demoMode: boolean; canToggle: boolean; dbOk: boolean }
+export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   const { loc, theme, plan, trialLeft, role, adminView, previewPlan, view } = prefs;
   const prefsBox = (
     <div className="prefs">
@@ -14,9 +15,18 @@ export function Header({ prefs }: { prefs: Prefs }) {
       <a className="ico" href={`?theme=${theme === "dark" ? "light" : "dark"}`} aria-label={t(loc, "pref.theme")}><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
       {role ? (
         <details className="acct">
-          <summary className="ico" aria-label={t(loc, "acct.menu")}><span className={`rbadge${role === "admin" ? " adm" : ""}`}>{role === "admin" ? t(loc, "acct.admin") : t(loc, "acct.user")}</span></summary>
+          <summary className="ico" aria-label={t(loc, "acct.menu")}><span className={`rbadge${role === "admin" ? " adm" : ""}`}>{t(loc, `role.${role}`)}</span></summary>
           <div className="menu">
-            <div className="who">{prefs.email}</div>
+            <div className="who">{prefs.email}{firm.name ? <><br /><span className="firmtag">{firm.name}</span></> : null}</div>
+            {firm.canToggle ? (
+              <form action="/api/firm/demo" method="post" className="demoTgl">
+                <input type="hidden" name="on" value={firm.demoMode ? "0" : "1"} />
+                <div><div style={{ fontSize: 14 }}>{t(loc, "firm.demoData")}</div><p className="hint" style={{ margin: "2px 0 0" }}>{firm.demoMode ? t(loc, "firm.demoOnHint") : t(loc, "firm.demoOffHint")}</p></div>
+                <button className={`switch${firm.demoMode ? " on" : ""}`} role="switch" aria-checked={firm.demoMode} aria-label={t(loc, "firm.demoData")} />
+              </form>
+            ) : null}
+            {role === "owner" || role === "admin" ? <Link className="btn sec sm" href={role === "admin" ? "/admin" : "/setup"}>{role === "admin" ? t(loc, "adm.title") : t(loc, "set.title")}</Link> : null}
+            {role !== "admin" ? <Link className="btn sec sm" href="/support">{t(loc, "sup.title")}</Link> : null}
             {role === "admin" ? (
               <>
                 <div className="eyebrow">{t(loc, "acct.mode")}</div>
@@ -37,7 +47,8 @@ export function Header({ prefs }: { prefs: Prefs }) {
       ) : null}
     </div>
   );
-  if (!role) return <header className="top"><span className="logo"><Logo /><small>by Querra</small></span>{prefsBox}</header>;
+  const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : null;
+  if (!role || role === "driver") return <><header className="top"><span className="logo"><Logo /><small>by Querra</small></span>{prefsBox}</header>{dbBar}</>;
   return (
     <>
       <header className="top">
@@ -51,7 +62,8 @@ export function Header({ prefs }: { prefs: Prefs }) {
           <span>{t(loc, "trial.banner", { n: trialLeft })}</span><span className="go">{t(loc, "trial.choose")}</span>
         </Link>
       ) : null}
-      <div className="demo"><i></i><span>{t(loc, "app.demo")}{role === "admin" ? ` · ${adminView ? t(loc, "acct.adminAll") : t(loc, "acct.asUser", { plan: plan === "trial" ? t(loc, "feat.trial") : PLANS[plan].name })}` : plan !== "trial" ? ` · ${PLANS[plan].name}` : ""}</span></div>
+      {dbBar}
+      {firm.demo ? <div className="demo"><i></i><span>{t(loc, "app.demo")}{role === "admin" ? ` · ${adminView ? t(loc, "acct.adminAll") : t(loc, "acct.asUser", { plan: plan === "trial" ? t(loc, "feat.trial") : PLANS[plan].name })}` : plan !== "trial" ? ` · ${PLANS[plan].name}` : ""}</span></div> : null}
     </>
   );
 }

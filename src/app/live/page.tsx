@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { mapLabels } from "@/lib/labels";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function Live({ searchParams }: { searchParams: { v?: string } }) {
   const prefs = getPrefs();
   const d = await load();
+  if (!d.demo) return <main><EmptyState kind="live" loc={prefs.loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const live = d.live();
   const initial = live.some((x) => x.id === searchParams.v) ? searchParams.v : "bh21qrt";
   return (

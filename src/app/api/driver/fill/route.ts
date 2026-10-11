@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { repo } from "@/lib/repo";
+import { tenant } from "@/lib/tenant";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const MAX_PHOTO = 6 * 1024 * 1024;
 export async function POST(req: Request) {
   const fd = await req.formData().catch(() => null);
   if (!fd) return NextResponse.json({ error: "form" }, { status: 400 });
-  const r = repo();
+  const r = (await tenant()).repo;
   const vehicleId = String(fd.get("vehicleId") ?? "");
   const litres = Number(fd.get("litres")), odometerKm = Number(fd.get("odometerKm")), amountRaw = String(fd.get("amount") ?? "").trim();
   const v = (await r.vehicles()).find((x) => x.id === vehicleId);

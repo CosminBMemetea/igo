@@ -1,6 +1,8 @@
 // igo: sesiune semnată HMAC-SHA256 (Web Crypto, merge și în middleware edge și în Node).
-export type Role = "admin" | "user";
-export interface Session { role: Role; email: string; firm: string; exp: number }
+/** admin = ADMIN_EMAIL (toate firmele); owner = proprietarul firmei; driver = șofer invitat; user = „Intră ca demo”. */
+export type Role = "admin" | "owner" | "driver" | "user";
+export const ROLES: Role[] = ["admin", "owner", "driver", "user"];
+export interface Session { role: Role; email: string; firm: string; exp: number; uid?: string; trial?: string }
 export const SESSION_COOKIE = "igo-session";
 export const SESSION_TTL_S = 60 * 60 * 24 * 7;
 
@@ -16,20 +18,26 @@ async function key(secret: string) {
 }
 export const hasSecret = (secret: string | undefined): secret is string => !!secret && secret.length >= 32;
 
-export async function signSession(s: Session, secret: string): Promise<string> {
-  const body = b64u(enc.encode(JSON.stringify(s)));
+export async function signSession(s: Session, secret: string): Promise<string> { return signToken(s, secret); }
+/** Token generic semnat (sesiune, invitație șofer). */
+export async function signToken(payload: object, secret: string): Promise<string> {
+  const body = b64u(enc.encode(JSON.stringify(payload)));
   const sig = await crypto.subtle.sign("HMAC", await key(secret), enc.encode(body));
   return `${body}.${b64u(sig)}`;
 }
 export async function verifySession(token: string | undefined, secret: string | undefined, nowS = Math.floor(Date.now() / 1000)): Promise<Session | null> {
+  const s = await verifyToken<Session>(token, secret, nowS);
+  return s && ROLES.includes(s.role) && typeof s.firm === "string" ? s : null;
+}
+export async function verifyToken<T extends { exp: number }>(token: string | undefined, secret: string | undefined, nowS = Math.floor(Date.now() / 1000)): Promise<T | null> {
   if (!token || !hasSecret(secret)) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   try {
     const ok = await crypto.subtle.verify("HMAC", await key(secret), fromB64u(sig), enc.encode(body));
     if (!ok) return null;
-    const s = JSON.parse(new TextDecoder().decode(fromB64u(body))) as Session;
-    if ((s.role !== "admin" && s.role !== "user") || typeof s.exp !== "number" || s.exp < nowS) return null;
+    const s = JSON.parse(new TextDecoder().decode(fromB64u(body))) as T;
+    if (typeof s.exp !== "number" || s.exp < nowS) return null;
     return s;
   } catch { return null; }
 }

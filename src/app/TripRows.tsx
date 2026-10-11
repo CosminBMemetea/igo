@@ -9,7 +9,7 @@ export function TripRows({ rows, loc }: { rows: TripView[]; loc: Locale }) {
         <Link key={r.id} className={`row fade d${Math.min(4, i)}`} href={`/trips/${r.id}`}>
           <div>
             <div className="t">{r.vehicle.kind === "agri" ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</div>
-            <div className="m">{r.vehicle.name} · {r.vehicle.driver} · {fmtDate(loc, r.date)}{r.ha ? ` · ${r.ha} ha` : ""}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
+            <div className="m">{[r.vehicle.name, r.vehicle.driver, fmtDate(loc, r.date)].filter(Boolean).join(" · ")}{r.ha ? ` · ${r.ha} ha` : ""}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
           </div>
           <div className="hide"><div className="v">{fmtMoney(loc, r.revenue)}</div><div className="l">{t(loc, "col.revenue")}</div></div>
           <div className="hide"><div className="v">{fmtMoney(loc, r.p.costs)}</div><div className="l">{t(loc, "col.costs")}</div></div>

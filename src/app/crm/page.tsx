@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
@@ -11,6 +12,7 @@ const BADGE = { paid: "ok", due: "warn", overdue: "bad" } as const;
 export default async function Crm({ searchParams }: { searchParams: { c?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
+  if (!d.demo && !d.clients.length) return <main><EmptyState kind="crm" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const cs = clientSummaries(d.clients, d.views);
   const sel = cs.find((x) => x.client.id === searchParams.c) ?? cs[0];
   const total = cs.reduce((s, x) => s + x.profit, 0), collect = cs.reduce((s, x) => s + x.toCollect, 0), overdue = cs.reduce((s, x) => s + x.overdue, 0);

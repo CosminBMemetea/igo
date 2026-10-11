@@ -10,6 +10,10 @@ export async function middleware(req: NextRequest) {
   const s = await verifySession(req.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET);
   const d = decide(path, s);
   if (d.kind === "unauthorized") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (d.kind === "forbidden") {
+    if (path.startsWith("/api/")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    const u = req.nextUrl.clone(); u.pathname = d.home; u.search = ""; return NextResponse.redirect(u);
+  }
   if (d.kind === "login") { const u = req.nextUrl.clone(); u.pathname = "/login"; u.search = ""; return NextResponse.redirect(u); }
   const set: [string, string][] = [];
   for (const [q, c, re] of [...PUBLIC_PARAMS, ...(canSwitchPlan(s) ? ADMIN_PARAMS : [])]) {
@@ -18,8 +22,12 @@ export async function middleware(req: NextRequest) {
   }
   if (!req.cookies.get("igo-trial-start")) set.push(["igo-trial-start", new Date().toISOString().slice(0, 10)]);
   const headers = new Headers(req.headers);
-  headers.delete("x-igo-role"); headers.delete("x-igo-email");
-  if (s) { headers.set("x-igo-role", s.role); headers.set("x-igo-email", s.email); }
+  for (const h of ["x-igo-role", "x-igo-email", "x-igo-firm", "x-igo-uid", "x-igo-trial"]) headers.delete(h);
+  if (s) {
+    headers.set("x-igo-role", s.role); headers.set("x-igo-email", encodeURIComponent(s.email)); headers.set("x-igo-firm", s.firm);
+    if (s.uid) headers.set("x-igo-uid", s.uid);
+    if (s.trial) headers.set("x-igo-trial", s.trial);
+  }
   const jar = new Map(req.cookies.getAll().map((x) => [x.name, x.value]));
   for (const [k, v] of set) jar.set(k, v);
   headers.set("cookie", [...jar].map(([k, v]) => `${k}=${v}`).join("; "));

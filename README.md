@@ -11,7 +11,20 @@ Fleet product for trucks, agricultural machinery and vans. The owner sees two nu
 - Groq (server only, `GROQ_API_KEY`) for the assistant (tool-calling) and receipt reading (vision). Without the key both fall back: rule-based answers, manual receipt entry.
 
 ## Data layer
-Pages and API routes read only through `IgoRepository` (`src/lib/repo.ts`). The demo implementation is in-memory; a Postgres (Neon Frankfurt) implementation slots in behind the same interface.
+Pages and API routes read only through `IgoRepository` (`src/lib/repo.ts`), resolved per request by `tenant()` (`src/lib/tenant.ts`):
+
+- **Demo firm**: `DemoRepository` (seeded, in-memory, read-only sandbox). Used by the "Intră ca demo" user, by the admin until he opens a firm in `/admin`, and by an owner whose firm has **Date demo** switched on.
+- **Real firm**: `FirmRepository` over a `Store` (`src/lib/store`): `PgStore` (Postgres via Drizzle; Neon serverless driver for `*.neon.tech`, node-postgres otherwise) when `DATABASE_URL` is set, else `MemStore` (in-memory fallback; admins see a banner). Every query is filtered by `firm_id`; documents/trips also check that the truck belongs to the same firm.
+
+Schema: `src/db/schema.ts` (firms, users, invites, trucks, documents, trips, support_requests). Migrations: `drizzle/` (generate with `npm run db:generate`, apply with `npm run db:migrate`; `npm run build` applies them first and skips when `DATABASE_URL` is missing).
+
+### Multi-tenant flow
+- `/signup`: owner email + password (scrypt) + firm name (CUI optional) → empty firm on the 14-day trial → `/setup`.
+- `/setup`: 5 steps with progress (firm + currency, trucks, driver invites, documents with expiry, first trip / fuel-card CSV placeholder).
+- Driver invite: a signed (HMAC, `SESSION_SECRET`) single-use link valid 14 days → `/join` → phone + 6-digit PIN → driver session limited to `/driver`. Drivers sign in later with phone + PIN.
+- `/support` ("Asistență Querra") stores a request; the admin sees all firms and requests at `/admin`.
+
+Local Postgres test: `TEST_DATABASE_URL=postgres://… npm run build && npm run smoke:tenant` (the test database is wiped).
 
 | Path | What |
 |---|---|

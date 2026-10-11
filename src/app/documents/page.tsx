@@ -1,6 +1,7 @@
+import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
-import { repo } from "@/lib/repo";
+import { tenant } from "@/lib/tenant";
 import { fmtDate, fmtNum, t, type MsgKey } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 
@@ -8,10 +9,11 @@ export const dynamic = "force-dynamic";
 const DEMO = Date.UTC(2026, 9, 15);
 export default async function Documents({ searchParams }: { searchParams: { tab?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
-  const r = repo();
+  const tn = await tenant(), r = tn.repo;
   const [docs, vehicles, services] = await Promise.all([r.docs(), r.vehicles(), r.services()]);
+  if (!tn.demo && !docs.length) return <main><EmptyState kind="docs" loc={loc} canSetup={tn.role === "owner" || tn.role === "admin"} /></main>;
   const tab = ["vehicles", "drivers", "trips", "service"].includes(searchParams.tab ?? "") ? searchParams.tab! : "vehicles";
-  const days = (iso: string) => Math.round((Date.parse(iso) - DEMO) / 86400000);
+  const days = (iso: string) => Math.round((Date.parse(iso) - (tn.demo ? DEMO : Date.now())) / 86400000);
   const soon = docs.filter((d) => d.expires && days(d.expires) <= 30).sort((a, b) => a.expires!.localeCompare(b.expires!));
   const vname = (id: string) => vehicles.find((v) => v.id === id)?.name ?? id;
   const scope = { vehicles: "vehicle", drivers: "driver", trips: "trip" } as const;

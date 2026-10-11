@@ -1,7 +1,7 @@
 // smoke:rules: fiecare regulă de furt (portată din qerradoc /flota) se declanșează pe datele demo; camioanele curate rămân curate.
 import { computeAlerts, whyText, type RuleId } from "../src/lib/fleet/rules";
 import { TRUCKS } from "../src/lib/fleet/data";
-import { repo } from "../src/lib/repo";
+import { demoRepo as repo } from "../src/lib/repo";
 import { alertWhy } from "../src/lib/alert-text";
 const r = repo();
 const d = await r.fleetData();

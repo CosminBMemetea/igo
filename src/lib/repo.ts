@@ -28,7 +28,7 @@ export interface IgoRepository {
 
 const DOC_WINDOW_DAYS = 30, AGRI_OVER = 0.05;
 const DEMO_DATE = Date.UTC(2026, 9, 15);
-export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[]): AppAlert[] {
+export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[], now = DEMO_DATE): AppAlert[] {
   const out: AppAlert[] = [];
   for (const tr of trips) {
     const v = vehicles.find((x) => x.id === tr.vehicleId)!;
@@ -42,7 +42,7 @@ export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[]):
   }
   for (const d of docs) {
     if (!d.expires) continue;
-    const days = Math.round((Date.parse(d.expires) - DEMO_DATE) / 86400000);
+    const days = Math.round((Date.parse(d.expires) - now) / 86400000);
     if (days <= DOC_WINDOW_DAYS) {
       const v = vehicles.find((x) => x.id === d.ownerId);
       out.push({ id: `doc-${d.id}`, rule: "doc-expiry", vehicleId: v?.id ?? "", time: `${d.expires}T00:00`, severity: days <= 7 ? "high" : "medium", theft: false, params: { doc: d.type, owner: v?.name ?? d.ownerId, date: d.expires, days } });
@@ -51,7 +51,7 @@ export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[]):
   return out;
 }
 
-class DemoRepository implements IgoRepository {
+export class DemoRepository implements IgoRepository {
   private fills: DriverFill[] = [];
   private shifts = new Map<string, Shift>();
   async vehicles() { return VEHICLES; }
@@ -81,9 +81,10 @@ class DemoRepository implements IgoRepository {
   async shift(vehicleId: string) { return this.shifts.get(vehicleId) ?? null; }
 }
 
-// Un singur depozit per proces (demo în memorie; pe Vercel se resetează la cold start).
+export const sortAlerts = (a: AppAlert[]) => { const rank: Record<Severity, number> = { high: 0, medium: 1, low: 2 }; return a.sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time)); };
+// Firma demo: un singur depozit per proces, doar citire (șoferul poate trimite bonuri de test: sandbox în memorie).
 const g = globalThis as unknown as { __igoRepo?: IgoRepository };
-export function repo(): IgoRepository {
+export function demoRepo(): IgoRepository {
   if (!g.__igoRepo) g.__igoRepo = new DemoRepository();
   return g.__igoRepo;
 }

@@ -1,6 +1,6 @@
 // smoke:ask: rezerva pe reguli alege funcția corectă în ro/en/pl, iar răspunsul are cifre reale, fără placeholder-e.
 import { detectLocale, parseToolCall, render, ruleIntent, type ToolName } from "../src/lib/ask";
-import { repo } from "../src/lib/repo";
+import { demoRepo as repo } from "../src/lib/repo";
 const r = repo();
 const data = { vehicles: await r.vehicles(), trips: await r.trips(), clients: await r.clients(), alerts: await r.alerts() };
 const cases: [string, ToolName, string][] = [

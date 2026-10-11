@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
@@ -11,6 +12,7 @@ export default async function Invoices({ searchParams }: { searchParams: { trip?
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
   const inv = d.views.filter((v) => v.invoiceNo).sort((a, b) => b.date.localeCompare(a.date));
+  if (!inv.length) return <main><EmptyState kind="invoices" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const sel = inv.find((v) => v.id === searchParams.trip) ?? inv[0];
   const client = d.clients.find((c) => c.id === sel.clientId)!;
   const reverse = EU.has(client.country);

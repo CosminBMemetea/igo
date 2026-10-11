@@ -40,5 +40,15 @@ const stored = `scrypt:16384:8:1:${salt.toString("base64")}:${hash.toString("bas
 ok("parolă corectă", verifyPassword("parola-de-test-123", stored));
 ok("parolă greșită", !verifyPassword("parola-de-test-124", stored));
 ok("hash lipsă/stricat", !verifyPassword("x", undefined) && !verifyPassword("x", "abc") && !verifyPassword("x", "scrypt:1:1:1:aa:bb"));
+// roluri de firmă (owner/driver)
+const owner: Session = { role: "owner", email: "o@x.ro", firm: "f_1", uid: "u_1", exp: now + 3600 };
+const driver: Session = { role: "driver", email: "+40744123456", firm: "f_1", uid: "u_2", exp: now + 3600 };
+ok("sesiune owner/driver se verifică", (await verifySession(await signSession(owner, SECRET), SECRET))?.firm === "f_1" && (await verifySession(await signSession(driver, SECRET), SECRET))?.role === "driver");
+ok("rol necunoscut → respins", (await verifySession(await signSession({ ...owner, role: "root" as never }, SECRET), SECRET)) === null);
+ok("/signup și /join publice", decide("/signup", null).kind === "allow" && decide("/join", null).kind === "allow");
+ok("șofer: doar /driver și API-ul lui", decide("/driver", driver).kind === "allow" && decide("/api/driver/fill", driver).kind === "allow" && decide("/", driver).kind === "forbidden" && decide("/api/trips", driver).kind === "forbidden");
+ok("setup doar owner/admin", decide("/setup", owner).kind === "allow" && decide("/setup", admin).kind === "allow" && decide("/setup", user).kind === "forbidden" && decide("/api/setup/truck", driver).kind === "forbidden");
+ok("/admin doar admin", decide("/admin", admin).kind === "allow" && decide("/admin", owner).kind === "forbidden" && decide("/api/admin/firm", owner).kind === "forbidden");
+ok("owner nu poate schimba planul", !canSwitchPlan(owner) && !canSwitchPlan(driver));
 if (fail) { console.error(`smoke:auth: ${fail} eșec(uri)`); process.exit(1); }
 console.log("smoke:auth OK");

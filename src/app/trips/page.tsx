@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { monthSummary } from "@/lib/query";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function Trips() {
   const { loc } = getPrefs();
   const d = await load();
+  if (!d.demo && !d.trips.length) return <main><EmptyState kind="trips" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const m = monthSummary(d.views);
   return (
     <main>
