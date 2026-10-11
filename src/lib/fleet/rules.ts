@@ -9,7 +9,9 @@ export interface FleetData { trucks: Truck[]; fills: FillUp[]; levels: Record<st
 export const KM_MISMATCH = 0.2;
 
 export type Severity = "high" | "medium" | "low";
-export type RuleId = "km-nepotrivit" | "card-fara-camion" | "scadere-parcat" | "peste-capacitate" | "consum-peste-medie" | "consum-peste-normal";
+export type RuleId = "km-nepotrivit" | "card-fara-camion" | "scadere-parcat" | "peste-capacitate" | "consum-peste-medie" | "consum-peste-normal"
+  // reguli pe datele firmei (src/lib/fuel/rules.ts)
+  | "l100-mare" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend";
 export const RULES: RuleId[] = ["km-nepotrivit", "card-fara-camion", "scadere-parcat", "peste-capacitate", "consum-peste-medie", "consum-peste-normal"];
 /** Parametri structurați; textul „De ce” se generează pe limbă la afișare. */
 export type AlertParams = Record<string, string | number>;
@@ -97,9 +99,9 @@ export function computeAlerts(d: FleetData): Alert[] {
 }
 
 // ---------- text pe limbă ----------
-const DECIMALS: Record<string, number> = { realL100: 1, declaredL100: 1, l100: 1, avg: 1, normal: 1 };
+const DECIMALS: Record<string, number> = { realL100: 1, declaredL100: 1, l100: 1, avg: 1, normal: 1, ref: 1, litres: 1, litres1: 1, litres2: 1, total: 1, hours: 1 };
 const DATE_KEYS = new Set(["time", "fromTime"]);
-const PLAIN = new Set(["station", "card", "plate", "from", "to"]);
+const PLAIN = new Set(["station", "card", "plate", "from", "to", "odoFrom", "odoTo"]);
 export function whyText(loc: Locale, a: Pick<Alert, "rule" | "params">): string {
   const vars: Record<string, string> = {};
   for (const [k, v] of Object.entries(a.params)) {

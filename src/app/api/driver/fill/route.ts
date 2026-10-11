@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { localNow } from "@/lib/validate";
 import { tenant } from "@/lib/tenant";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,6 @@ export async function POST(req: Request) {
   const photo = fd.get("photo");
   if (photo instanceof File && photo.size > MAX_PHOTO) return NextResponse.json({ error: "photo too large" }, { status: 413 });
   const amount = amountRaw ? Number(amountRaw) : null;
-  const row = await r.addDriverFill({ vehicleId, time: new Date().toISOString().slice(0, 16), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, station: String(fd.get("station") ?? "").slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
+  const row = await r.addDriverFill({ vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, station: String(fd.get("station") ?? "").slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
   return NextResponse.json({ ok: true, fill: row, overTank: litres > v.tankL });
 }

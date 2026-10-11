@@ -1,0 +1,59 @@
+// iGo: importul CSV pe server — parsare, potrivire card/plăcuță → camion, deduplicare, salvare.
+import { createHash } from "node:crypto";
+import { parseFuelCsv, txKey, SOURCE_NAME, type FuelRow, type Mapping } from "./parse";
+import { normPlate } from "../validate";
+import { newId, type NewFuelTx, type Store } from "../store/types";
+
+export const MAX_CSV_BYTES = 3 * 1024 * 1024;
+export const hashRow = (r: FuelRow) => createHash("sha256").update(txKey(r)).digest("base64url").slice(0, 32);
+const plateKey = (p: string | null) => (p ? (normPlate(p) ?? p).replace(/\s/g, "") : null);
+
+export async function analyze(s: Store, firmId: string, text: string, mapping?: Mapping, assign: Record<string, string> = {}) {
+  const p = parseFuelCsv(text, mapping);
+  const [trucks, cards, existing] = await Promise.all([s.trucks(firmId), s.fuelCards(firmId), s.fuel(firmId, { limit: 50000 })]);
+  const byPlate = new Map(trucks.map((t) => [plateKey(t.plate)!, t.id]));
+  const byCard = new Map(cards.filter((c) => c.truckId).map((c) => [c.card, c.truckId!]));
+  const known = new Set(existing.map((x) => x.hash));
+  const learned = new Map<string, string>(); // card → camion, aflat din plăcuța din același rând
+  const rows = p.rows.map((r) => {
+    const fromCard = r.card ? assign[r.card] || byCard.get(r.card) : undefined;
+    const fromPlate = byPlate.get(plateKey(r.plate) ?? "");
+    const truckId = fromCard ?? fromPlate ?? null;
+    if (r.card && !fromCard && fromPlate) learned.set(r.card, fromPlate);
+    return { r, truckId, hash: hashRow(r) };
+  });
+  const seen = new Set<string>();
+  let dupes = 0;
+  for (const x of rows) { if (known.has(x.hash) || seen.has(x.hash)) dupes++; seen.add(x.hash); }
+  const unknownMap = new Map<string, { card: string | null; plate: string | null; n: number; litres: number }>();
+  for (const x of rows) if (!x.truckId) {
+    const k = x.r.card ?? `p:${x.r.plate}`;
+    const u = unknownMap.get(k) ?? { card: x.r.card, plate: x.r.plate, n: 0, litres: 0 };
+    u.n++; u.litres = Math.round((u.litres + x.r.litres) * 10) / 10; unknownMap.set(k, u);
+  }
+  const ats = p.rows.map((r) => r.at).sort();
+  return {
+    parsed: p, rows, learned,
+    summary: {
+      source: p.source, sourceName: SOURCE_NAME[p.source], headers: p.headers, mapping: p.mapping, confident: p.confident, missing: p.missing,
+      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, newRows: p.rows.length - dupes, dupes,
+      matched: rows.filter((x) => x.truckId).length, unknown: [...unknownMap.values()], from: ats[0] ?? null, to: ats[ats.length - 1] ?? null,
+      trucks: trucks.map((t) => ({ id: t.id, plate: t.plate })),
+    },
+  };
+}
+export type Summary = Awaited<ReturnType<typeof analyze>>["summary"];
+
+export async function commit(s: Store, firmId: string, text: string, filename: string, mapping?: Mapping, assign: Record<string, string> = {}) {
+  const trucks = new Set((await s.trucks(firmId)).map((t) => t.id));
+  const clean = Object.fromEntries(Object.entries(assign).filter(([, v]) => trucks.has(v)));
+  const a = await analyze(s, firmId, text, mapping, clean);
+  if (a.parsed.missing.length) return { ok: false as const, summary: a.summary };
+  for (const [card, truckId] of Object.entries(clean)) await s.setCard(firmId, card, truckId);
+  for (const [card, truckId] of a.learned) if (!clean[card]) await s.setCard(firmId, card, truckId);
+  const imp = { id: newId("m") };
+  const rows: NewFuelTx[] = a.rows.map(({ r, truckId, hash }) => ({ truckId, source: a.parsed.source, importId: imp.id, hash, card: r.card, plate: r.plate, at: r.at, station: r.station, country: r.country, product: r.product, litres: r.litres, amount: r.amount, currency: r.currency, odometer: r.odometer, lat: r.lat, lng: r.lng, userId: null, photoName: null, photoSize: null, aiRead: false }));
+  const res = await s.addFuel(firmId, rows);
+  await s.addImport(firmId, { id: imp.id, source: a.parsed.source, filename: filename.slice(0, 120), rows: a.parsed.total, added: res.added, dupes: res.dupes, skipped: a.parsed.total - a.parsed.rows.length });
+  return { ok: true as const, summary: a.summary, added: res.added, dupes: res.dupes, importId: imp.id, unknown: a.summary.unknown.filter((u) => !(u.card && clean[u.card])).length };
+}

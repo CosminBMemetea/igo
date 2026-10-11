@@ -3,6 +3,7 @@ import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { t, type MsgKey } from "@/lib/i18n";
 import { RULES } from "@/lib/fleet/rules";
+import { FIRM_RULES } from "@/lib/fuel/rules";
 import { Gate } from "@/components/Gate";
 import { AlertList } from "../AlertList";
 
@@ -11,7 +12,7 @@ export default async function Alerts() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
   if (!d.demo && !d.alerts.length) return <main><EmptyState kind="alerts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
-  const rules = [...RULES, "loss", "agri-over", "doc-expiry"];
+  const rules = d.demo ? [...RULES, "loss", "agri-over", "doc-expiry"] : [...FIRM_RULES, "loss", "doc-expiry"];
   return (
     <Gate feature="alertsCenter" prefs={prefs}>
       <main>

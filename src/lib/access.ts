@@ -7,7 +7,7 @@ export const isPublic = (path: string) => PUBLIC_PATHS.some((r) => r.test(path))
 /** Șoferul vede doar interfața lui (+ asistență). */
 export const DRIVER_PATHS = [/^\/driver$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/];
 /** Doar proprietar/admin. */
-export const OWNER_PATHS = [/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//];
+export const OWNER_PATHS = [/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];
 export type Decision = { kind: "allow" } | { kind: "login" } | { kind: "unauthorized" } | { kind: "forbidden"; home: string };
 export function decide(path: string, s: Session | null): Decision {

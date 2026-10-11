@@ -1,5 +1,5 @@
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
-import { newId, today, type DocRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type DocRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 export class MemStore implements Store {
   readonly persistent = false;
   private F: FirmRow[] = []; private U: UserRow[] = []; private I: InviteRow[] = []; private T: TruckRow[] = [];
@@ -26,4 +26,32 @@ export class MemStore implements Store {
   async trips(firmId: string) { return this.R.filter((x) => x.firmId === firmId).sort((a, b) => b.date.localeCompare(a.date)); }
   async addSupport(s: Omit<SupportRow, "id" | "status" | "createdAt">) { const r: SupportRow = { ...s, id: newId("s"), status: "new", createdAt: new Date().toISOString() }; this.S.push(r); return { ...r }; }
   async support() { return [...this.S].reverse(); }
+  private C: (CardRow & { firmId: string })[] = []; private X: FuelTxRow[] = []; private M: ImportRow[] = []; private H = new Map<string, ShiftRow>(); private P: (PosRow & { firmId: string })[] = [];
+  private own = (firmId: string, truckId: string | null) => truckId == null || this.T.some((x) => x.id === truckId && x.firmId === firmId);
+  async fuelCards(firmId: string) { return this.C.filter((c) => c.firmId === firmId).map(({ card, truckId }) => ({ card, truckId })); }
+  async setCard(firmId: string, card: string, truckId: string | null) {
+    if (!this.own(firmId, truckId)) throw new Error("truck");
+    const c = this.C.find((x) => x.firmId === firmId && x.card === card);
+    if (c) c.truckId = truckId; else this.C.push({ firmId, card, truckId });
+    let n = 0; for (const x of this.X) if (x.firmId === firmId && x.card === card) { x.truckId = truckId; n++; }
+    return n;
+  }
+  async addFuel(firmId: string, rows: NewFuelTx[]) {
+    let added = 0, dupes = 0;
+    for (const r of rows) {
+      if (!this.own(firmId, r.truckId)) throw new Error("truck");
+      if (this.X.some((x) => x.firmId === firmId && x.hash === r.hash)) { dupes++; continue; }
+      this.X.push({ ...r, id: newId("x"), firmId }); added++;
+    }
+    return { added, dupes };
+  }
+  async fuel(firmId: string, o: { truckId?: string; source?: string; limit?: number } = {}) {
+    return this.X.filter((x) => x.firmId === firmId && (!o.truckId || x.truckId === o.truckId) && (!o.source || x.source === o.source)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, o.limit ?? 5000);
+  }
+  async addImport(firmId: string, i: Omit<ImportRow, "id" | "firmId" | "createdAt"> & { id?: string }) { const r = { ...i, id: i.id ?? newId("m"), firmId, createdAt: new Date().toISOString() }; this.M.push(r); return r; }
+  async imports(firmId: string) { return this.M.filter((m) => m.firmId === firmId).reverse(); }
+  async setShift(firmId: string, s: ShiftRow) { if (!this.own(firmId, s.truckId)) throw new Error("truck"); this.H.set(`${firmId}:${s.truckId}`, s); return s; }
+  async shift(firmId: string, truckId: string) { return this.H.get(`${firmId}:${truckId}`) ?? null; }
+  async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }
+  async positions(firmId: string, sinceAt = "") { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt).map(({ firmId: _f, ...p }) => p); }
 }

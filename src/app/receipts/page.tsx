@@ -1,3 +1,4 @@
+import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
@@ -11,7 +12,33 @@ export const dynamic = "force-dynamic";
 export default async function Receipts() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
-  if (!d.demo && !(await d.tn.repo.driverFills()).length) return <main><EmptyState kind="receipts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
+  if (!d.demo) {
+    const tx = d.tn.firm ? await store().fuel(d.tn.firm.id, { limit: 80 }) : [];
+    if (!tx.length) return <main><EmptyState kind="receipts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
+    const lei = tx.reduce((a, x) => a + (x.amount ?? 0), 0), L = tx.reduce((a, x) => a + x.litres, 0);
+    return (
+      <Gate feature="receipts" prefs={prefs}>
+        <main>
+          <div className="eyebrow fade">{t(loc, "rc.title")}</div>
+          <h1 className="h1 fade">{fmtMoney(loc, lei)}</h1>
+          <p className="sub fade d1">{t(loc, "rc.firmSub", { n: tx.length, litres: fmtNum(loc, L) })}</p>
+          <section className="section">
+            {tx.map((x) => {
+              const v = d.vehicles.find((y) => y.id === x.truckId);
+              return (
+                <div key={x.id} className="row r4" style={{ cursor: "default" }}>
+                  <div><div className="t">{x.station || "—"}</div><div className="m">{fmtDate(loc, x.at)} · {v?.name ?? x.card ?? "—"}</div></div>
+                  <div className="v">{fmtNum(loc, x.litres, 1)} L</div>
+                  <div className="v">{x.amount != null ? fmtMoney(loc, x.amount) : "—"}</div>
+                  <div style={{ textAlign: "right" }}>{v ? <span className={`badge ${x.source === "driver" ? "acc" : "ok"}`}>{x.source === "driver" ? t(loc, "rc.fromDriver") : t(loc, "rc.fromCard")}</span> : <Link href="/import" className="badge warn">{t(loc, "imp.unknown")}</Link>}</div>
+                </div>
+              );
+            })}
+          </section>
+        </main>
+      </Gate>
+    );
+  }
   const fd = await (await tenant()).repo.fleetData();
   const driver = await (await tenant()).repo.driverFills();
   const fills = fd.fills.filter((f) => f.time >= "2026-10-01").sort((a, b) => b.time.localeCompare(a.time));

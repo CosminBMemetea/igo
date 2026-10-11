@@ -26,6 +26,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
               </form>
             ) : null}
             {role === "owner" || role === "admin" ? <Link className="btn sec sm" href={role === "admin" ? "/admin" : "/setup"}>{role === "admin" ? t(loc, "adm.title") : t(loc, "set.title")}</Link> : null}
+            {role === "owner" || (role === "admin" && !firm.demo) ? <Link className="btn sec sm" href="/import">{t(loc, "imp.title")}</Link> : null}
             {role !== "admin" ? <Link className="btn sec sm" href="/support">{t(loc, "sup.title")}</Link> : null}
             {role === "admin" ? (
               <>

@@ -29,3 +29,8 @@ export const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.is
 export const clip = (v: FormDataEntryValue | null, n: number) => String(v ?? "").trim().slice(0, n);
 export const PASSWORD_MIN = 8;
 export const isPin = (s: string) => /^\d{6}$/.test(s);
+/** Ora locală (Europe/Bucharest) „YYYY-MM-DDTHH:MM”, ca în exporturile de card. */
+export function localNow(d = new Date(), tz = "Europe/Bucharest"): string {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}

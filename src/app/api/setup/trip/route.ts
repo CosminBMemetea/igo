@@ -16,6 +16,6 @@ export async function POST(req: Request) {
   if (!truck) return back(req, "/setup?step=5&e=trip");
   // fără litri: estimăm din consumul normal (marcat în pagină ca estimare)
   const L = litres ?? Math.round((km! * (truck.normalL100 ?? DEFAULT_L100)) / 100);
-  await s.addTrip(f.id, { truckId, client, title, date, km: km!, revenue: revenue!, litres: L, fuelPrice: fuelPrice!, tolls: tolls ?? 0, driverCost: driverCost ?? 0, other: 0 });
+  await s.addTrip(f.id, { truckId, client, title, date, km: km!, revenue: revenue!, litres: L, fuelPrice: fuelPrice!, tolls: tolls ?? 0, driverCost: driverCost ?? 0, other: 0, litresSource: litres == null ? "estimate" : "manual" });
   return back(req, "/setup?step=5&ok=1");
 }

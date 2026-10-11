@@ -30,7 +30,7 @@ export default async function TripDetail({ params }: { params: { id: string } })
     <main>
       <div className="eyebrow fade">{t(loc, agri ? "job.detail" : "trip.detail")}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
       <h1 className="h1 fade">{agri ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</h1>
-      <p className="sub fade d1">{r.vehicle.name} · {r.vehicle.driver} · {fmtDate(loc, r.date, true)} · {agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`} · {client.name} · {r.tariffNote.replace("lei", t(loc, "cur"))}</p>
+      <p className="sub fade d1">{[r.vehicle.name, r.vehicle.driver, fmtDate(loc, r.date, true), agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`, client.name, r.tariffNote.replace("lei", t(loc, "cur"))].filter(Boolean).join(" · ")}</p>
       <section className="hero" style={{ marginTop: 56 }}>
         <div className="fade d1"><div className="eyebrow">{t(loc, "col.profit")}</div><div className={`big ${p.profit < 0 ? "neg" : "pos"}`}><CountUp value={Math.round(p.profit)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub">{fmtPct(loc, p.margin)} {t(loc, "col.margin")}</p></div>
         <div className="fade d2"><div className="eyebrow">{t(loc, "home.savings")}</div><div className="big"><CountUp value={r.s.pct * 100} d={1} loc={loc} /><small>%</small></div>

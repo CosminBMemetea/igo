@@ -131,7 +131,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
                 <div className="sheet csv">
                   <div className="t">{t(loc, "set.csvTitle")}</div>
                   <p className="sub" style={{ fontSize: 14 }}>{t(loc, "set.csvSub")}</p>
-                  <span className="badge acc">{t(loc, "set.soon")}</span>
+                  <Link className="btn pri sm" href="/import">{t(loc, "imp.open")}</Link>
                 </div>
               </div>
             </>
