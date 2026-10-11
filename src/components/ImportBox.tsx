@@ -1,0 +1,114 @@
+"use client";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Summary } from "@/lib/fuel/import";
+import { FIELDS, REQUIRED, type Field, type Mapping } from "@/lib/fuel/parse";
+
+type L = Record<string, string>;
+const fmt = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
+export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: Record<Field, string> }) {
+  const router = useRouter();
+  const input = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<{ name: string; text: string } | null>(null);
+  const [sum, setSum] = useState<Summary | null>(null);
+  const [mapping, setMapping] = useState<Mapping | undefined>();
+  const [assign, setAssign] = useState<Record<string, string>>({});
+  const [showMap, setShowMap] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [drag, setDrag] = useState(false);
+
+  async function preview(text: string, m?: Mapping) {
+    setBusy(true); setMsg(null);
+    const r = await fetch("/api/import/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, mapping: m }) });
+    setBusy(false);
+    if (!r.ok) { setMsg({ ok: false, text: r.status === 413 ? l.big : l.err }); return; }
+    const s = (await r.json()) as Summary;
+    setSum(s); setMapping(s.mapping); setShowMap(!s.confident);
+  }
+  async function pick(f: File | undefined) {
+    if (!f) return;
+    if (f.size > 3 * 1024 * 1024) { setMsg({ ok: false, text: l.big }); return; }
+    const buf = await f.arrayBuffer();
+    // UTF-8, altfel Windows-1250/1252 (exporturi vechi din Excel)
+    let text = new TextDecoder("utf-8").decode(buf);
+    if (text.includes("\uFFFD")) text = new TextDecoder("windows-1250").decode(buf);
+    setFile({ name: f.name, text }); setAssign({}); setSum(null);
+    await preview(text);
+  }
+  async function go() {
+    if (!file) return;
+    setBusy(true);
+    const r = await fetch("/api/import/commit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: file.text, filename: file.name, mapping, assign }) });
+    setBusy(false);
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j?.ok) { setMsg({ ok: false, text: l.err }); return; }
+    setMsg({ ok: true, text: fmt(l.done, { added: j.added, dupes: j.dupes }) });
+    setFile(null); setSum(null); if (input.current) input.current.value = "";
+    router.refresh();
+  }
+  const setField = (f: Field, v: string) => { const m = { ...mapping }; if (v === "") delete m[f]; else m[f] = +v; setMapping(m); if (file) preview(file.text, m); };
+  return (
+    <div className="imp">
+      <label className={`drop${drag ? " on" : ""}`} onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files[0]); }}>
+        <input ref={input} type="file" accept=".csv,.txt,text/csv" onChange={(e) => pick(e.target.files?.[0])} />
+        <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></svg>
+        <b>{file ? file.name : l.drop}</b>
+        <span>{busy ? l.reading : l.dropHint}</span>
+      </label>
+      {msg ? <p className={`msg ${msg.ok ? "ok" : "err"}`}>{msg.text}</p> : null}
+      {sum ? (
+        <div className="sheet" style={{ marginTop: 18 }}>
+          <div className="ihead">
+            <div><div className="eyebrow">{l.detected}</div><div className="t">{sum.sourceName} · {fmt(l.rows, { n: sum.valid, total: sum.total })}</div></div>
+            <span className={`badge ${sum.confident ? "ok" : "warn"}`}>{sum.confident ? l.sure : l.unsure}</span>
+          </div>
+          <div className="istats">
+            <div><b>{sum.newRows}</b><span>{l.new}</span></div>
+            <div><b>{sum.dupes}</b><span>{l.dupes}</span></div>
+            <div><b>{sum.matched}</b><span>{l.matched}</span></div>
+            <div><b>{sum.total - sum.valid}</b><span>{l.skipped}</span></div>
+          </div>
+          {sum.from ? <p className="hint" style={{ margin: "10px 0 0" }}>{fmt(l.period, { from: sum.from.replace("T", " "), to: sum.to!.replace("T", " ") })}{sum.skipped.nonfuel ? ` · ${fmt(l.nonfuel, { n: sum.skipped.nonfuel })}` : ""}</p> : null}
+          <button type="button" className="link" style={{ marginTop: 14, background: "none", border: 0, padding: 0, cursor: "pointer" }} onClick={() => setShowMap(!showMap)}>{showMap ? l.hideMap : l.showMap}</button>
+          {showMap ? (
+            <div className="map">
+              {!sum.confident ? <p className="msg warn">{sum.missing.length ? fmt(l.missing, { f: sum.missing.map((f) => fieldLabels[f]).join(", ") }) : l.check}</p> : null}
+              <div className="mgrid">
+                {FIELDS.map((f) => (
+                  <label key={f} className="lf"><span>{fieldLabels[f]}{REQUIRED.includes(f) ? " *" : ""}</span>
+                    <select value={mapping?.[f] ?? ""} onChange={(e) => setField(f, e.target.value)}>
+                      <option value="">—</option>
+                      {sum.headers.map((h, i) => <option key={i} value={i}>{h || `#${i + 1}`}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <div className="ptable"><table><thead><tr>{sum.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
+            </div>
+          ) : null}
+          {sum.unknown.length ? (
+            <div style={{ marginTop: 20 }}>
+              <div className="eyebrow">{l.unknown}</div>
+              <p className="hint" style={{ margin: "6px 0 10px" }}>{l.unknownHint}</p>
+              <div className="list">
+                {sum.unknown.map((u) => (
+                  <div key={u.card ?? u.plate ?? ""} className="it" style={{ cursor: "default" }}>
+                    <div style={{ minWidth: 0 }}><div className="t">{u.card ? `${l.card} ${u.card}` : u.plate}</div><div className="m">{fmt(l.unknownMeta, { n: u.n, litres: u.litres })}{u.plate && u.card ? ` · ${u.plate}` : ""}</div></div>
+                    {u.card ? (
+                      <select className="tsel" value={assign[u.card] ?? ""} onChange={(e) => setAssign({ ...assign, [u.card!]: e.target.value })} aria-label={l.assign}>
+                        <option value="">{l.assign}</option>
+                        {sum.trucks.map((t) => <option key={t.id} value={t.id}>{t.plate}</option>)}
+                      </select>
+                    ) : <span className="badge warn">{l.addTruck}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length} onClick={go}>{busy ? l.reading : fmt(l.go, { n: sum.newRows })}</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
