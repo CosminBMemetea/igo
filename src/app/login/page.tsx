@@ -1,6 +1,7 @@
 import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { adminConfigured } from "@/lib/password";
+import { Logo } from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { bad: "acct.bad", disabled: "acct.disabled", nosecret: "acct.nosecret" };
@@ -10,7 +11,7 @@ export default function Login({ searchParams }: { searchParams: { e?: string } }
   const err = searchParams.e && ERR[searchParams.e];
   return (
     <main className="login">
-      <div className="eyebrow fade">igo</div>
+      <div className="fade" style={{ color: "var(--fg)", marginBottom: 18 }}><Logo height={44} /></div>
       <h1 className="h1 fade">{t(loc, "acct.title")}</h1>
       <p className="sub fade d1">{t(loc, "acct.sub")}</p>
       {err ? <p className="msg err">{t(loc, err)}</p> : null}

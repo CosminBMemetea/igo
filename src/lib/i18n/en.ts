@@ -74,7 +74,7 @@ export const en: Record<MsgKey, string> = {
   "ans.client": "Most profitable client: <b>{name}</b>, <b>{profit}</b> from {n} trips. Overdue to collect: <b>{overdue}</b>.",
   "ans.unknown": "I can answer: monthly profit and savings, best/worst trip, a vehicle (e.g. BH 21 QRT), alerts, clients.",
   "ans.noVehicle": "I can't find that vehicle. Try a plate like BH 21 QRT.",
-  "acct.title": "Sign in to igo",
+  "acct.title": "Sign in to iGo",
   "acct.sub": "The admin account or the demo company.",
   "acct.email": "Email",
   "acct.password": "Password",

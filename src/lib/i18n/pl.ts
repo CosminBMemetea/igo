@@ -74,7 +74,7 @@ export const pl: Record<MsgKey, string> = {
   "ans.client": "Najbardziej zyskowny klient: <b>{name}</b>, <b>{profit}</b> z {n} kursów. Po terminie do zebrania: <b>{overdue}</b>.",
   "ans.unknown": "Mogę odpowiedzieć o: zysku i oszczędności w miesiącu, najlepszym/najsłabszym kursie, pojeździe (np. BH 21 QRT), alertach, klientach.",
   "ans.noVehicle": "Nie znajduję pojazdu. Spróbuj numeru jak BH 21 QRT.",
-  "acct.title": "Zaloguj się do igo",
+  "acct.title": "Zaloguj się do iGo",
   "acct.sub": "Konto administratora lub firma demo.",
   "acct.email": "E-mail",
   "acct.password": "Hasło",

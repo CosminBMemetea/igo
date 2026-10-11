@@ -4,6 +4,7 @@ import type { Prefs } from "@/lib/prefs";
 import { PLANS } from "@/lib/features";
 import { Icon } from "./icons";
 import { NavIcons } from "./NavIcons";
+import { Logo } from "./Logo";
 
 export function Header({ prefs }: { prefs: Prefs }) {
   const { loc, theme, plan, trialLeft, role, adminView, previewPlan, view } = prefs;
@@ -36,11 +37,11 @@ export function Header({ prefs }: { prefs: Prefs }) {
       ) : null}
     </div>
   );
-  if (!role) return <header className="top"><span className="logo">igo<small>by Querra</small></span>{prefsBox}</header>;
+  if (!role) return <header className="top"><span className="logo"><Logo /><small>by Querra</small></span>{prefsBox}</header>;
   return (
     <>
       <header className="top">
-        <Link href="/" className="logo">igo<small>by Querra</small></Link>
+        <Link href="/" className="logo" aria-label="iGo"><Logo /><small>by Querra</small></Link>
         <NavIcons labels={{ home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />
         {prefsBox}
       </header>

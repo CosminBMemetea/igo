@@ -74,7 +74,7 @@ export const ro = {
   "ans.client": "Cel mai profitabil client: <b>{name}</b>, <b>{profit}</b> din {n} curse. De încasat întârziat: <b>{overdue}</b>.",
   "ans.unknown": "Pot răspunde la: profit și economie pe lună, cea mai bună/slabă cursă, un vehicul (ex. BH 21 QRT), alerte, clienți.",
   "ans.noVehicle": "Nu găsesc vehiculul. Încearcă un număr ca BH 21 QRT.",
-  "acct.title": "Intră în igo",
+  "acct.title": "Intră în iGo",
   "acct.sub": "Contul de administrator sau demo-ul firmei.",
   "acct.email": "Email",
   "acct.password": "Parolă",

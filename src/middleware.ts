@@ -27,4 +27,4 @@ export async function middleware(req: NextRequest) {
   for (const [k, v] of set) res.cookies.set(k, v, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   return res;
 }
-export const config = { matcher: ["/((?!_next|favicon|icon).*)"] };
+export const config = { matcher: ["/((?!_next|favicon|icon|icons/|apple-icon|manifest).*)"] };

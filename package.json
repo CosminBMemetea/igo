@@ -17,19 +17,26 @@
     "smoke:ask": "tsx scripts/smoke-ask.mts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "drizzle-orm": "^0.44.7",
     "leaflet": "1.9.4",
     "leaflet.markercluster": "1.5.3",
     "next": "14.2.35",
+    "pg": "^8.23.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.12",
     "@types/leaflet.markercluster": "^1.5.4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/ws": "^8.18.2",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "tsx": "^4.19.0",
