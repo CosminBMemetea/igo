@@ -46,7 +46,10 @@ export class FirmRepository implements IgoRepository {
   }
   async parcels() { return []; }
   async zones() { return []; }
-  async docs(): Promise<Doc[]> { return (await this.s.docs(this.firm.id)).map((d) => ({ id: d.id, scope: "vehicle", ownerId: d.truckId, type: d.type, expires: d.expires })); }
+  async docs(): Promise<Doc[]> {
+    const [ds, us] = await Promise.all([this.s.docs(this.firm.id), this.s.users(this.firm.id)]);
+    return ds.map((d) => (d.userId ? { id: d.id, scope: "driver", ownerId: us.find((u) => u.id === d.userId)?.name ?? "—", userId: d.userId, type: d.type, expires: d.expires, dueKm: d.dueKm ?? null, note: d.note ?? null, fileId: d.fileId ?? null } : { id: d.id, scope: "vehicle", ownerId: d.truckId ?? "", type: d.type, expires: d.expires, dueKm: d.dueKm ?? null, note: d.note ?? null, fileId: d.fileId ?? null }));
+  }
   async services() { return []; }
   async fleetData(): Promise<FleetData> { return { trucks: [], fills: [], levels: {} }; }
   async fuelAlerts(): Promise<AppAlert[]> {

@@ -6,13 +6,14 @@ import { Icon } from "./icons";
 import { NavIcons } from "./NavIcons";
 import { Logo } from "./Logo";
 
-export interface FirmCtx { name: string | null; demo: boolean; demoMode: boolean; canToggle: boolean; dbOk: boolean }
+export interface FirmCtx { name: string | null; demo: boolean; demoMode: boolean; canToggle: boolean; dbOk: boolean; unread: number; blobOk: boolean }
 export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   const { loc, theme, plan, trialLeft, role, adminView, previewPlan, view } = prefs;
   const prefsBox = (
     <div className="prefs">
       {LOCALES.map((l) => <a key={l} className={`lang${l === loc ? " on" : ""}`} href={`?lang=${l}`} aria-label={`${t(loc, "pref.lang")}: ${l}`}>{l.toUpperCase()}</a>)}
       <a className="ico" href={`?theme=${theme === "dark" ? "light" : "dark"}`} aria-label={t(loc, "pref.theme")}><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
+      {role ? <Link className="ico bell" href="/notifications" aria-label={t(loc, "ntf.title")}><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0" /></svg>{firm.unread ? <b>{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link> : null}
       {role ? (
         <details className="acct">
           <summary className="ico" aria-label={t(loc, "acct.menu")}><span className={`rbadge${role === "admin" ? " adm" : ""}`}>{t(loc, `role.${role}`)}</span></summary>
@@ -48,7 +49,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       ) : null}
     </div>
   );
-  const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : null;
+  const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : role === "admin" && !firm.blobOk ? <div className="dbbar" role="status">{t(loc, "files.noBlob")}</div> : null;
   // fără sesiune (login/înscriere/invitație): pagina are deja logo-ul mare → antetul arată doar limba și tema
   if (!role) return <><header className="top"><span />{prefsBox}</header>{dbBar}</>;
   if (role === "driver") return <><header className="top"><span className="logo"><Logo /></span>{prefsBox}</header>{dbBar}</>;

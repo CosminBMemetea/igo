@@ -15,6 +15,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { setupState } from "@/lib/setup";
 import { store } from "@/lib/store";
 import { AlertList } from "./AlertList";
+import { docStatus, STATUS_CLASS } from "@/lib/docs";
+import { todayFor } from "@/lib/today";
+import { fmtDate, type MsgKey } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export default async function Home() {
@@ -33,6 +36,9 @@ export default async function Home() {
   const live = d.live();
   const km = d.views.filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = d.views.filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);
   const recent = [...d.views.filter((v) => v.active).slice(0, 2), ...d.views.filter((v) => !v.active).slice(0, 4)];
+  const today = todayFor(d.demo);
+  const docs = (await d.tn.repo.docs()).filter((x) => x.expires && x.scope !== "trip").map((x) => ({ ...x, st: docStatus(x.expires!, today) })).filter((x) => x.st.status !== "valid").sort((a, b) => a.st.days - b.st.days).slice(0, 4);
+  const docName = (x: (typeof docs)[number]) => (x.scope === "vehicle" ? d.vehicles.find((v) => v.id === x.ownerId)?.name ?? x.ownerId : x.ownerId);
   const moving = live.filter((x) => x.status === "moving" || x.status === "working").length;
   return (
     <main>
@@ -61,6 +67,19 @@ export default async function Home() {
         <div className="head"><h2>{t(loc, "home.recent")}</h2><Link className="link" href="/trips">{t(loc, "home.all")}</Link></div>
         <TripRows rows={recent} loc={loc} />
       </section>
+      {docs.length ? (
+        <section className="section">
+          <div className="head"><h2>{t(loc, "home.expiring")}</h2><Link className="link" href="/documents?view=cal">{t(loc, "home.allDocs")}</Link></div>
+          <div className="list">
+            {docs.map((x) => (
+              <Link key={x.id} href={`/documents?tab=${x.scope === "driver" ? "drivers" : "vehicles"}`} className="it">
+                <div><div className="t">{t(loc, `doc.${x.type}` as MsgKey)} · {docName(x)}</div><div className="m">{t(loc, "docs.expires")} {fmtDate(loc, x.expires!, true)}</div></div>
+                <span className={`badge ${STATUS_CLASS[x.st.status]}`}>{x.st.days < 0 ? t(loc, "dc.expired", { n: -x.st.days }) : t(loc, "docs.days", { n: x.st.days })}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section className="section">
         <div className="head"><h2>{t(loc, "home.attn")}</h2><Link className="link" href="/alerts">{t(loc, "home.allAlerts")}</Link></div>
         {d.alerts.length ? <AlertList alerts={d.alerts.slice(0, 3)} vehicles={d.vehicles} loc={loc} /> : <p className="sub">{t(loc, "home.noAlerts")}</p>}

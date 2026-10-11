@@ -8,6 +8,7 @@ import { mapLabels } from "@/lib/labels";
 import { CountUp } from "@/components/CountUp";
 import FleetMap from "@/components/FleetMap";
 import { fullPath } from "@/lib/query";
+import { paperworkFor } from "@/lib/paperwork";
 
 export const dynamic = "force-dynamic";
 export default async function TripDetail({ params }: { params: { id: string } }) {
@@ -27,6 +28,9 @@ export default async function TripDetail({ params }: { params: { id: string } })
   let acc = 0;
   const client = d.clients.find((c) => c.id === r.clientId)!;
   const liveV = d.live().find((x) => x.id === r.vehicleId);
+  const pw = agri ? null : await paperworkFor(d.tn, r.id);
+  const canPod = !d.demo && (d.tn.role === "owner" || d.tn.role === "admin");
+  const hm = (iso: string | null) => (iso ? new Intl.DateTimeFormat(loc === "ro" ? "ro-RO" : loc === "pl" ? "pl-PL" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Bucharest" }).format(new Date(iso)) : "—");
   return (
     <main>
       <div className="eyebrow fade">{t(loc, agri ? "job.detail" : "trip.detail")}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
@@ -50,6 +54,23 @@ export default async function TripDetail({ params }: { params: { id: string } })
         <Link href={`/live?v=${r.vehicleId}`} className="mapstrip" style={{ display: "block" }}>
           <FleetMap mode="strip" vehicles={[r.active ? liveV : { ...liveV, done: [], ahead: fullPath(r.vehicleId).length ? fullPath(r.vehicleId) : liveV.done, track: [] }]} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         </Link>
+      ) : null}
+      {pw ? (
+        <section className="section">
+          <div className="head"><h2>{t(loc, "pw.title")}</h2><span className={`badge ${pw.podReceived ? "ok" : "warn"}`}>{pw.podReceived ? t(loc, "pw.podOk") : t(loc, "pw.podWait")}</span></div>
+          <div className="tpw">
+            <div className="card"><div className="k">{t(loc, "pw.loaded")}</div><div className="n" style={{ fontSize: 22 }}>{hm(pw.loadedAt)}</div></div>
+            <div className="card"><div className="k">{t(loc, "pw.unloaded")}</div><div className="n" style={{ fontSize: 22 }}>{hm(pw.unloadedAt)}</div></div>
+            <div className="card"><div className="k">{t(loc, "pw.waitTotal")}</div><div className="n" style={{ fontSize: 22, color: pw.waitMin > 120 ? "#f5a524" : undefined }}>{Math.floor(pw.waitMin / 60)}h {String(pw.waitMin % 60).padStart(2, "0")}m{pw.waiting ? " ⏱" : ""}</div>{pw.waitMin > 120 ? <div className="d">{t(loc, "pw.waitOver")}</div> : null}</div>
+          </div>
+          {(["cmr", "pod"] as const).map((k) => (
+            <div key={k} className="pwdoc"><h3>{t(loc, `pw.${k}`)}</h3>
+              <div className="thumbs">{pw.files.filter((f) => f.kind === k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer"><img src={f.src} alt={`${k.toUpperCase()} ${i + 1}`} loading="lazy" /></a>)}{!pw.files.some((f) => f.kind === k) ? <span className="hint">{t(loc, "pw.none")}</span> : null}</div>
+            </div>
+          ))}
+          {canPod ? <form action="/api/trips/pod" method="post" style={{ marginTop: 18 }}><input type="hidden" name="tripId" value={r.id} /><input type="hidden" name="received" value={pw.podReceived ? "0" : "1"} /><button className="btn sec sm">{pw.podReceived ? t(loc, "pw.podUndo") : t(loc, "pw.podMark")}</button></form> : null}
+          <p className="hint">{t(loc, "pw.podHint")}</p>
+        </section>
       ) : null}
       <section className="section" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Link className="btn sec" href={`/vehicles/${r.vehicleId}`}>{r.vehicle.name}</Link>

@@ -20,7 +20,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
   async function toggle() {
     if (!on && checks.length < 3) { setMsg({ t: L["drv.checkNeeded"], k: "err" }); return; }
     const next = !on;
-    setOn(next); setMsg({ t: "", k: "" });
+    setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
     await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
     if (next) {
       setStart(Date.now()); setKm(0); lastPos.current = null;

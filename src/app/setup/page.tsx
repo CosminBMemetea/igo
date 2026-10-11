@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getPrefs } from "@/lib/prefs";
@@ -20,7 +21,10 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
   const err = searchParams.e ? ERR[searchParams.e] : null;
   const h = headers(), origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const secret = process.env.SESSION_SECRET ?? "";
-  const links = await Promise.all(st.invites.map(async (i) => ({ ...i, url: `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret))}` })));
+  const links = await Promise.all(st.invites.map(async (i) => {
+    const url = `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret))}`;
+    return { ...i, url, qr: !i.usedAt && !i.revokedAt ? await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : "" };
+  }));
   const plate = (id: string) => st.trucks.find((x) => x.id === id)?.plate ?? "—";
   const nextHref = step < 5 ? `/setup?step=${step + 1}` : "/";
   const today = new Date().toISOString().slice(0, 10);
@@ -77,8 +81,20 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
             <div className="list">
               {links.length ? links.map((i) => (
                 <div key={i.id} className={`it${i.id === searchParams.inv ? " on" : ""}`}>
-                  <div style={{ minWidth: 0 }}><div className="t">{i.name}</div><div className="m">{i.phone ?? ""}{i.usedAt ? ` · ${t(loc, "set.joined")}` : ` · ${t(loc, "set.pending")}`}</div></div>
-                  {i.usedAt ? <span className="badge ok">✓</span> : <CopyLink url={i.url} copy={t(loc, "set.copy")} copied={t(loc, "set.copied")} wa={i.phone ? `https://wa.me/${i.phone.replace("+", "")}?text=${encodeURIComponent(t(loc, "set.waText", { firm: st.firm!.name }) + " " + i.url)}` : null} waLabel="WhatsApp" />}
+                  <div style={{ minWidth: 0 }}><div className="t">{i.name}</div><div className="m">{[i.phone, i.usedAt ? t(loc, "set.joined") : i.revokedAt ? t(loc, "inv.revoked") : t(loc, "set.pending")].filter(Boolean).join(" · ")}</div></div>
+                  {i.usedAt ? <span className="badge ok">✓</span> : i.revokedAt ? <span className="badge bad">✕</span> : (() => {
+                    const msg = t(loc, "set.waText", { firm: st.firm!.name }) + " " + i.url;
+                    return (
+                      <div className="invx">
+                        <CopyLink url={i.url} copy={t(loc, "set.copy")} copied={t(loc, "set.copied")} wa={`https://wa.me/${i.phone ? i.phone.replace("+", "") : ""}?text=${encodeURIComponent(msg)}`} waLabel="WhatsApp" sms={`sms:${i.phone ?? ""}?&body=${encodeURIComponent(msg)}`} smsLabel="SMS" />
+                        <details className="qr"><summary className="btn sec sm">{t(loc, "inv.qr")}</summary><div className="qrbox" dangerouslySetInnerHTML={{ __html: i.qr }} /><p className="hint">{t(loc, "inv.qrHint")}</p></details>
+                        <div className="invrow">
+                          <Link className="btn sec sm" href={`/setup?step=3&inv=${i.id}`}>{t(loc, "inv.resend")}</Link>
+                          <form action="/api/setup/invite/revoke" method="post"><input type="hidden" name="id" value={i.id} /><button className="btn sec sm">{t(loc, "inv.revoke")}</button></form>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )) : <Empty text={t(loc, "set.noDrivers")} />}
             </div>
@@ -97,7 +113,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
                 <button className="btn pri">{t(loc, "set.addDoc")}</button>
                 <p className="hint">{t(loc, "set.docHint")}</p>
               </form>
-              <List empty={t(loc, "set.noDocs")} items={st.docs.map((d) => ({ id: d.id, t: `${t(loc, `doc.${d.type}` as MsgKey)} · ${plate(d.truckId)}`, m: `${t(loc, "docs.expires")} ${fmtDate(loc, d.expires, true)}` }))} />
+              <List empty={t(loc, "set.noDocs")} items={st.docs.map((d) => ({ id: d.id, t: `${t(loc, `doc.${d.type}` as MsgKey)} · ${plate(d.truckId ?? "")}`, m: `${t(loc, "docs.expires")} ${fmtDate(loc, d.expires, true)}` }))} />
             </>
           ) : <Empty text={t(loc, "set.needTruck")} href="/setup?step=2" cta={t(loc, "set.s2.title")} />
         ) : null}

@@ -3,13 +3,17 @@ import { getPrefs } from "@/lib/prefs";
 import { fmtDate, t, type MsgKey } from "@/lib/i18n";
 import { dbConfigured, store } from "@/lib/store";
 import { ADMIN_FIRM_COOKIE } from "@/lib/tenant";
+import { emailProvider } from "@/lib/email";
+import { blobConfigured } from "@/lib/files";
 
 export const dynamic = "force-dynamic";
 /** Admin (ADMIN_EMAIL): toate firmele + cererile „Asistență Querra”. Middleware blochează ruta pentru alte roluri. */
-export default async function Admin() {
+export default async function Admin({ searchParams }: { searchParams: { rem?: string } }) {
   const { loc } = getPrefs();
   const s = store();
-  const [firms, reqs] = await Promise.all([s.firms(), s.support()]);
+  const [firms, reqs, mails] = await Promise.all([s.firms(), s.support(), s.emails(50)]);
+  const mailOn = !!emailProvider();
+  const rem = searchParams.rem?.split("-").map(Number);
   const cur = cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo";
   const name = (id: string | null) => firms.find((f) => f.id === id)?.name ?? "—";
   return (
@@ -47,6 +51,25 @@ export default async function Admin() {
             </div>
           ))}
           {!reqs.length ? <div className="empty"><p>{t(loc, "adm.noRequests")}</p></div> : null}
+        </div>
+      </section>
+      <section className="section">
+        <div className="head"><h2>{t(loc, "adm.reminders")}</h2>
+          <form action="/api/admin/reminders" method="post"><button className="btn sec sm">{t(loc, "adm.runNow")}</button></form>
+        </div>
+        <p className="sub" style={{ fontSize: 14 }}>{t(loc, "adm.cronInfo")}</p>
+        {rem && rem.length === 4 ? <p className="msg ok">{t(loc, "adm.ran", { n: rem[0], sent: rem[1], queued: rem[2], failed: rem[3] })}</p> : null}
+        {!mailOn ? <p className="msg warn">{t(loc, "adm.noMail")}</p> : null}
+        {!blobConfigured() ? <p className="msg warn">{t(loc, "files.noBlob")}</p> : null}
+        <div className="eyebrow" style={{ marginTop: 18 }}>{t(loc, "adm.outbox", { n: mails.length })}</div>
+        <div className="list" style={{ marginTop: 12 }}>
+          {mails.map((m) => (
+            <div key={m.id} className="it" style={{ cursor: "default" }}>
+              <div style={{ minWidth: 0 }}><div className="t">{m.subject}</div><div className="m">{m.to} · {name(m.firmId)} · {fmtDate(loc, m.createdAt.slice(0, 10), true)}{m.error ? ` · ${m.error}` : ""}</div></div>
+              <span className={`badge ${m.status === "sent" ? "ok" : m.status === "failed" ? "bad" : "warn"}`}>{m.status === "sent" ? t(loc, "adm.mail.sent") : m.status === "failed" ? t(loc, "adm.mail.failed") : mailOn ? t(loc, "adm.mail.queued") : t(loc, "adm.mail.noProvider")}</span>
+            </div>
+          ))}
+          {!mails.length ? <div className="empty"><p>{t(loc, "adm.noMails")}</p></div> : null}
         </div>
       </section>
     </main>

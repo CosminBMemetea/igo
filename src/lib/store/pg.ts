@@ -1,15 +1,19 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { documents, firms, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
-import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
-const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash });
-const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)! });
+const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId });
+const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt) });
 const truckOut = ({ createdAt: _c, ...t }: typeof trucks.$inferSelect): TruckRow => t;
-const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, type: d.type as DocType });
+const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, scope: d.scope === "driver" ? "driver" : "vehicle", type: d.type as DocType });
+const fileOut = ({ data: _d, createdAt, ...f }: typeof files.$inferSelect): FileMeta => ({ ...f, kind: f.kind as FileMeta["kind"], storage: f.storage === "blob" ? "blob" : "db", createdAt: iso(createdAt)! });
+const notOut = (n: typeof notifications.$inferSelect): NotificationRow => ({ ...n, params: JSON.parse(n.params), readAt: iso(n.readAt), createdAt: iso(n.createdAt)! });
+const mailOut = (e: typeof emailOutbox.$inferSelect): EmailRow => ({ ...e, status: e.status as EmailStatus, createdAt: iso(e.createdAt)!, sentAt: iso(e.sentAt) });
+const evOut = (e: typeof tripEvents.$inferSelect): TripEventRow => ({ ...e, kind: e.kind as TripEventKind, at: iso(e.at)! });
 const tripOut = ({ createdAt: _c, litresSource: _l, ...t }: typeof trips.$inferSelect): TripRow => ({ ...t, litresSource: _l === "estimate" ? "estimate" : "manual" });
 const txOut = ({ createdAt: _c, ...x }: typeof fuelTransactions.$inferSelect): FuelTxRow => x;
 
@@ -43,12 +47,64 @@ export class PgStore implements Store {
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
   async trucks(firmId: string) { return (await this.d.select().from(trucks).where(eq(trucks.firmId, firmId)).orderBy(trucks.createdAt)).map(truckOut); }
-  async addDoc(firmId: string, d: Omit<DocRow, "id" | "firmId">) {
-    // camionul trebuie să fie al aceleiași firme
-    const [own] = await this.d.select({ id: trucks.id }).from(trucks).where(and(eq(trucks.id, d.truckId), eq(trucks.firmId, firmId)));
-    if (!own) throw new Error("truck");
-    const [r] = await this.d.insert(documents).values({ ...d, id: newId("d"), firmId }).returning(); return docOut(r);
+  private async ownTarget(firmId: string, d: Partial<NewDoc>) {
+    if (d.truckId) await this.ownTruck(firmId, d.truckId);
+    if (d.userId) { const [u] = await this.d.select({ id: users.id }).from(users).where(and(eq(users.id, d.userId), eq(users.firmId, firmId))); if (!u) throw new Error("user"); }
   }
+  async addDoc(firmId: string, d: NewDoc) {
+    if (!d.truckId && !d.userId) throw new Error("truck");
+    await this.ownTarget(firmId, d);
+    const [r] = await this.d.insert(documents).values({ ...d, scope: d.userId ? "driver" : "vehicle", id: newId("d"), firmId }).returning(); return docOut(r);
+  }
+  async updateDoc(firmId: string, id: string, d: Partial<NewDoc>) {
+    await this.ownTarget(firmId, d);
+    const [r] = await this.d.update(documents).set(d).where(and(eq(documents.firmId, firmId), eq(documents.id, id))).returning();
+    return r ? docOut(r) : null;
+  }
+  async deleteDoc(firmId: string, id: string) { return (await this.d.delete(documents).where(and(eq(documents.firmId, firmId), eq(documents.id, id))).returning({ id: documents.id })).length === 1; }
+  async setUserTruck(firmId: string, userId: string, truckId: string | null) { await this.ownTruck(firmId, truckId); await this.d.update(users).set({ truckId }).where(and(eq(users.firmId, firmId), eq(users.id, userId))); }
+  async revokeInvite(firmId: string, id: string) { return (await this.d.update(invites).set({ revokedAt: new Date() }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt))).returning({ id: invites.id })).length === 1; }
+  async setPod(firmId: string, tripId: string, received: boolean) { return (await this.d.update(trips).set({ podReceived: received }).where(and(eq(trips.firmId, firmId), eq(trips.id, tripId))).returning({ id: trips.id })).length === 1; }
+  private async ownTrip(firmId: string, tripId: string | null) {
+    if (!tripId) return;
+    const [t] = await this.d.select({ id: trips.id }).from(trips).where(and(eq(trips.firmId, firmId), eq(trips.id, tripId)));
+    if (!t) throw new Error("trip");
+  }
+  async addFile(firmId: string, f: NewFile) {
+    await this.ownTrip(firmId, f.tripId);
+    if (f.docId) { const [d] = await this.d.select({ id: documents.id }).from(documents).where(and(eq(documents.firmId, firmId), eq(documents.id, f.docId))); if (!d) throw new Error("doc"); }
+    const [r] = await this.d.insert(files).values({ ...f, id: newId("fl"), firmId }).returning();
+    return fileOut(r);
+  }
+  async file(firmId: string, id: string) { const [r] = await this.d.select().from(files).where(and(eq(files.firmId, firmId), eq(files.id, id))); return r ? { ...fileOut(r), data: r.data ?? null } : null; }
+  async files(firmId: string, o: { tripId?: string; docId?: string }) {
+    const w = [eq(files.firmId, firmId)];
+    if (o.tripId) w.push(eq(files.tripId, o.tripId));
+    if (o.docId) w.push(eq(files.docId, o.docId));
+    const r = await this.d.select({ id: files.id, firmId: files.firmId, kind: files.kind, tripId: files.tripId, docId: files.docId, name: files.name, mime: files.mime, size: files.size, storage: files.storage, url: files.url, userId: files.userId, createdAt: files.createdAt }).from(files).where(and(...w)).orderBy(files.createdAt);
+    return r.map((f) => fileOut({ ...f, data: null }));
+  }
+  async deleteFile(firmId: string, id: string) { return (await this.d.delete(files).where(and(eq(files.firmId, firmId), eq(files.id, id))).returning({ id: files.id })).length === 1; }
+  async addNotifications(firmId: string, n: NewNotification[]) {
+    if (!n.length) return [];
+    const r = await this.d.insert(notifications).values(n.map((x) => ({ ...x, params: JSON.stringify(x.params), id: newId("n"), firmId }))).onConflictDoNothing({ target: [notifications.firmId, notifications.key] }).returning();
+    return r.map(notOut);
+  }
+  async notifications(firmId: string, userId: string | null, limit = 50) {
+    return (await this.d.select().from(notifications).where(and(eq(notifications.firmId, firmId), userId ? eq(notifications.userId, userId) : isNull(notifications.userId))).orderBy(desc(notifications.createdAt)).limit(limit)).map(notOut);
+  }
+  async markRead(firmId: string, userId: string | null) { await this.d.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.firmId, firmId), userId ? eq(notifications.userId, userId) : isNull(notifications.userId), isNull(notifications.readAt))); }
+  async addEmail(e: Parameters<Store["addEmail"]>[0]) {
+    const [r] = await this.d.insert(emailOutbox).values({ ...e, id: newId("e"), status: "queued" }).onConflictDoNothing({ target: emailOutbox.key }).returning();
+    return r ? mailOut(r) : null;
+  }
+  async setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null) { await this.d.update(emailOutbox).set({ status, error, providerId, sentAt: status === "sent" ? new Date() : null }).where(eq(emailOutbox.id, id)); }
+  async emails(limit = 100) { return (await this.d.select().from(emailOutbox).orderBy(desc(emailOutbox.createdAt)).limit(limit)).map(mailOut); }
+  async addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">) {
+    await this.ownTrip(firmId, e.tripId);
+    const [r] = await this.d.insert(tripEvents).values({ ...e, at: new Date(e.at), id: newId("v"), firmId }).returning(); return evOut(r);
+  }
+  async tripEvents(firmId: string, tripId: string) { return (await this.d.select().from(tripEvents).where(and(eq(tripEvents.firmId, firmId), eq(tripEvents.tripId, tripId))).orderBy(tripEvents.at)).map(evOut); }
   async docs(firmId: string) { return (await this.d.select().from(documents).where(eq(documents.firmId, firmId)).orderBy(documents.expires)).map(docOut); }
   async addTrip(firmId: string, t: Omit<TripRow, "id" | "firmId">) {
     const [own] = await this.d.select({ id: trucks.id }).from(trucks).where(and(eq(trucks.id, t.truckId), eq(trucks.firmId, firmId)));

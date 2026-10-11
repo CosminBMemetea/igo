@@ -20,7 +20,7 @@ export interface Trip {
 }
 export interface Parcel { id: string; name: string; ha: number; crop: "wheat" | "maize" | "sunflower" | "rapeseed"; poly: LatLng[] }
 export interface Zone { id: string; name: string; kind: "depot" | "client"; at: LatLng; radiusM: number }
-export interface Doc { id: string; scope: "vehicle" | "driver" | "trip"; ownerId: string; type: string; expires: string | null; provider?: string }
+export interface Doc { id: string; scope: "vehicle" | "driver" | "trip"; ownerId: string; type: string; expires: string | null; provider?: string; userId?: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 
 export const FUEL_PRICE = 7.3;
 const r1 = (n: number) => Math.round(n * 10) / 10;

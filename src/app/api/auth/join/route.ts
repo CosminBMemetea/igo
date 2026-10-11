@@ -16,6 +16,7 @@ export async function POST(req: Request) {
   const firm = await s.firm(inv.firm);
   if (!row || !firm) return back(req, "/join?e=token");
   if (row.usedAt) return back(req, "/join?e=used");
+  if (row.revokedAt) return back(req, "/join?e=revoked");
   const phone = normPhone(clip(fd!.get("phone"), 30)), pin = String(fd!.get("pin") ?? ""), pin2 = String(fd!.get("pin2") ?? "");
   if (!isPhone(phone)) return back(req, `${q}&e=phone`);
   if (!isPin(pin) || pin !== pin2) return back(req, `${q}&e=pin`);

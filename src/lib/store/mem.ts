@@ -1,5 +1,5 @@
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
-import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type DocRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 export class MemStore implements Store {
   readonly persistent = false;
   private F: FirmRow[] = []; private U: UserRow[] = []; private I: InviteRow[] = []; private T: TruckRow[] = [];
@@ -20,7 +20,37 @@ export class MemStore implements Store {
   async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) { if (this.T.some((x) => x.firmId === firmId && x.plate === t.plate)) throw new Error("exists"); const r = { ...t, id: newId("t"), firmId }; this.T.push(r); return { ...r }; }
   async trucks(firmId: string) { return this.T.filter((x) => x.firmId === firmId); }
-  async addDoc(firmId: string, d: Omit<DocRow, "id" | "firmId">) { if (!this.T.some((x) => x.id === d.truckId && x.firmId === firmId)) throw new Error("truck"); const r = { ...d, id: newId("d"), firmId }; this.D.push(r); return { ...r }; }
+  private ownDoc(firmId: string, d: Partial<NewDoc>) {
+    if (d.truckId && !this.T.some((x) => x.id === d.truckId && x.firmId === firmId)) throw new Error("truck");
+    if (d.userId && !this.U.some((x) => x.id === d.userId && x.firmId === firmId)) throw new Error("user");
+  }
+  async addDoc(firmId: string, d: NewDoc) { if (!d.truckId && !d.userId) throw new Error("truck"); this.ownDoc(firmId, d); const r: DocRow = { ...d, scope: d.userId ? "driver" : "vehicle", id: newId("d"), firmId }; this.D.push(r); return { ...r }; }
+  async updateDoc(firmId: string, id: string, d: Partial<NewDoc>) { this.ownDoc(firmId, d); const r = this.D.find((x) => x.id === id && x.firmId === firmId); if (!r) return null; Object.assign(r, d); return { ...r }; }
+  async deleteDoc(firmId: string, id: string) { const i = this.D.findIndex((x) => x.id === id && x.firmId === firmId); if (i < 0) return false; this.D.splice(i, 1); return true; }
+  async setUserTruck(firmId: string, userId: string, truckId: string | null) { if (!this.own(firmId, truckId)) throw new Error("truck"); const u = this.U.find((x) => x.id === userId && x.firmId === firmId); if (u) u.truckId = truckId; }
+  async revokeInvite(firmId: string, id: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.revokedAt = new Date().toISOString(); return true; }
+  async setPod(firmId: string, tripId: string, received: boolean) { const r = this.R.find((x) => x.id === tripId && x.firmId === firmId); if (!r) return false; r.podReceived = received; return true; }
+  private FL: (FileMeta & { data: Buffer | null })[] = []; private N: NotificationRow[] = []; private E: EmailRow[] = []; private V: TripEventRow[] = [];
+  async addFile(firmId: string, f: NewFile) {
+    if (f.tripId && !this.R.some((x) => x.id === f.tripId && x.firmId === firmId)) throw new Error("trip");
+    if (f.docId && !this.D.some((x) => x.id === f.docId && x.firmId === firmId)) throw new Error("doc");
+    const r = { ...f, id: newId("fl"), firmId, createdAt: new Date().toISOString() }; this.FL.push(r); const { data: _d, ...m } = r; return m;
+  }
+  async file(firmId: string, id: string) { const r = this.FL.find((x) => x.id === id && x.firmId === firmId); return r ? { ...r } : null; }
+  async files(firmId: string, o: { tripId?: string; docId?: string }) { return this.FL.filter((x) => x.firmId === firmId && (!o.tripId || x.tripId === o.tripId) && (!o.docId || x.docId === o.docId)).map(({ data: _d, ...m }) => m); }
+  async deleteFile(firmId: string, id: string) { const i = this.FL.findIndex((x) => x.id === id && x.firmId === firmId); if (i < 0) return false; this.FL.splice(i, 1); return true; }
+  async addNotifications(firmId: string, n: NewNotification[]) {
+    const out: NotificationRow[] = [];
+    for (const x of n) { if (this.N.some((y) => y.firmId === firmId && y.key === x.key)) continue; const r = { ...x, id: newId("n"), firmId, readAt: null, createdAt: new Date().toISOString() }; this.N.push(r); out.push(r); }
+    return out;
+  }
+  async notifications(firmId: string, userId: string | null, limit = 50) { return this.N.filter((x) => x.firmId === firmId && x.userId === userId).reverse().slice(0, limit); }
+  async markRead(firmId: string, userId: string | null) { for (const x of this.N) if (x.firmId === firmId && x.userId === userId && !x.readAt) x.readAt = new Date().toISOString(); }
+  async addEmail(e: Parameters<Store["addEmail"]>[0]) { if (this.E.some((x) => x.key === e.key)) return null; const r: EmailRow = { ...e, id: newId("e"), status: "queued", error: null, providerId: null, createdAt: new Date().toISOString(), sentAt: null }; this.E.push(r); return { ...r }; }
+  async setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null) { const r = this.E.find((x) => x.id === id); if (r) Object.assign(r, { status, error, providerId, sentAt: status === "sent" ? new Date().toISOString() : null }); }
+  async emails(limit = 100) { return [...this.E].reverse().slice(0, limit); }
+  async addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">) { if (!this.R.some((x) => x.id === e.tripId && x.firmId === firmId)) throw new Error("trip"); const r = { ...e, id: newId("v"), firmId }; this.V.push(r); return { ...r }; }
+  async tripEvents(firmId: string, tripId: string) { return this.V.filter((x) => x.firmId === firmId && x.tripId === tripId).sort((a, b) => a.at.localeCompare(b.at)); }
   async docs(firmId: string) { return this.D.filter((x) => x.firmId === firmId); }
   async addTrip(firmId: string, t: Omit<TripRow, "id" | "firmId">) { if (!this.T.some((x) => x.id === t.truckId && x.firmId === firmId)) throw new Error("truck"); const r = { ...t, id: newId("r"), firmId }; this.R.push(r); return { ...r }; }
   async trips(firmId: string) { return this.R.filter((x) => x.firmId === firmId).sort((a, b) => b.date.localeCompare(a.date)); }
