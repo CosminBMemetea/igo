@@ -9,8 +9,19 @@ import type { LiveVehicle } from "@/lib/query";
 import type { Parcel, Zone } from "@/lib/fleet/seed";
 import { Icon } from "./icons";
 
-// Fundal: Esri World Gray Canvas (fără cheie). DOAR pentru demo; în producție: furnizor cu licență (MapTiler/Stadia/Esri plătit).
-const tileUrl = (theme: string) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${theme === "light" ? "Light" : "Dark"}_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
+// Fundal: Esri World Gray Canvas + etichete (fără cheie). DOAR pentru demo; în producție: furnizor cu licență (MapTiler/Stadia/Esri plătit).
+const tileUrl = (theme: string, layer: "Base" | "Reference") => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${theme === "light" ? "Light" : "Dark"}_Gray_${layer}/MapServer/tile/{z}/{y}/{x}`;
+const ACC = "#3b82f6";
+type LL = [number, number];
+/** Traseu: porțiunea parcursă estompată, cea rămasă în accent cu o strălucire fină; capete și îmbinări rotunjite. */
+function drawRoute(L: typeof Leaflet, g: Leaflet.LayerGroup, done: LL[], ahead: LL[], strong = true) {
+  const base = { lineCap: "round", lineJoin: "round", smoothFactor: 1.2, interactive: false } as const;
+  if (done.length > 1) g.addLayer(L.polyline(done, { ...base, color: ACC, weight: strong ? 3 : 2, opacity: strong ? 0.32 : 0.22 }));
+  if (ahead.length > 1) {
+    g.addLayer(L.polyline(ahead, { ...base, color: ACC, weight: strong ? 12 : 8, opacity: strong ? 0.16 : 0.1, className: "glow" }));
+    g.addLayer(L.polyline(ahead, { ...base, color: ACC, weight: strong ? 3 : 2, opacity: strong ? 0.95 : 0.7 }));
+  }
+}
 const COL: Record<string, string> = { moving: "var(--pos)", working: "var(--acc)", stopped: "var(--fg2)", pump: "#f5a524", offline: "var(--fg3)" };
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
@@ -19,7 +30,7 @@ interface Props { mode: "strip" | "full"; vehicles: LiveVehicle[]; zones: Zone[]
 
 export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, labels, now, initial }: Props) {
   const el = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<{ L: typeof Leaflet; map: Leaflet.Map; cluster: Leaflet.MarkerClusterGroup; trail?: Leaflet.Polyline; ghost?: Leaflet.CircleMarker } | null>(null);
+  const mapRef = useRef<{ L: typeof Leaflet; map: Leaflet.Map; cluster: Leaflet.MarkerClusterGroup; trail?: Leaflet.LayerGroup; ghost?: Leaflet.CircleMarker } | null>(null);
   const [ready, setReady] = useState(false);
   const [sel, setSel] = useState(initial ?? vehicles.find((v) => v.status === "moving")?.id ?? vehicles[0].id);
   const [filter, setFilter] = useState<"all" | "truck" | "agri" | "van">("all");
@@ -37,7 +48,8 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       await import("leaflet.markercluster");
       if (dead || !el.current) return;
       const map = L.map(el.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: mode === "full", dragging: mode === "full" || !matchMedia("(max-width:760px)").matches });
-      L.tileLayer(tileUrl(theme), { attribution: "Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }).addTo(map);
+      L.tileLayer(tileUrl(theme, "Base"), { attribution: "Esri, HERE, Garmin, © OpenStreetMap contributors", maxZoom: 16 }).addTo(map);
+      L.tileLayer(tileUrl(theme, "Reference"), { maxZoom: 16, opacity: 0.55, pane: "overlayPane" }).addTo(map);
       for (const z of zones) L.circle(z.at, { radius: z.radiusM, color: "#3e6ae1", weight: 1, fillOpacity: 0.08, dashArray: "4 6" }).addTo(map).bindTooltip(z.name);
       for (const p of parcels) L.polygon(p.poly, { color: "#34d399", weight: 1, fillOpacity: 0.16 }).addTo(map).bindTooltip(`${p.name} · ${p.ha} ha`);
       const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44, iconCreateFunction: (c) => L.divIcon({ html: `<span>${c.getChildCount()}</span>`, className: "cl", iconSize: [44, 44] }) });
@@ -66,16 +78,25 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   useEffect(() => {
     const m = mapRef.current; if (!m || !ready) return;
     m.trail?.remove();
+    const g = m.L.layerGroup().addTo(m.map); m.trail = g;
+    const pts = (x: LiveVehicle) => [...x.done, ...x.ahead];
     if (mode === "strip") {
-      if (vehicles.length === 1 && vehicles[0].track.length > 1) {
-        m.trail = m.L.polyline(vehicles[0].track.map((p) => p.at), { color: "#3e6ae1", weight: 4, opacity: 0.9 }).addTo(m.map);
-        m.map.fitBounds(m.trail.getBounds().pad(0.2), { maxZoom: 13 });
-      } else m.map.fitBounds(m.L.latLngBounds(vehicles.map((x) => x.at)).pad(0.15), { maxZoom: 9 });
+      if (vehicles.length === 1) {
+        drawRoute(m.L, g, vehicles[0].done, vehicles[0].ahead);
+        const all = pts(vehicles[0]);
+        if (all.length > 1) m.map.fitBounds(m.L.latLngBounds(all).pad(0.12), { maxZoom: 12 });
+        else m.map.setView(vehicles[0].at, 11);
+      } else {
+        for (const x of vehicles) drawRoute(m.L, g, x.done, x.ahead, false);
+        m.map.fitBounds(m.L.latLngBounds(vehicles.map((x) => x.at)).pad(0.15), { maxZoom: 9 });
+      }
       return;
     }
-    m.trail = m.L.polyline(v.track.map((p) => p.at), { color: "#3e6ae1", weight: 4, opacity: 0.9 }).addTo(m.map);
+    for (const x of vehicles) if (x.id !== v.id && x.ahead.length > 1) g.addLayer(m.L.polyline(x.ahead, { color: ACC, weight: 2, opacity: 0.28, lineCap: "round", lineJoin: "round", interactive: false }));
+    drawRoute(m.L, g, v.done, v.ahead);
+    const all = pts(v).length > 1 ? pts(v) : [v.at, v.at];
     const mobile = matchMedia("(max-width:760px)").matches;
-    m.map.fitBounds(m.trail.getBounds().pad(mobile ? 0.15 : 0.4), { paddingTopLeft: mobile ? [20, 170] : [0, 0], paddingBottomRight: mobile ? [20, innerHeight * 0.46 + 90] : [420, 90], maxZoom: 13 });
+    m.map.fitBounds(m.L.latLngBounds(all).pad(mobile ? 0.15 : 0.3), { paddingTopLeft: mobile ? [20, 170] : [0, 0], paddingBottomRight: mobile ? [20, innerHeight * 0.46 + 90] : [420, 90], maxZoom: 13 });
   }, [ready, sel, mode, v, vehicles]);
 
   // reluare
@@ -85,7 +106,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
     if (minute >= now) return;
     const pts = v.track; let p = pts[0];
     for (const x of pts) if (x.min <= minute) p = x;
-    m.ghost = m.L.circleMarker(p.at, { radius: 8, color: "#fff", weight: 3, fillColor: "#3e6ae1", fillOpacity: 1 }).addTo(m.map);
+    m.ghost = m.L.circleMarker(p.at, { radius: 8, color: "#fff", weight: 3, fillColor: ACC, fillOpacity: 1 }).addTo(m.map);
   }, [ready, minute, v, now, mode]);
   useEffect(() => {
     if (!playing) return;

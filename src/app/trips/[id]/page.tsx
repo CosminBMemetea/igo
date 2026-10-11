@@ -7,6 +7,7 @@ import { DEMO_NOW_MIN } from "@/lib/fleet/data";
 import { mapLabels } from "@/lib/labels";
 import { CountUp } from "@/components/CountUp";
 import FleetMap from "@/components/FleetMap";
+import { fullPath } from "@/lib/query";
 
 export const dynamic = "force-dynamic";
 export default async function TripDetail({ params }: { params: { id: string } }) {
@@ -47,7 +48,7 @@ export default async function TripDetail({ params }: { params: { id: string } })
       </section>
       {r.active && liveV ? (
         <Link href={`/live?v=${r.vehicleId}`} className="mapstrip" style={{ display: "block" }}>
-          <FleetMap mode="strip" vehicles={[liveV]} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
+          <FleetMap mode="strip" vehicles={[r.active ? liveV : { ...liveV, done: [], ahead: fullPath(r.vehicleId).length ? fullPath(r.vehicleId) : liveV.done, track: [] }]} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         </Link>
       ) : null}
       <section className="section" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

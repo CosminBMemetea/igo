@@ -42,6 +42,7 @@ export default async function Home() {
           <div className="eyebrow">{t(loc, "home.savings")}</div>
           <div className="big">{enoughData(km, hours) ? <><CountUp value={m.savings.pct * 100} d={1} loc={loc} /><small>%</small></> : <small>{t(loc, "home.insufficient")}</small>}</div>
           <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.savingsSub", { lei: fmtMoney(loc, m.savings.savedLei) }) }} />
+          {m.n ? <Link className="link" href="/savings" style={{ display: "inline-block", marginTop: 10 }}>{t(loc, "sav.open")} →</Link> : null}
         </div>
         <div className="fade d1">
           <div className="eyebrow">{t(loc, "home.profit")}</div>
@@ -53,7 +54,7 @@ export default async function Home() {
         <AskBox loc={loc} labels={{ ph: t(loc, "ask.ph"), fallback: t(loc, "ask.fallback"), ai: t(loc, "ask.ai"), error: t(loc, "ask.error") }} />
       </Gate>
       {live.length ? <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
-        <FleetMap mode="strip" vehicles={live} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
+        <FleetMap mode="strip" vehicles={live.map((x) => ({ ...x, track: [], done: [] }))} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         <span className="chip" style={{ left: "5%", top: "10%", zIndex: 500 }}><b>{t(loc, "home.now")}</b><span>{moving} / {live.length}</span></span>
       </Link> : null}
       <section className="section">

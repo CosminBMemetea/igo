@@ -1,3 +1,4 @@
+import ROADS from "./roads.json";
 // igo — DATE DEMO simulate (portate din prototipul /flota din qerradoc), generate determinist (fără backend).
 // Toate valorile sunt inventate; nu provin de la niciun camion real.
 
@@ -71,28 +72,40 @@ function dayStr(offsetFromDemoDay: number): string {
 export const minToHHMM = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(Math.floor(m % 60))}`;
 
 // ---------- traseu & poziție în ziua demo ----------
-const ROAD_FACTOR = 1.25; // drum real ≈ 1,25 × linia dreaptă
-/** Cursă dus-întors: traseul plus drumul înapoi. */
-const fullRoute = (t: Truck): Waypoint[] => [...t.route, ...t.route.slice(0, -1).reverse()];
-export function routeKm(t: Truck): number[] {
-  const R = fullRoute(t);
-  const cum = [0];
-  for (let i = 1; i < R.length; i++) cum.push(cum[i - 1] + haversineKm(R[i - 1].at, R[i].at) * ROAD_FACTOR);
-  return cum;
+/** Geometria pe drumuri reale (OSRM, pre-calculată în roads.json de scripts/fetch-roads.mts). Dus-întors. */
+const GEOM = new Map<string, { pts: LatLng[]; cum: number[] }>();
+export function roadOf(id: string): LatLng[] | null { const r = (ROADS as unknown as Record<string, { path: LatLng[] }>)[id]; return r ? r.path : null; }
+function geom(t: Truck) {
+  let g = GEOM.get(t.id);
+  if (!g) {
+    const one = roadOf(t.id) ?? t.route.map((w) => w.at);
+    const pts = [...one, ...one.slice(0, -1).reverse()];
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversineKm(pts[i - 1], pts[i]));
+    g = { pts, cum }; GEOM.set(t.id, g);
+  }
+  return g;
 }
-function pointAtKm(t: Truck, km: number): LatLng {
-  const cum = routeKm(t);
-  const R = fullRoute(t);
+export function routeKm(t: Truck): number[] { return geom(t).cum; }
+/** Punctele traseului între doi km (pentru porțiunea parcursă / rămasă pe hartă). */
+export function pathBetween(t: Truck, fromKm: number, toKm: number): LatLng[] {
+  const { pts, cum } = geom(t), out: LatLng[] = [pointAtKm(t, fromKm)];
+  for (let i = 0; i < pts.length; i++) if (cum[i] > fromKm && cum[i] < toKm) out.push(pts[i]);
+  out.push(pointAtKm(t, toKm));
+  return out;
+}
+export function pointAtKm(t: Truck, km: number): LatLng {
+  const { pts, cum } = geom(t);
   const total = cum[cum.length - 1];
   const k = Math.max(0, Math.min(total, km));
   for (let i = 1; i < cum.length; i++) {
     if (k <= cum[i]) {
       const f = (k - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
-      const a = R[i - 1].at, b = R[i].at;
+      const a = pts[i - 1], b = pts[i];
       return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
     }
   }
-  return R[R.length - 1].at;
+  return pts[pts.length - 1];
 }
 export function nearestWaypoint(t: Truck, p: LatLng): Waypoint {
   return t.route.reduce((best, w) => (haversineKm(w.at, p) < haversineKm(best.at, p) ? w : best));

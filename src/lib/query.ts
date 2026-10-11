@@ -1,6 +1,6 @@
 // igo: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
 import { tripProfit, savings, sumSavings, type ProfitBreakdown, type Savings } from "./calc";
-import { DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
+import { DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
 import { FUEL_PRICE, type Client, type Parcel, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 
 export interface TripView extends Trip { p: ProfitBreakdown; s: Savings; vehicle: Vehicle }
@@ -38,7 +38,7 @@ export function clientSummaries(clients: Client[], views: TripView[]) {
 export type LiveStatus = "moving" | "stopped" | "pump" | "working" | "offline";
 export interface LiveVehicle {
   id: string; name: string; kind: Vehicle["kind"]; driver: string; status: LiveStatus; speed: number; at: LatLng; secondsAgo: number;
-  track: { min: number; at: LatLng }[]; dest: string; left: number; leftUnit: "km" | "ha"; eta: string | null;
+  track: { min: number; at: LatLng }[]; ahead: LatLng[]; done: LatLng[]; dest: string; left: number; leftUnit: "km" | "ha"; eta: string | null;
   today: number; todayUnit: "km" | "h"; rate: number; rateUnit: "L/100km" | "L/ha"; profitToday: number | null; tripId: string | null;
   events: { time: string; kind: "entry" | "exit"; zone: string }[];
 }
@@ -73,23 +73,36 @@ export function liveFleet(vehicles: Vehicle[], views: TripView[], parcels: Parce
       const pos = positionAt(truck, now), total = routeTotalKm(truck), km = kmAt(truck, now), half = total / 2;
       const out = km < half, left = Math.max(0, Math.round((out ? half : total) - km));
       const dest = out ? truck.route[truck.route.length - 1].name : truck.route[0].name;
-      return { ...base, status: pos.status, speed: pos.speedKmh, at: pos.at, secondsAgo: pos.status === "moving" ? 12 : 95, track, dest, left, leftUnit: "km", eta: left ? minToHHMM(now + (left / 64) * 60) : null, today: Math.round(km), todayUnit: "km", rate: active?.actualRate ?? v.baselineRate, rateUnit: "L/100km", events: zoneEvents(track, zones) };
+      const ahead = left ? pathBetween(truck, km, out ? half : total) : [];
+      return { ...base, status: pos.status, speed: pos.speedKmh, at: pos.at, secondsAgo: pos.status === "moving" ? 12 : 95, track, ahead, done: pathBetween(truck, 0, km), dest, left, leftUnit: "km", eta: left ? minToHHMM(now + (left / 64) * 60) : null, today: Math.round(km), todayUnit: "km", rate: active?.actualRate ?? v.baselineRate, rateUnit: "L/100km", events: zoneEvents(track, zones) };
     }
     if (v.kind === "agri") {
       const parcel = active ? parcels.find((p) => p.id === active.parcelId) : undefined;
       const farm = zones.find((z) => z.id === "ferma")!.at;
-      if (!parcel || !active) return { ...base, status: "stopped", speed: 0, at: farm, secondsAgo: 240, track: [{ min: now, at: farm }], dest: zones.find((z) => z.id === "ferma")!.name, left: 0, leftUnit: "ha", eta: null, today: 0, todayUnit: "h", rate: v.baselineRate, rateUnit: "L/ha", events: [] };
+      if (!parcel || !active) return { ...base, status: "stopped", speed: 0, at: farm, secondsAgo: 240, track: [{ min: now, at: farm }], ahead: [], done: [], dest: zones.find((z) => z.id === "ferma")!.name, left: 0, leftUnit: "ha", eta: null, today: 0, todayUnit: "h", rate: v.baselineRate, rateUnit: "L/ha", events: [] };
       const start = 8 * 60, haph = active.ha / active.hours, fullHa = parcel.ha;
       const track: { min: number; at: LatLng }[] = [{ min: start - STEP, at: farm }];
       for (let m = start; m <= now; m += STEP) track.push({ min: m, at: zigzag(parcel, (((m - start) / 60) * haph) / fullHa) });
       const doneHa = Math.min(fullHa, ((now - start) / 60) * haph), left = Math.round(fullHa - doneHa);
-      return { ...base, status: "working", speed: 7, at: track[track.length - 1].at, secondsAgo: 30, track, dest: parcel.name, left, leftUnit: "ha", eta: minToHHMM(now + (left / haph) * 60), today: Math.round(((now - start) / 60) * 10) / 10, todayUnit: "h", rate: active.actualRate, rateUnit: "L/ha", events: zoneEvents(track, zones) };
+      return { ...base, status: "working", speed: 7, at: track[track.length - 1].at, secondsAgo: 30, track, ahead: [], done: track.map((p) => p.at), dest: parcel.name, left, leftUnit: "ha", eta: minToHHMM(now + (left / haph) * 60), today: Math.round(((now - start) / 60) * 10) / 10, todayUnit: "h", rate: active.actualRate, rateUnit: "L/ha", events: zoneEvents(track, zones) };
     }
     // utilitară: tur prin Oradea
-    const loop: LatLng[] = [[47.0465, 21.9189], [47.065, 21.94], [47.07, 21.9], [47.05, 21.88], [47.035, 21.93]];
+    // utilitară: tur prin Oradea pe străzi reale (roads.json „van”)
+    const loop = roadOf("van") ?? [[47.0465, 21.9189], [47.065, 21.94], [47.07, 21.9], [47.05, 21.88], [47.0465, 21.9189]] as LatLng[];
+    const cum = [0]; for (let i = 1; i < loop.length; i++) cum.push(cum[i - 1] + haversineKm(loop[i - 1], loop[i]));
+    const L = cum[cum.length - 1];
+    const at = (km: number): LatLng => { const k = ((km % L) + L) % L; let i = 1; while (i < cum.length - 1 && cum[i] < k) i++; const f = (k - cum[i - 1]) / (cum[i] - cum[i - 1] || 1), a = loop[i - 1], b = loop[i]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; };
     const track = [] as { min: number; at: LatLng }[];
-    for (let m = 7 * 60; m <= now; m += STEP) { const k = ((m - 420) / 30) % loop.length, i = Math.floor(k), f = k - i; const a = loop[i], b = loop[(i + 1) % loop.length]; track.push({ min: m, at: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] }); }
-    return { ...base, status: "moving", speed: 38, at: track[track.length - 1].at, secondsAgo: 8, track, dest: "Oradea", left: 6, leftUnit: "km", eta: minToHHMM(now + 12), today: 64, todayUnit: "km", rate: v.baselineRate * 0.9, rateUnit: "L/100km", events: zoneEvents(track, zones) };
+    for (let m = 7 * 60; m <= now; m += STEP) track.push({ min: m, at: at(((m - 420) / 60) * 24) });
+    const kNow = ((now - 420) / 60) * 24, ahead: LatLng[] = [];
+    for (let d = 0; d <= 6; d += 0.25) ahead.push(at(kNow + d));
+    return { ...base, status: "moving", speed: 38, at: track[track.length - 1].at, secondsAgo: 8, track, ahead, done: track.map((p) => p.at), dest: "Oradea", left: 6, leftUnit: "km", eta: minToHHMM(now + 12), today: 64, todayUnit: "km", rate: v.baselineRate * 0.9, rateUnit: "L/100km", events: zoneEvents(track, zones) };
   });
 }
 export const FUEL = FUEL_PRICE;
+
+/** Traseul complet (dus-întors) al unui camion demo, pe drumuri reale: pentru detaliul unei curse încheiate. */
+export function fullPath(vehicleId: string): LatLng[] {
+  const t = TRUCKS.find((x) => x.id === vehicleId);
+  return t ? pathBetween(t, 0, routeTotalKm(t)) : [];
+}

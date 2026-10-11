@@ -286,3 +286,6 @@ body:has(.livemap) .demo{bottom:100px;left:24px;transform:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .btn:disabled{opacity:.45;cursor:default}
 @media (max-width:760px){.istats{grid-template-columns:repeat(2,1fr)}.mgrid{grid-template-columns:1fr 1fr}}
+.leaflet-overlay-pane path.glow{filter:blur(3px)}
+.leaflet-container{background:var(--bg)}
+@media (max-width:760px){.demo{position:static;transform:none;display:table;margin:4px auto 0;bottom:auto}}
