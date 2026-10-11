@@ -4,17 +4,20 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrate.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:calc": "tsx scripts/smoke-calc.mts",
     "smoke:i18n": "tsx scripts/smoke-i18n.mts",
     "smoke:rules": "tsx scripts/smoke-rules.mts",
-    "smoke:ask": "tsx scripts/smoke-ask.mts"
+    "smoke:ask": "tsx scripts/smoke-ask.mts",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:generate": "drizzle-kit generate",
+    "smoke:tenant": "tsx scripts/smoke-tenant.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
