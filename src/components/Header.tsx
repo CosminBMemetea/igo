@@ -6,6 +6,7 @@ import { Icon } from "./icons";
 import { NavIcons } from "./NavIcons";
 import { TourButton } from "./DemoTour";
 import { LangPicker } from "./LangPicker";
+import { MenuCloser } from "./MenuCloser";
 import { Suspense } from "react";
 import { Logo } from "./Logo";
 import { ROLE_LOOK, RoleIcon, lookOf } from "@/lib/roles";
@@ -37,6 +38,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       {role ? <Link className="ico bell dsk" href="/notifications" aria-label={t(loc, "ntf.title")}><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0" /></svg>{firm.unread ? <b>{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link> : null}
       {role ? (
         <details className="acct">
+          <Suspense fallback={null}><MenuCloser /></Suspense>
           <summary className="ico" aria-label={t(loc, "acct.menu")}>{badge}<span className={`mdot r-${look ?? "owner"}`}>{firm.unread ? <b /> : null}</span><svg className="mburg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16" /></svg></summary>
           <div className="menu">
             <div className="monly">

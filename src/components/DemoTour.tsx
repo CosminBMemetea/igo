@@ -10,6 +10,8 @@ type St = { i: number; on: boolean; done?: boolean };
 const read = (): St | null => { try { return JSON.parse(localStorage.getItem(KEY) ?? "null"); } catch { return null; } };
 const save = (s: St) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
 
+/** Închide meniul contului (details.acct) și orice foaie deschisă, ca turul să fie vizibil. */
+export function closeMenus() { document.querySelectorAll("details.acct[open]").forEach((d) => d.removeAttribute("open")); (document.activeElement as HTMLElement | null)?.blur?.(); }
 export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   const router = useRouter(), path = usePathname();
   const [st, setSt] = useState<St>({ i: 0, on: false });
@@ -23,7 +25,7 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
     const s = read();
     // NU pornește singur: doar din butonul „Tur ghidat”; reluăm doar un tur activ (pornit explicit)
     if (s?.on) setSt(s);
-    const start = () => set({ i: 0, on: true });
+    const start = () => { closeMenus(); set({ i: 0, on: true }); };
     addEventListener("qf-tour-start", start);
     const mq = matchMedia("(max-width:760px)"); setMobile(mq.matches);
     return () => removeEventListener("qf-tour-start", start);
@@ -33,6 +35,7 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   // navigare la pagina pasului + așteptarea elementului
   useEffect(() => {
     if (!step) { setRect(null); return; }
+    closeMenus();
     const [p, q] = step.path.split("?");
     const here = location.pathname === p && (!q || location.search.includes(q));
     if (!here) { setRect(null); router.push(step.path); return; }
@@ -43,7 +46,7 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
       if (el && el.getBoundingClientRect().height > 0) {
         target.current = el;
         const r = el.getBoundingClientRect();
-        if (r.top < 70 || r.bottom > innerHeight - (mobile ? 260 : 40)) el.scrollIntoView({ block: mobile ? "start" : "center", behavior: "smooth" });
+        if (r.top < 76 || r.bottom > innerHeight - (mobile ? 260 : 40)) { const y = mobile ? r.top + scrollY - 76 : r.top + scrollY - (innerHeight - r.height) / 2; scrollTo({ top: Math.max(0, y), behavior: "smooth" }); }
         setTimeout(() => !dead && setRect(el.getBoundingClientRect()), 380);
         if (step.path.startsWith("/replay")) setTimeout(() => dispatchEvent(new Event("qf-replay-play")), 900);
       } else if (tries++ < 80) setTimeout(find, 100);
@@ -97,5 +100,5 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
 export function TourButton({ label }: { label: string }) {
   const [fresh, setFresh] = useState(false);
   useEffect(() => { try { setFresh(!localStorage.getItem("qf-tour-seen")); } catch {} }, []);
-  return <button type="button" className={`tourbtn${fresh ? " pulse" : ""}`} onClick={() => { try { localStorage.setItem("qf-tour-seen", "1"); } catch {} setFresh(false); dispatchEvent(new Event("qf-tour-start")); }}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none" /></svg><span>{label}</span></button>;
+  return <button type="button" className={`tourbtn${fresh ? " pulse" : ""}`} onClick={() => { try { localStorage.setItem("qf-tour-seen", "1"); } catch {} setFresh(false); closeMenus(); requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => dispatchEvent(new Event("qf-tour-start")), 60))); }}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none" /></svg><span>{label}</span></button>;
 }

@@ -483,7 +483,7 @@ body:has(.rp) .demo{display:none!important}
 @media (max-width:760px){.sk-grid{grid-template-columns:1fr}.sk-panel{top:auto;left:0;right:0;bottom:0;width:auto;height:40vh;border-radius:26px 26px 0 0}.sk-bar{left:10px;right:10px;bottom:calc(40vh + 10px);height:60px}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
 /* ---------- tur ghidat (demo) ---------- */
-.tour{position:fixed;inset:0;z-index:3000;pointer-events:none}
+.tour{position:fixed;inset:0;z-index:5000;pointer-events:none}
 .tour-hole{position:fixed;border-radius:18px;box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 70%,transparent),0 0 0 9999px rgba(6,8,12,.58);transition:left .45s cubic-bezier(.2,.8,.2,1),top .45s cubic-bezier(.2,.8,.2,1),width .45s cubic-bezier(.2,.8,.2,1),height .45s cubic-bezier(.2,.8,.2,1)}
 [data-theme=light] .tour-hole{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 70%,transparent),0 0 0 9999px rgba(20,24,32,.42)}
 .tour-hole.none{left:50%;top:50%;width:0;height:0}
