@@ -162,7 +162,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
         <div style={{ marginTop: 22, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link className="btn sec" href={`/vehicles/${v.id}`}>{labels.open}</Link>
           {v.tripId ? <Link className="btn sec" href={`/trips/${v.tripId}`}>{labels.trip}</Link> : null}
-          {v.kind === "truck" ? <Link className="btn pri" href={`/replay?v=${v.id}`}>▶ {labels.rpShift}</Link> : null}
+          {v.kind === "truck" ? <Link className="btn pri rp-cta rp-livecta" href={`/replay?v=${v.id}`}>▶ {labels.rpShift}</Link> : null}
         </div>
       </aside>
       <div className="tiles-note">{labels.tiles}</div>

@@ -6,14 +6,15 @@ import { store } from "@/lib/store";
 import { demoReplay, firmReplay } from "@/lib/replay";
 import { TRUCKS } from "@/lib/fleet/data";
 import ReplayMap from "@/components/ReplayMap";
+import { tripView } from "@/lib/query";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-const RK = ["title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
+const RK = ["tank", "sumTitle", "hours", "normal", "profit", "again", "hl", "hlHint", "title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Bucharest" });
 
-export default async function Replay({ searchParams }: { searchParams: { v?: string; trip?: string; d?: string } }) {
+export default async function Replay({ searchParams }: { searchParams: { v?: string; trip?: string; d?: string; autoplay?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const tn = await tenant();
   const r = tn.repo;
@@ -31,6 +32,8 @@ export default async function Replay({ searchParams }: { searchParams: { v?: str
     const [pos, fuel] = await Promise.all([s.positions(tn.firm.id, `${date}T00:00`), s.fuel(tn.firm.id, { truckId: v.id, limit: 500 })]);
     data = firmReplay({ vehicleId: v.id, plate: v.name, driver: v.driver, date, tripId: trip?.id ?? null, rate: v.baselineRate || 30, pos, fuel });
   }
+  const rv = vehicles.find((x) => x.id === data?.vehicleId) ?? null;
+  const rt = (data?.tripId ? trips.find((x) => x.id === data!.tripId) : trips.find((x) => x.vehicleId === data?.vehicleId && x.date === data?.date)) ?? null;
   if (!data) return (
     <main className="setup">
       <div className="eyebrow">{L.title}</div>
@@ -43,7 +46,7 @@ export default async function Replay({ searchParams }: { searchParams: { v?: str
   );
   return (
     <main className="live-page rp-page" style={{ padding: 0 }}>
-      <ReplayMap data={data} theme={prefs.theme} loc={loc} L={L} back={back} />
+      <ReplayMap data={data} theme={prefs.theme} loc={loc} L={L} back={back} autoplay={searchParams.autoplay !== "0"} extra={{ normal: rv?.baselineRate ?? null, tank: rv?.tankL ?? null, profit: rt ? tripView(rt, vehicles).p.profit : null }} />
     </main>
   );
 }

@@ -30,7 +30,7 @@ export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial,
   useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(i); }, [st.waitSince]);
   const pos = () => new Promise<{ lat?: number; lng?: number }>((res) => {
     // locația doar în tură și doar cu acordul șoferului
-    if (!onShift || !geo || !navigator.geolocation) return res({});
+    if (demo || !onShift || !geo || !navigator.geolocation) return res({}); // demo: fără GPS real
     navigator.geolocation.getCurrentPosition((p) => res({ lat: p.coords.latitude, lng: p.coords.longitude }), () => res({}), { timeout: 6000, maximumAge: 60000 });
   });
   async function event(kind: Ev) {

@@ -1,3 +1,4 @@
+import { ReplayTeaser } from "@/components/ReplayTeaser";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
@@ -63,6 +64,7 @@ export default async function Home() {
         <FleetMap mode="strip" vehicles={live.map((x) => ({ ...x, track: [], done: [] }))} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         <span className="chip" style={{ left: "5%", top: "10%", zIndex: 500 }}><b>{t(loc, "home.now")}</b><span>{moving} / {live.length}</span></span>
       </Link> : null}
+      {d.demo ? <ReplayTeaser loc={loc} tripId={d.views.find((v) => v.vehicleId === "bh21qrt" && v.active)?.id ?? null} /> : null}
       <section className="section">
         <div className="head"><h2>{t(loc, "home.recent")}</h2><Link className="link" href="/trips">{t(loc, "home.all")}</Link></div>
         <TripRows rows={recent} loc={loc} />

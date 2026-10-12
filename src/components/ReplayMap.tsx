@@ -28,9 +28,11 @@ const TRUCK = `<svg viewBox="0 0 40 72" width="26" height="47" aria-hidden="true
   <rect x="9" y="67.5" width="4" height="2" rx="1" fill="#ef4444"/><rect x="27" y="67.5" width="4" height="2" rx="1" fill="#ef4444"/>
 </svg>`;
 
-export interface ReplayProps { data: ReplayData; theme: "dark" | "light"; loc: Locale; L: Record<string, string>; back: string }
+const x0near = (e: ReplayEvent, x: number) => x >= e.min - 6 && x <= (e.end ?? e.min) + 2;
+export interface ReplayExtra { normal: number | null; profit: number | null; tank: number | null }
+export interface ReplayProps { data: ReplayData; theme: "dark" | "light"; loc: Locale; L: Record<string, string>; back: string; extra?: ReplayExtra; autoplay?: boolean }
 
-export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayProps) {
+export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, autoplay = false }: ReplayProps) {
   const el = useRef<HTMLDivElement>(null);
   const m = useRef<{ L: typeof Leaflet; map: Leaflet.Map; truck: Leaflet.Marker; trail: Leaflet.Polyline; halo: Leaflet.Polyline; ghost: Leaflet.Marker } | null>(null);
   const [ready, setReady] = useState(false);
@@ -38,6 +40,10 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(4);
   const [follow, setFollow] = useState(false);
+  const [hl, setHl] = useState(false); // „Momente cheie”: sare repede peste drumul drept, încetinește la evenimente
+  const hlRef = useRef(false); hlRef.current = hl;
+  const [toasts, setToasts] = useState<{ id: number; kind: RKind; text: string; place?: string }[]>([]);
+  const [intro, setIntro] = useState(autoplay);
   const minRef = useRef(d.start), headRef = useRef<number | null>(null), lastIdx = useRef(-1);
   const priv = useMemo(() => d.events.filter((e) => e.kind === "private"), [d]);
   const fuels = useMemo(() => d.events.filter((e) => e.kind === "fuel"), [d]);
@@ -90,6 +96,13 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       }
       segs.push(cur);
       for (const s of segs) if (s.length > 1) L.polyline(s, { ...line, color: "#888", weight: 5, opacity: 1, className: "rp-dimline" }).addTo(map);
+      // traseul colorat după viteză (verde ≥ 60 km/h, galben 35–60, roșu < 35) — fără porțiunile private
+      for (let i = 1; i < d.keys.length; i++) {
+        const [m0, k0] = d.keys[i - 1], [m1, k1] = d.keys[i]; if (k1 - k0 < 0.3 || m1 <= m0) continue;
+        const v = ((k1 - k0) / (m1 - m0)) * 60;
+        const pts = d.path.filter((pt) => pt[2] >= k0 - 0.01 && pt[2] <= k1 + 0.01).map((pt) => [pt[0], pt[1]] as [number, number]);
+        if (pts.length > 1) L.polyline(pts, { ...line, color: v >= 60 ? "#22c55e" : v >= 35 ? "#eab308" : "#ef4444", weight: 5, opacity: 0.55, className: "rp-speedline" }).addTo(map);
+      }
       const halo = L.polyline([], { ...line, color: "#3b82f6", weight: 14, opacity: 0.2, className: "rp-halo" }).addTo(map);
       const trail = L.polyline([], { ...line, color: "#3b82f6", weight: 4, opacity: 1, className: "rp-trail" }).addTo(map);
       for (const e of priv) {
@@ -113,6 +126,16 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       m.current = { L, map, truck, trail, halo, ghost };
       await tilesReady; if (dead) return;
       setReady(true);
+      // intro cinematic: vedere de ansamblu → zbor la camion → camera urmărește → pornește redarea
+      if (autoplay) {
+        const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        setTimeout(() => {
+          if (dead) return;
+          const go = () => { if (dead) return; setFollow(true); setIntro(false); window.dispatchEvent(new Event("qf-replay-play")); };
+          if (calm) { map.setView(posAt(0), 10, { animate: false }); go(); return; }
+          map.flyTo(posAt(0), 10, { duration: 1.8, easeLinearity: 0.2 }); map.once("moveend", go);
+        }, 900);
+      }
     })();
     return () => { dead = true; m.current?.map.remove(); m.current = null; };
   }, [d, theme]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -177,7 +200,8 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
     let raf = 0, last = performance.now(), ui = 0;
     const step = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      rateRef.current += (speedRef.current - rateRef.current) * (1 - Math.exp(-dt * 5));
+      const tgt = hlRef.current ? (d.events.some((e) => e.kind !== "start" && x0near(e, minRef.current)) ? 2 : 28) : speedRef.current;
+      rateRef.current += (tgt - rateRef.current) * (1 - Math.exp(-dt * 5));
       let x = minRef.current + dt * BASE * rateRef.current;
       // privat: trecem repede peste gol (nu e nimic de văzut)
       const pv = privAt(x); if (pv) x = Math.min(pv.end ?? x, x + dt * BASE * rateRef.current * 3);
@@ -188,13 +212,26 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [playing, ready, d.end, draw, privAt]);
+  }, [playing, ready, d.end, d.events, draw, privAt]);
   useEffect(() => { const f = () => { setTimeout(() => { if (minRef.current >= d.end - 1) seek(d.start); setPlaying(true); }, 50); }; addEventListener("qf-replay-play", f); return () => removeEventListener("qf-replay-play", f); }, [d, seek]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.code === "Space" && (e.target as HTMLElement).tagName !== "INPUT") { e.preventDefault(); toggle(); } };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
   });
   const toggle = () => { if (!playing && minRef.current >= d.end - 1) seek(d.start); setPlaying((p) => !p); };
+
+  // carduri pop-up când camionul ajunge la un eveniment (doar în redare, nu la derulare manuală)
+  const lastToast = useRef(d.start - 1), tid = useRef(0);
+  useEffect(() => {
+    const prev = lastToast.current; lastToast.current = min;
+    if (!playing || min < prev || min - prev > 30) return;
+    const hit = d.events.filter((e) => e.min > prev && e.min <= min);
+    if (!hit.length) return;
+    const add = hit.map((e) => ({ id: ++tid.current, kind: e.kind, text: evLabel(e), place: e.place }));
+    setToasts((x) => [...x, ...add].slice(-3));
+    const ids = add.map((a) => a.id);
+    setTimeout(() => setToasts((x) => x.filter((y) => !ids.includes(y.id))), 2800);
+  }, [min, playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // panou
   const km = kmAt(min), pv = privAt(min);
@@ -206,6 +243,8 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
   const curEv = d.events.find((e) => e.kind !== "private" && e.end != null && min >= e.min && min < e.end);
   const status = pv ? "private" : min >= d.end ? "end" : curEv?.kind === "fuel" ? "fuel" : curEv?.kind === "pause" || (spd ?? 0) < 1 ? "pause" : "drive";
   const N = (n: number, dd = 0) => fmtNum(loc, n, dd);
+  // nivel rezervor estimat: plecare la ~55%, minus consum, plus alimentări
+  const tankL = extra?.tank ?? 600, tankPct = Math.max(2, Math.min(100, ((tankL * 0.55 - usedL + fueled) / tankL) * 100));
   const pct = (x: number) => ((x - d.start) / (d.end - d.start || 1)) * 100;
   const evLabel = (e: ReplayEvent) => e.kind === "fuel" ? `${t.fuel}${e.litres ? ` · ${N(e.litres)} L` : ""}` : e.kind === "pause" ? `${t.pause} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "private" ? `${t.private} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "start" ? t.start : t.end;
 
@@ -217,16 +256,39 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
         <div><div className="eyebrow">{t.title} · {fmtDate(loc, d.date, true)}</div><div className="rp-name">{d.plate}{d.route ? <span> · {d.route}</span> : null}</div></div>
         {d.demo ? <span className="badge acc">DEMO</span> : null}
       </div>
-      <aside className="rp-panel">
-        <div className={`rp-status s-${status}`}><i />{t[`st_${status}`]}</div>
-        <div className="rp-speed"><b className={spd == null ? "off" : ""}>{spd == null ? "–" : N(Math.round(spd))}</b><span>km/h</span></div>
-        {pv ? <p className="rp-privnote">{t.privNote}</p> : null}
-        <div className="rp-stats">
-          <div><span>{t.time}</span><b>{hhmm(min)}</b><small>{N(Math.floor((min - d.start) / 60))} h {String(Math.floor((min - d.start) % 60)).padStart(2, "0")} min</small></div>
-          <div><span>{t.km}</span><b>{N(km, km < 100 ? 1 : 0)}</b><small>/ {N(d.km)} km</small></div>
-          <div><span>{t.litres}</span><b>{N(usedL, 0)} L</b><small>{N(d.rate, 1)} L/100km</small></div>
-          <div><span>{t.fueled}</span><b>{N(fueled)} L</b><small>{t.stops}: {fuels.length}</small></div>
+      <div className="rp-hud" aria-live="polite">
+        <div className="rp-gauge">
+          <svg viewBox="0 0 120 70" aria-hidden="true"><path d="M10 64a50 50 0 0 1 100 0" className="g-bg" /><path d="M10 64a50 50 0 0 1 100 0" className="g-fg" style={{ strokeDasharray: 157, strokeDashoffset: 157 - 157 * Math.min(1, (spd ?? 0) / 100) }} /></svg>
+          <div className="g-val"><b className={spd == null ? "off" : ""}>{spd == null ? "–" : N(Math.round(spd))}</b><span>km/h</span></div>
         </div>
+        <div className="rp-hudcol">
+          <div className={`rp-status s-${status}`}><i />{t[`st_${status}`]}</div>
+          <div className="rp-hudrow"><div><span>{t.time}</span><b>{hhmm(min)}</b></div><div><span>{t.km}</span><b>{N(km, km < 100 ? 1 : 0)}</b></div></div>
+          <div className="rp-fuel"><span>{t.tank}</span><div className="fb"><i style={{ width: `${tankPct}%`, background: tankPct < 20 ? "#ef4444" : tankPct < 40 ? "#eab308" : "#22c55e" }} /></div><small>{N(tankPct)}%</small></div>
+        </div>
+      </div>
+      <div className="rp-toasts">{toasts.map((x) => <div key={x.id} className={`rp-toast k-${x.kind}`}><i>{x.kind === "fuel" ? "⛽" : x.kind === "pause" ? "☕" : x.kind === "private" ? "🔒" : x.kind === "start" ? "🚚" : "🏁"}</i><div><b>{x.text}</b>{x.place ? <small>{x.place}</small> : null}</div></div>)}</div>
+      {intro ? <div className="rp-intro"><span>{d.plate}</span><b>{d.route || t.title}</b></div> : null}
+      {status === "end" && !playing ? (
+        <div className="rp-sum fade">
+          <div className="eyebrow">{t.sumTitle}</div>
+          <h2>{d.route || d.plate}</h2>
+          <div className="rp-sumgrid">
+            <div><span>{t.km}</span><b>{N(d.km)}</b></div>
+            <div><span>{t.hours}</span><b>{N(Math.floor((d.end - d.start) / 60))} h {String(Math.round((d.end - d.start) % 60)).padStart(2, "0")}</b></div>
+            <div><span>L/100km</span><b>{N(d.rate, 1)}</b>{extra?.normal ? <small className={d.rate > extra.normal * 1.05 ? "neg" : "pos"}>{t.normal} {N(extra.normal, 1)}</small> : null}</div>
+            <div><span>{t.profit}</span><b className={extra?.profit != null && extra.profit < 0 ? "neg" : ""}>{extra?.profit != null ? `${N(Math.round(extra.profit))} lei` : "—"}</b></div>
+            <div><span>{t.events}</span><b>{d.events.filter((e) => e.kind !== "start" && e.kind !== "end").length}</b></div>
+          </div>
+          <div className="rp-sumbtn">
+            <button type="button" className="btn pri" onClick={() => { seek(d.start); lastToast.current = d.start - 1; setPlaying(true); }}>↻ {t.again}</button>
+            {d.tripId ? <Link className="btn sec" href={`/trips/${d.tripId}`}>{t.openTrip}</Link> : null}
+          </div>
+        </div>
+      ) : null}
+      <aside className="rp-panel">
+        {pv ? <p className="rp-privnote">{t.privNote}</p> : null}
+        <div className="rp-mini"><span>{t.litres} <b>{N(usedL, 0)} L</b></span><span>{t.fueled} <b>{N(fueled)} L</b></span><span>{t.stops} <b>{fuels.length}</b></span></div>
         <div className="eyebrow" style={{ marginTop: 22 }}>{t.events}</div>
         <div className="rp-evlist">
           {d.events.map((e, i) => (
@@ -247,6 +309,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
           <input type="range" min={d.start} max={d.end} step={0.5} value={min} onChange={(e) => { setPlaying(false); seek(+e.target.value); }} aria-label={t.scrub} />
           <div className="rp-hours"><span>{hhmm(d.start)}</span><span>{hhmm((d.start + d.end) / 2)}</span><span>{hhmm(d.end)}</span></div>
         </div>
+        <button type="button" className={`rp-hl${hl ? " on" : ""}`} onClick={() => setHl(!hl)} aria-pressed={hl} title={t.hlHint}>⚡ {t.hl}</button>
         <div className="rp-seg">{SPEEDS.map((s) => <button key={s} className={speed === s ? "on" : ""} onClick={() => setSpeed(s)}>{s}×</button>)}</div>
         <button className={`rp-follow${follow ? " on" : ""}`} onClick={() => setFollow(!follow)} title={t.follow} aria-label={t.follow}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg></button>
       </div>
