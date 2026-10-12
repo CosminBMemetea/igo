@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface TourStep { path: string; sel: string; title: string; body: string }
 export interface TourL { next: string; back: string; skip: string; done: string; of: string; trial: string; contact: string; restart: string }
-const KEY = "qf-tour";
+const KEY = "qf-tour2"; // cheie nouă: ignoră starea veche (auto-pornire)
 type St = { i: number; on: boolean; done?: boolean };
 const read = (): St | null => { try { return JSON.parse(localStorage.getItem(KEY) ?? "null"); } catch { return null; } };
 const save = (s: St) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
@@ -21,7 +21,8 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   // pornire: prima vizită demo → turul pornește singur; altfel reluăm unde a rămas (dacă era activ)
   useEffect(() => {
     const s = read();
-    if (!s) set({ i: 0, on: true }); else if (s.on) setSt(s);
+    // NU pornește singur: doar din butonul „Tur ghidat”; reluăm doar un tur activ (pornit explicit)
+    if (s?.on) setSt(s);
     const start = () => set({ i: 0, on: true });
     addEventListener("qf-tour-start", start);
     const mq = matchMedia("(max-width:760px)"); setMobile(mq.matches);
@@ -94,5 +95,7 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   );
 }
 export function TourButton({ label }: { label: string }) {
-  return <button type="button" className="tourbtn" onClick={() => dispatchEvent(new Event("qf-tour-start"))}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none" /></svg><span>{label}</span></button>;
+  const [fresh, setFresh] = useState(false);
+  useEffect(() => { try { setFresh(!localStorage.getItem("qf-tour-seen")); } catch {} }, []);
+  return <button type="button" className={`tourbtn${fresh ? " pulse" : ""}`} onClick={() => { try { localStorage.setItem("qf-tour-seen", "1"); } catch {} setFresh(false); dispatchEvent(new Event("qf-tour-start")); }}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none" /></svg><span>{label}</span></button>;
 }

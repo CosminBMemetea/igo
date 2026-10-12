@@ -504,3 +504,7 @@ body:has(.rp) .demo{display:none!important}
 @media (max-width:760px){.tourbtn span{display:none}.tourbtn{padding:0 8px}}
 @media (prefers-reduced-motion:reduce){.tour-hole,.tour-card{transition:none;animation:none}}
 .rp-play svg{fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+.tourbtn{transition:background .2s,border-color .2s}.tourbtn:hover{background:color-mix(in srgb,var(--acc) 20%,transparent)}
+.tourbtn.pulse{animation:tourPulse 2.2s ease-out infinite;border-color:color-mix(in srgb,var(--acc) 70%,transparent)}
+@keyframes tourPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 55%,transparent)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.tourbtn.pulse{animation:none}}

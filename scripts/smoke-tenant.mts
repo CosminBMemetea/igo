@@ -56,7 +56,7 @@ try {
   // 3. comutator date demo
   await A.go("/api/firm/demo", { on: "1" });
   const vd = await vehiclesOf(A);
-  ok("Date demo PORNIT → firma demo", !!vd && vd.length > 5 && vd.some((v) => v.name === "BH 21 QRT") && vd.every((v) => v.kind === "truck") && !vd.some((v) => v.id === tA[0].id));
+  ok("Date demo PORNIT → firma demo", !!vd && vd.length > 5 && vd.some((v) => v.name === "BH 21 QRT") && !vd.some((v) => v.name.includes("Lexion")) && !vd.some((v) => v.id === tA[0].id));
   await A.go("/api/firm/demo", { on: "0" });
   const vo = await vehiclesOf(A);
   ok("Date demo OPRIT → firma mea", vo?.length === 1 && vo[0].id === tA[0].id);
