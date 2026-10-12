@@ -78,6 +78,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
               <button className="btn pri">{t(loc, "set.invite")}</button>
               <p className="hint">{t(loc, "set.inviteHint")}</p>
             </form>
+            <p className="gdpr"><b>GDPR</b> · {t(loc, "priv.gdpr")}</p>
             <div className="list">
               {links.length ? links.map((i) => (
                 <div key={i.id} className={`it${i.id === searchParams.inv ? " on" : ""}`}>

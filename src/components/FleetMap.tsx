@@ -22,7 +22,8 @@ function drawRoute(L: typeof Leaflet, g: Leaflet.LayerGroup, done: LL[], ahead: 
     g.addLayer(L.polyline(ahead, { ...base, color: ACC, weight: strong ? 3 : 2, opacity: strong ? 0.95 : 0.7 }));
   }
 }
-const COL: Record<string, string> = { moving: "var(--pos)", working: "var(--acc)", stopped: "var(--fg2)", pump: "#f5a524", offline: "var(--fg3)" };
+const COL: Record<string, string> = { moving: "var(--pos)", working: "var(--acc)", stopped: "var(--fg2)", pump: "#f5a524", offline: "var(--fg3)", private: "#a78bfa" };
+const located = (x: LiveVehicle): x is LiveVehicle & { at: [number, number] } => x.at != null;
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 export interface MapLabels { [k: string]: string }
@@ -66,7 +67,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   useEffect(() => {
     const m = mapRef.current; if (!m || !ready) return;
     m.cluster.clearLayers();
-    for (const x of shown) {
+    for (const x of shown.filter(located)) {
       const icon = m.L.divIcon({ className: "", iconSize: undefined, html: `<div class="vm${x.id === sel && mode === "full" ? " sel" : ""}"><i style="background:${COL[x.status]}"></i><span>${x.name.replace(/</g, "")}</span></div>` });
       const mk = m.L.marker(x.at, { icon });
       if (mode === "full") mk.on("click", () => { setSel(x.id); setMinute(now); });
@@ -85,16 +86,18 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
         drawRoute(m.L, g, vehicles[0].done, vehicles[0].ahead);
         const all = pts(vehicles[0]);
         if (all.length > 1) m.map.fitBounds(m.L.latLngBounds(all).pad(0.12), { maxZoom: 12 });
-        else m.map.setView(vehicles[0].at, 11);
+        else if (vehicles[0].at) m.map.setView(vehicles[0].at, 11);
       } else {
         for (const x of vehicles) drawRoute(m.L, g, x.done, x.ahead, false);
-        m.map.fitBounds(m.L.latLngBounds(vehicles.map((x) => x.at)).pad(0.15), { maxZoom: 9 });
+        { const pl = vehicles.filter(located).map((x) => x.at); if (pl.length) m.map.fitBounds(m.L.latLngBounds(pl).pad(0.15), { maxZoom: 9 }); }
       }
       return;
     }
     for (const x of vehicles) if (x.id !== v.id && x.ahead.length > 1) g.addLayer(m.L.polyline(x.ahead, { color: ACC, weight: 2, opacity: 0.28, lineCap: "round", lineJoin: "round", interactive: false }));
     drawRoute(m.L, g, v.done, v.ahead);
-    const all = pts(v).length > 1 ? pts(v) : [v.at, v.at];
+    const fleet = vehicles.filter(located).map((x) => x.at);
+    const all = pts(v).length > 1 ? pts(v) : v.at ? [v.at, v.at] : fleet;
+    if (!all.length) return;
     const mobile = matchMedia("(max-width:760px)").matches;
     m.map.fitBounds(m.L.latLngBounds(all).pad(mobile ? 0.15 : 0.3), { paddingTopLeft: mobile ? [20, 170] : [0, 0], paddingBottomRight: mobile ? [20, innerHeight * 0.46 + 90] : [420, 90], maxZoom: 13 });
   }, [ready, sel, mode, v, vehicles]);
@@ -105,6 +108,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
     m.ghost?.remove(); m.ghost = undefined;
     if (minute >= now) return;
     const pts = v.track; let p = pts[0];
+    if (!p) return;
     for (const x of pts) if (x.min <= minute) p = x;
     m.ghost = m.L.circleMarker(p.at, { radius: 8, color: "#fff", weight: 3, fillColor: ACC, fillOpacity: 1 }).addTo(m.map);
   }, [ready, minute, v, now, mode]);
@@ -123,6 +127,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       <div ref={el} className="livemap" />
       <div className="filters">
         {(["all", "truck", "agri", "van"] as const).map((k) => <button key={k} className={`cat${filter === k ? " on" : ""}`} style={{ border: 0 }} onClick={() => setFilter(k)}>{labels[`f.${k}`]} · {counts[k]}</button>)}
+        <span className="cat gdprchip" title={labels.gdpr}>🔒 {labels.privCount.replace("{n}", String(vehicles.filter((x) => x.status === "private").length))}</span>
       </div>
       <div className="replay">
         <button className="play" onClick={() => { if (minute >= now) setMinute(0); setPlaying((p) => !p); }} aria-label="play"><Icon name={playing ? "pause" : "play"} size={16} /></button>
@@ -133,8 +138,9 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       <aside className="panel">
         <div className="eyebrow">{labels[`kind.${v.kind}`]}</div>
         <div style={{ fontSize: 32, fontWeight: 300, letterSpacing: "-.02em", marginTop: 6 }}>{v.name}</div>
-        <div className="pill" style={{ marginTop: 10 }}><span className="dot" style={{ background: COL[v.status], margin: 0 }} />{labels[`st.${v.status}`]} · {ago}</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 26 }}><span style={{ fontSize: 76, fontWeight: 200, letterSpacing: "-.04em", lineHeight: 1 }}>{N(v.speed)}</span><span style={{ color: "var(--fg2)" }}>km/h</span></div>
+        <div className="pill" style={{ marginTop: 10 }}><span className="dot" style={{ background: COL[v.status], margin: 0 }} />{labels[`st.${v.status}`]}{v.status === "private" ? "" : ` · ${ago}`}</div>
+        {v.status === "private" ? <div className="privnote">{labels.privPanel}</div> : null}
+        <div style={{ display: v.status === "private" ? "none" : "flex", alignItems: "baseline", gap: 8, marginTop: 26 }}><span style={{ fontSize: 76, fontWeight: 200, letterSpacing: "-.04em", lineHeight: 1 }}>{N(v.speed)}</span><span style={{ color: "var(--fg2)" }}>km/h</span></div>
         <div className="eta">
           <div className="eyebrow">ETA</div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 8 }}><span style={{ fontSize: 34, fontWeight: 300 }}>{v.eta ?? "—"}</span><span style={{ color: "var(--fg2)", fontSize: 14 }}>{v.left ? `${N(v.left)} ${v.leftUnit} ${labels.left}` : ""}</span></div>

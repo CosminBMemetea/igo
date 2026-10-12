@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const prev = await r.shift(b.vehicleId);
   const now = new Date().toISOString();
   const checklist = Array.isArray(b.checklist) ? b.checklist.filter((x): x is string => typeof x === "string").slice(0, 10) : [];
-  const s = b.action === "start" ? await r.setShift({ vehicleId: b.vehicleId, start: now, end: null, checklist }) : await r.setShift({ vehicleId: b.vehicleId, start: prev?.start ?? now, end: now, checklist: prev?.checklist ?? [] });
+  const s = b.action === "start" ? await r.setShift({ vehicleId: b.vehicleId, start: now, end: null, checklist, privateSince: null }) : await r.setShift({ vehicleId: b.vehicleId, start: prev?.start ?? now, end: now, checklist: prev?.checklist ?? [], privateSince: null });
   // camionul curent al șoferului: primește și notificările despre documentele camionului
   if (b.action === "start" && !tn.demo && tn.firm && tn.role === "driver" && tn.uid) await store().setUserTruck(tn.firm.id, tn.uid, b.vehicleId).catch(() => null);
   return NextResponse.json({ ok: true, shift: s });

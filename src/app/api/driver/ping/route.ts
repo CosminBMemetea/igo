@@ -13,6 +13,8 @@ export async function POST(req: Request) {
   if (!tn.demo && tn.firm) {
     const sh = await tn.repo.shift(b.vehicleId as string);
     if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });
+    // GDPR: în modul privat nu se salvează nimic
+    if (sh.privateSince) return NextResponse.json({ error: "private" }, { status: 409 });
     try { await store().addPosition(tn.firm.id, { truckId: b.vehicleId as string, at: localNow(), lat: b.lat as number, lng: b.lng as number }); }
     catch { return NextResponse.json({ error: "bad request" }, { status: 400 }); }
   }

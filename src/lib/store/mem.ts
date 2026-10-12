@@ -82,6 +82,9 @@ export class MemStore implements Store {
   async imports(firmId: string) { return this.M.filter((m) => m.firmId === firmId).reverse(); }
   async setShift(firmId: string, s: ShiftRow) { if (!this.own(firmId, s.truckId)) throw new Error("truck"); this.H.set(`${firmId}:${s.truckId}`, s); return s; }
   async shift(firmId: string, truckId: string) { return this.H.get(`${firmId}:${truckId}`) ?? null; }
+  private MP = new Map<string, Record<string, number>>();
+  async savedMapping(firmId: string, sig: string) { return this.MP.get(`${firmId}|${sig}`) ?? null; }
+  async saveMapping(firmId: string, sig: string, m: Record<string, number>) { this.MP.set(`${firmId}|${sig}`, { ...m }); }
   async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }
   async positions(firmId: string, sinceAt = "") { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt).map(({ firmId: _f, ...p }) => p); }
 }

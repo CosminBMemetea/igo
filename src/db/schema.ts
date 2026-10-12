@@ -149,6 +149,8 @@ export const shifts = pgTable("shifts", {
   start: text("start").notNull(),
   end: text("end"),
   checklist: text("checklist").notNull().default("[]"),
+  /** GDPR: șoferul e în modul „Privat” (pauză) din acest moment; nicio poziție nu se salvează cât e setat. */
+  privateSince: text("private_since"),
 }, (t) => [primaryKey({ columns: [t.firmId, t.truckId] })]);
 
 /** Poziții GPS (din telefonul șoferului, în tură). */
@@ -218,3 +220,11 @@ export const tripEvents = pgTable("trip_events", {
   lng: doublePrecision("lng"),
   userId: text("user_id"),
 }, (t) => [index("trip_events_firm_trip_ix").on(t.firmId, t.tripId)]);
+
+/** Maparea coloanelor CSV salvată per firmă, pe semnătura antetului (refolosită la următorul import cu același format). */
+export const importMappings = pgTable("import_mappings", {
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  sig: text("sig").notNull(),
+  mapping: text("mapping").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.firmId, t.sig] })]);

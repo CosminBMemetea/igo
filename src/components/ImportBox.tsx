@@ -17,6 +17,7 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [drag, setDrag] = useState(false);
+  const [enc, setEnc] = useState("UTF-8");
 
   async function preview(text: string, m?: Mapping) {
     setBusy(true); setMsg(null);
@@ -32,7 +33,9 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
     const buf = await f.arrayBuffer();
     // UTF-8, altfel Windows-1250/1252 (exporturi vechi din Excel)
     let text = new TextDecoder("utf-8").decode(buf);
-    if (text.includes("\uFFFD")) text = new TextDecoder("windows-1250").decode(buf);
+    let e = "UTF-8";
+    if (text.includes("\uFFFD")) { text = new TextDecoder("windows-1250").decode(buf); e = "Windows-1250"; }
+    setEnc(e);
     setFile({ name: f.name, text }); setAssign({}); setSum(null);
     await preview(text);
   }
@@ -63,6 +66,14 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
             <div><div className="eyebrow">{l.detected}</div><div className="t">{sum.sourceName} · {fmt(l.rows, { n: sum.valid, total: sum.total })}</div></div>
             <span className={`badge ${sum.confident ? "ok" : "warn"}`}>{sum.confident ? l.sure : l.unsure}</span>
           </div>
+          <div className="imeta">
+            <span className="mchip">{l.delim} <b>{({ ";": ";", ",": ",", "\t": "TAB", "|": "|" } as Record<string, string>)[sum.delimiter] ?? sum.delimiter}</b></span>
+            <span className="mchip">{l.enc} <b>{enc}</b></span>
+            <span className="mchip">{fmt(l.cols, { n: sum.headers.length })}</span>
+            {sum.savedMapping ? <span className="badge ok" title={l.savedHint}>✓ {l.saved}</span> : null}
+          </div>
+          <div className="eyebrow" style={{ marginTop: 14 }}>{l.prev}</div>
+          <div className="ptable"><table><thead><tr><th>#</th>{sum.headers.map((h, i) => { const f = FIELDS.find((x) => mapping?.[x] === i); return <th key={i} className={f ? "mapped" : ""}>{h}{f ? <small>→ {fieldLabels[f]}</small> : null}</th>; })}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}><td>{i + 2}</td>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
           <div className="istats">
             <div><b>{sum.newRows}</b><span>{l.new}</span></div>
             <div><b>{sum.dupes}</b><span>{l.dupes}</span></div>
@@ -84,7 +95,16 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
                   </label>
                 ))}
               </div>
-              <div className="ptable"><table><thead><tr>{sum.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
+              <p className="hint" style={{ margin: "10px 0 0" }}>{l.saveNote}</p>
+            </div>
+          ) : null}
+          {sum.errors.length ? (
+            <div style={{ marginTop: 20 }}>
+              <div className="eyebrow">{fmt(l.errs, { n: sum.total - sum.valid })}</div>
+              <div className="ierr">
+                {sum.errors.slice(0, 12).map((e, i) => <div key={i}><b>{fmt(l.line, { n: e.line })}</b><span>{l[`why_${e.reason}`]}</span>{e.value ? <code>{e.value}</code> : null}</div>)}
+                {sum.errors.length > 12 ? <div className="m">{fmt(l.more, { n: sum.total - sum.valid - 12 })}</div> : null}
+              </div>
             </div>
           ) : null}
           {sum.unknown.length ? (

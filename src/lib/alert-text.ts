@@ -2,7 +2,7 @@ import { fmtDate, fmtMoney, fmtNum, t, type Locale, type MsgKey } from "./i18n";
 import { ruleTitle, whyText, type RuleId } from "./fleet/rules";
 import type { AppAlert } from "./repo";
 
-const BIZ = new Set(["loss", "agri-over", "doc-expiry"]);
+const BIZ = new Set(["loss", "agri-over", "doc-expiry", "gps-privat"]);
 export function alertTitle(loc: Locale, a: Pick<AppAlert, "rule">) {
   return BIZ.has(a.rule) ? t(loc, `rule.${a.rule}` as MsgKey) : ruleTitle(loc, a.rule as RuleId);
 }
@@ -14,5 +14,6 @@ export function alertWhy(loc: Locale, a: Pick<AppAlert, "rule" | "params">): str
   }
   if (a.rule === "agri-over") return t(loc, "why.agri-over", { plate: p.plate, parcel: p.parcel, lha: fmtNum(loc, +p.lha, 1), base: fmtNum(loc, +p.base, 1), pct: p.pct });
   if (a.rule === "doc-expiry") return t(loc, "why.doc-expiry", { doc: t(loc, `doc.${p.doc}` as MsgKey), owner: p.owner, date: fmtDate(loc, String(p.date), true), days: p.days });
+  if (a.rule === "gps-privat") return t(loc, "why.gps-privat", { plate: p.plate, station: p.station, litres: fmtNum(loc, +p.litres), time: String(p.time).slice(11, 16) });
   return whyText(loc, { rule: a.rule as RuleId, params: p });
 }

@@ -148,7 +148,10 @@ export function parseDateTime(dateRaw: string | undefined, timeRaw: string | und
 export interface FuelRow { at: string; card: string | null; plate: string | null; station: string; country: string | null; product: string | null; litres: number; amount: number | null; currency: string | null; odometer: number | null; lat: number | null; lng: number | null }
 export type SkipReason = "date" | "litres" | "nonfuel" | "id";
 const NON_FUEL = /adblue|ad blue|toll|maut|peaj|vignette|viniet|rovinieta|winieta|myto|wash|spalat|myjnia|oil|ulei|olej|parking|parcare|parking|service|serwis|shop|magazin|food/i;
-export interface ParseResult { source: Source; delimiter: string; headers: string[]; mapping: Mapping; confident: boolean; missing: Field[]; rows: FuelRow[]; skipped: Record<SkipReason, number>; total: number; preview: string[][] }
+export interface ParseResult { source: Source; delimiter: string; headers: string[]; mapping: Mapping; confident: boolean; missing: Field[]; rows: FuelRow[]; skipped: Record<SkipReason, number>; total: number; preview: string[][]; errors: RowError[] }
+export interface RowError { line: number; reason: SkipReason; value: string }
+/** Semnătura antetului (pentru maparea salvată per firmă). */
+export const headerSig = (h: string[]) => h.map((x) => norm(x)).join("|").slice(0, 400);
 export const cleanCard = (s: string | undefined) => { const c = (s ?? "").replace(/[\s-]/g, "").replace(/^'/, ""); return c ? c.slice(0, 40) : null; };
 
 export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
@@ -167,20 +170,22 @@ export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
   const out: FuelRow[] = [];
   const get = (r: string[], f: Field) => (mapping[f] != null ? r[mapping[f]!] : undefined);
   const num = (r: string[], f: Field) => parseNum(get(r, f), dec[f] ?? ".");
-  if (!missing.length) for (const r of rows) {
+  const errors: RowError[] = [];
+  const bad = (i: number, reason: SkipReason, value: string | undefined) => { skipped[reason]++; if (errors.length < 50) errors.push({ line: i + 2, reason, value: (value ?? "").slice(0, 40) }); };
+  if (!missing.length) for (const [i, r] of rows.entries()) {
     const product = get(r, "product")?.trim() || null;
-    if (product && NON_FUEL.test(norm(product)) && !/diesel|motorina|olej napedowy|gasoil|dizel|on eko/.test(norm(product))) { skipped.nonfuel++; continue; }
+    if (product && NON_FUEL.test(norm(product)) && !/diesel|motorina|olej napedowy|gasoil|dizel|on eko/.test(norm(product))) { bad(i, "nonfuel", product); continue; }
     const at = parseDateTime(get(r, "date"), get(r, "time"), order);
-    if (!at) { skipped.date++; continue; }
+    if (!at) { bad(i, "date", [get(r, "date"), get(r, "time")].filter(Boolean).join(" ")); continue; }
     const litres = num(r, "litres");
-    if (litres == null || litres <= 0 || litres > 5000) { skipped.litres++; continue; }
+    if (litres == null || litres <= 0 || litres > 5000) { bad(i, "litres", get(r, "litres")); continue; }
     const card = cleanCard(get(r, "card")), plate = get(r, "plate")?.trim().toUpperCase() || null;
-    if (!card && !plate) { skipped.id++; continue; }
+    if (!card && !plate) { bad(i, "id", ""); continue; }
     const odo = num(r, "odometer");
     out.push({ at, card, plate, station: (get(r, "station") ?? "").trim().slice(0, 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });
   }
   const confident = !missing.length && (source !== "generic" || (mapping.date != null && mapping.litres != null && (mapping.card != null || mapping.plate != null) && out.length >= Math.max(1, rows.length * 0.8)));
-  return { source, delimiter, headers, mapping, confident, missing, rows: out, skipped, total: rows.length, preview: rows.slice(0, 5) };
+  return { source, delimiter, headers, mapping, confident, missing, rows: out, skipped, total: rows.length, preview: rows.slice(0, 5), errors };
 }
 
 /** Textul canonic pentru deduplicare (hash-uit pe server): același card, minut, litri, sumă, stație. */

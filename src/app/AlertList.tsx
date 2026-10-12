@@ -11,7 +11,7 @@ export function AlertList({ alerts, vehicles, loc }: { alerts: AppAlert[]; vehic
         <div key={a.id} className={`alert fade d${Math.min(4, i)}`}>
           <span className="dot" style={{ background: a.severity === "high" ? "var(--neg)" : a.severity === "medium" ? "#f5a524" : "var(--acc)" }} />
           <div>
-            <div className="t">{alertTitle(loc, a)}{a.vehicleId ? ` · ${vehicles.find((v) => v.id === a.vehicleId)?.name ?? ""}` : ""} {a.theft ? <span className="badge bad" style={{ marginLeft: 6 }}>{t(loc, "alerts.theft")}</span> : null}</div>
+            <div className="t">{alertTitle(loc, a)}{a.vehicleId ? ` · ${vehicles.find((v) => v.id === a.vehicleId)?.name ?? ""}` : ""} {a.theft ? <span className="badge bad" style={{ marginLeft: 6 }}>{t(loc, "alerts.theft")}</span> : null}{a.params?.nogps ? <span className="badge priv" style={{ marginLeft: 6 }} title={t(loc, "priv.nogpsHint")}>{t(loc, "priv.nogps")}</span> : null}</div>
             <p className="sub" style={{ marginTop: 4 }}>{alertWhy(loc, a)}</p>
           </div>
         </div>

@@ -70,6 +70,6 @@ export class FirmRepository implements IgoRepository {
     const rows = await this.s.fuel(this.firm.id, { source: "driver", truckId: vehicleId, limit: 50 });
     return rows.reverse().map((x) => ({ id: x.id, vehicleId: x.truckId ?? "", time: x.at, litres: x.litres, odometerKm: x.odometer ?? 0, amount: x.amount, station: x.station, photo: x.photoName ? { name: x.photoName, size: x.photoSize ?? 0 } : null, aiRead: x.aiRead }));
   }
-  async setShift(s: Shift) { await this.s.setShift(this.firm.id, { truckId: s.vehicleId, start: s.start, end: s.end, checklist: s.checklist }); return s; }
-  async shift(vehicleId: string) { const r = await this.s.shift(this.firm.id, vehicleId); return r ? { vehicleId: r.truckId, start: r.start, end: r.end, checklist: r.checklist } : null; }
+  async setShift(s: Shift) { await this.s.setShift(this.firm.id, { truckId: s.vehicleId, start: s.start, end: s.end, checklist: s.checklist, privateSince: s.privateSince ?? null }); return s; }
+  async shift(vehicleId: string) { const r = await this.s.shift(this.firm.id, vehicleId); return r ? { vehicleId: r.truckId, start: r.start, end: r.end, checklist: r.checklist, privateSince: r.privateSince ?? null } : null; }
 }

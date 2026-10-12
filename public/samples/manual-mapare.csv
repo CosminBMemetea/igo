@@ -1,0 +1,11 @@
+Data alimentarii;Ora;Nr auto;Cantitate;Valoare;Moneda;Locatie;Produs
+01.09.2026;07:42;BH 21 QRT;312,40;2284,64;RON;Petrom Oradea Nord;Motorinã
+02.09.2026;14:05;CJ 08 QRT;268,10;1960,51;RON;OMV Cluj Floreºti;Motorinã
+03.09.2026;09:31;BH 21 QRT;295,75;1352,40;EUR;OMV Wien Süd;Diesel
+04.09.2026;18:20;CJ 08 QRT;24,00;96,00;RON;Petrom Deva A1;AdBlue
+05.09.2026;06:58;AR 45 QRT;0;0;RON;MOL Arad Vest;Motorinã
+31.09.2026;11:10;TM 33 QRT;210,30;1538,34;RON;Lukoil Timiºoara;Motorinã
+07.09.2026;16:44;TM 33 QRT;245,60;1796,56;RON;Rompetrol Lugoj;Motorinã
+08.09.2026;10:12;AR 45 QRT;301,20;2203,28;RON;OMV Arad Centurã;Motorinã
+09.09.2026;13:37;CJ 52 QRT;188,45;1378,51;RON;Petrom Turda;Motorinã
+10.09.2026;19:03;BH 21 QRT;276,90;2025,52;RON;MOL Oradea Ioºia;Motorinã

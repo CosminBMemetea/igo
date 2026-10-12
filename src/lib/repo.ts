@@ -5,10 +5,10 @@ import { computeAlerts, type FleetData, type RuleId, type Severity } from "./fle
 import { CLIENTS, DOCS, PARCELS, SERVICES, TRIPS, VEHICLES, ZONES, type Client, type Doc, type Parcel, type Service, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 import { tripProfit } from "./calc";
 
-export type AlertRule = RuleId | "loss" | "agri-over" | "doc-expiry";
+export type AlertRule = RuleId | "loss" | "agri-over" | "doc-expiry" | "gps-privat";
 export interface AppAlert { id: string; rule: AlertRule; vehicleId: string; time: string; severity: Severity; theft: boolean; params: Record<string, string | number> }
 export interface DriverFill { id: string; vehicleId: string; time: string; litres: number; odometerKm: number; amount: number | null; station: string; photo: { name: string; size: number } | null; aiRead: boolean }
-export interface Shift { vehicleId: string; start: string; end: string | null; checklist: string[] }
+export interface Shift { vehicleId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
 
 export interface IgoRepository {
   vehicles(): Promise<Vehicle[]>;
@@ -69,7 +69,9 @@ export class DemoRepository implements IgoRepository {
   async alerts(): Promise<AppAlert[]> {
     const fuel = computeAlerts(await this.fleetData()).map((a): AppAlert => ({ id: a.id, rule: a.rule, vehicleId: a.truckId, time: a.time, severity: a.severity, theft: a.theft, params: a.params }));
     const rank: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
-    return [...fuel, ...businessAlerts(VEHICLES, TRIPS, DOCS)].sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time));
+    // demo: alimentarea dubei BH 05 QRT în pauza privată a șoferului → fără poziție, fără alarmă falsă
+    const priv: AppAlert = { id: "gps-privat-bh05", rule: "gps-privat", vehicleId: "bh05qrt", time: "2026-10-15T12:40", severity: "low", theft: false, params: { plate: "BH 05 QRT", station: "OMV Oradea Nord", litres: 48, time: "2026-10-15T12:40", nogps: 1 } };
+    return [...fuel, priv, ...businessAlerts(VEHICLES, TRIPS, DOCS)].sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time));
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const row = { ...f, id: `df-${Date.now()}-${this.fills.length}` };

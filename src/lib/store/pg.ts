@@ -1,7 +1,7 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
@@ -145,14 +145,16 @@ export class PgStore implements Store {
   async imports(firmId: string) { return (await this.d.select().from(fuelImports).where(eq(fuelImports.firmId, firmId)).orderBy(desc(fuelImports.createdAt)).limit(50)).map((r) => ({ ...r, createdAt: iso(r.createdAt)! })); }
   async setShift(firmId: string, s: ShiftRow) {
     await this.ownTruck(firmId, s.truckId);
-    const v = { start: s.start, end: s.end, checklist: JSON.stringify(s.checklist) };
+    const v = { start: s.start, end: s.end, checklist: JSON.stringify(s.checklist), privateSince: s.privateSince ?? null };
     await this.d.insert(shifts).values({ firmId, truckId: s.truckId, ...v }).onConflictDoUpdate({ target: [shifts.firmId, shifts.truckId], set: v });
     return s;
   }
   async shift(firmId: string, truckId: string) {
     const [r] = await this.d.select().from(shifts).where(and(eq(shifts.firmId, firmId), eq(shifts.truckId, truckId)));
-    return r ? { truckId: r.truckId, start: r.start, end: r.end, checklist: JSON.parse(r.checklist) as string[] } : null;
+    return r ? { truckId: r.truckId, start: r.start, end: r.end, checklist: JSON.parse(r.checklist) as string[], privateSince: r.privateSince } : null;
   }
+  async savedMapping(firmId: string, sig: string) { const [r] = await this.d.select().from(importMappings).where(and(eq(importMappings.firmId, firmId), eq(importMappings.sig, sig))); return r ? (JSON.parse(r.mapping) as Record<string, number>) : null; }
+  async saveMapping(firmId: string, sig: string, m: Record<string, number>) { const v = { mapping: JSON.stringify(m), updatedAt: new Date() }; await this.d.insert(importMappings).values({ firmId, sig, ...v }).onConflictDoUpdate({ target: [importMappings.firmId, importMappings.sig], set: v }); }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
   async positions(firmId: string, sinceAt = "") { return this.d.select({ truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng }).from(positions).where(and(eq(positions.firmId, firmId), gte(positions.at, sinceAt))).orderBy(positions.at).limit(20000); }
   async support() { return (await this.d.select().from(supportRequests).orderBy(desc(supportRequests.createdAt)).limit(200)).map((r) => ({ ...r, createdAt: iso(r.createdAt)! })); }

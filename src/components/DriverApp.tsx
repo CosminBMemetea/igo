@@ -9,10 +9,12 @@ function hav(a: [number, number], b: [number, number]) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc }: { vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
-  const [on, setOn] = useState(false), [start, setStart] = useState<number | null>(null), [km, setKm] = useState(0), [now, setNow] = useState(Date.now());
+export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial }: { initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+  const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(0), [now, setNow] = useState(Date.now());
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [last, setLast] = useState(lastFill);
+  const [priv, setPriv] = useState(!!initial?.priv);
+  const privRef = useRef(!!initial?.priv);
   const lastPos = useRef<[number, number] | null>(null), watch = useRef<number | null>(null);
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
   useEffect(() => () => { if (watch.current != null) navigator.geolocation?.clearWatch(watch.current); }, []);
@@ -20,18 +22,32 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
   async function toggle() {
     if (!on && checks.length < 3) { setMsg({ t: L["drv.checkNeeded"], k: "err" }); return; }
     const next = !on;
+    setPriv(false); privRef.current = false;
     setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
     await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
     if (next) {
       setStart(Date.now()); setKm(0); lastPos.current = null;
+      startWatch();
+    } else if (watch.current != null) { navigator.geolocation.clearWatch(watch.current); watch.current = null; }
+  }
+  function startWatch() {
       if (!navigator.geolocation) { setMsg({ t: L["drv.gpsOff"], k: "" }); return; }
+      if (watch.current != null) return;
       watch.current = navigator.geolocation.watchPosition((p) => {
         const here: [number, number] = [p.coords.latitude, p.coords.longitude];
         if (lastPos.current && p.coords.accuracy < 60) setKm((k) => k + hav(lastPos.current!, here));
         lastPos.current = here;
+        if (privRef.current) return; // modul privat: nu se trimite nimic
         fetch("/api/driver/ping", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: here[0], lng: here[1], speed: p.coords.speed }) }).catch(() => null);
       }, () => setMsg({ t: L["drv.gpsOff"], k: "" }), { enableHighAccuracy: true, maximumAge: 15000 });
-    } else if (watch.current != null) { navigator.geolocation.clearWatch(watch.current); watch.current = null; }
+  }
+  // tura deja pornită (reîncărcare pagină): reluăm urmărirea; în modul privat nu se trimite nimic
+  useEffect(() => { if (initial) startWatch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  async function togglePriv() {
+    const next = !priv;
+    const r = await fetch("/api/driver/private", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, on: next }) }).catch(() => null);
+    if (!r?.ok) { setMsg({ t: L["drv.invalid"], k: "err" }); return; }
+    setPriv(next); privRef.current = next; window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
   }
   async function onPhoto(file: File | null) {
     setPhoto(file); setRead("");
@@ -64,6 +80,9 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       <div className="eyebrow fade">{vehicleName}</div>
       <h1 className="fade" style={{ fontWeight: 300, fontSize: 40, letterSpacing: "-.02em", marginTop: 8 }}>{hello}</h1>
       <div className="pill fade d1" style={{ marginTop: 14 }}><span className="dot" style={{ background: on ? "var(--pos)" : "var(--fg3)", margin: 0 }} />{on ? L["drv.onShift"] : L["drv.offShift"]}</div>
+      {!on || priv ? (
+        <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span></div></div>
+      ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: "var(--pos)", margin: 0 }} /><div><b>{L["priv.tracking"]}</b><span>{L["priv.trackingHint"]}</span></div></div>}
       <div className="fade d1" style={{ marginTop: 40, display: "flex", gap: 40 }}>
         <div><div className="drv-big">{fmtNum(loc, km, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }}>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>
@@ -76,6 +95,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       ) : null}
       <div className="fade d2" style={{ marginTop: 16, display: "grid", gap: 12 }}>
         <button className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button>
+        {on ? <button className={`btn sec start privbtn${priv ? " on" : ""}`} onClick={togglePriv} aria-pressed={priv}>{priv ? L["priv.resume"] : L["priv.toggle"]}</button> : null}
         <button className="btn sec start" onClick={() => setForm((x) => !x)}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span></button>
       </div>
       {msg.t ? <p className={`msg ${msg.k}`}>{msg.t}</p> : null}

@@ -1,6 +1,6 @@
 // Querra Fleet: importul CSV pe server — parsare, potrivire card/plăcuță → camion, deduplicare, salvare.
 import { createHash } from "node:crypto";
-import { parseFuelCsv, txKey, SOURCE_NAME, type FuelRow, type Mapping } from "./parse";
+import { parseFuelCsv, parseCsv, headerSig, txKey, SOURCE_NAME, type FuelRow, type Mapping } from "./parse";
 import { normPlate } from "../validate";
 import { newId, type NewFuelTx, type Store } from "../store/types";
 
@@ -9,6 +9,11 @@ export const hashRow = (r: FuelRow) => createHash("sha256").update(txKey(r)).dig
 const plateKey = (p: string | null) => (p ? (normPlate(p) ?? p).replace(/\s/g, "") : null);
 
 export async function analyze(s: Store, firmId: string, text: string, mapping?: Mapping, assign: Record<string, string> = {}) {
+  let saved = false;
+  if (!mapping) {
+    const m = await s.savedMapping(firmId, headerSig(parseCsv(text).headers)).catch(() => null);
+    if (m) { mapping = m as Mapping; saved = true; }
+  }
   const p = parseFuelCsv(text, mapping);
   const [trucks, cards, existing] = await Promise.all([s.trucks(firmId), s.fuelCards(firmId), s.fuel(firmId, { limit: 50000 })]);
   const byPlate = new Map(trucks.map((t) => [plateKey(t.plate)!, t.id]));
@@ -35,8 +40,8 @@ export async function analyze(s: Store, firmId: string, text: string, mapping?: 
   return {
     parsed: p, rows, learned,
     summary: {
-      source: p.source, sourceName: SOURCE_NAME[p.source], headers: p.headers, mapping: p.mapping, confident: p.confident, missing: p.missing,
-      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, newRows: p.rows.length - dupes, dupes,
+      source: p.source, sourceName: SOURCE_NAME[p.source], headers: p.headers, mapping: p.mapping, confident: p.confident || (saved && !p.missing.length), missing: p.missing,
+      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, errors: p.errors, delimiter: p.delimiter, savedMapping: saved, newRows: p.rows.length - dupes, dupes,
       matched: rows.filter((x) => x.truckId).length, unknown: [...unknownMap.values()], from: ats[0] ?? null, to: ats[ats.length - 1] ?? null,
       trucks: trucks.map((t) => ({ id: t.id, plate: t.plate })),
     },
@@ -54,6 +59,7 @@ export async function commit(s: Store, firmId: string, text: string, filename: s
   const imp = { id: newId("m") };
   const rows: NewFuelTx[] = a.rows.map(({ r, truckId, hash }) => ({ truckId, source: a.parsed.source, importId: imp.id, hash, card: r.card, plate: r.plate, at: r.at, station: r.station, country: r.country, product: r.product, litres: r.litres, amount: r.amount, currency: r.currency, odometer: r.odometer, lat: r.lat, lng: r.lng, userId: null, photoName: null, photoSize: null, aiRead: false }));
   const res = await s.addFuel(firmId, rows);
+  await s.saveMapping(firmId, headerSig(a.parsed.headers), a.parsed.mapping).catch(() => {});
   await s.addImport(firmId, { id: imp.id, source: a.parsed.source, filename: filename.slice(0, 120), rows: a.parsed.total, added: res.added, dupes: res.dupes, skipped: a.parsed.total - a.parsed.rows.length });
   return { ok: true as const, summary: a.summary, added: res.added, dupes: res.dupes, importId: imp.id, unknown: a.summary.unknown.filter((u) => !(u.card && clean[u.card])).length };
 }

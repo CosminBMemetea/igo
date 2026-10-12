@@ -19,7 +19,7 @@ export interface FuelTxRow { id: string; firmId: string; truckId: string | null;
 export type NewFuelTx = Omit<FuelTxRow, "id" | "firmId">;
 export interface CardRow { card: string; truckId: string | null }
 export interface ImportRow { id: string; firmId: string; source: string; filename: string; rows: number; added: number; dupes: number; skipped: number; createdAt: string }
-export interface ShiftRow { truckId: string; start: string; end: string | null; checklist: string[] }
+export interface ShiftRow { truckId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
 export interface PosRow { truckId: string; at: string; lat: number; lng: number }
 
 export type FileKind = "doc" | "cmr" | "pod";
@@ -85,6 +85,8 @@ export interface Store {
   imports(firmId: string): Promise<ImportRow[]>;
   setShift(firmId: string, s: ShiftRow): Promise<ShiftRow>;
   shift(firmId: string, truckId: string): Promise<ShiftRow | null>;
+  savedMapping(firmId: string, sig: string): Promise<Record<string, number> | null>;
+  saveMapping(firmId: string, sig: string, m: Record<string, number>): Promise<void>;
   addPosition(firmId: string, p: PosRow): Promise<void>;
   positions(firmId: string, sinceAt?: string): Promise<PosRow[]>;
 }

@@ -48,7 +48,10 @@ export function firmFuelAlerts(trucks: RTruck[], txAll: RTx[], positions: RPos[]
     const pos = positions.filter((p) => p.truckId === t.id);
     tx.forEach((f, i) => {
       const prev = i > 0 ? tx[i - 1] : null;
-      const push = (rule: FirmRule, severity: Severity, theft: boolean, params: FirmAlert["params"]) => out.push({ id: `${rule}-${f.id}`, rule, vehicleId: t.id, time: f.at, severity, theft, params });
+      // GDPR: fără poziții în jurul alimentării (mod privat / în afara turei) → regula GPS nu se aplică, iar alertele acestei alimentări poartă „fără poziție (privat)”
+      const near = f.lat != null && f.lng != null ? pos.filter((p) => Math.abs(mins(p.at.slice(0, 16), f.at)) <= T.posWindowMin) : [];
+      const noPos = f.lat != null && f.lng != null && !near.length;
+      const push = (rule: FirmRule, severity: Severity, theft: boolean, params: FirmAlert["params"]) => out.push({ id: `${rule}-${f.id}`, rule, vehicleId: t.id, time: f.at, severity, theft, params: noPos ? { ...params, nogps: 1 } : params });
       if (t.tankL && f.litres > t.tankL * (1 + T.overTankTolerance))
         push("peste-capacitate", "high", true, { station: f.station, time: f.at, litres: f.litres, plate: t.plate, tank: t.tankL, excess: Math.round(f.litres - t.tankL) });
       const h = +f.at.slice(11, 13), dow = new Date(f.at.slice(0, 10) + "T12:00:00Z").getUTCDay();
@@ -73,7 +76,6 @@ export function firmFuelAlerts(trucks: RTruck[], txAll: RTx[], positions: RPos[]
         }
       }
       if (f.lat != null && f.lng != null && pos.length) {
-        const near = pos.filter((p) => Math.abs(mins(p.at.slice(0, 16), f.at)) <= T.posWindowMin);
         if (near.length) {
           const dist = Math.min(...near.map((p) => haversine([p.lat, p.lng], [f.lat!, f.lng!])));
           if (dist > T.posMaxKm) push("card-fara-camion", "high", true, { card: f.card ?? "—", litres: f.litres, station: f.station, time: f.at, plate: t.plate, dist: Math.round(dist), threshold: T.posMaxKm });

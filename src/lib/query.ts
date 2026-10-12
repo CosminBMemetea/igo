@@ -35,9 +35,13 @@ export function clientSummaries(clients: Client[], views: TripView[]) {
 }
 
 // ---------- hartă live ----------
-export type LiveStatus = "moving" | "stopped" | "pump" | "working" | "offline";
+export type LiveStatus = "moving" | "stopped" | "pump" | "working" | "offline" | "private";
+/** Demo: un șofer în modul privat (pauză / în afara turei) — fără poziție. */
+export const DEMO_PRIVATE = new Set(["bh05qrt"]);
+/** GDPR: în modul privat sau în afara turei nu există poziție, traseu sau evenimente — nici în API. */
+export const privatize = (x: LiveVehicle): LiveVehicle => ({ ...x, status: "private", speed: 0, at: null, secondsAgo: 0, track: [], ahead: [], done: [], dest: "", left: 0, eta: null, today: 0, events: [] });
 export interface LiveVehicle {
-  id: string; name: string; kind: Vehicle["kind"]; driver: string; status: LiveStatus; speed: number; at: LatLng; secondsAgo: number;
+  id: string; name: string; kind: Vehicle["kind"]; driver: string; status: LiveStatus; speed: number; at: LatLng | null; secondsAgo: number;
   track: { min: number; at: LatLng }[]; ahead: LatLng[]; done: LatLng[]; dest: string; left: number; leftUnit: "km" | "ha"; eta: string | null;
   today: number; todayUnit: "km" | "h"; rate: number; rateUnit: "L/100km" | "L/ha"; profitToday: number | null; tripId: string | null;
   events: { time: string; kind: "entry" | "exit"; zone: string }[];
@@ -62,7 +66,10 @@ function zoneEvents(track: { min: number; at: LatLng }[], zones: Zone[]) {
   }
   return ev.sort((a, b) => a.time.localeCompare(b.time));
 }
-export function liveFleet(vehicles: Vehicle[], views: TripView[], parcels: Parcel[], zones: Zone[], now = DEMO_NOW_MIN): LiveVehicle[] {
+export function liveFleet(vehicles: Vehicle[], views: TripView[], parcels: Parcel[], zones: Zone[], now = DEMO_NOW_MIN, priv: Set<string> = DEMO_PRIVATE): LiveVehicle[] {
+  return liveFleetRaw(vehicles, views, parcels, zones, now).map((x) => (priv.has(x.id) ? privatize(x) : x));
+}
+function liveFleetRaw(vehicles: Vehicle[], views: TripView[], parcels: Parcel[], zones: Zone[], now: number): LiveVehicle[] {
   return vehicles.map((v): LiveVehicle => {
     const active = views.find((x) => x.vehicleId === v.id && x.active) ?? null;
     const truck = TRUCKS.find((t) => t.id === v.id);
