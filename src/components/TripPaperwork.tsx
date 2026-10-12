@@ -18,10 +18,10 @@ async function compress(f: File): Promise<Blob> {
   }
   return f;
 }
-let LOC = "ro-RO";
-const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(LOC, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Bucharest" }) : "—");
+// HH:MM ora României, identic pe server (Node ICU) și în orice browser: doar cifre, fără formatare dependentă de locale
+const RO_HM = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", hourCycle: "h23", hour: "numeric", minute: "numeric" });
+const hhmm = (iso: string | null) => { if (!iso) return "—"; const p = Object.fromEntries(RO_HM.formatToParts(new Date(iso)).map((x) => [x.type, x.value])); return `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`; };
 export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow }: { serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
-  LOC = loc === "en" ? "en-GB" : loc === "pl" ? "pl-PL" : "ro-RO";
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
   const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(serverNow);
   const cmr = useRef<HTMLInputElement>(null), pod = useRef<HTMLInputElement>(null);
@@ -70,7 +70,7 @@ export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial,
         <button className={`pwb${st.unloadedAt ? " done" : ""}`} disabled={!!busy || !st.loadedAt} onClick={() => event("unloaded")}><b>{L["pw.unloaded"]}</b><span>{st.unloadedAt ? hhmm(st.unloadedAt) : L["pw.tap"]}</span></button>
       </div>
       <button className={`pwwait${st.waitSince ? " on" : ""}`} disabled={!!busy} onClick={() => event(st.waitSince ? "wait_end" : "wait_start")}>
-        <span>{st.waitSince ? L["pw.waitStop"] : L["pw.wait"]}</span><b>{Math.floor(waitNow / 60)}h {String(waitNow % 60).padStart(2, "0")}m</b>
+        <span>{st.waitSince ? L["pw.waitStop"] : L["pw.wait"]}</span><b suppressHydrationWarning>{Math.floor(waitNow / 60)}h {String(waitNow % 60).padStart(2, "0")}m</b>
       </button>
       <p className="hint">{L["pw.waitHint"]}</p>
       {(["cmr", "pod"] as const).map((k) => (

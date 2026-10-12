@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
-import { fmtNum, type Locale } from "@/lib/i18n";
+import { fmtDate, fmtNum, type Locale } from "@/lib/i18n";
 import type { ReplayData, ReplayEvent, RKind } from "@/lib/replay";
 import { Icon } from "./icons";
 
@@ -214,7 +214,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       <div ref={el} className="rp-map" />
       <div className="rp-top">
         <Link href={back} className="rp-back" aria-label={t.back}><svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" /></svg></Link>
-        <div><div className="eyebrow">{t.title} · {d.date}</div><div className="rp-name">{d.plate}{d.route ? <span> · {d.route}</span> : null}</div></div>
+        <div><div className="eyebrow">{t.title} · {fmtDate(loc, d.date, true)}</div><div className="rp-name">{d.plate}{d.route ? <span> · {d.route}</span> : null}</div></div>
         {d.demo ? <span className="badge acc">DEMO</span> : null}
       </div>
       <aside className="rp-panel">
