@@ -706,3 +706,41 @@ html{scroll-padding-top:120px}
 .rp-toasts{left:auto;right:448px;top:112px;transform:none;align-items:flex-end}
 .rp-rowbtn{animation:fade .8s both}
 @media (max-width:760px){main:has(.rp-cta.xl){padding-bottom:190px}}
+/* Replay v3: framing */
+.rp-sumbg{position:fixed;inset:0;z-index:40;background:rgba(6,8,12,.38);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:rpBg .3s both}
+[data-theme=light] .rp-sumbg{background:rgba(20,24,32,.22)}
+@keyframes rpBg{from{opacity:0}}
+@keyframes rpSum{from{opacity:0;transform:translate(-50%,calc(-50% + 16px))}}
+.rp-sum{z-index:41;left:calc(50% - 200px);top:50%;transform:translate(-50%,-50%);background:var(--bg);box-shadow:0 30px 90px rgba(0,0,0,.5),0 0 0 1px color-mix(in srgb,var(--fg) 8%,transparent);animation:rpSum .4s cubic-bezier(.2,.8,.2,1) both}
+.rp-sumx{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:0;background:var(--bg2);color:var(--fg);font-size:20px;line-height:1;cursor:pointer}
+.rp-sum h2{padding-right:36px}
+@media (max-width:760px){
+ @keyframes rpSumM{from{opacity:0;transform:translateY(24px)}}
+ .rp-sum{left:10px;right:10px;width:auto;top:auto;bottom:calc(10px + env(safe-area-inset-bottom));transform:none;padding:20px 18px calc(16px + env(safe-area-inset-bottom)*0);border-radius:26px;max-height:calc(100dvh - 140px);overflow:auto;animation:rpSumM .4s cubic-bezier(.2,.8,.2,1) both}
+ .rp-sumbg,.rp-sum{z-index:6001}
+ .rp-sum h2{font-size:20px;margin:4px 0 14px}
+ .rp-sumgrid{grid-template-columns:1fr 1fr;gap:8px}.rp-sumgrid div{padding:10px 12px}.rp-sumgrid b{font-size:18px}
+ .rp-sumgrid div:last-child:nth-child(odd){grid-column:1/-1}
+ .rp-sumbtn{margin-top:14px}
+ /* HUD: o singură bandă deasupra barei */
+ .rp-hud{left:10px;right:10px;bottom:calc(86px + 104px + env(safe-area-inset-bottom))!important;top:auto!important;gap:10px;padding:8px 14px 8px 10px;border-radius:20px;min-width:0;align-items:center}
+ .rp-gauge{width:62px;height:40px;flex:none}.rp-gauge svg{width:62px;height:36px;stroke-width:8}
+ .rp-gauge .g-val b{font-size:19px;font-weight:300}.rp-gauge .g-val span{font-size:8px}
+ .rp-hudcol{flex-direction:row;align-items:center;gap:12px;flex:1;min-width:0;justify-content:space-between}
+ .rp-status{font-size:0;padding:0;background:none;gap:0}.rp-status i{width:10px;height:10px;box-shadow:0 0 0 4px color-mix(in srgb,var(--pos) 22%,transparent)}
+ .rp-hudrow{gap:14px}.rp-hudrow b{font-size:17px}.rp-hudrow span{font-size:9px}
+ .rp-fuel{grid-template-columns:1fr;gap:3px;width:62px}.rp-fuel>span{font-size:9px}.rp-fuel small{display:none}
+ /* bara: curată */
+ .rp-bar{bottom:calc(86px + env(safe-area-inset-bottom));gap:8px}
+ .rp-hlt{display:none}.rp-hl{width:40px;height:40px;padding:0;font-size:16px;margin-left:auto}
+ .rp-seg button{padding:0 9px}
+ .rp-toasts{left:10px!important;right:10px!important;top:calc(132px + env(safe-area-inset-top))!important;align-items:stretch!important}
+ /* tur pe reluare: card compact sus, întunecare ușoară */
+ .tour.m.soft .tour-card{padding:12px 16px 10px;border-radius:20px}
+ .tour.m.soft .tour-card h3{font-size:16px;margin:6px 0 4px}
+ .tour.m.soft .tour-card p{font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ .tour.m.soft .tour-foot{margin-top:10px}
+}
+.tour.soft .tour-hole{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 80%,transparent),0 0 0 9999px rgba(6,8,12,.14)}
+[data-theme=light] .tour.soft .tour-hole{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 80%,transparent),0 0 0 9999px rgba(20,24,32,.1)}
+.tour.soft .tour-card{box-shadow:0 18px 60px rgba(0,0,0,.4),0 0 0 1px color-mix(in srgb,var(--fg) 8%,transparent)}

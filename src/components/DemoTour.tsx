@@ -70,6 +70,7 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   if (!step) return null;
   const last = st.i === steps.length - 1;
   const pad = 10;
+  const soft = step.path.startsWith("/replay");
   const hole = rect ? { left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
   // cardul: sub element dacă încape, altfel deasupra; pe mobil — foaie jos
   let card: React.CSSProperties = {};
@@ -79,9 +80,9 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
     if (hole.height > innerHeight * 0.6) card = { width: w, left: Math.max(16, hole.left + 24), bottom: 32 };
   }
   return (
-    <div className={`tour${mobile ? " m" : ""}`} role="dialog" aria-modal="false" aria-label={step.title}>
+    <div className={`tour${mobile ? " m" : ""}${soft ? " soft" : ""}`} role="dialog" aria-modal="false" aria-label={step.title}>
       <div className={`tour-hole${hole ? "" : " none"}`} style={hole ?? undefined} />
-      <div className="tour-card" style={mobile ? (hole && hole.top + hole.height / 2 > innerHeight / 2 ? { top: 76, bottom: "auto" } : undefined) : !hole ? undefined : card} key={st.i}>
+      <div className="tour-card" style={mobile ? (soft ? { top: "calc(62px + env(safe-area-inset-top))", bottom: "auto" } : hole && hole.top + hole.height / 2 > innerHeight / 2 ? { top: 76, bottom: "auto" } : undefined) : !hole ? undefined : card} key={st.i}>
         <div className="tour-top"><span>{L.of.replace("{i}", String(st.i + 1)).replace("{n}", String(steps.length))}</span><button type="button" onClick={() => set({ i: st.i, on: false, done: true })} aria-label={L.skip}>{L.skip}</button></div>
         <h3>{step.title}</h3>
         <p>{step.body}</p>

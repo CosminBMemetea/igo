@@ -40,6 +40,8 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(4);
   const [follow, setFollow] = useState(false);
+  const [sumX, setSumX] = useState(false);
+  useEffect(() => { if (playing) setSumX(false); }, [playing]);
   const [hl, setHl] = useState(false); // „Momente cheie”: sare repede peste drumul drept, încetinește la evenimente
   const hlRef = useRef(false); hlRef.current = hl;
   const [toasts, setToasts] = useState<{ id: number; kind: RKind; text: string; place?: string }[]>([]);
@@ -269,8 +271,10 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
       </div>
       <div className="rp-toasts">{toasts.map((x) => <div key={x.id} className={`rp-toast k-${x.kind}`}><i>{x.kind === "fuel" ? "⛽" : x.kind === "pause" ? "☕" : x.kind === "private" ? "🔒" : x.kind === "start" ? "🚚" : "🏁"}</i><div><b>{x.text}</b>{x.place ? <small>{x.place}</small> : null}</div></div>)}</div>
       {intro ? <div className="rp-intro"><span>{d.plate}</span><b>{d.route || t.title}</b></div> : null}
-      {status === "end" && !playing ? (
-        <div className="rp-sum fade">
+      {status === "end" && !playing && !sumX ? (<>
+        <div className="rp-sumbg" onClick={() => setSumX(true)} />
+        <div className="rp-sum" role="dialog" aria-label={t.sumTitle}>
+          <button type="button" className="rp-sumx" onClick={() => setSumX(true)} aria-label="×">×</button>
           <div className="eyebrow">{t.sumTitle}</div>
           <h2>{d.route || d.plate}</h2>
           <div className="rp-sumgrid">
@@ -285,7 +289,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
             {d.tripId ? <Link className="btn sec" href={`/trips/${d.tripId}`}>{t.openTrip}</Link> : null}
           </div>
         </div>
-      ) : null}
+      </>) : null}
       <aside className="rp-panel">
         {pv ? <p className="rp-privnote">{t.privNote}</p> : null}
         <div className="rp-mini"><span>{t.litres} <b>{N(usedL, 0)} L</b></span><span>{t.fueled} <b>{N(fueled)} L</b></span><span>{t.stops} <b>{fuels.length}</b></span></div>
@@ -309,7 +313,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
           <input type="range" min={d.start} max={d.end} step={0.5} value={min} onChange={(e) => { setPlaying(false); seek(+e.target.value); }} aria-label={t.scrub} />
           <div className="rp-hours"><span>{hhmm(d.start)}</span><span>{hhmm((d.start + d.end) / 2)}</span><span>{hhmm(d.end)}</span></div>
         </div>
-        <button type="button" className={`rp-hl${hl ? " on" : ""}`} onClick={() => setHl(!hl)} aria-pressed={hl} title={t.hlHint}>⚡ {t.hl}</button>
+        <button type="button" className={`rp-hl${hl ? " on" : ""}`} onClick={() => setHl(!hl)} aria-pressed={hl} title={t.hlHint}aria-label={t.hl}>⚡<span className="rp-hlt"> {t.hl}</span></button>
         <div className="rp-seg">{SPEEDS.map((s) => <button key={s} className={speed === s ? "on" : ""} onClick={() => setSpeed(s)}>{s}×</button>)}</div>
         <button className={`rp-follow${follow ? " on" : ""}`} onClick={() => setFollow(!follow)} title={t.follow} aria-label={t.follow}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg></button>
       </div>
