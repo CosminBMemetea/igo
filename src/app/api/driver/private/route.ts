@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
+import { demoShift, saveDemoShift } from "@/lib/demo-shift";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 /** „Privat” în pauză (doar în tură): oprește salvarea pozițiilor până la revenire. */
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { vehicleId?: unknown; on?: unknown } | null;
   if (!b || typeof b.vehicleId !== "string" || typeof b.on !== "boolean") return NextResponse.json({ error: "bad request" }, { status: 400 });
-  const r = (await tenant()).repo;
+  const tn = await tenant(), r = tn.repo;
   if (!(await r.vehicles()).some((v) => v.id === b.vehicleId)) return NextResponse.json({ error: "bad request" }, { status: 400 });
-  const sh = await r.shift(b.vehicleId);
+  const sh = (tn.demo ? demoShift(b.vehicleId) : null) ?? await r.shift(b.vehicleId);
   if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });
-  const s = await r.setShift({ ...sh, privateSince: b.on ? new Date().toISOString() : null });
-  return NextResponse.json({ ok: true, private: !!s.privateSince });
+  // demo: doar în cookie-ul vizitatorului (nu în memoria comună a serverului — altfel s-ar vedea la alți vizitatori)
+  const next = { ...sh, privateSince: b.on ? new Date().toISOString() : null };
+  const s = tn.demo ? next : await r.setShift(next);
+  const res = NextResponse.json({ ok: true, private: !!s.privateSince });
+  return tn.demo ? saveDemoShift(res, s) : res;
 }

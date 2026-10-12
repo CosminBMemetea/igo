@@ -1,9 +1,11 @@
+/** Curs orientativ EUR→RON pentru totalurile din demo (aprox. BNR 2026). */
+export const EUR_RON = 5.08;
 // Querra Fleet: importul CSV în modul demo — totul într-un MemStore nou, per cerere. Nimic nu ajunge în baza de date.
 import { MemStore } from "../store/mem";
 import { FirmRepository, truckBaseline } from "../firm-repo";
 import { fillToFill } from "./rules";
 import { alertTitle, alertWhy } from "../alert-text";
-import { fmtMoney, fmtNum, t, type Locale, type MsgKey } from "../i18n";
+import { fmtMoney, fmtNum, plural, t, type Locale, type MsgKey } from "../i18n";
 import { headers } from "next/headers";
 
 export const DEMO_TRUCKS = [
@@ -25,8 +27,9 @@ export async function demoResult(s: MemStore, firm: Awaited<ReturnType<MemStore[
   const report = trucks.map((tr) => {
     const mine = tx.filter((x) => x.truckId === tr.id);
     const b = truckBaseline(tr, tx, since), recent = fillToFill(mine.map((x) => ({ ...x })));
-    const lei = mine.reduce((a, x) => a + (x.amount ?? 0), 0);
-    return { plate: tr.plate, n: mine.length, meta: t(loc, "imp.truckMeta", { n: mine.length, litres: fmtNum(loc, mine.reduce((a, x) => a + x.litres, 0)), lei: fmtMoney(loc, lei) }), base: `${t(loc, `imp.base.${b.kind}` as MsgKey, { l100: fmtNum(loc, b.l100, 1), km: fmtNum(loc, b.km) })}${recent.l100 ? ` · ${t(loc, "imp.now", { l100: fmtNum(loc, recent.l100, 1) })}` : ""}` };
+    // EUR (ex. DKV în străinătate) convertit în lei, nu adunat ca lei
+    const lei = mine.reduce((a, x) => a + (x.amount ?? 0) * (x.currency === "EUR" ? EUR_RON : 1), 0);
+    return { plate: tr.plate, n: mine.length, meta: t(loc, "imp.truckMeta", { fills: plural(loc, mine.length, "u.fill"), litres: fmtNum(loc, mine.reduce((a, x) => a + x.litres, 0)), lei: fmtMoney(loc, lei) }), base: `${t(loc, `imp.base.${b.kind}` as MsgKey, { l100: fmtNum(loc, b.l100, 1), km: fmtNum(loc, b.km) })}${recent.l100 ? ` · ${t(loc, "imp.now", { l100: fmtNum(loc, recent.l100, 1) })}` : ""}` };
   }).filter((x) => x.n);
   const alerts = (await new FirmRepository(s, firm).alerts()).map((a) => ({ id: a.id, severity: a.severity, theft: a.theft, title: `${alertTitle(loc, a)} · ${trucks.find((x) => x.id === a.vehicleId)?.plate ?? ""}`, why: alertWhy(loc, a), nogps: !!a.params?.nogps }));
   return { report, alerts };

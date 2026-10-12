@@ -89,9 +89,9 @@ export default async function Documents({ searchParams }: { searchParams: { tab?
   ) : null;
   const body = (
     <main>
-      <div className="eyebrow fade">{t(loc, "docs.title")}</div>
+      <div className="eyebrow fade">{t(loc, "docs.title")} · {t(loc, "dc.attn")}</div>
       <div className="big fade" style={{ marginTop: 8 }}>{soon.length}</div>
-      <p className="sub fade d1">{t(loc, "dc.sub", { expired: counts.expired, urgent: counts.urgent, soon: counts.soon, valid: counts.valid })}</p>
+      <p className="sub fade d1">{t(loc, "dc.sub", { total: dated.length, expired: counts.expired, urgent: counts.urgent, soon: counts.soon, valid: counts.valid })}</p>
       {searchParams.ok ? <p className="msg ok">{t(loc, "set.saved")}</p> : null}
       {searchParams.e && ERR.includes(searchParams.e) ? <p className="msg err">{t(loc, `dc.e.${searchParams.e}` as MsgKey)}</p> : null}
       <div className="dtools fade d2">

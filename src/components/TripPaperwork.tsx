@@ -79,9 +79,9 @@ export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial,
           <div className="thumbs">{files(k).length ? files(k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer"><img src={f.src} alt={`${L[`pw.${k}`]} ${i + 1}`} loading="lazy" /></a>) : <span className="hint">{L["pw.none"]}</span>}</div>
         </div>
       ))}
-      <label className="pwgeo"><input type="checkbox" checked={geo} onChange={(e) => { setGeo(e.target.checked); localStorage.setItem("qf-geo", e.target.checked ? "1" : "0"); }} /> <span>{onShift ? L["pw.geo"] : L["pw.geoOff"]}</span></label>
+      <label className="pwgeo"><input type="checkbox" checked={geo && onShift} disabled={!onShift} onChange={(e) => { setGeo(e.target.checked); localStorage.setItem("qf-geo", e.target.checked ? "1" : "0"); }} /> <span>{onShift ? L["pw.geo"] : L["pw.geoOff"]}</span></label>
       {msg.t ? <p className={`msg ${msg.k}`}>{msg.t}</p> : null}
-      {demo ? <p className="hint">{L["pw.demo"]}</p> : null}
+      {demo ? <p className="hint" style={{ marginTop: 10 }}>{L["pw.demo"]}</p> : null}
     </section>
   );
 }

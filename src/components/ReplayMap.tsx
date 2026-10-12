@@ -101,6 +101,9 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       const ghost = L.marker(posAt(0), { icon: L.divIcon({ className: "rp-ghost", html: `<span>🔒 ${t.privShort}</span>`, iconSize: [0, 0] }), interactive: false, opacity: 0 }).addTo(map);
       const mobile = matchMedia("(max-width:760px)").matches;
       map.fitBounds(L.latLngBounds(all).pad(0.12), { paddingTopLeft: mobile ? [16, 90] : [24, 90], paddingBottomRight: mobile ? [16, 330] : [420, 120], maxZoom: 14 });
+      // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
+      requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
+      if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       m.current = { L, map, truck, trail, halo, ghost };
       setReady(true);
     })();
@@ -184,7 +187,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
     const k = (e: KeyboardEvent) => { if (e.code === "Space" && (e.target as HTMLElement).tagName !== "INPUT") { e.preventDefault(); toggle(); } };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
   });
-  const toggle = () => { if (!playing && minRef.current >= d.end) seek(d.start); setPlaying((p) => !p); };
+  const toggle = () => { if (!playing && minRef.current >= d.end - 1) seek(d.start); setPlaying((p) => !p); };
 
   // panou
   const km = kmAt(min), pv = privAt(min);

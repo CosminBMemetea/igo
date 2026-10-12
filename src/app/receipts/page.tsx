@@ -26,7 +26,7 @@ export default async function Receipts() {
             {tx.map((x) => {
               const v = d.vehicles.find((y) => y.id === x.truckId);
               return (
-                <div key={x.id} className="row r4" style={{ cursor: "default" }}>
+                <div key={x.id} className="row r4 rcrow" style={{ cursor: "default" }}>
                   <div><div className="t">{x.station || "—"}</div><div className="m">{fmtDate(loc, x.at)} · {v?.name ?? x.card ?? "—"}</div></div>
                   <div className="v">{fmtNum(loc, x.litres, 1)} L</div>
                   <div className="v">{x.amount != null ? fmtMoney(loc, x.amount) : "—"}</div>
@@ -62,7 +62,7 @@ export default async function Receipts() {
           {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
-              <div key={f.id} className="row r4" style={{ cursor: "default" }}>
+              <div key={f.id} className="row r4 rcrow" style={{ cursor: "default" }}>
                 <div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div>
                 <div className="v">{fmtNum(loc, f.litres)} L</div>
                 <div className="v">{fmtMoney(loc, f.amount)}</div>

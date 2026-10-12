@@ -56,6 +56,9 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44, iconCreateFunction: (c) => L.divIcon({ html: `<span>${c.getChildCount()}</span>`, className: "cl", iconSize: [44, 44] }) });
       map.addLayer(cluster);
       map.setView([46.9, 21.9], 7);
+      // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
+      requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
+      if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       mapRef.current = { L, map, cluster };
       setReady(true);
     })();

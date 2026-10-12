@@ -27,6 +27,10 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
             <button className="btn pri xl" style={{ width: "100%" }} disabled={!secret}>{t(loc, "login.demo")} →</button>
             <p className="hint" style={{ textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
           </form>
+          <form action="/api/auth/demo" method="post" className="fade d1" style={{ textAlign: "center", marginTop: 4 }}>
+            <input type="hidden" name="as" value="driver" />
+            <button className="btn sec sm" disabled={!secret}>{t(loc, "login.demoDriver")}</button>
+          </form>
           <div className="or">{t(loc, "login.or")}</div>
           <div className="rtabs fade d2">{tab("owner")}{tab("driver")}</div>
         </>

@@ -50,8 +50,8 @@ const SYN: Record<Field, string[]> = {
   date: ["transaction date", "data tranzactiei", "data tranzactie", "data", "date", "datum", "data transakcji", "tranzakcio datuma", "datum zeit", "date time", "datetime", "ziua", "zi", "dzien"],
   time: ["time", "ora", "uhrzeit", "godzina", "czas", "zeit", "transaction time"],
   card: ["card number", "card no", "card", "nr card", "numar card", "kartennummer", "karta", "numer karty", "nr karty", "kartyaszam", "pan"],
-  plate: ["licence plate", "license plate", "vehicle registration", "registration number", "registration", "nr inmatriculare", "numar inmatriculare", "inmatriculare", "kennzeichen", "nr rejestracyjny", "numer rejestracyjny", "rendszam", "plate", "vehicle", "masina", "camion", "auto", "pojazd"],
-  station: ["service station", "station name", "site name", "statie", "statia", "station", "tankstelle", "stacja", "location", "site", "kut"],
+  plate: ["nr auto", "nr. auto", "numar auto", "număr auto", "nr masina", "licence plate", "license plate", "vehicle registration", "registration number", "registration", "nr inmatriculare", "numar inmatriculare", "inmatriculare", "kennzeichen", "nr rejestracyjny", "numer rejestracyjny", "rendszam", "plate", "vehicle", "masina", "camion", "auto", "pojazd"],
+  station: ["locatie", "locatia", "locație", "locaţie", "localitate", "service station", "station name", "site name", "statie", "statia", "station", "tankstelle", "stacja", "location", "site", "kut"],
   country: ["country", "tara", "land", "kraj", "orszag"],
   product: ["product", "produs", "produkt", "termek", "article", "goods"],
   litres: ["quantity", "volume l", "volume", "cantitate l", "cantitate", "litri", "litres", "liters", "menge", "ilosc", "ilosc l", "mennyiseg", "qty", "cant", "l"],
@@ -145,6 +145,8 @@ export function parseDateTime(dateRaw: string | undefined, timeRaw: string | und
 }
 
 // ---------- rânduri ----------
+/** ş/ţ cu sedilă (Windows-1250, Excel vechi) → ș/ț corecte: „Florești”, nu „Floreşti”. */
+export const roFix = (s: string) => s.replace(/ş/g, "ș").replace(/Ş/g, "Ș").replace(/ţ/g, "ț").replace(/Ţ/g, "Ț");
 export interface FuelRow { at: string; card: string | null; plate: string | null; station: string; country: string | null; product: string | null; litres: number; amount: number | null; currency: string | null; odometer: number | null; lat: number | null; lng: number | null }
 export type SkipReason = "date" | "litres" | "nonfuel" | "id";
 const NON_FUEL = /adblue|ad blue|toll|maut|peaj|vignette|viniet|rovinieta|winieta|myto|wash|spalat|myjnia|oil|ulei|olej|parking|parcare|parking|service|serwis|shop|magazin|food/i;
@@ -182,7 +184,7 @@ export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
     const card = cleanCard(get(r, "card")), plate = get(r, "plate")?.trim().toUpperCase() || null;
     if (!card && !plate) { bad(i, "id", ""); continue; }
     const odo = num(r, "odometer");
-    out.push({ at, card, plate, station: (get(r, "station") ?? "").trim().slice(0, 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });
+    out.push({ at, card, plate, station: roFix((get(r, "station") ?? "").trim()).slice(0, 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });
   }
   const confident = !missing.length && (source !== "generic" || (mapping.date != null && mapping.litres != null && (mapping.card != null || mapping.plate != null) && out.length >= Math.max(1, rows.length * 0.8)));
   return { source, delimiter, headers, mapping, confident, missing, rows: out, skipped, total: rows.length, preview: rows.slice(0, 5), errors };

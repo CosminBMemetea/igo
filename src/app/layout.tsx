@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const ctx = { ...firm, who: me?.name ?? null, plate, path: h.get("x-igo-path") ?? "/", denied: h.get("x-igo-denied") };
   return (
     <html lang={prefs.loc} data-theme={prefs.theme} data-role={lookOf(prefs.role) ?? undefined} className={inter.variable}>
-      <head><link rel="preconnect" href="https://server.arcgisonline.com" crossOrigin="" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /></head>
+      <head><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /></head>
       <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView ? "has-trial" : undefined}>
         <Header prefs={prefs} firm={ctx} />
         {children}

@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { pluralForm } from "@/lib/i18n/plural";
 import type { Summary } from "@/lib/fuel/import";
 import { FIELDS, REQUIRED, headerSig, type Field, type Mapping } from "@/lib/fuel/parse";
 
@@ -22,18 +23,26 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
   const [drag, setDrag] = useState(false);
   const [enc, setEnc] = useState("UTF-8");
 
+  // fetch cu timeout: niciodată blocat pe „Citim…” (rețea slabă, cold start, răspuns invalid)
+  async function post(url: string, body: unknown): Promise<Response | null> {
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 20000);
+    try { return await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ac.signal }); }
+    catch { return null; } finally { clearTimeout(t); }
+  }
   async function preview(text: string, m?: Mapping) {
     setBusy(true); setMsg(null);
-    const r = await fetch("/api/import/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, mapping: m }) });
+    const r = await post("/api/import/preview", { text, mapping: m });
     setBusy(false);
-    if (!r.ok) { setMsg({ ok: false, text: r.status === 413 ? l.big : l.err }); return; }
-    const s = (await r.json()) as Summary;
+    if (!r || !r.ok) { setMsg({ ok: false, text: r?.status === 413 ? l.big : l.err }); return; }
+    const s = (await r.json().catch(() => null)) as Summary | null;
+    if (!s) { setMsg({ ok: false, text: l.err }); return; }
     // demo: maparea „salvată” trăiește doar în browser (localStorage), nu pe server
     if (demo && !m) { try { const saved = localStorage.getItem(LS + headerSig(s.headers)); if (saved) { await preview(text, JSON.parse(saved)); setSum((x) => (x ? { ...x, savedMapping: true, confident: !x.missing.length } : x)); return; } } catch {} }
     setSum(s); setMapping(s.mapping); setShowMap(!s.confident);
   }
   async function pick(f: File | undefined) {
     if (!f) return;
+    if (input.current) input.current.value = ""; // același fișier poate fi ales din nou
     if (f.size > 3 * 1024 * 1024) { setMsg({ ok: false, text: l.big }); return; }
     const buf = await f.arrayBuffer();
     // UTF-8, altfel Windows-1250/1252 (exporturi vechi din Excel)
@@ -47,17 +56,17 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
   async function go() {
     if (!file) return;
     setBusy(true);
-    const r = await fetch("/api/import/commit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: file.text, filename: file.name, mapping, assign }) });
+    const r = await post("/api/import/commit", { text: file.text, filename: file.name, mapping, assign });
     setBusy(false);
-    const j = await r.json().catch(() => null);
-    if (!r.ok || !j?.ok) { setMsg({ ok: false, text: l.err }); return; }
+    const j = r ? await r.json().catch(() => null) : null;
+    if (!r || !r.ok || !j?.ok) { setMsg({ ok: false, text: l.err }); return; }
     setMsg({ ok: true, text: fmt(demo ? l.demoDone : l.done, { added: j.added, dupes: j.dupes }) });
     if (demo && j.demo) { setRes(j.demo); try { if (sum) localStorage.setItem(LS + headerSig(sum.headers), JSON.stringify(mapping ?? {})); } catch {} }
     setFile(null); setSum(null); if (input.current) input.current.value = "";
     if (!demo) router.refresh();
   }
   async function trySample(k: string, n: string) {
-    const r = await fetch(`/samples/${k}.csv`); if (!r.ok) { setMsg({ ok: false, text: l.err }); return; }
+    const r = await fetch(`/samples/${k}.csv`).catch(() => null); if (!r || !r.ok) { setMsg({ ok: false, text: l.err }); return; }
     const b = await r.blob(); await pick(new File([b], `${k}.csv`, { type: "text/csv" })); void n;
   }
   const setField = (f: Field, v: string) => { const m = { ...mapping }; if (v === "") delete m[f]; else m[f] = +v; setMapping(m); if (file) preview(file.text, m); };
@@ -78,7 +87,7 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
           <div className="eyebrow">{l.demoReport}</div>
           <div className="list" style={{ marginTop: 10 }}>{res.report.map((r) => <div key={r.plate} className="it" style={{ cursor: "default" }}><div style={{ minWidth: 0 }}><div className="t">{r.plate}</div><div className="m">{r.meta}</div><div className="m">{r.base}</div></div><span className="badge ok">✓</span></div>)}</div>
           <div className="eyebrow" style={{ marginTop: 20 }}>{fmt(l.demoAlerts, { n: res.alerts.length })}</div>
-          {res.alerts.length ? <div className="dalerts">{res.alerts.map((a) => <div key={a.id} className={`da ${a.severity}`}><i /><div><b>{a.title}</b>{a.theft ? <span className="badge neg">!</span> : null}{a.nogps ? <span className="badge priv">GPS —</span> : null}<p>{a.why}</p></div></div>)}</div> : <p className="hint">{l.demoNoAlerts}</p>}
+          {res.alerts.length ? <div className="dalerts">{res.alerts.map((a) => <div key={a.id} className={`da ${a.severity}`}><i /><div><b>{a.title}</b>{a.theft ? <span className="badge neg">!</span> : null}{a.nogps ? <span className="badge priv">GPS —</span> : null}<p>{a.why}</p></div></div>)}</div> : <p className="hint" style={{ marginTop: 8, position: "static" }}>{l.demoNoAlerts}</p>}
           <button type="button" className="btn sec" style={{ marginTop: 16, width: "100%" }} onClick={() => { setRes(null); setMsg(null); }}>{l.again}</button>
         </div>
       ) : null}
@@ -136,7 +145,7 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
               <div className="list">
                 {sum.unknown.map((u) => (
                   <div key={u.card ?? u.plate ?? ""} className="it" style={{ cursor: "default" }}>
-                    <div style={{ minWidth: 0 }}><div className="t">{u.card ? `${l.card} ${u.card}` : u.plate}</div><div className="m">{fmt(l.unknownMeta, { n: u.n, litres: u.litres })}{u.plate && u.card ? ` · ${u.plate}` : ""}</div></div>
+                    <div style={{ minWidth: 0 }}><div className="t">{u.card ? `${l.card} ${u.card}` : u.plate}</div><div className="m">{fmt(l.unknownMeta, { fills: `${u.n} ${pluralForm(l.loc, u.n, l.fillUnit)}`, litres: u.litres })}{u.plate && u.card ? ` · ${u.plate}` : ""}</div></div>
                     {u.card ? (
                       <select className="tsel" value={assign[u.card] ?? ""} onChange={(e) => setAssign({ ...assign, [u.card!]: e.target.value })} aria-label={l.assign}>
                         <option value="">{l.assign}</option>

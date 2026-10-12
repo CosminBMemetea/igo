@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
-import { fmtDate, fmtMoney, fmtNum, t, type MsgKey } from "@/lib/i18n";
+import { fmtDate, fmtMoney, fmtNum, plural, t, type MsgKey } from "@/lib/i18n";
 import { store } from "@/lib/store";
 import { tenant, writableFirm } from "@/lib/tenant";
 import { truckBaseline } from "@/lib/firm-repo";
@@ -24,7 +24,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
       <p className="sub fade d1">{t(loc, "imp.sub")}</p>
     </>
   );
-  const labels = Object.fromEntries(LKEYS.map((k) => [k, t(loc, `imp.${k}` as MsgKey)]));
+  const labels: Record<string, string> = { ...Object.fromEntries(LKEYS.map((k) => [k, t(loc, `imp.${k}` as MsgKey)])), fillUnit: t(loc, "u.fill"), loc };
   const fieldLabels = Object.fromEntries(FIELDS.map((x) => [x, t(loc, `imp.f.${x}` as MsgKey)])) as Record<Field, string>;
   const samples = SAMPLES(t(loc, "imp.anomalies"));
   if (!f && tn.demo && (tn.role === "user" || tn.role === "admin")) return (
@@ -72,7 +72,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
                   {[...unassigned].map(([card, u]) => (
                     <form key={card} action="/api/import/assign" method="post" className="it" style={{ cursor: "default", flexWrap: "wrap" }}>
                       <input type="hidden" name="card" value={card} />
-                      <div style={{ minWidth: 0 }}><div className="t">{t(loc, "imp.card")} {card}</div><div className="m">{t(loc, "imp.unknownMeta", { n: u.n, litres: fmtNum(loc, u.litres) })}</div></div>
+                      <div style={{ minWidth: 0 }}><div className="t">{t(loc, "imp.card")} {card}</div><div className="m">{t(loc, "imp.unknownMeta", { fills: plural(loc, u.n, "u.fill"), litres: fmtNum(loc, u.litres) })}</div></div>
                       <div className="copy"><select name="truck" className="tsel" required>{trucks.map((x) => <option key={x.id} value={x.id}>{x.plate}</option>)}</select><button className="btn pri sm">{t(loc, "imp.save")}</button></div>
                     </form>
                   ))}

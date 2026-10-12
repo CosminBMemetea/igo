@@ -9,11 +9,13 @@ function hav(a: [number, number], b: [number, number]) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial }: { initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm }: { demoKm?: { kmh: number; cap: number } | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
   const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(0), [now, setNow] = useState(Date.now());
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [last, setLast] = useState(lastFill);
   const [priv, setPriv] = useState(!!initial?.priv);
+  // demo: km azi urmează aceeași viteză ca pe harta live (fără GPS real), plafonat la lungimea cursei
+  const shownKm = demoKm ? (on && start ? Math.min(demoKm.cap, Math.max(0, (now - start) / 3.6e6) * demoKm.kmh) : 0) : km;
   const privRef = useRef(!!initial?.priv);
   const lastPos = useRef<[number, number] | null>(null), watch = useRef<number | null>(null);
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
@@ -84,7 +86,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
         <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span></div></div>
       ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: "var(--pos)", margin: 0 }} /><div><b>{L["priv.tracking"]}</b><span>{L["priv.trackingHint"]}</span></div></div>}
       <div className="fade d1" style={{ marginTop: 40, display: "flex", gap: 40 }}>
-        <div><div className="drv-big">{fmtNum(loc, km, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
+        <div><div className="drv-big">{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }}>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>
       </div>
       {!on ? (
