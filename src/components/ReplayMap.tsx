@@ -72,8 +72,10 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       const L = (await import("leaflet")).default;
       if (dead || !el.current) return;
       const map = L.map(el.current, { zoomControl: false, attributionControl: true, preferCanvas: false });
-      L.tileLayer(tileUrl(theme, "Base"), { attribution: "Esri, HERE, Garmin, © OpenStreetMap contributors", maxZoom: 16 }).addTo(map);
+      const base = L.tileLayer(tileUrl(theme, "Base"), { attribution: "Esri, HERE, Garmin, © OpenStreetMap contributors", maxZoom: 16, keepBuffer: 4 }).addTo(map);
       L.tileLayer(tileUrl(theme, "Reference"), { maxZoom: 16, opacity: 0.5, pane: "overlayPane" }).addTo(map);
+      // așteptăm primele dale (max 4 s) înainte să arătăm harta și să pornim redarea — fără ecran gri
+      const tilesReady = new Promise<void>((res) => { base.once("load", () => res()); setTimeout(res, 4000); });
       const all = d.path.map((p) => [p[0], p[1]] as [number, number]);
       const line = { lineCap: "round", lineJoin: "round", interactive: false, smoothFactor: 1 } as const;
       // traseul rămas: estompat; segmentele private: doar o legătură punctată, fără drum
@@ -105,6 +107,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
       if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       m.current = { L, map, truck, trail, halo, ghost };
+      await tilesReady; if (dead) return;
       setReady(true);
     })();
     return () => { dead = true; m.current?.map.remove(); m.current = null; };
@@ -191,7 +194,9 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
 
   // panou
   const km = kmAt(min), pv = privAt(min);
-  const spd = pv ? null : Math.max(0, (kmAt(min + 0.25) - kmAt(min - 0.25)) * 120);
+  const spd0 = pv ? null : Math.max(0, (kmAt(min + 0.25) - kmAt(min - 0.25)) * 120);
+  // sub 3 km/h (pornire/oprire) afișăm 0 și „Oprit”, nu „În mers 1 km/h”
+  const spd = spd0 != null && spd0 < 3 ? 0 : spd0;
   const usedL = (km * d.rate) / 100;
   const fueled = fuels.filter((e) => e.min <= min).reduce((a, e) => a + (e.litres ?? 0), 0);
   const curEv = d.events.find((e) => e.kind !== "private" && e.end != null && min >= e.min && min < e.end);
@@ -201,7 +206,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
   const evLabel = (e: ReplayEvent) => e.kind === "fuel" ? `${t.fuel}${e.litres ? ` · ${N(e.litres)} L` : ""}` : e.kind === "pause" ? `${t.pause} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "private" ? `${t.private} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "start" ? t.start : t.end;
 
   return (
-    <div className="rp" data-status={status}>
+    <div className="rp" data-status={status} data-ready={ready ? "1" : undefined}>
       <div ref={el} className="rp-map" />
       <div className="rp-top">
         <Link href={back} className="rp-back" aria-label={t.back}><svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" /></svg></Link>

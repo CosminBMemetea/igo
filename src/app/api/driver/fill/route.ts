@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { localNow } from "@/lib/validate";
 import { tenant } from "@/lib/tenant";
+import { saveDemoFill } from "@/lib/demo-shift";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const MAX_PHOTO = 6 * 1024 * 1024;
 export async function POST(req: Request) {
   const fd = await req.formData().catch(() => null);
   if (!fd) return NextResponse.json({ error: "form" }, { status: 400 });
-  const r = (await tenant()).repo;
+  const tn = await tenant(), r = tn.repo;
   const vehicleId = String(fd.get("vehicleId") ?? "");
   const litres = Number(fd.get("litres")), odometerKm = Number(fd.get("odometerKm")), amountRaw = String(fd.get("amount") ?? "").trim();
   const v = (await r.vehicles()).find((x) => x.id === vehicleId);
@@ -15,6 +16,8 @@ export async function POST(req: Request) {
   const photo = fd.get("photo");
   if (photo instanceof File && photo.size > MAX_PHOTO) return NextResponse.json({ error: "photo too large" }, { status: 413 });
   const amount = amountRaw ? Number(amountRaw) : null;
+  // demo: nimic în memoria comună a serverului; doar „ultima alimentare” în cookie-ul vizitatorului
+  if (tn.demo) return saveDemoFill(NextResponse.json({ ok: true, demo: true, overTank: litres > v.tankL }), vehicleId, litres, String(fd.get("station") ?? ""));
   const row = await r.addDriverFill({ vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, station: String(fd.get("station") ?? "").slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
   return NextResponse.json({ ok: true, fill: row, overTank: litres > v.tankL });
 }

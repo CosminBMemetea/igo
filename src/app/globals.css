@@ -628,3 +628,7 @@ body:has(.livemap) .top{background:linear-gradient(var(--bg),transparent);-webki
 html{scroll-padding-top:120px}
 /* QA: bonuri pe mobil — litrii și leii rămân vizibili (ascundem doar sursa) */
 @media (max-width:760px){.row.r4.rcrow{grid-template-columns:1fr auto auto;gap:10px}.row.r4.rcrow>:nth-child(2),.row.r4.rcrow>:nth-child(3){display:block;white-space:nowrap}.row.r4.rcrow>:nth-child(4){display:none}}
+/* QA r2: pilula de probă rămâne fixă sub antet (nu mai alunecă sub el la scroll) */
+.trial{position:fixed}
+/* QA r2: reluarea apare după ce s-au încărcat dalele (fără gri) */
+.rp .leaflet-container{transition:opacity .35s}.rp:not([data-ready]) .leaflet-container{opacity:0}

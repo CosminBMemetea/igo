@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { shrinkImage } from "@/lib/shrink";
 import { fmtNum, type Locale } from "@/lib/i18n";
 import { Icon } from "./icons";
 
@@ -9,13 +10,13 @@ function hav(a: [number, number], b: [number, number]) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm }: { demoKm?: { kmh: number; cap: number } | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm }: { demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
   const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(0), [now, setNow] = useState(Date.now());
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "" }>({ t: "", k: "" });
-  const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [last, setLast] = useState(lastFill);
+  const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
   const [priv, setPriv] = useState(!!initial?.priv);
-  // demo: km azi urmează aceeași viteză ca pe harta live (fără GPS real), plafonat la lungimea cursei
-  const shownKm = demoKm ? (on && start ? Math.min(demoKm.cap, Math.max(0, (now - start) / 3.6e6) * demoKm.kmh) : 0) : km;
+  // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
+  const shownKm = demoKm != null ? (on ? demoKm : 0) : km;
   const privRef = useRef(!!initial?.priv);
   const lastPos = useRef<[number, number] | null>(null), watch = useRef<number | null>(null);
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
@@ -29,8 +30,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
     if (next) {
       setStart(Date.now()); setKm(0); lastPos.current = null;
-      startWatch();
-    } else if (watch.current != null) { navigator.geolocation.clearWatch(watch.current); watch.current = null; }
+    }
   }
   function startWatch() {
       if (!navigator.geolocation) { setMsg({ t: L["drv.gpsOff"], k: "" }); return; }
@@ -43,25 +43,36 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
         fetch("/api/driver/ping", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: here[0], lng: here[1], speed: p.coords.speed }) }).catch(() => null);
       }, () => setMsg({ t: L["drv.gpsOff"], k: "" }), { enableHighAccuracy: true, maximumAge: 15000 });
   }
-  // tura deja pornită (reîncărcare pagină): reluăm urmărirea; în modul privat nu se trimite nimic
-  useEffect(() => { if (initial) startWatch(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // GDPR: GPS-ul e pornit DOAR în tură și în afara pauzei private; altfel watch-ul e oprit complet (nici nu se cere locația)
+  useEffect(() => {
+    if (on && !priv) { startWatch(); return; }
+    if (watch.current != null) { navigator.geolocation?.clearWatch(watch.current); watch.current = null; }
+    lastPos.current = null;
+  }, [on, priv]); // eslint-disable-line react-hooks/exhaustive-deps
   async function togglePriv() {
     const next = !priv;
     const r = await fetch("/api/driver/private", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, on: next }) }).catch(() => null);
     if (!r?.ok) { setMsg({ t: L["drv.invalid"], k: "err" }); return; }
     setPriv(next); privRef.current = next; window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
   }
-  async function onPhoto(file: File | null) {
-    setPhoto(file); setRead("");
-    if (!file) return;
+  async function onPhoto(file0: File | null) {
+    setPhoto(file0); setRead(""); setReadInfo("");
+    if (!file0) return;
     setRead(L["drv.reading"]);
+    const file = await shrinkImage(file0); setPhoto(file);
     const fd = new FormData(); fd.append("photo", file);
     try {
-      const r = await fetch("/api/receipt/extract", { method: "POST", body: fd });
+      const r = await fetch("/api/receipt/extract", { method: "POST", body: fd, cache: "no-store" });
       const j = await r.json();
       if (r.ok && j.fields) {
-        setF((x) => ({ litres: j.fields.litres?.toString() ?? x.litres, odo: j.fields.odometerKm?.toString() ?? x.odo, amount: j.fields.amount?.toString() ?? x.amount, station: j.fields.station ?? x.station }));
-        setRead(L["drv.read"]);
+        const x0 = j.fields as { operator?: string | null; station?: string | null; date?: string | null; plate?: string | null; litres?: number | null; amount?: number | null; odometerKm?: number | null };
+        // operator și stație separate: „Petrom Oradea 3”, nu două rânduri lipite
+        const st = [x0.operator, x0.station && x0.operator && x0.station.toLowerCase().startsWith(x0.operator.toLowerCase()) ? x0.station.slice(x0.operator.length).trim() : x0.station].filter(Boolean).join(" ");
+        setF((x) => ({ litres: x0.litres?.toString() ?? x.litres, odo: x0.odometerKm?.toString() ?? x.odo, amount: x0.amount?.toString() ?? x.amount, station: st || x.station }));
+        const norm = (p: string) => p.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+        const meta = [x0.date ? x0.date.split("-").reverse().join(".") : null, x0.plate ? `${x0.plate}${norm(x0.plate) !== norm(vehicleName) ? ` ≠ ${vehicleName}` : ""}` : null].filter(Boolean).join(" · ");
+        setReadInfo(meta);
+        setRead(j.sample ? L["drv.sample"] : L["drv.read"]);
       } else setRead(L["drv.readManual"]);
     } catch { setRead(L["drv.readManual"]); }
   }
@@ -73,7 +84,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     fd.append("vehicleId", vehicleId); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(read === L["drv.read"]));
     if (photo) fd.append("photo", photo);
     const r = await fetch("/api/driver/fill", { method: "POST", body: fd });
-    if (r.ok) { setMsg({ t: L["drv.sent"], k: "ok" }); setLast(`${fmtNum(loc, litres)} L · ${f.station || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); }
+    if (r.ok) { setMsg({ t: L["drv.sent"], k: "ok" }); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); }
     else setMsg({ t: L["drv.invalid"], k: "err" });
   }
   const hours = start ? (now - start) / 3600000 : 0;
@@ -104,7 +115,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       {form ? (
         <form className="sheet fade" onSubmit={send}>
           <label className="field" style={{ paddingTop: 0, cursor: "pointer" }}><span>{L["drv.photo"]}<br /><small style={{ color: "var(--fg3)" }}>{photo ? photo.name : L["drv.photoHint"]}</small></span><span className="ico" style={{ background: "var(--bg3)" }}><Icon name="camera" /></span><input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onPhoto(e.target.files?.[0] ?? null)} /></label>
-          {read ? <p className="msg">{read}</p> : null}
+          {read ? <p className="msg">{read}{readInfo ? <><br /><small style={{ color: "var(--fg2)" }}>{L["drv.readMeta"]}: {readInfo}</small></> : null}</p> : null}
           {([["litres", "drv.litres", "decimal"], ["odo", "drv.odo", "numeric"], ["amount", "drv.amount", "decimal"], ["station", "drv.station", "text"]] as const).map(([k, lab, mode]) => (
             <label key={k} className="field"><span>{L[lab]}</span><input className="input" inputMode={mode} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></label>
           ))}
