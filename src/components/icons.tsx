@@ -18,6 +18,8 @@ const P: Record<string, string> = {
   fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
   play: '<path d="M7 5l12 7-12 7z" fill="currentColor"/>',
   pause: '<path d="M8 5v14M16 5v14"/>',
+  upload: '<path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+  savings: '<path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/>',
 };
 export type IconName = keyof typeof P;
 export function Icon({ name, size }: { name: IconName; size?: number }) {

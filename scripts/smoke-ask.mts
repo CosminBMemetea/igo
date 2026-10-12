@@ -10,7 +10,7 @@ const cases: [string, ToolName, string][] = [
   ["Cât profit și economie am în octombrie?", "month_totals", "ro"],
   ["How much diesel did we save this month?", "month_totals", "en"],
   ["Cât consumă BH 21 QRT?", "vehicle_summary", "ro"],
-  ["How is the combine doing?", "vehicle_summary", "en"],
+  ["How is CJ 08 QRT doing?", "vehicle_summary", "en"],
   ["Pokaż alerty kradzieży paliwa", "alerts_summary", "pl"],
   ["Care e cea mai slabă cursă?", "best_trip", "ro"],
   ["Cel mai bun client?", "top_client", "ro"],

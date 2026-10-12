@@ -107,56 +107,79 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
     return () => { dead = true; m.current?.map.remove(); m.current = null; };
   }, [d, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // un cadru: poziție, direcție, dâră
-  const draw = useCallback((x: number) => {
+  // vizibilitatea punctelor (fără porțiunile private) — calculată o dată
+  const visible = useMemo(() => d.path.map((pt) => !priv.some((e) => pt[2] > e.km + 0.001 && pt[2] < kmAt(e.end ?? e.min) - 0.001)), [d, priv, kmAt]);
+  const trailPts = useRef<[number, number][]>([]);
+  const followRef = useRef(follow); followRef.current = follow;
+  const fillRef = useRef<HTMLDivElement>(null), thumbRef = useRef<HTMLDivElement>(null), clockRef = useRef<HTMLDivElement>(null);
+
+  // un cadru: poziție după DISTANȚĂ (km interpolați în timp), direcție netezită unghiular, dâră incrementală, cameră lină
+  const draw = useCallback((x: number, dt = 0) => {
     const r = m.current; if (!r) return;
     const km = kmAt(x), p = posAt(km), pv = privAt(x);
     const el2 = r.truck.getElement();
     if (el2) el2.style.opacity = pv ? "0" : "1";
     r.ghost.setOpacity(pv ? 1 : 0);
     if (pv) r.ghost.setLatLng(posAt(pv.km));
-    else r.truck.setLatLng(p);
-    // direcție în pixeli (corect pe Mercator), netezită
-    const a = r.map.latLngToLayerPoint(posAt(Math.max(0, km - 0.04))), b = r.map.latLngToLayerPoint(posAt(km + 0.04));
-    if (Math.hypot(b.x - a.x, b.y - a.y) > 0.3) {
+    else r.truck.setLatLng(p); // Leaflet: translate3d → compus pe GPU
+    // direcție: vector pe ±120 m de drum, în pixeli (corect pe Mercator); interpolare unghiulară dependentă de timp (fără salturi)
+    const a = r.map.latLngToLayerPoint(posAt(Math.max(0, km - 0.12))), b = r.map.latLngToLayerPoint(posAt(km + 0.12));
+    if (Math.hypot(b.x - a.x, b.y - a.y) > 0.5) {
       const target = (Math.atan2(b.x - a.x, a.y - b.y) * 180) / Math.PI;
       const h = headRef.current ?? target;
       const diff = ((target - h + 540) % 360) - 180;
-      headRef.current = h + diff * 0.22;
+      headRef.current = dt ? h + diff * (1 - Math.exp(-dt * 7)) : target;
     }
     const rt = el2?.querySelector<HTMLElement>(".rt");
-    if (rt && headRef.current != null) rt.style.transform = `translate(-50%,-50%) rotate(${headRef.current}deg)`;
-    const i = idxAt(km);
-    {
-      const pts: [number, number][] = [];
-      for (let j = 0; j <= i; j++) if (!priv.some((e) => d.path[j][2] > e.km + 0.001 && d.path[j][2] < kmAt(e.end ?? e.min) - 0.001)) pts.push([d.path[j][0], d.path[j][1]]);
-      if (!pv) pts.push(p);
-      r.trail.setLatLngs(pts); r.halo.setLatLngs(pts); lastIdx.current = i;
+    if (rt && headRef.current != null) rt.style.transform = `translate3d(-50%,-50%,0) rotate(${headRef.current.toFixed(2)}deg)`;
+    // dâra: adăugăm doar punctele noi; reconstruim doar la derulare înapoi
+    const i = idxAt(km), tp = trailPts.current;
+    if (lastIdx.current >= 0 && tp.length) tp.pop(); // scoatem punctul curent anterior
+    if (i < lastIdx.current || lastIdx.current < 0) { tp.length = 0; for (let j = 0; j <= i; j++) if (visible[j]) tp.push([d.path[j][0], d.path[j][1]]); }
+    else for (let j = lastIdx.current + 1; j <= i; j++) if (visible[j]) tp.push([d.path[j][0], d.path[j][1]]);
+    lastIdx.current = i;
+    tp.push(pv ? tp[tp.length - 1] ?? p : p);
+    r.trail.setLatLngs(tp); r.halo.setLatLngs(tp);
+    // cameră: urmărire lină (amortizare exponențială în pixeli, panBy fără animație Leaflet)
+    if (followRef.current && !pv) {
+      const tgt = r.map.latLngToContainerPoint(p), size = r.map.getSize();
+      const mobile = size.x < 760, cx = mobile ? size.x / 2 : (size.x - 420) / 2, cy = mobile ? size.y * 0.32 : size.y / 2;
+      const dx = tgt.x - cx, dy = tgt.y - cy, k = dt ? 1 - Math.exp(-dt * 3.5) : 1;
+      if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) r.map.panBy([dx * k, dy * k], { animate: false });
     }
-    if (follow && !pv) r.map.panTo(p, { animate: false });
-  }, [kmAt, posAt, privAt, idxAt, priv, d, follow]);
+    // bara de timp: direct în DOM (fără re-render React la fiecare cadru)
+    const pc = `${((x - d.start) / (d.end - d.start || 1)) * 100}%`;
+    if (fillRef.current) fillRef.current.style.width = pc;
+    if (thumbRef.current) thumbRef.current.style.left = pc;
+    if (clockRef.current) clockRef.current.textContent = hhmm(x);
+  }, [kmAt, posAt, privAt, idxAt, d, visible]);
 
   const seek = useCallback((x: number) => { minRef.current = Math.max(d.start, Math.min(d.end, x)); setMin(minRef.current); draw(minRef.current); }, [d, draw]);
   useEffect(() => { if (ready) draw(minRef.current); }, [ready, draw]);
   useEffect(() => { const r = m.current; if (!r || !ready) return; const f = () => draw(minRef.current); r.map.on("zoomend", f); return () => { r.map.off("zoomend", f); }; }, [ready, draw]);
+  useEffect(() => { if (follow && ready) draw(minRef.current); }, [follow, ready, draw]);
 
-  // bucla de animație (rAF): fluid la 60fps; starea React se actualizează doar ~10×/s pentru panou
+  // bucla rAF: timp real → minute simulate; viteza de redare se schimbă lin (fără salt la 1×/4×/16×)
+  const speedRef = useRef<number>(speed); speedRef.current = speed;
+  const rateRef = useRef<number>(speed);
   useEffect(() => {
     if (!playing || !ready) return;
     let raf = 0, last = performance.now(), ui = 0;
     const step = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000); last = now;
-      let x = minRef.current + dt * BASE * speed;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      rateRef.current += (speedRef.current - rateRef.current) * (1 - Math.exp(-dt * 5));
+      let x = minRef.current + dt * BASE * rateRef.current;
       // privat: trecem repede peste gol (nu e nimic de văzut)
-      const pv = privAt(x); if (pv) x = Math.min(pv.end ?? x, x + dt * BASE * speed * 3);
+      const pv = privAt(x); if (pv) x = Math.min(pv.end ?? x, x + dt * BASE * rateRef.current * 3);
       if (x >= d.end) { x = d.end; setPlaying(false); }
-      minRef.current = x; draw(x);
-      if (now - ui > 90) { ui = now; setMin(x); }
+      minRef.current = x; draw(x, dt);
+      if (now - ui > 160) { ui = now; setMin(x); }
       if (x < d.end) raf = requestAnimationFrame(step); else setMin(x);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [playing, ready, speed, d.end, draw, privAt]);
+  }, [playing, ready, d.end, draw, privAt]);
+  useEffect(() => { const f = () => { setTimeout(() => { if (minRef.current >= d.end - 1) seek(d.start); setPlaying(true); }, 50); }; addEventListener("qf-replay-play", f); return () => removeEventListener("qf-replay-play", f); }, [d, seek]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.code === "Space" && (e.target as HTMLElement).tagName !== "INPUT") { e.preventDefault(); toggle(); } };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
@@ -204,9 +227,9 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       </aside>
       <div className="rp-bar">
         <button className="rp-play" onClick={toggle} aria-label={playing ? t.pauseBtn : t.play}><Icon name={playing ? "pause" : "play"} size={18} /></button>
-        <div className="rp-clock">{hhmm(min)}</div>
+        <div className="rp-clock" ref={clockRef} />
         <div className="rp-scrub">
-          <div className="rp-track"><div className="rp-fill" style={{ width: `${pct(min)}%` }} /><div className="rp-thumb" style={{ left: `${pct(min)}%` }} />
+          <div className="rp-track"><div className="rp-fill" ref={fillRef} /><div className="rp-thumb" ref={thumbRef} />
             {d.events.filter((e) => e.kind !== "start" && e.kind !== "end").map((e, i) => <span key={i} className={`rp-tick ${e.kind}`} title={evLabel(e)} style={{ left: `${pct(e.min)}%`, width: e.end ? `max(4px, ${pct(e.end) - pct(e.min)}%)` : undefined }} />)}
           </div>
           <input type="range" min={d.start} max={d.end} step={0.5} value={min} onChange={(e) => { setPlaying(false); seek(+e.target.value); }} aria-label={t.scrub} />

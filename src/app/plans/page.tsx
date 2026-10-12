@@ -7,14 +7,15 @@ import { Icon } from "@/components/icons";
 export const dynamic = "force-dynamic";
 export default function Plans({ searchParams }: { searchParams: { unit?: string } }) {
   const { loc, plan } = getPrefs();
-  const agri = searchParams.unit === "agri";
+  const demoUser = getPrefs().role === "user";
+  const agri = !demoUser && searchParams.unit === "agri";
   return (
     <main>
       <div style={{ textAlign: "center" }}>
         <div className="eyebrow fade">{t(loc, "nav.plans")}</div>
         <h1 className="h1 fade">{t(loc, "plans.title")}</h1>
         <p className="sub fade d1">{t(loc, "plans.sub")}</p>
-        <div className="seg fade d2" style={{ margin: "28px auto 0" }}>
+        <div className="seg fade d2" style={{ margin: "28px auto 0", display: demoUser ? "none" : undefined }}>
           <Link href="/plans" className={agri ? "" : "on"} style={{ padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500 }}>{t(loc, "plans.trucks")}</Link>
           <Link href="/plans?unit=agri" className={agri ? "on" : ""} style={{ padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 500 }}>{t(loc, "plans.agri")}</Link>
         </div>

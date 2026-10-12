@@ -12,7 +12,7 @@ export default async function Alerts() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
   if (!d.demo && !d.alerts.length) return <main><EmptyState kind="alerts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
-  const rules = d.demo ? [...RULES, "loss", "agri-over", "doc-expiry"] : [...FIRM_RULES, "loss", "doc-expiry"];
+  const rules = d.demo ? [...RULES, "loss", "doc-expiry"] : [...FIRM_RULES, "loss", "doc-expiry"];
   return (
     <Gate feature="alertsCenter" prefs={prefs}>
       <main>

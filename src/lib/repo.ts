@@ -51,16 +51,25 @@ export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[], 
   return out;
 }
 
+// Demo axat pe camioane: utilajele agricole și utilitarele rămân în cod, dar nu apar în demo.
+const TV = VEHICLES.filter((v) => v.kind === "truck");
+const TIDS = new Set(TV.map((v) => v.id));
+const TT = TRIPS.filter((t) => TIDS.has(t.vehicleId));
+const TC = CLIENTS.filter((c) => TT.some((t) => t.clientId === c.id));
+const OTHER_DRIVERS = new Set(VEHICLES.filter((v) => !TIDS.has(v.id)).map((v) => v.driver));
+const TD = DOCS.filter((d) => (d.scope === "vehicle" ? TIDS.has(d.ownerId) : d.scope === "trip" ? TT.some((t) => t.id === d.ownerId) : !OTHER_DRIVERS.has(d.ownerId)));
+const TS = SERVICES.filter((s) => TIDS.has(s.vehicleId));
 export class DemoRepository implements IgoRepository {
+  constructor(private trucksOnly = true) {}
   private fills: DriverFill[] = [];
   private shifts = new Map<string, Shift>();
-  async vehicles() { return VEHICLES; }
-  async trips() { return TRIPS; }
-  async clients() { return CLIENTS; }
-  async parcels() { return PARCELS; }
+  async vehicles() { return this.trucksOnly ? TV : VEHICLES; }
+  async trips() { return this.trucksOnly ? TT : TRIPS; }
+  async clients() { return this.trucksOnly ? TC : CLIENTS; }
+  async parcels() { return this.trucksOnly ? [] : PARCELS; }
   async zones() { return ZONES; }
-  async docs() { return DOCS; }
-  async services() { return SERVICES; }
+  async docs() { return this.trucksOnly ? TD : DOCS; }
+  async services() { return this.trucksOnly ? TS : SERVICES; }
   async fleetData(): Promise<FleetData> {
     const levels: Record<string, LevelPoint[] | null> = {};
     for (const t of TRUCKS) levels[t.id] = levelSeries(t);
@@ -72,9 +81,9 @@ export class DemoRepository implements IgoRepository {
   private async alertsRaw(): Promise<AppAlert[]> {
     const fuel = computeAlerts(await this.fleetData()).map((a): AppAlert => ({ id: a.id, rule: a.rule, vehicleId: a.truckId, time: a.time, severity: a.severity, theft: a.theft, params: a.params }));
     const rank: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
-    // demo: alimentarea dubei BH 05 QRT în pauza privată a șoferului → fără poziție, fără alarmă falsă
-    const priv: AppAlert = { id: "gps-privat-bh05", rule: "gps-privat", vehicleId: "bh05qrt", time: "2026-10-15T12:40", severity: "low", theft: false, params: { plate: "BH 05 QRT", station: "OMV Oradea Nord", litres: 48, time: "2026-10-15T12:40", nogps: 1 } };
-    return [...fuel, priv, ...businessAlerts(VEHICLES, TRIPS, DOCS)].sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time));
+    // demo: BH 77 QRT alimentează în pauza privată a șoferului → fără poziție, fără alarmă falsă
+    const priv: AppAlert = { id: "gps-privat-bh77", rule: "gps-privat", vehicleId: "bh77qrt", time: "2026-10-15T12:40", severity: "low", theft: false, params: { plate: "BH 77 QRT", station: "MOL Debrecen", litres: 210, time: "2026-10-15T12:40", nogps: 1 } };
+    return [...fuel, priv, ...businessAlerts(await this.vehicles(), await this.trips(), await this.docs())].sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time));
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const row = { ...f, id: `df-${Date.now()}-${this.fills.length}` };

@@ -9,6 +9,8 @@ import { blobConfigured } from "@/lib/files";
 import { headers } from "next/headers";
 import { store } from "@/lib/store";
 import { lookOf } from "@/lib/roles";
+import { DemoTour } from "@/components/DemoTour";
+import { tourSteps, tourLabels } from "@/lib/tour";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"], weight: ["200", "300", "400", "500", "600"], variable: "--font-inter", display: "swap" });
 export const metadata: Metadata = { title: "Querra Fleet", manifest: "/manifest.webmanifest", description: "Querra Fleet: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
@@ -31,6 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView ? "has-trial" : undefined}>
         <Header prefs={prefs} firm={ctx} />
         {children}
+        {tn?.demo && prefs.role === "user" ? <DemoTour steps={tourSteps(prefs.loc)} L={tourLabels(prefs.loc)} /> : null}
       </body>
     </html>
   );

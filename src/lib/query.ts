@@ -37,7 +37,7 @@ export function clientSummaries(clients: Client[], views: TripView[]) {
 // ---------- hartă live ----------
 export type LiveStatus = "moving" | "stopped" | "pump" | "working" | "offline" | "private";
 /** Demo: un șofer în modul privat (pauză / în afara turei) — fără poziție. */
-export const DEMO_PRIVATE = new Set(["bh05qrt"]);
+export const DEMO_PRIVATE = new Set(["bh77qrt"]);
 /** GDPR: în modul privat sau în afara turei nu există poziție, traseu sau evenimente — nici în API. */
 export const privatize = (x: LiveVehicle): LiveVehicle => ({ ...x, status: "private", speed: 0, at: null, secondsAgo: 0, track: [], ahead: [], done: [], dest: "", left: 0, eta: null, today: 0, events: [] });
 export interface LiveVehicle {

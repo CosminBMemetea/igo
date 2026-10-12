@@ -126,7 +126,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
     <>
       <div ref={el} className="livemap" />
       <div className="filters">
-        {(["all", "truck", "agri", "van"] as const).map((k) => <button key={k} className={`cat${filter === k ? " on" : ""}`} style={{ border: 0 }} onClick={() => setFilter(k)}>{labels[`f.${k}`]} · {counts[k]}</button>)}
+        {(["all", "truck", "agri", "van"] as const).filter((k) => k === "all" || (counts[k] > 0 && counts[k] < counts.all)).map((k) => <button key={k} className={`cat${filter === k ? " on" : ""}`} style={{ border: 0 }} onClick={() => setFilter(k)}>{labels[`f.${k}`]} · {counts[k]}</button>)}
         <span className="cat gdprchip" title={labels.gdpr}>🔒 {labels.privCount.replace("{n}", String(vehicles.filter((x) => x.status === "private").length))}</span>
       </div>
       <div className="replay">
