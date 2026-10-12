@@ -21,6 +21,14 @@ export function pickLocale(acceptLanguage: string | null | undefined): Locale {
   }
   return "ro";
 }
+/** Forma de plural: cheia are „unu|câțiva|mulți” (ro: 1 cursă, 2 curse, 20 de curse). */
+export function plural(loc: Locale, n: number, key: MsgKey): string {
+  const [one, few, many = few] = t(loc, key).split("|");
+  const a = Math.abs(n), m100 = a % 100, m10 = a % 10;
+  const f = a === 1 ? one : loc === "ro" ? (a === 0 || (m100 >= 1 && m100 <= 19) ? few : many) : loc === "pl" ? (m10 >= 2 && m10 <= 4 && !(m100 >= 12 && m100 <= 14) ? few : many) : few;
+  return `${fmtNumP(loc, n)} ${f}`;
+}
+const fmtNumP = (loc: Locale, n: number) => fmtNum(loc, n);
 /** Text inline „ro|en|pl” (folosit pentru matricea de funcții din features.ts). */
 export const tri = (loc: Locale, s: string) => s.split("|")[LOCALES.indexOf(loc)] ?? s.split("|")[0];
 

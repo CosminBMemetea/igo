@@ -1,5 +1,6 @@
 // Actele cursei: evenimente (încărcat/descărcat/așteptare) + poze CMR/POD. Pe demo: date fixe, coerente cu cursele demo.
 import { store } from "./store";
+import { demoDelta, shiftDeep, shiftStr } from "./demo-time";
 import type { Tenant } from "./tenant";
 import type { TripEventRow, TripEventKind } from "./store/types";
 
@@ -22,8 +23,9 @@ export function summarize(events: Paperwork["events"], now = Date.now()) {
 }
 export async function paperworkFor(tn: Tenant, tripId: string): Promise<Paperwork> {
   if (tn.demo || !tn.firm) {
-    const d = DEMO[tripId] ?? { events: [], files: [], pod: false };
-    return { events: d.events, files: d.files, podReceived: d.pod, ...summarize(d.events, Date.parse("2026-10-15T12:00:00Z")) };
+    const k = demoDelta(), d = DEMO[tripId] ?? { events: [], files: [], pod: false };
+    const events = shiftDeep(d.events, k);
+    return { events, files: d.files, podReceived: d.pod, ...summarize(events, Date.parse(shiftStr("2026-10-15T12:00:00Z", k))) };
   }
   const s = store();
   const [events, files, trips] = await Promise.all([s.tripEvents(tn.firm.id, tripId), s.files(tn.firm.id, { tripId }), s.trips(tn.firm.id)]);

@@ -3,7 +3,7 @@ import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { monthSummary } from "@/lib/query";
 import { enoughData } from "@/lib/calc";
-import { fmtMoney, t } from "@/lib/i18n";
+import { fmtMoney, t, plural } from "@/lib/i18n";
 import { mapLabels } from "@/lib/labels";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
 import { CountUp } from "@/components/CountUp";
@@ -74,7 +74,7 @@ export default async function Home() {
             {docs.map((x) => (
               <Link key={x.id} href={`/documents?tab=${x.scope === "driver" ? "drivers" : "vehicles"}`} className="it">
                 <div><div className="t">{t(loc, `doc.${x.type}` as MsgKey)} · {docName(x)}</div><div className="m">{t(loc, "docs.expires")} {fmtDate(loc, x.expires!, true)}</div></div>
-                <span className={`badge ${STATUS_CLASS[x.st.status]}`}>{x.st.days < 0 ? t(loc, "dc.expired", { n: -x.st.days }) : t(loc, "docs.days", { n: x.st.days })}</span>
+                <span className={`badge ${STATUS_CLASS[x.st.status]}`}>{x.st.days < 0 ? t(loc, "dc.expired", { n: -x.st.days }) : t(loc, "docs.days", { n: plural(loc, x.st.days, "u.day") })}</span>
               </Link>
             ))}
           </div>

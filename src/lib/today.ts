@@ -1,4 +1,3 @@
-import { localNow } from "./validate";
-/** „Azi” pentru firmă: ziua demo (15.10.2026) pe datele demo, altfel data locală din România. */
-export const DEMO_TODAY = "2026-10-15";
-export const todayFor = (demo: boolean) => (demo ? DEMO_TODAY : localNow().slice(0, 10));
+import { realToday } from "./demo-time";
+/** „Azi” pentru firmă: data locală din România (și pe demo: datele demo sunt mutate pe azi). */
+export const todayFor = (_demo?: boolean) => realToday();

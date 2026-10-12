@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
-import { fmtDate, fmtNum, t, type Locale, type MsgKey } from "@/lib/i18n";
+import { fmtDate, fmtNum, t, type Locale, type MsgKey, plural } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { docStatus, STATUS_CLASS, STATUS_COLOR } from "@/lib/docs";
 import { todayFor } from "@/lib/today";
@@ -109,7 +109,7 @@ export default async function Documents({ searchParams }: { searchParams: { tab?
         {view === "cal" ? <Calendar docs={dated.filter((d) => tab === "service" || d.scope === scope[tab as "vehicles"])} today={today} loc={loc} label={label} /> : tab === "service" ? (
           <Gate feature="maintenance" prefs={prefs} inline>
             <div className="cards">
-              {services.length ? services.map((s) => <div className="card" key={s.vehicleId + s.kind}><div className="k">{vname(s.vehicleId)}</div><div className="n">{fmtNum(loc, s.remaining)} {s.unit === "days" ? t(loc, "docs.days", { n: "" }).trim() : s.unit}</div><div className="d">{t(loc, `svc.${s.kind}`)}</div><div className="meter"><i style={{ width: `${s.progress * 100}%`, background: s.progress > 0.9 ? "var(--neg)" : s.progress > 0.7 ? "#f5a524" : "var(--pos)" }} /></div></div>)
+              {services.length ? services.map((s) => <div className="card" key={s.vehicleId + s.kind}><div className="k">{vname(s.vehicleId)}</div><div className="n">{fmtNum(loc, s.remaining)} {s.unit === "days" ? t(loc, "u.day").split("|")[1] : s.unit}</div><div className="d">{t(loc, `svc.${s.kind}`)}</div><div className="meter"><i style={{ width: `${s.progress * 100}%`, background: s.progress > 0.9 ? "var(--neg)" : s.progress > 0.7 ? "#f5a524" : "var(--pos)" }} /></div></div>)
                 : docs.filter((d) => d.type === "service").map((d) => <div className="card" key={d.id}><div className="k">{label(d)}</div><div className="n">{d.dueKm ? `${fmtNum(loc, d.dueKm)} km` : fmtDate(loc, d.expires!, true)}</div><div className="d">{t(loc, "doc.service")}</div></div>)}
             </div>
           </Gate>
@@ -126,7 +126,7 @@ export default async function Documents({ searchParams }: { searchParams: { tab?
                     {st ? <div className="meter" style={{ width: 220, maxWidth: "100%" }}><i style={{ width: `${Math.max(8, 100 - Math.min(100, Math.max(0, st.days) / 3.65))}%`, background: STATUS_COLOR[st.status] }} /></div> : null}
                   </div>
                   <div className="dact">
-                    {st ? <span className={`badge ${STATUS_CLASS[st.status]}`}>{st.status === "expired" ? t(loc, "dc.expired", { n: -st.days }) : st.status === "valid" ? t(loc, "docs.ok") : t(loc, "docs.days", { n: st.days })}</span> : <span className="badge ok">✓</span>}
+                    {st ? <span className={`badge ${STATUS_CLASS[st.status]}`}>{st.status === "expired" ? t(loc, "dc.expired", { n: -st.days }) : st.status === "valid" ? t(loc, "docs.ok") : t(loc, "docs.days", { n: plural(loc, st.days, "u.day") })}</span> : <span className="badge ok">✓</span>}
                     {canEdit && d.scope !== "trip" ? <>
                       <Link className="btn sec sm" href={`/documents?tab=${tab}&edit=${d.id}`}>{t(loc, "dc.edit")}</Link>
                       <form action="/api/docs/delete" method="post"><input type="hidden" name="id" value={d.id} /><input type="hidden" name="tab" value={tab} /><button className="btn sec sm" aria-label={t(loc, "dc.delete")}>✕</button></form>

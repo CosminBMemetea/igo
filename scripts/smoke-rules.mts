@@ -1,4 +1,5 @@
 // smoke:rules: fiecare regulă de furt (portată din qerradoc /flota) se declanșează pe datele demo; camioanele curate rămân curate.
+import { DemoRepository } from "../src/lib/repo";
 import { computeAlerts, whyText, type RuleId } from "../src/lib/fleet/rules";
 import { TRUCKS } from "../src/lib/fleet/data";
 import { demoRepo as repo } from "../src/lib/repo";
@@ -21,7 +22,8 @@ const again = JSON.stringify(computeAlerts(d));
 console.log(`${again === JSON.stringify(alerts) ? "PASS" : "FAIL"} determinist`);
 if (again !== JSON.stringify(alerts)) fail++;
 // alertele de business (pierdere, utilaj peste bază, documente)
-const all = await r.alerts();
+// motorul complet (demo-ul afișează doar 3 alerte alese; vezi smoke:demo)
+const all = await new DemoRepository(false).alerts();
 for (const rule of ["loss", "doc-expiry"] as const) { const n = all.filter((a) => a.rule === rule).length; console.log(`${n ? "PASS" : "FAIL"} ${rule} (${n})`); if (!n) fail++; }
 const bad = all.filter((a) => (["ro", "en", "pl"] as const).some((l) => /\{\w+\}|undefined|NaN/.test(alertWhy(l, a))));
 console.log(`${bad.length ? "FAIL" : "PASS"} texte alerte complete în ro/en/pl (${all.length})`);

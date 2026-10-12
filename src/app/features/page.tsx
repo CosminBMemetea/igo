@@ -1,6 +1,7 @@
+import { Roadmap } from "@/components/Roadmap";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
-import { CATS, FEATURES, PLANS, planIncludes, type FeatureId } from "@/lib/features";
+import { CATS, SHOWN_FEATURES as FEATURES, PLANS, planIncludes, type FeatureId } from "@/lib/features";
 import { t, tri } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 
@@ -27,7 +28,6 @@ export default function Features() {
               return (
                 <Link key={f.id} className={`tile fade${ok ? "" : " off"}`} href={ok ? LINK[f.id] ?? "/features" : "/plans"}>
                   {badge}
-                  <span style={{ fontSize: 11, color: "var(--fg3)", letterSpacing: ".1em" }}>#{f.rank}</span>
                   <div className="t" style={{ marginTop: 22 }}>{tri(loc, f.name)}</div>
                   <div className="d">{tri(loc, f.desc)}</div>
                   {!ok ? <div className="acc" style={{ fontSize: 13, marginTop: "auto" }}>{t(loc, "lock.unlock", { plan: PLANS[f.plan].name })} →</div> : null}
@@ -37,6 +37,7 @@ export default function Features() {
           </div>
         </section>
       ))}
+      <Roadmap loc={loc} />
     </main>
   );
 }

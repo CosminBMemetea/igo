@@ -1,4 +1,5 @@
 import { getPrefs } from "@/lib/prefs";
+import { REF_DAY, demoDelta, shiftDeep, shiftStr } from "@/lib/demo-time";
 import { t, type MsgKey } from "@/lib/i18n";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
@@ -10,7 +11,6 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 const RK = ["title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
-const DEMO_DAY = "2026-10-15";
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Bucharest" });
 
 export default async function Replay({ searchParams }: { searchParams: { v?: string; trip?: string; d?: string } }) {
@@ -24,7 +24,7 @@ export default async function Replay({ searchParams }: { searchParams: { v?: str
   const L = Object.fromEntries(RK.map((k) => [k, t(loc, `rp.${k}` as MsgKey)]));
   const back = trip ? `/trips/${trip.id}` : v ? `/vehicles/${v.id}` : "/live";
   let data = null;
-  if (tn.demo) data = demoReplay(TRUCKS.some((x) => x.id === vid) ? vid! : "bh21qrt", trip?.date ?? DEMO_DAY, trip && TRUCKS.some((x) => x.id === trip.vehicleId) ? trip.id : null);
+  if (tn.demo) { const k = demoDelta(); data = shiftDeep(demoReplay(TRUCKS.some((x) => x.id === vid) ? vid! : "bh21qrt", trip ? shiftStr(trip.date, -k) : REF_DAY, trip && TRUCKS.some((x) => x.id === trip.vehicleId) ? trip.id : null), k); }
   else if (v && tn.firm) {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.d ?? "") ? searchParams.d! : trip?.date ?? today();
     const s = store();

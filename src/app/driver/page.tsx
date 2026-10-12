@@ -2,7 +2,7 @@ import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
-import { fmtDate, t, type MsgKey } from "@/lib/i18n";
+import { fmtDate, t, type MsgKey, plural } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { DriverApp } from "@/components/DriverApp";
 import { TripPaperwork } from "@/components/TripPaperwork";
@@ -44,7 +44,7 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
             {myDocs.length ? myDocs.map((d) => (
               <div key={d.id} className="it" style={{ cursor: "default" }}>
                 <div><div className="t">{t(loc, `doc.${d.type}` as MsgKey)} · {d.scope === "vehicle" ? v.name : d.ownerId}</div><div className="m">{t(loc, "docs.expires")} {fmtDate(loc, d.expires!, true)}</div></div>
-                <span className={`badge ${STATUS_CLASS[d.st.status]}`}>{d.st.status === "expired" ? t(loc, "dc.expired", { n: -d.st.days }) : d.st.status === "valid" ? t(loc, "docs.ok") : t(loc, "docs.days", { n: d.st.days })}</span>
+                <span className={`badge ${STATUS_CLASS[d.st.status]}`}>{d.st.status === "expired" ? t(loc, "dc.expired", { n: -d.st.days }) : d.st.status === "valid" ? t(loc, "docs.ok") : t(loc, "docs.days", { n: plural(loc, d.st.days, "u.day") })}</span>
               </div>
             )) : <p className="sub">{t(loc, "dc.none")}</p>}
           </div>

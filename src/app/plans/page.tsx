@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
-import { FEATURES, PLANS, PLAN_ORDER, planIncludes } from "@/lib/features";
+import { SHOWN_FEATURES as FEATURES, PLANS, PLAN_ORDER, planIncludes } from "@/lib/features";
 import { fmtNum, t, tri } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 

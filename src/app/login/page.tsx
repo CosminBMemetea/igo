@@ -19,8 +19,18 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
   return (
     <main className={`login r-${as}`}>
       <div className="fade" style={{ color: "var(--fg)", marginBottom: 18 }}><Logo height={44} /></div>
-      <h1 className="h1 fade">{t(loc, as === "admin" ? "rl.admin.title" : "acct.title")}</h1>
-      {as !== "admin" ? <div className="rtabs fade d1">{tab("owner")}{tab("driver")}</div> : <p className="sub fade d1">{t(loc, "rl.admin.sub")}</p>}
+      {as !== "admin" ? (
+        <>
+          <h1 className="h1 fade lhero">{t(loc, "login.hero")}</h1>
+          <p className="sub fade d1 lsub">{t(loc, "login.heroSub")}</p>
+          <form action="/api/auth/demo" method="post" className="fade d1 ldemo">
+            <button className="btn pri xl" style={{ width: "100%" }} disabled={!secret}>{t(loc, "login.demo")} →</button>
+            <p className="hint" style={{ textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
+          </form>
+          <div className="or">{t(loc, "login.or")}</div>
+          <div className="rtabs fade d2">{tab("owner")}{tab("driver")}</div>
+        </>
+      ) : <><h1 className="h1 fade">{t(loc, "rl.admin.title")}</h1><p className="sub fade d1">{t(loc, "rl.admin.sub")}</p></>}
       {err ? <p className="msg err">{t(loc, err)}</p> : null}
       {secret ? (
         <form className={`sheet fade d1 rform r-${as}`} action="/api/auth/login" method="post">
@@ -35,21 +45,12 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
               <label className="lf"><span>{t(loc, "acct.password")}</span><input name="password" type="password" autoComplete="current-password" required /></label>
             </>
           )}
-          <button className={`btn pri rbtn${as === "driver" ? " xl" : ""}`}>{t(loc, `rl.${as}.signin` as MsgKey)}</button>
+          <button className={`btn ${as === "admin" ? "pri" : "sec"} rbtn${as === "driver" ? " xl" : ""}`}>{t(loc, `rl.${as}.signin` as MsgKey)}</button>
           {as === "owner" ? <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 14 }}>{t(loc, "su.have")} <Link href="/signup" className="lnk">{t(loc, "su.cta")}</Link></p> : null}
           {as === "driver" ? <p className="hint" style={{ textAlign: "center" }}>{t(loc, "rl.driver.help")}</p> : null}
         </form>
       ) : <p className="sheet sub fade d1">{t(loc, "acct.disabled")}</p>}
-      {as !== "admin" ? (
-        <>
-          <div className="or">{t(loc, "acct.or")}</div>
-          <form action="/api/auth/demo" method="post" className="fade d2">
-            <button className="btn sec" style={{ width: "100%" }} disabled={!secret}>{t(loc, "acct.demo")}</button>
-            <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
-          </form>
-          <p className="admlink"><Link href="/login?as=admin"><RoleIcon k="admin" />{t(loc, "rl.admin")}</Link></p>
-        </>
-      ) : <p className="admlink"><Link href="/login">← {t(loc, "rl.back")}</Link></p>}
+      {as === "admin" ? <p className="admlink"><Link href="/login">← {t(loc, "rl.back")}</Link></p> : null}
       <nav className="loglang" aria-label={t(loc, "login.lang")}>{(["ro", "en", "pl"] as const).map((l) => <a key={l} href={`?lang=${l}`} className={l === loc ? "on" : ""} hrefLang={l}>{l.toUpperCase()}</a>)}</nav>
     </main>
   );

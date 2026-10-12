@@ -40,7 +40,7 @@ export const PLANS: Record<PlanId, Plan> = {
 };
 // rank: 1 = cea mai mare valoare pentru client. plan = planul minim care o include.
 export const FEATURES: Feature[] = [
-  { id: "profit", rank: 1, plan: "start", cat: "core", name: "Profit pe cursă / lucrare|Profit per trip / job|Zysk na kurs / pracę", desc: "Venit minus motorină, taxe, șofer, alte costuri|Revenue minus diesel, tolls, driver, other|Przychód minus paliwo, opłaty, kierowca, inne" },
+  { id: "profit", rank: 1, plan: "start", cat: "core", name: "Profit pe cursă|Profit per trip|Zysk na kurs", desc: "Venit minus motorină, taxe, șofer, alte costuri|Revenue minus diesel, tolls, driver, other|Przychód minus paliwo, opłaty, kierowca, inne" },
   { id: "savings", rank: 2, plan: "start", cat: "core", name: "Economie % față de bază|Savings % vs baseline|Oszczędność % wobec bazy", desc: "L/100km, L/h, L/ha la prețul de azi|L/100km, L/h, L/ha at today's price|l/100 km, l/h, l/ha w dzisiejszej cenie" },
   { id: "live", rank: 3, plan: "start", cat: "track", name: "Hartă live|Live map|Mapa na żywo", desc: "Stare, viteză, șofer, ultima actualizare|Status, speed, driver, last update|Status, prędkość, kierowca, ostatnia aktualizacja" },
   { id: "fuelAlerts", rank: 4, plan: "start", cat: "core", name: "Alerte combustibil|Fuel alerts|Alerty paliwowe", desc: "Alimentări suspecte, consum peste bază|Suspicious fill-ups, over-baseline use|Podejrzane tankowania, spalanie ponad bazę" },
@@ -69,3 +69,6 @@ export function planIncludes(plan: PlanState, featureId: FeatureId): boolean {
   return PLAN_ORDER.indexOf(plan) >= PLAN_ORDER.indexOf(f.plan);
 }
 export const isPlanState = (x: unknown): x is PlanState => x === "trial" || x === "start" || x === "pro" || x === "business";
+
+/** Funcțiile afișate (demo axat pe camioane: fără utilaje agricole). */
+export const SHOWN_FEATURES = FEATURES.filter((f) => f.id !== "agri");

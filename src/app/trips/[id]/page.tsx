@@ -35,7 +35,7 @@ export default async function TripDetail({ params }: { params: { id: string } })
     <main>
       <div className="eyebrow fade">{t(loc, agri ? "job.detail" : "trip.detail")}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
       <h1 className="h1 fade">{agri ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</h1>
-      <p className="sub fade d1">{[r.vehicle.name, r.vehicle.driver, fmtDate(loc, r.date, true), agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`, client.name, r.tariffNote.replace("lei", t(loc, "cur"))].filter(Boolean).join(" · ")}</p>
+      <p className="sub fade d1">{[r.vehicle.name, r.vehicle.driver, fmtDate(loc, r.date, true), agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`, client.name, (r.tariffNote && loc !== "en" ? r.tariffNote.replace(/(\d)\.(\d)/g, "$1,$2") : r.tariffNote).replace("lei", t(loc, "cur"))].filter(Boolean).join(" · ")}</p>
       {!agri ? <Link className="btn pri rp-cta fade d1" style={{ marginTop: 20 }} href={`/replay?trip=${r.id}`}><svg viewBox="0 0 24 24" width="14" height="14" style={{ marginRight: 8, verticalAlign: "-2px" }}><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.btn")}</Link> : null}
       <section className="hero" style={{ marginTop: 56 }}>
         <div className="fade d1"><div className="eyebrow">{t(loc, "col.profit")}</div><div className={`big ${p.profit < 0 ? "neg" : "pos"}`}><CountUp value={Math.round(p.profit)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub">{fmtPct(loc, p.margin)} {t(loc, "col.margin")}</p></div>

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
 import { load } from "@/lib/data";
+import { demoReceipts, monthSummary } from "@/lib/query";
 import { fmtDate, fmtMoney, fmtNum, t } from "@/lib/i18n";
-import { haversineKm } from "@/lib/fleet/data";
 import { Gate } from "@/components/Gate";
 
 export const dynamic = "force-dynamic";
@@ -39,11 +39,11 @@ export default async function Receipts() {
       </Gate>
     );
   }
-  const fd = await (await tenant()).repo.fleetData();
   const driver = await (await tenant()).repo.driverFills();
-  const fills = fd.fills.filter((f) => f.time >= "2026-10-01").sort((a, b) => b.time.localeCompare(a.time));
-  const fuel = fills.reduce((s, f) => s + f.priceLei, 0);
-  const tolls = d.views.filter((v) => !v.active && v.date >= "2026-10-01").reduce((s, v) => s + v.tolls, 0);
+  // aceeași sursă ca Acasă/Curse/Clienți: cursele încheiate
+  const m = monthSummary(d.views);
+  const fills = demoReceipts(d.views).sort((a, b) => b.time.localeCompare(a.time)).map((f) => ({ ...f, priceLei: f.amount }));
+  const fuel = m.fuelLei, tolls = m.tolls;
   const cats: [string, number][] = [[t(loc, "cat.fuel"), fuel], [t(loc, "cat.tolls"), tolls], [t(loc, "cat.service"), 11900], [t(loc, "cat.adblue"), Math.round(fuel * 0.04)], [t(loc, "cat.parking"), 1260]];
   const max = Math.max(...cats.map((c) => c[1]));
   return (
@@ -51,6 +51,7 @@ export default async function Receipts() {
       <main>
         <div className="eyebrow fade">{t(loc, "rc.title")}</div>
         <h1 className="h1 fade">{t(loc, "rc.sub")}</h1>
+        <p className="sub fade d1">{t(loc, "rc.firmSub", { n: fills.length, litres: fmtNum(loc, m.litres) })} · {fmtMoney(loc, m.fuelLei)}</p>
         <section className="section">
           <div className="head"><h2>{t(loc, "rc.byCat")}</h2></div>
           <div className="wf">
@@ -58,7 +59,7 @@ export default async function Receipts() {
           </div>
         </section>
         <section className="section">
-          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead })), ...fills.slice(0, 16).map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: haversineKm(f.gpsAt, f.stationAt) <= 5, ai: false }))].map((f) => {
+          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
               <div key={f.id} className="row r4" style={{ cursor: "default" }}>

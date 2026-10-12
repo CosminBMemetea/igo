@@ -4,15 +4,15 @@ import { dueReminders } from "./docs";
 import { store } from "./store";
 import type { Tenant } from "./tenant";
 import type { NotificationRow } from "./store/types";
-import { DEMO_TODAY } from "./today";
+import { REF_DAY, demoDelta, shiftDeep } from "./demo-time";
 
 export async function notificationsFor(tn: Tenant): Promise<NotificationRow[]> {
   if (!tn.demo && tn.firm) return store().notifications(tn.firm.id, tn.role === "driver" ? tn.uid : null);
   if (tn.firm && !tn.demo) return [];
   const vehicles = await tn.repo.vehicles();
   const docs = DOCS.filter((d) => d.expires && d.scope !== "trip").map((d) => ({ id: d.id, type: d.type, expires: d.expires!, truckId: d.scope === "vehicle" ? d.ownerId : null, userId: d.scope === "driver" ? d.ownerId : null, label: d.scope === "vehicle" ? vehicles.find((v) => v.id === d.ownerId)?.name ?? d.ownerId : d.ownerId }));
-  return dueReminders(docs, [], DEMO_TODAY).map((r, i) => {
+  return shiftDeep(dueReminders(docs, [], REF_DAY).map((r, i) => {
     const d = docs.find((x) => x.id === r.docId)!;
-    return { id: `demo-${i}`, firmId: "demo", userId: null, key: r.key, kind: r.stage, docId: r.docId, params: { type: d.type, label: d.label, expires: d.expires, days: r.days }, readAt: r.days > 14 ? "2026-10-01T06:00:00Z" : null, createdAt: `${DEMO_TODAY}T04:00:00Z` };
-  });
+    return { id: `demo-${i}`, firmId: "demo", userId: null, key: r.key, kind: r.stage, docId: r.docId, params: { type: d.type, label: d.label, expires: d.expires, days: r.days }, readAt: r.days > 14 ? "2026-10-01T06:00:00Z" : null, createdAt: `${REF_DAY}T04:00:00Z` };
+  }), demoDelta());
 }

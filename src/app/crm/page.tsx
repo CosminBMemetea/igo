@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { clientSummaries } from "@/lib/query";
-import { fmtDate, fmtMoney, fmtPct, t } from "@/lib/i18n";
+import { fmtDate, fmtMoney, fmtPct, plural, t } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { CountUp } from "@/components/CountUp";
 
@@ -29,7 +29,7 @@ export default async function Crm({ searchParams }: { searchParams: { c?: string
           <div className="list fade">
             {cs.map((x) => (
               <Link key={x.client.id} href={`/crm?c=${x.client.id}`} className={`it${x === sel ? " on" : ""}`}>
-                <div style={{ display: "flex", gap: 14, alignItems: "center" }}><span className="av">{ini(x.client.name)}</span><div><div className="t">{x.client.name}</div><div className="m">{t(loc, "crm.trips", { n: x.n, m: fmtPct(loc, x.margin, 0) })}</div></div></div>
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}><span className="av">{ini(x.client.name)}</span><div><div className="t">{x.client.name}</div><div className="m">{t(loc, "crm.trips", { n: plural(loc, x.n, "u.trip"), m: fmtPct(loc, x.margin, 0) })}</div></div></div>
                 <div style={{ textAlign: "right" }}><div className={`v ${x.profit < 0 ? "neg" : "pos"}`}>{fmtMoney(loc, x.profit)}</div><span className={`badge ${BADGE[x.worst]}`}>{t(loc, `pay.${x.worst}`)}</span></div>
               </Link>
             ))}

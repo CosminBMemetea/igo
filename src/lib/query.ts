@@ -10,12 +10,13 @@ export function tripView(tr: Trip, vehicles: Vehicle[]): TripView {
 }
 export const tripViews = (trips: Trip[], vehicles: Vehicle[]) => trips.map((t) => tripView(t, vehicles));
 
-export interface MonthSummary { n: number; profit: number; avgProfit: number; savings: Savings; revenue: number }
+/** Sursa unică pentru totaluri (acasă, curse, clienți, bonuri, economii): doar cursele încheiate. */
+export interface MonthSummary { n: number; profit: number; avgProfit: number; savings: Savings; revenue: number; fuelLei: number; litres: number; tolls: number }
 /** Luna demo (octombrie 2026): curse/lucrări încheiate. */
 export function monthSummary(views: TripView[]): MonthSummary {
   const done = views.filter((v) => !v.active);
   const profit = done.reduce((s, v) => s + v.p.profit, 0);
-  return { n: done.length, profit, avgProfit: done.length ? profit / done.length : 0, savings: sumSavings(done.map((v) => v.s)), revenue: done.reduce((s, v) => s + v.revenue, 0) };
+  return { n: done.length, profit, avgProfit: done.length ? profit / done.length : 0, savings: sumSavings(done.map((v) => v.s)), revenue: done.reduce((s, v) => s + v.revenue, 0), fuelLei: done.reduce((s, v) => s + v.p.fuel, 0), litres: done.reduce((s, v) => s + v.litres, 0), tolls: done.reduce((s, v) => s + v.p.tolls, 0) };
 }
 export function vehicleSummary(v: Vehicle, views: TripView[]) {
   const mine = views.filter((x) => x.vehicleId === v.id);
@@ -27,10 +28,11 @@ export function vehicleSummary(v: Vehicle, views: TripView[]) {
 }
 export function clientSummaries(clients: Client[], views: TripView[]) {
   return clients.map((c) => {
-    const mine = views.filter((x) => x.clientId === c.id);
-    const profit = mine.reduce((a, x) => a + x.p.profit, 0), revenue = mine.reduce((a, x) => a + x.revenue, 0);
+    const mine = views.filter((x) => x.clientId === c.id), done = mine.filter((x) => !x.active);
+    // profitul și numărul de curse: doar cursele încheiate (ca pe Acasă); cele în desfășurare apar doar în listă
+    const profit = done.reduce((a, x) => a + x.p.profit, 0), revenue = done.reduce((a, x) => a + x.revenue, 0);
     const open = mine.filter((x) => x.payment !== "paid");
-    return { client: c, trips: mine, n: mine.length, profit, revenue, margin: revenue ? profit / revenue : 0, toCollect: open.reduce((a, x) => a + x.revenue, 0), overdue: mine.filter((x) => x.payment === "overdue").reduce((a, x) => a + x.revenue, 0), worst: mine.some((x) => x.payment === "overdue") ? "overdue" : open.length ? "due" : "paid" } as const;
+    return { client: c, trips: mine, n: done.length, profit, revenue, margin: revenue ? profit / revenue : 0, toCollect: open.reduce((a, x) => a + x.revenue, 0), overdue: mine.filter((x) => x.payment === "overdue").reduce((a, x) => a + x.revenue, 0), worst: mine.some((x) => x.payment === "overdue") ? "overdue" : open.length ? "due" : "paid" } as const;
   }).sort((a, b) => b.profit - a.profit);
 }
 
@@ -120,4 +122,10 @@ export const FUEL = FUEL_PRICE;
 export function fullPath(vehicleId: string): LatLng[] {
   const t = TRUCKS.find((x) => x.id === vehicleId);
   return t ? pathBetween(t, 0, routeTotalKm(t)) : [];
+}
+
+const BRANDS = ["OMV", "MOL", "Petrom", "Rompetrol", "Lukoil", "Shell"];
+/** Demo: bonurile de motorină derivate din curse (un bon pe cursă încheiată), ca totalurile să coincidă. */
+export function demoReceipts(views: TripView[]) {
+  return views.filter((v) => !v.active && v.litres > 0).map((v, i) => ({ id: `rc-${v.id}`, truckId: v.vehicleId, time: `${v.date}T${String(6 + (i % 9)).padStart(2, "0")}:${String((i * 17) % 60).padStart(2, "0")}`, station: `${BRANDS[i % BRANDS.length]} ${v.title.split(" → ")[0]}`, litres: v.litres, amount: v.p.fuel }));
 }
