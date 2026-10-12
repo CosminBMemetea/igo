@@ -744,3 +744,25 @@ html{scroll-padding-top:120px}
 .tour.soft .tour-hole{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 80%,transparent),0 0 0 9999px rgba(6,8,12,.14)}
 [data-theme=light] .tour.soft .tour-hole{box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 80%,transparent),0 0 0 9999px rgba(20,24,32,.1)}
 .tour.soft .tour-card{box-shadow:0 18px 60px rgba(0,0,0,.4),0 0 0 1px color-mix(in srgb,var(--fg) 8%,transparent)}
+/* Desktop polish: tur ancorat lângă element, întunecare ușoară, inel clar */
+@media (min-width:761px){
+ .tour-card{height:auto;max-height:calc(100vh - 100px);overflow:visible;background:var(--bg);box-shadow:0 24px 70px rgba(0,0,0,.38),0 0 0 1px color-mix(in srgb,var(--fg) 8%,transparent)}
+ .tour-card[data-side]::before{content:"";position:absolute;width:14px;height:14px;background:var(--bg);transform:rotate(45deg);box-shadow:1px -1px 0 color-mix(in srgb,var(--fg) 8%,transparent)}
+ .tour-card[data-side=l]::before{right:-7px;top:calc(var(--ay) - 7px);box-shadow:1px -1px 0 color-mix(in srgb,var(--fg) 8%,transparent)}
+ .tour-card[data-side=r]::before{left:-7px;top:calc(var(--ay) - 7px);box-shadow:-1px 1px 0 color-mix(in srgb,var(--fg) 8%,transparent)}
+ .tour-card[data-side=b]::before{top:-7px;left:calc(var(--ax) - 7px);box-shadow:-1px -1px 0 color-mix(in srgb,var(--fg) 8%,transparent)}
+ .tour-card[data-side=t]::before{bottom:-7px;left:calc(var(--ax) - 7px);box-shadow:1px 1px 0 color-mix(in srgb,var(--fg) 8%,transparent)}
+ .tour-hole{box-shadow:0 0 0 3px var(--acc),0 0 0 9px color-mix(in srgb,var(--acc) 18%,transparent),0 0 0 9999px rgba(6,8,12,.34)}
+ [data-theme=light] .tour-hole{box-shadow:0 0 0 3px var(--acc),0 0 0 9px color-mix(in srgb,var(--acc) 16%,transparent),0 0 0 9999px rgba(20,24,32,.2)}
+ /* pilula de probă → bară subțire sub antet */
+ .trial{top:76px;left:50%;transform:translateX(-50%);padding:3px 14px 3px 4px;gap:10px;font-size:12.5px;box-shadow:none;border:1px solid var(--line,color-mix(in srgb,var(--fg) 10%,transparent));background:color-mix(in srgb,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+ .trial .ring{width:24px;height:24px}.trial .ring b{font-size:10px}
+ body:has(.livemap) .demo{display:none}
+ body.has-trial .panel,body.has-trial .filters{top:120px}
+ .panel{width:min(380px,32vw);min-width:330px;right:20px;bottom:20px}
+ .replay{left:20px;right:calc(min(380px,32vw) + 40px);bottom:20px}
+ .filters{left:20px}
+}
+@media (min-width:761px) and (max-width:1100px){.replay{right:370px}.panel{width:330px}}
+@media (min-width:761px){.trial{left:0;right:0;transform:none;border-radius:0;justify-content:center;border-width:1px 0;top:78px;animation:none}}
+@media (min-width:761px) and (max-width:1180px){.top{padding-left:24px;padding-right:24px}.rbadge em{display:none}.tourbtn span{display:none}.tourbtn{padding:0 9px}}

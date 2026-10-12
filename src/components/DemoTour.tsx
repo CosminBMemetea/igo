@@ -18,6 +18,9 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [mobile, setMobile] = useState(false);
   const target = useRef<Element | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [cardH, setCardH] = useState(0);
+  useEffect(() => { const c = cardRef.current; if (!c) return; const ro = new ResizeObserver(() => setCardH(c.offsetHeight)); ro.observe(c); return () => ro.disconnect(); });
   const set = useCallback((s: St) => { setSt(s); save(s); }, []);
 
   // pornire: prima vizită demo → turul pornește singur; altfel reluăm unde a rămas (dacă era activ)
@@ -73,16 +76,29 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   const soft = step.path.startsWith("/replay");
   const hole = rect ? { left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
   // cardul: sub element dacă încape, altfel deasupra; pe mobil — foaie jos
-  let card: React.CSSProperties = {};
+  // desktop: cardul stă lângă element (dreapta/stânga/dedesubt/deasupra), niciodată peste el; înălțime naturală
+  let card: React.CSSProperties = {}, side = "";
   if (!mobile && hole) {
-    const w = 380, below = hole.top + hole.height + 16, fits = below + 260 < innerHeight;
-    card = { width: w, left: Math.max(16, Math.min(innerWidth - w - 16, hole.left + hole.width / 2 - w / 2)), ...(fits ? { top: below } : { top: Math.max(16, hole.top - 16 - 250) }) };
-    if (hole.height > innerHeight * 0.6) card = { width: w, left: Math.max(16, hole.left + 24), bottom: 32 };
+    const w = 360, g = 18, m = 16, top0 = 84, ch = Math.min(cardH || 230, innerHeight - top0 - m);
+    const vy = Math.max(top0, Math.min(innerHeight - ch - m, hole.top + Math.min(hole.height, 240) / 2 - ch / 2));
+    const hx = Math.max(m, Math.min(innerWidth - w - m, hole.left + hole.width / 2 - w / 2));
+    const R = hole.left + hole.width + g, Lx = hole.left - g - w, Bt = hole.top + hole.height + g, At = hole.top - g - ch;
+    const opts: [string, boolean, React.CSSProperties][] = [
+      ["l", Lx >= m, { left: Lx, top: vy }],
+      ["r", R + w <= innerWidth - m, { left: R, top: vy }],
+      ["b", Bt + ch <= innerHeight - m, { left: hx, top: Bt }],
+      ["t", At >= top0, { left: hx, top: At }],
+    ];
+    const wide = hole.width > innerWidth * 0.5;
+    const order = wide ? [2, 3, 0, 1] : hole.left + hole.width / 2 > innerWidth / 2 ? [0, 1, 2, 3] : [1, 0, 2, 3];
+    const pick = order.map((i) => opts[i]).find((o) => o[1]);
+    if (pick) { side = pick[0]; card = { width: w, bottom: "auto", ...pick[2] }; const ay = side === "l" || side === "r" ? Math.max(24, Math.min(ch - 24, hole.top + Math.min(hole.height, 240) / 2 - (pick[2].top as number))) : 0; const ax = side === "b" || side === "t" ? Math.max(24, Math.min(w - 24, hole.left + hole.width / 2 - (pick[2].left as number))) : 0; (card as Record<string, unknown>)["--ay"] = `${ay}px`; (card as Record<string, unknown>)["--ax"] = `${ax}px`; }
+    else card = { width: w, left: Math.max(m, hole.left + 24), top: "auto", bottom: 28 };
   }
   return (
     <div className={`tour${mobile ? " m" : ""}${soft ? " soft" : ""}`} role="dialog" aria-modal="false" aria-label={step.title}>
       <div className={`tour-hole${hole ? "" : " none"}`} style={hole ?? undefined} />
-      <div className="tour-card" style={mobile ? (soft ? { top: "calc(62px + env(safe-area-inset-top))", bottom: "auto" } : hole && hole.top + hole.height / 2 > innerHeight / 2 ? { top: 76, bottom: "auto" } : undefined) : !hole ? undefined : card} key={st.i}>
+      <div ref={cardRef} data-side={side || undefined} className="tour-card" style={mobile ? (soft ? { top: "calc(62px + env(safe-area-inset-top))", bottom: "auto" } : hole && hole.top + hole.height / 2 > innerHeight / 2 ? { top: 76, bottom: "auto" } : undefined) : !hole ? undefined : card} key={st.i}>
         <div className="tour-top"><span>{L.of.replace("{i}", String(st.i + 1)).replace("{n}", String(steps.length))}</span><button type="button" onClick={() => set({ i: st.i, on: false, done: true })} aria-label={L.skip}>{L.skip}</button></div>
         <h3>{step.title}</h3>
         <p>{step.body}</p>
