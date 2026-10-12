@@ -374,7 +374,7 @@ export const en: Record<MsgKey, string> = {
   "join.e.revoked": "This invite was revoked. Ask the company for a new link.",
   "mail.soonSubj": "{doc} · {label} expires in {days} days",
   "mail.expiredSubj": "{doc} · {label} has expired",
-  "mail.body": "Hi,\n\n{doc} for {label} ({firm}) expires on {expires} (in {days} days).\nRenew it in time to avoid fines and a grounded truck.\n\nAll documents: https://igo-kappa.vercel.app/documents\n\nQuerra Fleet",
+  "mail.body": "Hi,\n\n{doc} for {label} ({firm}) expires on {expires} (in {days} days).\nRenew it in time to avoid fines and a grounded truck.\n\nAll documents: https://fleet.querra.net/documents\n\nQuerra Fleet",
   "dc.add": "Add document",
   "dc.driver": "Driver",
   "dc.dueKm": "Or at km (service)",
@@ -593,4 +593,8 @@ export const en: Record<MsgKey, string> = {
   "tour.driver.b": "The driver starts the shift, snaps receipts and uploads the CMR. On breaks they tap “Private”: location isn't tracked (GDPR).",
   "tour.savings.t": "What you gain, explained",
   "tour.savings.b": "Monthly savings by source: diesel, office time, faster invoicing — in your company currency. Ready to try it on your trucks? 14 days free, then an annual licence per company.",
+  "set.lang": "App language",
+  "set.drvLang": "Driver's language",
+  "login.lang": "Language",
+  "live.eta": "ETA",
 };

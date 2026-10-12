@@ -50,6 +50,7 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
           <p className="admlink"><Link href="/login?as=admin"><RoleIcon k="admin" />{t(loc, "rl.admin")}</Link></p>
         </>
       ) : <p className="admlink"><Link href="/login">← {t(loc, "rl.back")}</Link></p>}
+      <nav className="loglang" aria-label={t(loc, "login.lang")}>{(["ro", "en", "pl"] as const).map((l) => <a key={l} href={`?lang=${l}`} className={l === loc ? "on" : ""} hrefLang={l}>{l.toUpperCase()}</a>)}</nav>
     </main>
   );
 }

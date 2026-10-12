@@ -21,8 +21,9 @@ export async function POST(req: Request) {
   if (!isPhone(phone)) return back(req, `${q}&e=phone`);
   if (!isPin(pin) || pin !== pin2) return back(req, `${q}&e=pin`);
   let uid: string;
-  try { uid = (await s.createUser({ firmId: firm.id, role: "driver", name: row.name, email: null, phone, passwordHash: hashPassword(pin) })).id; }
+  try { uid = (await s.createUser({ firmId: firm.id, role: "driver", name: row.name, email: null, phone, passwordHash: hashPassword(pin), locale: row.locale ?? "ro" })).id; }
   catch { return back(req, `${q}&e=phoneused`); }
   if (!(await s.useInvite(firm.id, row.id, uid))) return back(req, "/join?e=used");
-  return withSession(back(req, "/driver"), { role: "driver", email: phone, firm: firm.id, uid, trial: firm.trialStart });
+  const res = back(req, "/driver"); res.cookies.set("igo-locale", row.locale ?? "ro", { path: "/", maxAge: 31536000, sameSite: "lax" });
+  return withSession(res, { role: "driver", email: phone, firm: firm.id, uid, trial: firm.trialStart });
 }

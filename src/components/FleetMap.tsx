@@ -142,7 +142,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
         {v.status === "private" ? <div className="privnote">{labels.privPanel}</div> : null}
         <div style={{ display: v.status === "private" ? "none" : "flex", alignItems: "baseline", gap: 8, marginTop: 26 }}><span style={{ fontSize: 76, fontWeight: 200, letterSpacing: "-.04em", lineHeight: 1 }}>{N(v.speed)}</span><span style={{ color: "var(--fg2)" }}>km/h</span></div>
         <div className="eta">
-          <div className="eyebrow">ETA</div>
+          <div className="eyebrow">{labels.eta ?? "ETA"}</div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 8 }}><span style={{ fontSize: 34, fontWeight: 300 }}>{v.eta ?? "—"}</span><span style={{ color: "var(--fg2)", fontSize: 14 }}>{v.left ? `${N(v.left)} ${v.leftUnit} ${labels.left}` : ""}</span></div>
           <div className="sub" style={{ marginTop: 6 }}>{v.dest}</div>
         </div>

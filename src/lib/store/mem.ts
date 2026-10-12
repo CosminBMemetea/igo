@@ -14,7 +14,8 @@ export class MemStore implements Store {
   }
   async userByLogin(login: string) { const u = this.U.find((x) => x.email === login || x.phone === login); return u ? { ...u } : null; }
   async users(firmId: string) { return this.U.filter((u) => u.firmId === firmId); }
-  async createInvite(firmId: string, name: string, phone: string | null) { const r: InviteRow = { id: newId("i"), firmId, name, phone, usedAt: null, userId: null, createdAt: new Date().toISOString() }; this.I.push(r); return { ...r }; }
+  async setUserLocale(id: string, locale: string) { const u = this.U.find((x) => x.id === id); if (u) u.locale = locale; }
+  async createInvite(firmId: string, name: string, phone: string | null, locale: string | null = null) { const r: InviteRow = { id: newId("i"), firmId, name, phone, locale, usedAt: null, userId: null, createdAt: new Date().toISOString() }; this.I.push(r); return { ...r }; }
   async invite(firmId: string, id: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId); return r ? { ...r } : null; }
   async invites(firmId: string) { return this.I.filter((x) => x.firmId === firmId); }
   async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }

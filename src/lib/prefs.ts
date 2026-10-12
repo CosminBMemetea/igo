@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers";
-import { isLocale, pickLocale, type Locale } from "./i18n";
+import { isLocale, type Locale } from "./i18n";
 import { TRIAL_DAYS, isPlanState, type PlanState } from "./features";
 import { effectivePlan, type View } from "./access";
 import type { Role } from "./session";
@@ -8,7 +8,7 @@ export interface Prefs { loc: Locale; theme: "dark" | "light"; plan: PlanState; 
 export function getPrefs(): Prefs {
   const c = cookies(), h = headers();
   const l = c.get("igo-locale")?.value;
-  const loc = isLocale(l) ? l : pickLocale(h.get("accept-language"));
+  const loc = isLocale(l) ? l : "ro"; // română implicit; fără auto-detecție din browser;
   const theme = c.get("igo-theme")?.value === "light" ? "light" : "dark";
   // rolul vine DOAR din middleware (sesiune verificată); antetul din afară e șters acolo
   const r = h.get("x-igo-role");

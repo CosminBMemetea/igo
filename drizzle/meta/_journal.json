@@ -29,6 +29,13 @@
       "when": 1791790703412,
       "tag": "0003_privacy_mappings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791801588008,
+      "tag": "0004_user_locale",
+      "breakpoints": true
     }
   ]
 }

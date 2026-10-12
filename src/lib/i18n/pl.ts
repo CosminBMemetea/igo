@@ -374,7 +374,7 @@ export const pl: Record<MsgKey, string> = {
   "join.e.revoked": "Zaproszenie zostało anulowane. Poproś firmę o nowy link.",
   "mail.soonSubj": "{doc} · {label} wygasa za {days} dni",
   "mail.expiredSubj": "{doc} · {label} wygasł",
-  "mail.body": "Dzień dobry,\n\n{doc} dla {label} ({firm}) wygasa {expires} (za {days} dni).\nOdnów go na czas, aby uniknąć kar i postoju ciężarówki.\n\nWszystkie dokumenty: https://igo-kappa.vercel.app/documents\n\nQuerra Fleet",
+  "mail.body": "Dzień dobry,\n\n{doc} dla {label} ({firm}) wygasa {expires} (za {days} dni).\nOdnów go na czas, aby uniknąć kar i postoju ciężarówki.\n\nWszystkie dokumenty: https://fleet.querra.net/documents\n\nQuerra Fleet",
   "dc.add": "Dodaj dokument",
   "dc.driver": "Kierowca",
   "dc.dueKm": "Lub przy km (serwis)",
@@ -593,4 +593,8 @@ export const pl: Record<MsgKey, string> = {
   "tour.driver.b": "Kierowca zaczyna zmianę, fotografuje paragony i wgrywa CMR. W przerwach klika „Prywatny”: lokalizacja nie jest śledzona (RODO).",
   "tour.savings.t": "Ile zyskujesz — wyjaśnione",
   "tour.savings.b": "Miesięczne oszczędności według źródeł: paliwo, czas biura, szybsze fakturowanie — w walucie firmy. Gotowy na swoich ciężarówkach? 14 dni za darmo, potem roczna licencja na firmę.",
+  "set.lang": "Język aplikacji",
+  "set.drvLang": "Język kierowcy",
+  "login.lang": "Język",
+  "live.eta": "Przyjazd (ETA)",
 };

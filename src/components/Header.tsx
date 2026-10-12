@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { t, LOCALES } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import type { Prefs } from "@/lib/prefs";
 import { PLANS } from "@/lib/features";
 import { Icon } from "./icons";
@@ -20,6 +20,9 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       <RoleIcon k={look} /><b>{t(loc, ROLE_LOOK[look].label)}</b>{ctxText ? <em>{ctxText}</em> : null}{firm.demo && look !== "admin" ? <i className="rdemo">DEMO</i> : null}
     </span>
   ) : null;
+  const seg = "/" + ((firm.path ?? "/").split("/")[1] ?? "");
+  const PT: Record<string, Parameters<typeof t>[1]> = { "/": "nav.home", "/live": "nav.live", "/trips": "nav.trips", "/replay": "nav.trips", "/vehicles": "nav.live", "/alerts": "nav.alerts", "/documents": "nav.docs", "/import": "nav.import", "/driver": "nav.driver", "/savings": "nav.savings", "/crm": "nav.crm", "/receipts": "nav.receipts", "/invoices": "nav.invoices", "/features": "nav.features", "/notifications": "ntf.title", "/support": "sup.title", "/setup": "set.title", "/admin": "adm.title" };
+  const ptitle = PT[seg] ? t(loc, PT[seg]) : null;
   const onAdmin = role === "admin" && (firm.path ?? "").startsWith("/admin");
   const notices = (
     <>
@@ -29,16 +32,21 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   );
   const prefsBox = (
     <div className="prefs">
-      {firm.demo && role === "user" ? <TourButton label={t(loc, "tour.btn")} /> : null}
-      <Suspense fallback={<span className="lp-pill">{loc.toUpperCase()}</span>}><LangPicker loc={loc} title={t(loc, "pref.lang")} /></Suspense>
-      {LOCALES.map((l) => <a key={l} className={`lang${l === loc ? " on" : ""}`} href={`?lang=${l}`} aria-label={`${t(loc, "pref.lang")}: ${l}`}>{l.toUpperCase()}</a>)}
-      <a className="ico" href={`?theme=${theme === "dark" ? "light" : "dark"}`} aria-label={t(loc, "pref.theme")}><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
-      {role ? <Link className="ico bell" href="/notifications" aria-label={t(loc, "ntf.title")}><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0" /></svg>{firm.unread ? <b>{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link> : null}
+      {firm.demo && role === "user" ? <span className="dsk"><TourButton label={t(loc, "tour.btn")} /></span> : null}
+      <a className={`ico${role ? " dsk" : ""}`} href={`?theme=${theme === "dark" ? "light" : "dark"}`} aria-label={t(loc, "pref.theme")}><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
+      {role ? <Link className="ico bell dsk" href="/notifications" aria-label={t(loc, "ntf.title")}><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0" /></svg>{firm.unread ? <b>{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link> : null}
       {role ? (
         <details className="acct">
-          <summary className="ico" aria-label={t(loc, "acct.menu")}>{badge}</summary>
+          <summary className="ico" aria-label={t(loc, "acct.menu")}>{badge}<span className={`mdot r-${look ?? "owner"}`}>{firm.unread ? <b /> : null}</span><svg className="mburg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16" /></svg></summary>
           <div className="menu">
-            <Suspense fallback={null}><LangPicker loc={loc} title={t(loc, "pref.lang")} inline /></Suspense>
+            <div className="monly">
+              <div className="mhead">{badge}</div>
+              {plan === "trial" && !adminView ? <Link href="/plans" className="mrow"><span>{t(loc, "trial.banner", { n: trialLeft })}</span><b>{t(loc, "trial.choose")}</b></Link> : null}
+              {firm.demo && role === "user" ? <TourButton label={t(loc, "tour.btn")} /> : null}
+              <Link href="/notifications" className="mrow"><span>{t(loc, "ntf.title")}</span>{firm.unread ? <b className="cnt">{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link>
+              <a href={`?theme=${theme === "dark" ? "light" : "dark"}`} className="mrow"><span>{t(loc, "pref.theme")}</span><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
+            </div>
+            <Suspense fallback={null}><LangPicker loc={loc} title={t(loc, "pref.lang")} inline persist /></Suspense>
             <div className="who">{prefs.email}{firm.name ? <><br /><span className="firmtag">{firm.name}</span></> : null}</div>
             {firm.canToggle ? (
               <form action="/api/firm/demo" method="post" className="demoTgl">
@@ -73,11 +81,12 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   const dbBar = role === "admin" && !firm.dbOk ? <div className="dbbar" role="status">{t(loc, "db.missing")}</div> : null;
   // fără sesiune (login/înscriere/invitație): pagina are deja logo-ul mare → antetul arată doar limba și tema
   if (!role) return <><header className="top"><span />{prefsBox}</header>{dbBar}</>;
-  if (role === "driver") return <><header className="top"><span className="logo"><Logo /></span>{prefsBox}</header>{dbBar}{notices}</>;
+  if (role === "driver") return <><header className="top"><span className="logo"><Logo /></span>{ptitle ? <span className="ptitle">{ptitle}</span> : null}{prefsBox}</header>{dbBar}{notices}</>;
   return (
     <>
       <header className="top">
         <Link href="/" className="logo" aria-label="Querra Fleet"><Logo /></Link>
+        {ptitle ? <span className="ptitle">{ptitle}</span> : null}
         {onAdmin ? <nav className="adnav">{(["firms", "support", "emails", "test-email"] as const).map((k) => <a key={k} href={`/admin#${k}`}>{t(loc, `rl.nav.${k}`)}</a>)}<Link href="/">{t(loc, "rl.nav.app")}</Link></nav> : <NavIcons demo={firm.demo} labels={{ import: t(loc, "nav.import"), savings: t(loc, "nav.savings"),  home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />}
         {prefsBox}
       </header>

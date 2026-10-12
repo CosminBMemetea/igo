@@ -7,8 +7,8 @@ export const VEHICLE_DOC_TYPES: VehicleDocType[] = ["itp", "rca", "casco", "vign
 export const DRIVER_DOC_TYPES: DriverDocType[] = ["licence", "cpc", "tachoCard", "medical"];
 export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
 export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; createdAt: string }
-export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; truckId?: string | null }
-export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null }
+export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; truckId?: string | null; locale?: string | null }
+export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
 export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 export type NewDoc = Omit<DocRow, "id" | "firmId">;
@@ -41,7 +41,8 @@ export interface Store {
   createUser(u: Omit<UserRow, "id">): Promise<UserRow>;
   userByLogin(login: string): Promise<UserRow | null>;
   users(firmId: string): Promise<UserRow[]>;
-  createInvite(firmId: string, name: string, phone: string | null): Promise<InviteRow>;
+  createInvite(firmId: string, name: string, phone: string | null, locale?: string | null): Promise<InviteRow>;
+  setUserLocale(id: string, locale: string): Promise<void>;
   invite(firmId: string, id: string): Promise<InviteRow | null>;
   invites(firmId: string): Promise<InviteRow[]>;
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;

@@ -23,6 +23,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   /** camionul curent al șoferului (ultima tură) — pentru notificările despre documentele camionului */
   truckId: text("truck_id"),
+  /** limba aleasă (ro|en|pl); null = implicit română */
+  locale: text("locale"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("users_email_uq").on(t.email), uniqueIndex("users_phone_uq").on(t.phone), index("users_firm_ix").on(t.firmId)]);
 
@@ -34,6 +36,7 @@ export const invites = pgTable("invites", {
   usedAt: timestamp("used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   userId: text("user_id"),
+  locale: text("locale"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("invites_firm_ix").on(t.firmId)]);
 

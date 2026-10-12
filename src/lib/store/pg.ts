@@ -6,8 +6,8 @@ import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFue
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
-const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId });
-const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt) });
+const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId, locale: u.locale });
+const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt), locale: i.locale });
 const truckOut = ({ createdAt: _c, ...t }: typeof trucks.$inferSelect): TruckRow => t;
 const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, scope: d.scope === "driver" ? "driver" : "vehicle", type: d.type as DocType });
 const fileOut = ({ data: _d, createdAt, ...f }: typeof files.$inferSelect): FileMeta => ({ ...f, kind: f.kind as FileMeta["kind"], storage: f.storage === "blob" ? "blob" : "db", createdAt: iso(createdAt)! });
@@ -35,7 +35,8 @@ export class PgStore implements Store {
   }
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async users(firmId: string) { return (await this.d.select().from(users).where(eq(users.firmId, firmId))).map(userOut); }
-  async createInvite(firmId: string, name: string, phone: string | null) { const [r] = await this.d.insert(invites).values({ id: newId("i"), firmId, name, phone }).returning(); return invOut(r); }
+  async setUserLocale(id: string, locale: string) { await this.d.update(users).set({ locale }).where(eq(users.id, id)); }
+  async createInvite(firmId: string, name: string, phone: string | null, locale: string | null = null) { const [r] = await this.d.insert(invites).values({ id: newId("i"), firmId, name, phone, locale }).returning(); return invOut(r); }
   async invite(firmId: string, id: string) { const [r] = await this.d.select().from(invites).where(and(eq(invites.firmId, firmId), eq(invites.id, id))); return r ? invOut(r) : null; }
   async invites(firmId: string) { return (await this.d.select().from(invites).where(eq(invites.firmId, firmId)).orderBy(desc(invites.createdAt))).map(invOut); }
   async useInvite(firmId: string, id: string, userId: string) {
