@@ -20,12 +20,13 @@ async function compress(f: File): Promise<Blob> {
 }
 let LOC = "ro-RO";
 const hhmm = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(LOC, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Bucharest" }) : "—");
-export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial, L, loc }: { loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
+export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow }: { serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
   LOC = loc === "en" ? "en-GB" : loc === "pl" ? "pl-PL" : "ro-RO";
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
-  const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(Date.now());
+  const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(serverNow);
   const cmr = useRef<HTMLInputElement>(null), pod = useRef<HTMLInputElement>(null);
   useEffect(() => { setGeo(localStorage.getItem("qf-geo") !== "0"); const h = (e: Event) => setOnShift((e as CustomEvent<boolean>).detail); window.addEventListener("qf-shift", h); return () => window.removeEventListener("qf-shift", h); }, []);
+  useEffect(() => { setNow(Date.now()); }, []);
   useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(i); }, [st.waitSince]);
   const pos = () => new Promise<{ lat?: number; lng?: number }>((res) => {
     // locația doar în tură și doar cu acordul șoferului

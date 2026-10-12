@@ -75,7 +75,11 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayPro
       const base = L.tileLayer(tileUrl(theme, "Base"), { attribution: "Esri, HERE, Garmin, © OpenStreetMap contributors", maxZoom: 16, keepBuffer: 4 }).addTo(map);
       L.tileLayer(tileUrl(theme, "Reference"), { maxZoom: 16, opacity: 0.5, pane: "overlayPane" }).addTo(map);
       // așteptăm primele dale (max 4 s) înainte să arătăm harta și să pornim redarea — fără ecran gri
-      const tilesReady = new Promise<void>((res) => { base.once("load", () => res()); setTimeout(res, 4000); });
+      const tilesReady = new Promise<void>((res) => {
+        setTimeout(res, 5000); // plasă de siguranță
+        // după re-măsurarea containerului (400 ms) Leaflet cere alte dale; așteptăm să se termine TOATE cele vizibile
+        setTimeout(() => { map.invalidateSize(); const b = base as unknown as { isLoading?: () => boolean }; if (!b.isLoading?.()) res(); else base.once("load", () => res()); }, 450);
+      });
       const all = d.path.map((p) => [p[0], p[1]] as [number, number]);
       const line = { lineCap: "round", lineJoin: "round", interactive: false, smoothFactor: 1 } as const;
       // traseul rămas: estompat; segmentele private: doar o legătură punctată, fără drum

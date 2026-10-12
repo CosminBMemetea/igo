@@ -6,6 +6,7 @@ import type { Shift } from "./repo";
 const C = "qf-dshift";
 type Map = Record<string, Shift>;
 const read = (): Map => { try { return JSON.parse(cookies().get(C)?.value ?? "{}") as Map; } catch { return {}; } };
+export const demoShifts = (): Map => read();
 export const demoShift = (vehicleId: string): Shift | null => read()[vehicleId] ?? null;
 export function saveDemoShift(res: NextResponse, s: Shift) {
   const m = read(); m[s.vehicleId] = s;

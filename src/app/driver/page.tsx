@@ -36,14 +36,15 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const shift = (tn.demo ? demoShift(v.id) : null) ?? await r.shift(v.id);
   // demo: aceeași sursă ca harta live (liveFleet la minutul demo)
   const liveKm = tn.demo ? (liveFleet(vehicles, tripViews(await r.trips(), vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
+  const nowMs = Date.now();
   const driverName = v.driver || me?.name || "";
   const myDocs = (await r.docs()).filter((d) => d.expires && ((d.scope === "vehicle" && d.ownerId === v.id) || (d.scope === "driver" && (tn.demo ? d.ownerId === driverName : d.userId === tn.uid))))
     .map((d) => ({ ...d, st: docStatus(d.expires!, today) })).sort((a, b) => a.st.days - b.st.days);
   return (
     <Gate feature="driverApp" prefs={prefs}>
       <main>{!tn.demo && vehicles.length > 1 ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
-        <DriverApp vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} />
-        {trip && pw ? <TripPaperwork loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
+        <DriverApp serverNow={nowMs} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} />
+        {trip && pw ? <TripPaperwork serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
         <section className="section" id="docs">
           <div className="eyebrow">{t(loc, "pw.myDocs")}</div>
           <div className="list" style={{ marginTop: 12 }}>

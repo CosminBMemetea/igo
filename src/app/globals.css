@@ -632,3 +632,4 @@ html{scroll-padding-top:120px}
 .trial{position:fixed}
 /* QA r2: reluarea apare după ce s-au încărcat dalele (fără gri) */
 .rp .leaflet-container{transition:opacity .35s}.rp:not([data-ready]) .leaflet-container{opacity:0}
+.rp .leaflet-container{background:var(--map,var(--bg))}

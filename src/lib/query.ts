@@ -41,6 +41,8 @@ export type LiveStatus = "moving" | "stopped" | "pump" | "working" | "offline" |
 /** Demo: un șofer în modul privat (pauză / în afara turei) — fără poziție. */
 export const DEMO_PRIVATE = new Set(["bh77qrt"]);
 /** GDPR: în modul privat sau în afara turei nu există poziție, traseu sau evenimente — nici în API. */
+/** Demo: tura oprită de șofer → camion oprit pe hartă. */
+export const liveSyncNote = (x: LiveVehicle): LiveVehicle => ({ ...x, status: "stopped", speed: 0, eta: null, left: 0, ahead: [], secondsAgo: 300 });
 export const privatize = (x: LiveVehicle): LiveVehicle => ({ ...x, status: "private", speed: 0, at: null, secondsAgo: 0, track: [], ahead: [], done: [], dest: "", left: 0, eta: null, today: 0, events: [] });
 export interface LiveVehicle {
   id: string; name: string; kind: Vehicle["kind"]; driver: string; status: LiveStatus; speed: number; at: LatLng | null; secondsAgo: number;
