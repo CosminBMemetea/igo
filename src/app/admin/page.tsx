@@ -18,26 +18,26 @@ export default async function Admin({ searchParams }: { searchParams: { rem?: st
   const name = (id: string | null) => firms.find((f) => f.id === id)?.name ?? "—";
   return (
     <main>
-      <div className="eyebrow fade">{t(loc, "acct.admin")}</div>
+      <div className="eyebrow fade" style={{ color: "#8b5cf6" }}>{t(loc, "rl.admin")}</div>
       <h1 className="h1 fade">{t(loc, "adm.title")}</h1>
       <p className="sub fade d1">{dbConfigured() ? t(loc, "adm.dbOk") : t(loc, "db.missing")}</p>
-      <section className="section">
+      <section className="section" id="firms">
         <div className="eyebrow">{t(loc, "adm.firms", { n: firms.length })}</div>
         <div className="list" style={{ marginTop: 16 }}>
           <div className={`it${cur === "demo" ? " on" : ""}`}>
             <div><div className="t">{t(loc, "adm.demoFirm")}</div><div className="m">{t(loc, "adm.demoFirmSub")}</div></div>
-            <form action="/api/admin/firm" method="post"><input type="hidden" name="id" value="demo" /><button className="btn sec sm">{cur === "demo" ? "✓" : t(loc, "adm.open")}</button></form>
+            <form action="/api/admin/firm" method="post"><input type="hidden" name="id" value="demo" /><button className="btn sec sm">{cur === "demo" ? "✓" : t(loc, "rl.viewAs")}</button></form>
           </div>
           {firms.map((f) => (
             <div key={f.id} className={`it${cur === f.id ? " on" : ""}`}>
               <div style={{ minWidth: 0 }}><div className="t">{f.name}{f.cui ? ` · ${f.cui}` : ""}</div><div className="m">{t(loc, "adm.firmMeta", { trucks: f.trucks, users: f.users })} · {fmtDate(loc, f.createdAt.slice(0, 10), true)}{f.demoMode ? ` · ${t(loc, "firm.demoOn")}` : ""}</div></div>
-              <form action="/api/admin/firm" method="post"><input type="hidden" name="id" value={f.id} /><button className="btn sec sm">{cur === f.id ? "✓" : t(loc, "adm.open")}</button></form>
+              <form action="/api/admin/firm" method="post"><input type="hidden" name="id" value={f.id} /><button className="btn sec sm">{cur === f.id ? "✓" : t(loc, "rl.viewAs")}</button></form>
             </div>
           ))}
           {!firms.length ? <div className="empty"><p>{t(loc, "adm.noFirms")}</p></div> : null}
         </div>
       </section>
-      <section className="section">
+      <section className="section" id="support">
         <div className="eyebrow">{t(loc, "adm.requests", { n: reqs.length })}</div>
         <div className="list" style={{ marginTop: 16 }}>
           {reqs.map((r) => (
@@ -65,7 +65,7 @@ export default async function Admin({ searchParams }: { searchParams: { rem?: st
           : searchParams.te === "wait" ? <p className="msg warn">{t(loc, "adm.testMail.wait")}</p>
           : searchParams.te === "bad" ? <p className="msg err">{t(loc, "adm.testMail.bad")}</p> : null}
       </section>
-      <section className="section">
+      <section className="section" id="emails">
         <div className="head"><h2>{t(loc, "adm.reminders")}</h2>
           <form action="/api/admin/reminders" method="post"><button className="btn sec sm">{t(loc, "adm.runNow")}</button></form>
         </div>

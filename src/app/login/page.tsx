@@ -1,33 +1,55 @@
+import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
+import { ROLE_LOOK, RoleIcon, type RoleLook } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { bad: "acct.bad", disabled: "acct.disabled", nosecret: "acct.nosecret" };
-import Link from "next/link";
-export default function Login({ searchParams }: { searchParams: { e?: string } }) {
+export default function Login({ searchParams }: { searchParams: { e?: string; as?: string } }) {
   const { loc } = getPrefs();
-  const secret = (process.env.SESSION_SECRET?.length ?? 0) >= 32, enabled = secret;
+  const secret = (process.env.SESSION_SECRET?.length ?? 0) >= 32;
   const err = searchParams.e && ERR[searchParams.e];
+  const as: RoleLook = searchParams.as === "driver" ? "driver" : searchParams.as === "admin" ? "admin" : "owner";
+  const tab = (k: RoleLook) => (
+    <Link key={k} href={`/login?as=${k}`} className={`rtab r-${k}${as === k ? " on" : ""}`} aria-current={as === k ? "page" : undefined}>
+      <RoleIcon k={k} /><b>{t(loc, ROLE_LOOK[k].label)}</b><span>{t(loc, `rl.${k}.hint` as MsgKey)}</span>
+    </Link>
+  );
   return (
-    <main className="login">
+    <main className={`login r-${as}`}>
       <div className="fade" style={{ color: "var(--fg)", marginBottom: 18 }}><Logo height={44} /></div>
-      <h1 className="h1 fade">{t(loc, "acct.title")}</h1>
-      <p className="sub fade d1">{t(loc, "acct.sub")}</p>
+      <h1 className="h1 fade">{t(loc, as === "admin" ? "rl.admin.title" : "acct.title")}</h1>
+      {as !== "admin" ? <div className="rtabs fade d1">{tab("owner")}{tab("driver")}</div> : <p className="sub fade d1">{t(loc, "rl.admin.sub")}</p>}
       {err ? <p className="msg err">{t(loc, err)}</p> : null}
-      {enabled ? (
-        <form className="sheet fade d1" action="/api/auth/login" method="post">
-          <label className="lf"><span>{t(loc, "acct.login")}</span><input name="email" type="text" inputMode="email" autoComplete="username" required /></label>
-          <label className="lf"><span>{t(loc, "acct.password")}</span><input name="password" type="password" autoComplete="current-password" required /></label>
-          <button className="btn pri" style={{ width: "100%", marginTop: 8 }}>{t(loc, "acct.signin")}</button>
-          <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 14 }}>{t(loc, "su.have")} <Link href="/signup" className="lnk">{t(loc, "su.cta")}</Link></p>
+      {secret ? (
+        <form className={`sheet fade d1 rform r-${as}`} action="/api/auth/login" method="post">
+          {as === "driver" ? (
+            <>
+              <label className="lf big"><span>{t(loc, "rl.phone")}</span><input name="email" type="tel" inputMode="tel" autoComplete="tel" placeholder="07xx xxx xxx" required /></label>
+              <label className="lf big"><span>{t(loc, "rl.pin")}</span><input name="password" type="password" inputMode="numeric" pattern="[0-9]*" maxLength={6} autoComplete="current-password" placeholder="••••••" required /></label>
+            </>
+          ) : (
+            <>
+              <label className="lf"><span>{t(loc, "rl.email")}</span><input name="email" type="email" inputMode="email" autoComplete="username" required /></label>
+              <label className="lf"><span>{t(loc, "acct.password")}</span><input name="password" type="password" autoComplete="current-password" required /></label>
+            </>
+          )}
+          <button className={`btn pri rbtn${as === "driver" ? " xl" : ""}`}>{t(loc, `rl.${as}.signin` as MsgKey)}</button>
+          {as === "owner" ? <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 14 }}>{t(loc, "su.have")} <Link href="/signup" className="lnk">{t(loc, "su.cta")}</Link></p> : null}
+          {as === "driver" ? <p className="hint" style={{ textAlign: "center" }}>{t(loc, "rl.driver.help")}</p> : null}
         </form>
       ) : <p className="sheet sub fade d1">{t(loc, "acct.disabled")}</p>}
-      <div className="or">{t(loc, "acct.or")}</div>
-      <form action="/api/auth/demo" method="post" className="fade d2">
-        <button className="btn sec" style={{ width: "100%" }} disabled={!secret}>{t(loc, "acct.demo")}</button>
-        <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
-      </form>
+      {as !== "admin" ? (
+        <>
+          <div className="or">{t(loc, "acct.or")}</div>
+          <form action="/api/auth/demo" method="post" className="fade d2">
+            <button className="btn sec" style={{ width: "100%" }} disabled={!secret}>{t(loc, "acct.demo")}</button>
+            <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
+          </form>
+          <p className="admlink"><Link href="/login?as=admin"><RoleIcon k="admin" />{t(loc, "rl.admin")}</Link></p>
+        </>
+      ) : <p className="admlink"><Link href="/login">← {t(loc, "rl.back")}</Link></p>}
     </main>
   );
 }

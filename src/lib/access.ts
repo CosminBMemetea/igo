@@ -9,11 +9,13 @@ export const DRIVER_PATHS = [/^\/driver$/, /^\/api\/driver\//, /^\/api\/receipt\
 /** Doar proprietar/admin. */
 export const OWNER_PATHS = [/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];
+/** Pagina de start a fiecărui rol după autentificare. */
+export const roleHome = (r: Session["role"]) => (r === "driver" ? "/driver" : r === "admin" ? "/admin" : "/");
 export type Decision = { kind: "allow" } | { kind: "login" } | { kind: "unauthorized" } | { kind: "forbidden"; home: string };
 export function decide(path: string, s: Session | null): Decision {
   if (isPublic(path)) return { kind: "allow" };
   if (!s) return path.startsWith("/api/") ? { kind: "unauthorized" } : { kind: "login" };
-  const deny = { kind: "forbidden", home: s.role === "driver" ? "/driver" : "/" } as const;
+  const deny = { kind: "forbidden", home: roleHome(s.role) } as const;
   if (s.role === "driver" && !DRIVER_PATHS.some((r) => r.test(path))) return deny;
   if (OWNER_PATHS.some((r) => r.test(path)) && s.role !== "owner" && s.role !== "admin") return deny;
   if (ADMIN_PATHS.some((r) => r.test(path)) && s.role !== "admin") return deny;

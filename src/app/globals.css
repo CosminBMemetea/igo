@@ -333,3 +333,43 @@ body:has(.livemap) .demo{bottom:100px;left:24px;transform:none}
 .pwgeo{display:flex;gap:10px;align-items:flex-start;margin-top:18px;font-size:13px;color:var(--fg2)}
 .tpw{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media (max-width:760px){.tpw{grid-template-columns:1fr 1fr}}
+/* roluri: aceleași culori peste tot */
+:root{--r-admin:#8b5cf6;--r-owner:#3b82f6;--r-driver:#22c55e}
+html[data-role] body::before{content:"";position:fixed;inset:0 0 auto 0;height:3px;z-index:40;pointer-events:none}
+html[data-role=admin] body::before{background:linear-gradient(90deg,var(--r-admin),#c084fc)}
+html[data-role=owner] body::before{background:linear-gradient(90deg,var(--r-owner),#60a5fa)}
+html[data-role=driver] body::before{background:linear-gradient(90deg,var(--r-driver),#4ade80)}
+.ricon{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.rbadge{display:inline-flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.02em;padding:5px 10px 5px 8px;border-radius:999px;max-width:300px;white-space:nowrap}
+.rbadge b{font-weight:600}.rbadge em{font-style:normal;opacity:.85;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.rbadge em::before{content:"·";margin-right:6px;opacity:.6}
+.rbadge.r-admin{background:color-mix(in srgb,var(--r-admin) 18%,transparent);color:var(--r-admin);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--r-admin) 45%,transparent)}
+.rbadge.r-owner{background:color-mix(in srgb,var(--r-owner) 16%,transparent);color:var(--r-owner);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--r-owner) 40%,transparent)}
+.rbadge.r-driver{background:color-mix(in srgb,var(--r-driver) 16%,transparent);color:#16a34a;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--r-driver) 40%,transparent)}
+[data-theme=dark] .rbadge.r-driver{color:var(--r-driver)}
+.rdemo{font-style:normal;font-size:9px;font-weight:700;letter-spacing:.12em;padding:2px 6px;border-radius:6px;background:#f5a524;color:#111}
+.rolebar{position:fixed;left:50%;transform:translateX(-50%);top:62px;z-index:19;display:flex;gap:12px;align-items:center;padding:8px 16px;border-radius:999px;font-size:13px;backdrop-filter:blur(14px)}
+.rolebar.r-admin{background:color-mix(in srgb,var(--r-admin) 16%,var(--bg));color:var(--fg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--r-admin) 50%,transparent)}
+.rolebar.r-admin .ricon{color:var(--r-admin)}.rolebar a{color:var(--r-admin);font-weight:600}
+.rolebar.r-deny{top:108px;background:color-mix(in srgb,#f5a524 18%,var(--bg));color:var(--fg)}
+body.has-trial .rolebar.r-admin{top:108px}body.has-trial .rolebar.r-deny{top:150px}
+.adnav{display:flex;gap:4px}.adnav a{padding:8px 14px;border-radius:999px;font-size:13px;color:var(--fg2)}.adnav a:hover{background:var(--bg2);color:var(--fg)}
+.adnav a:last-child{color:var(--r-admin)}
+.rtabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 14px;width:100%}
+.rtab{display:grid;gap:4px;padding:16px;border-radius:18px;background:var(--bg2);color:var(--fg2);transition:background .2s,box-shadow .2s}
+.rtab .ricon{width:20px;height:20px}.rtab b{font-weight:500;color:var(--fg);font-size:15px}.rtab span{font-size:12px}
+.rtab.r-owner.on{box-shadow:inset 0 0 0 1.5px var(--r-owner);background:color-mix(in srgb,var(--r-owner) 10%,var(--bg2))}.rtab.r-owner .ricon{color:var(--r-owner)}
+.rtab.r-driver.on{box-shadow:inset 0 0 0 1.5px var(--r-driver);background:color-mix(in srgb,var(--r-driver) 10%,var(--bg2))}.rtab.r-driver .ricon{color:var(--r-driver)}
+.rform .rbtn{width:100%;margin-top:8px}
+.login.r-driver .rbtn{background:var(--r-driver);color:#04130a}.login.r-admin .rbtn{background:var(--r-admin)}
+.rbtn.xl{padding:20px;font-size:18px;border-radius:18px}
+.lf.big input{font-size:22px;padding:18px 16px;letter-spacing:.06em}
+.admlink{text-align:center;margin-top:28px;font-size:12px}.admlink a{display:inline-flex;gap:6px;align-items:center;color:var(--fg3)}.admlink a:hover{color:var(--r-admin)}
+@media (max-width:760px){.rbadge em{max-width:90px}.rbadge{max-width:200px}.adnav{display:none}.rolebar{top:58px;font-size:12px;width:max-content;max-width:92vw}}
+@media (max-width:760px){
+  html[data-role] .top .lang:not(.on){display:none}
+  html[data-role] .top .prefs{gap:2px}
+  .rbadge.r-owner b,.rbadge.r-driver b{display:none}.rbadge.r-owner em::before,.rbadge.r-driver em::before{display:none}
+  .rbadge{max-width:170px}.rbadge em{max-width:130px}
+}
+@media (max-width:760px){html[data-role] .top .logo .wm{display:none}.rbadge{max-width:210px}.rbadge em{max-width:170px}}

@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
   if (d.kind === "unauthorized") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (d.kind === "forbidden") {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    const u = req.nextUrl.clone(); u.pathname = d.home; u.search = ""; return NextResponse.redirect(u);
+    const u = req.nextUrl.clone(); u.pathname = d.home; u.search = `?denied=${encodeURIComponent(path.slice(0, 60))}`; return NextResponse.redirect(u);
   }
   if (d.kind === "login") { const u = req.nextUrl.clone(); u.pathname = "/login"; u.search = ""; return NextResponse.redirect(u); }
   const set: [string, string][] = [];
@@ -22,6 +22,9 @@ export async function middleware(req: NextRequest) {
   }
   if (!req.cookies.get("igo-trial-start")) set.push(["igo-trial-start", new Date().toISOString().slice(0, 10)]);
   const headers = new Headers(req.headers);
+  headers.set("x-igo-path", path);
+  const den = req.nextUrl.searchParams.get("denied");
+  headers.delete("x-igo-denied"); if (den && /^\/[\w\/-]{0,60}$/.test(den)) headers.set("x-igo-denied", den);
   for (const h of ["x-igo-role", "x-igo-email", "x-igo-firm", "x-igo-uid", "x-igo-trial"]) headers.delete(h);
   if (s) {
     headers.set("x-igo-role", s.role); headers.set("x-igo-email", encodeURIComponent(s.email)); headers.set("x-igo-firm", s.firm);

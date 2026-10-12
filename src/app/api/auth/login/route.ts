@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const fd = await req.formData().catch(() => null);
   const login = String(fd?.get("email") ?? "").trim().slice(0, 200), password = String(fd?.get("password") ?? "").slice(0, 200);
   if (adminConfigured() && same(login, process.env.ADMIN_EMAIL!) && verifyPassword(password, process.env.ADMIN_PASSWORD_HASH))
-    return withSession(back(req, "/"), { role: "admin", email: process.env.ADMIN_EMAIL!, firm: "demo" });
+    return withSession(back(req, "/admin"), { role: "admin", email: process.env.ADMIN_EMAIL!, firm: "demo" });
   const u = login ? await store().userByLogin(normLogin(login)) : null;
   if (u && verifyPassword(password, u.passwordHash)) {
     const f = await store().firm(u.firmId);
