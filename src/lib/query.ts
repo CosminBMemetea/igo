@@ -66,8 +66,16 @@ function zoneEvents(track: { min: number; at: LatLng }[], zones: Zone[]) {
   }
   return ev.sort((a, b) => a.time.localeCompare(b.time));
 }
+// demo: aceleași date statice → memoizăm rezultatul (per listă de vehicule + minut); coordonatele rotunjite la ~1 m (payload mai mic)
+const LIVE_MEMO = new WeakMap<Vehicle[], Map<string, LiveVehicle[]>>();
+const rc = (p: LatLng): LatLng => [Math.round(p[0] * 1e5) / 1e5, Math.round(p[1] * 1e5) / 1e5];
+const slim = (x: LiveVehicle): LiveVehicle => ({ ...x, at: x.at ? rc(x.at) : null, track: x.track.map((t) => ({ min: t.min, at: rc(t.at) })), ahead: x.ahead.map(rc), done: x.done.map(rc) });
 export function liveFleet(vehicles: Vehicle[], views: TripView[], parcels: Parcel[], zones: Zone[], now = DEMO_NOW_MIN, priv: Set<string> = DEMO_PRIVATE): LiveVehicle[] {
-  return liveFleetRaw(vehicles, views, parcels, zones, now).map((x) => (priv.has(x.id) ? privatize(x) : x));
+  const key = `${now}|${[...priv].join(",")}|${views.length}|${parcels.length}|${zones.length}`;
+  let m = LIVE_MEMO.get(vehicles); if (!m) { m = new Map(); LIVE_MEMO.set(vehicles, m); }
+  let r = m.get(key);
+  if (!r) { r = liveFleetRaw(vehicles, views, parcels, zones, now).map((x) => slim(priv.has(x.id) ? privatize(x) : x)); if (m.size > 20) m.clear(); m.set(key, r); }
+  return r;
 }
 function liveFleetRaw(vehicles: Vehicle[], views: TripView[], parcels: Parcel[], zones: Zone[], now: number): LiveVehicle[] {
   return vehicles.map((v): LiveVehicle => {

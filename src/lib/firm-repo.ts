@@ -36,12 +36,17 @@ export class FirmRepository implements IgoRepository {
   constructor(private s: Store, readonly firm: FirmRow) {}
   private txCache?: Promise<FuelTxRow[]>;
   private tx() { return (this.txCache ??= this.s.fuel(this.firm.id)); }
+  // memo per cerere (repo-ul trăiește cât tenant()-ul cererii): layout + pagină + alerte nu repetă aceleași interogări
+  private m = new Map<string, Promise<unknown>>();
+  private memo<T>(k: string, f: () => Promise<T>): Promise<T> { let p = this.m.get(k) as Promise<T> | undefined; if (!p) { p = f(); this.m.set(k, p); p.catch(() => this.m.delete(k)); } return p; }
+  private trucksQ() { return this.memo("trucks", () => this.s.trucks(this.firm.id)); }
+  private tripsQ() { return this.memo("trips", () => this.s.trips(this.firm.id)); }
   private since() { return this.firm.createdAt.slice(0, 16); }
-  async vehicles() { const [ts, tx] = await Promise.all([this.s.trucks(this.firm.id), this.tx()]); return ts.map((t) => truckToVehicle(t, truckBaseline(t, tx, this.since()).l100)); }
-  async trips() { const [rs, tx] = await Promise.all([this.s.trips(this.firm.id), this.tx()]); return rs.map((r) => tripRowToTrip(r, tx)); }
+  async vehicles() { const [ts, tx] = await Promise.all([this.trucksQ(), this.tx()]); return ts.map((t) => truckToVehicle(t, truckBaseline(t, tx, this.since()).l100)); }
+  async trips() { const [rs, tx] = await Promise.all([this.tripsQ(), this.tx()]); return rs.map((r) => tripRowToTrip(r, tx)); }
   async clients(): Promise<Client[]> {
     const seen = new Map<string, Client>();
-    for (const r of await this.s.trips(this.firm.id)) if (!seen.has(slug(r.client))) seen.set(slug(r.client), { id: slug(r.client), name: r.client, country: "RO", vat: "", contacts: [], payDays: 0 });
+    for (const r of await this.tripsQ()) if (!seen.has(slug(r.client))) seen.set(slug(r.client), { id: slug(r.client), name: r.client, country: "RO", vat: "", contacts: [], payDays: 0 });
     return [...seen.values()];
   }
   async parcels() { return []; }
@@ -53,17 +58,18 @@ export class FirmRepository implements IgoRepository {
   async services() { return []; }
   async fleetData(): Promise<FleetData> { return { trucks: [], fills: [], levels: {} }; }
   async fuelAlerts(): Promise<AppAlert[]> {
-    const [ts, tx] = await Promise.all([this.s.trucks(this.firm.id), this.tx()]);
     const since60 = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 16);
-    const pos = await this.s.positions(this.firm.id, since60);
-    const rt: RTruck[] = ts.map((t) => ({ id: t.id, plate: t.plate, tankL: t.tankL, normalL100: t.normalL100, baseline: truckBaseline(t, tx, this.since()).kind === "history" ? truckBaseline(t, tx, this.since()).l100 : null }));
+    const [ts, tx, pos] = await Promise.all([this.trucksQ(), this.tx(), this.s.positions(this.firm.id, since60)]);
+    const rt: RTruck[] = ts.map((t) => { const b = truckBaseline(t, tx, this.since()); return { id: t.id, plate: t.plate, tankL: t.tankL, normalL100: t.normalL100, baseline: b.kind === "history" ? b.l100 : null }; });
     return firmFuelAlerts(rt, tx.map(toR), pos);
   }
-  async alerts(): Promise<AppAlert[]> { return sortAlerts([...(await this.fuelAlerts()), ...businessAlerts(await this.vehicles(), await this.trips(), await this.docs(), Date.now())]); }
+  async alerts(): Promise<AppAlert[]> {
+    return this.memo("alerts", async () => { const [fuel, v, tr, d] = await Promise.all([this.fuelAlerts(), this.vehicles(), this.trips(), this.docs()]); return sortAlerts([...fuel, ...businessAlerts(v, tr, d, Date.now())]); });
+  }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const hash = `driver:${newId("h")}`;
     await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: null, photoName: f.photo?.name ?? null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
-    this.txCache = undefined;
+    this.txCache = undefined; this.m.delete("alerts");
     return { ...f, id: hash };
   }
   async driverFills(vehicleId?: string): Promise<DriverFill[]> {

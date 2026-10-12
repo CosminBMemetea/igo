@@ -66,7 +66,10 @@ export class DemoRepository implements IgoRepository {
     for (const t of TRUCKS) levels[t.id] = levelSeries(t);
     return { trucks: TRUCKS, fills: FILLS, levels };
   }
-  async alerts(): Promise<AppAlert[]> {
+  private alertsMemo?: Promise<AppAlert[]>;
+  // datele demo sunt statice: alertele se calculează o singură dată per instanță (proces)
+  alerts(): Promise<AppAlert[]> { return (this.alertsMemo ??= this.alertsRaw()).then((a) => a.slice()); }
+  private async alertsRaw(): Promise<AppAlert[]> {
     const fuel = computeAlerts(await this.fleetData()).map((a): AppAlert => ({ id: a.id, rule: a.rule, vehicleId: a.truckId, time: a.time, severity: a.severity, theft: a.theft, params: a.params }));
     const rank: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
     // demo: alimentarea dubei BH 05 QRT în pauza privată a șoferului → fără poziție, fără alarmă falsă

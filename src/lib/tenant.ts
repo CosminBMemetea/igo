@@ -1,5 +1,6 @@
 // Querra Fleet: ce firmă vede cererea curentă. Rolul/firma vin DOAR din antetele puse de middleware după verificarea sesiunii.
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 import { demoRepo, type IgoRepository } from "./repo";
 import { FirmRepository } from "./firm-repo";
 import { dbConfigured, store, type FirmRow } from "./store";
@@ -7,7 +8,9 @@ import type { Role } from "./session";
 
 export const ADMIN_FIRM_COOKIE = "igo-firm";
 export interface Tenant { role: Role | null; uid: string | null; email: string | null; ownFirmId: string | null; firm: FirmRow | null; demo: boolean; repo: IgoRepository; dbOk: boolean; lost: boolean }
-export async function tenant(): Promise<Tenant> {
+/** O singură dată per cerere (layout + pagină împart firma și repo-ul memoizat). */
+export const tenant = cache(tenantUncached);
+async function tenantUncached(): Promise<Tenant> {
   const h = headers();
   const r = h.get("x-igo-role");
   const role = (["admin", "owner", "driver", "user"] as const).find((x) => x === r) ?? null;
