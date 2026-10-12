@@ -465,4 +465,12 @@ export const pl: Record<MsgKey, string> = {
   "pw.podMark": "Oznacz POD jako otrzymany",
   "pw.podUndo": "Cofnij POD otrzymany",
   "pw.podHint": "„POD otrzymany” odblokowuje fakturowanie kursu. Zaznacza się sam, gdy kierowca wyśle zdjęcie POD.",
+  "adm.testMail": "E-mail testowy",
+  "adm.testMailTo": "Odbiorca",
+  "adm.testMailSend": "Wyślij e-mail testowy",
+  "adm.testMail.sent": "Wysłano. ID Resend: {id}",
+  "adm.testMail.err": "Błąd wysyłki: {msg}",
+  "adm.testMail.none": "Brak skonfigurowanego dostawcy e-mail (RESEND_API_KEY, EMAIL_FROM).",
+  "adm.testMail.wait": "E-mail testowy został właśnie wysłany. Spróbuj ponownie za 30 s.",
+  "adm.testMail.bad": "Nieprawidłowy adres e-mail.",
 };

@@ -8,7 +8,7 @@ import { blobConfigured } from "@/lib/files";
 
 export const dynamic = "force-dynamic";
 /** Admin (ADMIN_EMAIL): toate firmele + cererile „Asistență Querra”. Middleware blochează ruta pentru alte roluri. */
-export default async function Admin({ searchParams }: { searchParams: { rem?: string } }) {
+export default async function Admin({ searchParams }: { searchParams: { rem?: string; te?: string; id?: string; msg?: string } }) {
   const { loc } = getPrefs();
   const s = store();
   const [firms, reqs, mails] = await Promise.all([s.firms(), s.support(), s.emails(50)]);
@@ -52,6 +52,18 @@ export default async function Admin({ searchParams }: { searchParams: { rem?: st
           ))}
           {!reqs.length ? <div className="empty"><p>{t(loc, "adm.noRequests")}</p></div> : null}
         </div>
+      </section>
+      <section className="section" id="test-email">
+        <div className="head"><h2>{t(loc, "adm.testMail")}</h2></div>
+        <form action="/api/admin/test-email" method="post" className="sheet" style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label className="lf" style={{ flex: 1, minWidth: 220, margin: 0 }}><span>{t(loc, "adm.testMailTo")}</span><input name="to" type="email" required defaultValue={process.env.ADMIN_EMAIL ?? ""} /></label>
+          <button className="btn sec">{t(loc, "adm.testMailSend")}</button>
+        </form>
+        {searchParams.te === "sent" ? <p className="msg ok">{t(loc, "adm.testMail.sent", { id: searchParams.id ?? "" })}</p>
+          : searchParams.te === "err" ? <p className="msg err">{t(loc, "adm.testMail.err", { msg: searchParams.msg ?? "" })}</p>
+          : searchParams.te === "none" ? <p className="msg warn">{t(loc, "adm.testMail.none")}</p>
+          : searchParams.te === "wait" ? <p className="msg warn">{t(loc, "adm.testMail.wait")}</p>
+          : searchParams.te === "bad" ? <p className="msg err">{t(loc, "adm.testMail.bad")}</p> : null}
       </section>
       <section className="section">
         <div className="head"><h2>{t(loc, "adm.reminders")}</h2>

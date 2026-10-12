@@ -465,5 +465,13 @@ export const ro = {
   "pw.podMark": "Marchează POD primit",
   "pw.podUndo": "Anulează POD primit",
   "pw.podHint": "„POD primit” deblochează facturarea cursei. Se bifează singur când șoferul trimite poza POD.",
+  "adm.testMail": "Email de test",
+  "adm.testMailTo": "Destinatar",
+  "adm.testMailSend": "Trimite email de test",
+  "adm.testMail.sent": "Trimis. ID Resend: {id}",
+  "adm.testMail.err": "Eroare la trimitere: {msg}",
+  "adm.testMail.none": "Niciun furnizor de email configurat (RESEND_API_KEY, EMAIL_FROM).",
+  "adm.testMail.wait": "Ai trimis deja un email de test acum câteva secunde. Încearcă din nou peste 30 s.",
+  "adm.testMail.bad": "Adresa de email nu e validă.",
 } as const;
 export type MsgKey = keyof typeof ro;

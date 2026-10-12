@@ -465,4 +465,12 @@ export const en: Record<MsgKey, string> = {
   "pw.podMark": "Mark POD received",
   "pw.podUndo": "Undo POD received",
   "pw.podHint": "'POD received' unlocks invoicing for this trip. It ticks itself when the driver sends the POD photo.",
+  "adm.testMail": "Test email",
+  "adm.testMailTo": "Recipient",
+  "adm.testMailSend": "Send test email",
+  "adm.testMail.sent": "Sent. Resend ID: {id}",
+  "adm.testMail.err": "Sending failed: {msg}",
+  "adm.testMail.none": "No email provider configured (RESEND_API_KEY, EMAIL_FROM).",
+  "adm.testMail.wait": "A test email was just sent. Try again in 30 s.",
+  "adm.testMail.bad": "The email address is not valid.",
 };
