@@ -766,3 +766,13 @@ html{scroll-padding-top:120px}
 @media (min-width:761px) and (max-width:1100px){.replay{right:370px}.panel{width:330px}}
 @media (min-width:761px){.trial{left:0;right:0;transform:none;border-radius:0;justify-content:center;border-width:1px 0;top:78px;animation:none}}
 @media (min-width:761px) and (max-width:1180px){.top{padding-left:24px;padding-right:24px}.rbadge em{display:none}.tourbtn span{display:none}.tourbtn{padding:0 9px}}
+.tour-card[data-side=dock]::before{display:none}
+@media (min-width:761px) and (max-width:1180px){.rp-hours{display:none}.rp-hlt{display:none}.rp-hl{padding:9px 11px}}
+/* mobil, turul pe reluare: player + HUD sus, cardul jos */
+@media (max-width:760px){
+ html.tour-rp .rp-top,html.tour-rp .rp-toasts{display:none}
+ html.tour-rp .rp-bar{top:calc(66px + env(safe-area-inset-top));bottom:auto}
+ html.tour-rp .rp-hud{top:calc(66px + 108px + env(safe-area-inset-top))!important;bottom:auto!important}
+ html.tour-rp .tour.m.soft .tour-card{top:auto!important;bottom:calc(84px + env(safe-area-inset-bottom))!important}
+}
+@media (min-width:761px){html.tour-rp .rp-evlist{max-height:max(96px,calc(100vh - 590px));overflow:auto}}

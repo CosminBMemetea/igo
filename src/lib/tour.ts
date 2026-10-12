@@ -12,5 +12,7 @@ const S: [string, string, string][] = [
   ["driver", "/driver", ".privbox, main .sheet"],
   ["savings", "/savings", "main .big"],
 ];
-export const tourSteps = (loc: Locale): TourStep[] => S.map(([k, path, sel]) => ({ path, sel, title: t(loc, `tour.${k}.t` as MsgKey), body: t(loc, `tour.${k}.b` as MsgKey) }));
+// desktop: suprascrieri pe pas — zona evidențiată (uniunea selectorilor) și cardul „andocat” într-un element
+const OV: Record<string, Pick<TourStep, "area" | "dock">> = { replay: { area: [".rp-top", ".rp-hud", ".rp-bar"], dock: ".rp-panel" } };
+export const tourSteps = (loc: Locale): TourStep[] => S.map(([k, path, sel]) => ({ path, sel, ...OV[k], title: t(loc, `tour.${k}.t` as MsgKey), body: t(loc, `tour.${k}.b` as MsgKey) }));
 export const tourLabels = (loc: Locale): TourL => Object.fromEntries((["next", "back", "skip", "done", "of", "trial", "contact", "restart"] as const).map((k) => [k, t(loc, `tour.${k}` as MsgKey)])) as unknown as TourL;

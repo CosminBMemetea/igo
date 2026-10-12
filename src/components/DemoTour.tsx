@@ -3,7 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export interface TourStep { path: string; sel: string; title: string; body: string }
+/** area: (desktop) selectori uniți în zona evidențiată; dock: (desktop) cardul stă în acest element, sub ultimul copil vizibil */
+export interface TourStep { path: string; sel: string; title: string; body: string; area?: string[]; dock?: string }
 export interface TourL { next: string; back: string; skip: string; done: string; of: string; trial: string; contact: string; restart: string }
 const KEY = "qf-tour2"; // cheie nouă: ignoră starea veche (auto-pornire)
 type St = { i: number; on: boolean; done?: boolean };
@@ -35,6 +36,7 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   }, [set]);
 
   const step = st.on ? steps[st.i] : null;
+  useEffect(() => { const on = !!step && step.path.startsWith("/replay"); document.documentElement.classList.toggle("tour-rp", on); return () => document.documentElement.classList.remove("tour-rp"); }, [step, mobile]);
   // navigare la pagina pasului + așteptarea elementului
   useEffect(() => {
     if (!step) { setRect(null); return; }
@@ -74,7 +76,12 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
   const last = st.i === steps.length - 1;
   const pad = 10;
   const soft = step.path.startsWith("/replay");
-  const hole = rect ? { left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
+  let hr: { left: number; top: number; right: number; bottom: number } | null = rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } : null;
+  if (!mobile && rect && step.area) for (const q of step.area) { const e = document.querySelector(q); if (!e) continue; const r = e.getBoundingClientRect(); if (!r.height) continue; hr = hr ? { left: Math.min(hr.left, r.left), top: Math.min(hr.top, r.top), right: Math.max(hr.right, r.right), bottom: Math.max(hr.bottom, r.bottom) } : { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; }
+  // mobil, pasul reluării: playerul + HUD urcă sus (clasa tour-rp), cardul jos; spotul cuprinde playerul, HUD-ul și harta
+  if (mobile && soft && rect) { const b = document.querySelector(".rp-bar")?.getBoundingClientRect(); const ct = cardRef.current?.getBoundingClientRect().top ?? innerHeight - 84 - (cardH || 200); if (b) hr = { left: 8, top: b.top, right: innerWidth - 8, bottom: ct - 14 }; }
+  const hole0 = hr ? { left: hr.left, top: hr.top, width: hr.right - hr.left, height: hr.bottom - hr.top } : null;
+  const hole = hole0 ? { left: hole0.left - pad, top: hole0.top - pad, width: hole0.width + pad * 2, height: hole0.height + pad * 2 } : null;
   // cardul: sub element dacă încape, altfel deasupra; pe mobil — foaie jos
   // desktop: cardul stă lângă element (dreapta/stânga/dedesubt/deasupra), niciodată peste el; înălțime naturală
   let card: React.CSSProperties = {}, side = "";
@@ -94,11 +101,20 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
     const pick = order.map((i) => opts[i]).find((o) => o[1]);
     if (pick) { side = pick[0]; card = { width: w, bottom: "auto", ...pick[2] }; const ay = side === "l" || side === "r" ? Math.max(24, Math.min(ch - 24, hole.top + Math.min(hole.height, 240) / 2 - (pick[2].top as number))) : 0; const ax = side === "b" || side === "t" ? Math.max(24, Math.min(w - 24, hole.left + hole.width / 2 - (pick[2].left as number))) : 0; (card as Record<string, unknown>)["--ay"] = `${ay}px`; (card as Record<string, unknown>)["--ax"] = `${ax}px`; }
     else card = { width: w, left: Math.max(m, hole.left + 24), top: "auto", bottom: 28 };
+    const dk = step.dock ? document.querySelector(step.dock) : null;
+    if (dk) {
+      const r = dk.getBoundingClientRect(), kids = [...dk.children].filter((c) => (c as HTMLElement).offsetHeight > 0 && c !== cardRef.current);
+      const lastB = kids.length ? Math.max(...kids.map((c) => c.getBoundingClientRect().bottom)) : r.top;
+      const ip = 16, top = Math.max(r.top + ip, lastB + 20), ch2 = cardH || 230;
+      const maxB = Math.min(innerHeight - 8, r.bottom - ip);
+      // încape sub ultimul element → acolo; altfel aliniat jos în coloană
+      if (r.width > 260 && r.height > ch2 + ip * 2) { side = "dock"; card = { width: r.width - ip * 2, left: r.left + ip, top: top + ch2 <= maxB ? top : maxB - ch2, bottom: "auto" }; }
+    }
   }
   return (
     <div className={`tour${mobile ? " m" : ""}${soft ? " soft" : ""}`} role="dialog" aria-modal="false" aria-label={step.title}>
       <div className={`tour-hole${hole ? "" : " none"}`} style={hole ?? undefined} />
-      <div ref={cardRef} data-side={side || undefined} className="tour-card" style={mobile ? (soft ? { top: "calc(62px + env(safe-area-inset-top))", bottom: "auto" } : hole && hole.top + hole.height / 2 > innerHeight / 2 ? { top: 76, bottom: "auto" } : undefined) : !hole ? undefined : card} key={st.i}>
+      <div ref={cardRef} data-side={side || undefined} className="tour-card" style={mobile ? (soft ? undefined : hole && hole.top + hole.height / 2 > innerHeight / 2 ? { top: 76, bottom: "auto" } : undefined) : !hole ? undefined : card} key={st.i}>
         <div className="tour-top"><span>{L.of.replace("{i}", String(st.i + 1)).replace("{n}", String(steps.length))}</span><button type="button" onClick={() => set({ i: st.i, on: false, done: true })} aria-label={L.skip}>{L.skip}</button></div>
         <h3>{step.title}</h3>
         <p>{step.body}</p>
