@@ -4,7 +4,7 @@ import { FILLS, TRUCKS, levelSeries, type LevelPoint } from "./fleet/data";
 import { computeAlerts, type FleetData, type RuleId, type Severity } from "./fleet/rules";
 import { CLIENTS, DOCS, PARCELS, SERVICES, TRIPS, VEHICLES, ZONES, type Client, type Doc, type Parcel, type Service, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 import { tripProfit } from "./calc";
-import { byDelta, realToday, shiftDeep } from "./demo-time";
+import { byDelta, realToday, roIso, shiftDeep } from "./demo-time";
 
 export type AlertRule = RuleId | "loss" | "agri-over" | "doc-expiry" | "gps-privat";
 export interface AppAlert { id: string; rule: AlertRule; vehicleId: string; time: string; severity: Severity; theft: boolean; params: Record<string, string | number> }
@@ -111,7 +111,7 @@ export class DemoRepository implements IgoRepository {
     if (s) return s;
     if (!TIDS.has(vehicleId)) return null;
     const day = realToday();
-    return { vehicleId, start: `${day}T05:30`, end: null, checklist: ["tyres", "fluids", "docs", "damage"], privateSince: vehicleId === "bh77qrt" ? `${day}T12:30` : null };
+    return { vehicleId, start: roIso(day, "05:30"), end: null, checklist: ["tyres", "fluids", "docs", "damage"], privateSince: vehicleId === "bh77qrt" ? roIso(day, "12:30") : null };
   }
 }
 

@@ -25,3 +25,11 @@ export function byDelta<T>(f: (d: number) => T): () => T {
   let k: number | null = null, val: T;
   return () => { const d = demoDelta(); if (k !== d) { k = d; val = f(d); } return val; };
 }
+
+/** „YYYY-MM-DD” + „HH:MM” ora României → ISO UTC (la fel pe server în UTC și în browser; fără ore decalate / hidratare greșită). */
+export function roIso(day: string, hm: string): string {
+  const guess = Date.parse(`${day}T${hm}:00Z`);
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
+  const asLocal = Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00Z`);
+  return new Date(guess - (asLocal - guess)).toISOString();
+}
