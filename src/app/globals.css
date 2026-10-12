@@ -508,3 +508,51 @@ body:has(.rp) .demo{display:none!important}
 .tourbtn.pulse{animation:tourPulse 2.2s ease-out infinite;border-color:color-mix(in srgb,var(--acc) 70%,transparent)}
 @keyframes tourPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 55%,transparent)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
 @media (prefers-reduced-motion:reduce){.tourbtn.pulse{animation:none}}
+/* ---------- limbă: pastilă + foaie (mobil) ---------- */
+.lp-pill{display:none;align-items:center;gap:2px;height:40px;min-width:56px;padding:0 10px 0 14px;border-radius:999px;border:1px solid var(--bg3);background:var(--bg2);color:var(--fg);font:inherit;font-size:13px;font-weight:600;letter-spacing:.06em;cursor:pointer}
+.lp-pill svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.lp-sheet{position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;animation:lpFade .2s ease both}
+.lp-panel{width:100%;background:var(--bg);border-radius:24px 24px 0 0;padding:10px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.35);animation:lpUp .28s cubic-bezier(.2,.8,.2,1) both}
+.lp-grab{width:40px;height:5px;border-radius:3px;background:var(--bg3);margin:0 auto 12px}
+.lp-title{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg2);padding:0 6px 8px}
+.lp-list{display:flex;flex-direction:column;gap:4px}
+.lp-list a{display:flex;align-items:center;gap:14px;min-height:56px;padding:0 14px;border-radius:16px;color:var(--fg);text-decoration:none;font-size:16px}
+.lp-list a.on{background:var(--bg2);font-weight:500}.lp-list a:active{background:var(--bg3)}
+.lp-flag{font-size:24px;line-height:1}.lp-name{flex:1}.lp-code{font-size:12px;color:var(--fg3);letter-spacing:.08em}
+.lp-list svg{width:20px;height:20px;fill:none;stroke:var(--acc);stroke-width:2.2}
+.lp-inline{display:none;margin-bottom:10px}.lp-inline .lp-list a{min-height:48px;font-size:15px}.lp-inline .eyebrow{margin:2px 4px 6px}
+@keyframes lpUp{from{transform:translateY(100%)}to{transform:none}}@keyframes lpFade{from{opacity:0}to{opacity:1}}
+body.sheet-open{overflow:hidden}
+
+/* ---------- mobil: antet opac, fără suprapuneri, safe-area ---------- */
+@media (max-width:760px){
+  .top{padding:calc(10px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left));background:color-mix(in srgb,var(--bg) 84%,transparent)!important;backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid color-mix(in srgb,var(--fg) 7%,transparent)}
+  .top .lang{display:none!important}
+  .lp-pill{display:inline-flex}.lp-inline{display:block}
+  .top .prefs{gap:4px}
+  .top .ico,.top summary.ico{min-width:40px;min-height:40px;display:inline-grid;place-items:center}
+  .tourbtn{height:40px;min-width:40px;justify-content:center}
+  /* bara de probă și bara de rol: în fluxul paginii (dispar la scroll), nu peste conținut */
+  .trial,.rolebar{position:absolute;top:calc(70px + env(safe-area-inset-top))}
+  body:has(.rolebar) .trial{top:calc(112px + env(safe-area-inset-top))}
+  main{padding-top:calc(88px + env(safe-area-inset-top));padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
+  body.has-trial main{padding-top:calc(130px + env(safe-area-inset-top))}
+  .nav{padding-bottom:calc(10px + env(safe-area-inset-bottom))!important}
+  .nav .ico{min-width:44px;min-height:44px;display:inline-grid;place-items:center}
+  .demo{display:none!important}
+  /* hărți */
+  .filters{top:calc(124px + env(safe-area-inset-top))!important}
+  .rp-top{top:calc(122px + env(safe-area-inset-top))!important}
+  body:not(.has-trial) .rp-top{top:calc(78px + env(safe-area-inset-top))!important}
+  body:not(.has-trial) .filters{top:calc(80px + env(safe-area-inset-top))!important}
+  .rp-back{width:44px;height:44px}.rp-seg button{min-height:36px;min-width:40px}
+  .tour.m .tour-card{bottom:calc(90px + env(safe-area-inset-bottom))}
+  /* ținte de atingere */
+  .btn.sm{min-height:40px}
+  .chips .btn,.seg a,.seg button{min-height:40px;display:inline-flex;align-items:center}
+  /* tabele/rânduri late: derulare în container, nu pe pagină */
+  table{display:block;max-width:100%;overflow-x:auto}
+  html,body{overflow-x:clip}
+}
+@media (max-width:370px){.rbadge{max-width:150px}.rbadge em{max-width:90px}.tourbtn{min-width:36px;padding:0 6px}}
+@media (max-width:760px){.cat{min-height:40px}}
