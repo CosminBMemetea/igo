@@ -4,6 +4,7 @@ import { tenant } from "@/lib/tenant";
 import { realToday } from "@/lib/demo-time";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
 // Llama 4 Scout a fost oprit de Groq (17.07.2026, „groq-404”): modelele de viziune curente, în ordine.
 const MODELS = [process.env.GROQ_VISION_MODEL, "qwen/qwen3.8-27b", "qwen/qwen3.6-27b"].filter((x): x is string => !!x);
 const MAX = 4 * 1024 * 1024; // limita Groq pentru imagini base64 (clientul micșorează poza înainte)
@@ -28,9 +29,9 @@ export async function POST(req: Request) {
   if (photo.size > MAX) return NextResponse.json({ error: "too-large" }, { status: 413 });
   if (!hasGroq()) return demo ? sample("no-key") : NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
   const b64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
-  let last = "groq";
+  let last = "groq"; const errs: string[] = [];
   for (const m of MODELS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const j = await groqChat({
           model: m, temperature: 0, response_format: { type: "json_object" },
@@ -43,12 +44,14 @@ export async function POST(req: Request) {
         const fields = { operator: str(raw.operator, 40), station: str(raw.station, 80), date: typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : null, plate: str(raw.plate, 16)?.toUpperCase() ?? null, litres: num(raw.litres), amount: num(raw.amount), odometerKm: num(raw.odometerKm) };
         return NextResponse.json({ fields, model: m, sample: false }, { headers: { "cache-control": "no-store" } });
       } catch (e) {
-        last = e instanceof Error ? e.message : "error";
-        if (/429|5\d\d|abort/i.test(last) && attempt === 0) { await sleep(1500); continue; } // limită de rată / pană scurtă: o reîncercare
+        last = e instanceof Error ? e.message : "error"; errs.push(`${m}:${last}`);
+        // limită de rată (429, des la poze trimise una după alta) / pană scurtă: așteptăm cât cere Groq (max 8 s) și reîncercăm
+        const ra = (e as { retryAfter?: number }).retryAfter;
+        if (/429|5\d\d|abort/i.test(last) && attempt < 2) { await sleep(Math.min(8000, Math.max(1500, (ra ?? 2) * 1000))); continue; }
         break; // 404/400 (model indisponibil) sau a doua eroare: următorul model
       }
     }
   }
-  console.error("receipt-extract failed:", last);
-  return demo ? sample(last) : NextResponse.json({ error: last }, { status: 502 });
+  console.error("receipt-extract failed:", errs.join(" "));
+  return demo ? sample(errs.join(" ")) : NextResponse.json({ error: last }, { status: 502 });
 }

@@ -9,7 +9,12 @@ export async function groqChat(body: Record<string, unknown>, timeoutMs = 9000):
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const r = await fetch(`${BASE}/chat/completions`, { method: "POST", signal: ctrl.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(`groq-${r.status}`);
+    if (!r.ok) {
+      // 429: Groq spune cât să așteptăm (retry-after, secunde) — îl transmitem apelantului
+      const ra = Number(r.headers.get("retry-after")); const e = new Error(`groq-${r.status}`) as Error & { retryAfter?: number };
+      if (Number.isFinite(ra) && ra > 0) e.retryAfter = ra;
+      throw e;
+    }
     return (await r.json()) as Record<string, unknown>;
   } finally { clearTimeout(timer); }
 }

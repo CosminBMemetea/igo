@@ -1,5 +1,5 @@
 /** Poză din telefon (adesea 3–12 MB) → JPEG ≤ ~1600 px, sub limita Vercel/Groq (4,5 MB / 4 MB base64). Doar în browser. */
-export async function shrinkImage(file: File, max = 1600, q = 0.85): Promise<File> {
+export async function shrinkImage(file: File, max = 1280, q = 0.85): Promise<File> {
   if (!file.type.startsWith("image/") || typeof createImageBitmap === "undefined") return file;
   try {
     const bmp = await createImageBitmap(file);
