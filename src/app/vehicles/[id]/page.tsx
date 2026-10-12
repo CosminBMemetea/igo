@@ -30,6 +30,7 @@ export default async function VehiclePage({ params }: { params: { id: string } }
           <div className="eyebrow">{t(loc, `kind.${v.kind}`)} · {v.model}</div>
           <h1 className="h1">{v.name}</h1>
           <p className="sub">{v.driver}{agri ? ` · ${t(loc, "veh.season")}` : ""}</p>
+          {v.kind === "truck" ? <Link className="btn pri rp-cta" style={{ marginTop: 18 }} href={`/replay?v=${v.id}`}><svg viewBox="0 0 24 24" width="14" height="14" style={{ marginRight: 8, verticalAlign: "-2px" }}><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.btnShift")}</Link> : null}
           <div style={{ marginTop: 44 }}>
             <div className="eyebrow">{t(loc, "home.savings")}</div>
             <div className="big"><CountUp value={s.savings.pct * 100} d={1} loc={loc} /><small>%</small></div>

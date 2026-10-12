@@ -1,0 +1,220 @@
+"use client";
+// Querra Fleet: REPLAY tură/cursă — camion animat (60fps) pe geometria reală, dâră în urmă, restul traseului estompat.
+import "leaflet/dist/leaflet.css";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type * as Leaflet from "leaflet";
+import { fmtNum, type Locale } from "@/lib/i18n";
+import type { ReplayData, ReplayEvent, RKind } from "@/lib/replay";
+import { Icon } from "./icons";
+
+const tileUrl = (theme: string, layer: "Base" | "Reference") => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${theme === "light" ? "Light" : "Dark"}_Gray_${layer}/MapServer/tile/{z}/{y}/{x}`;
+const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}`;
+const SPEEDS = [1, 4, 16] as const;
+const BASE = 6; // minute simulate pe secundă la 1x
+const EV_COL: Record<RKind, string> = { start: "var(--pos)", fuel: "#f5a524", pause: "var(--fg2)", private: "#a78bfa", end: "var(--fg)" };
+
+// camion văzut de sus, cu botul în sus (nord) — rotit după direcție
+const TRUCK = `<svg viewBox="0 0 40 72" width="26" height="47" aria-hidden="true">
+  <defs><linearGradient id="rtc" x1="0" x2="1"><stop offset="0" stop-color="#e9ecf2"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#d5d9e2"/></linearGradient>
+  <linearGradient id="rtt" x1="0" x2="1"><stop offset="0" stop-color="#c9ced8"/><stop offset=".5" stop-color="#f3f5f9"/><stop offset="1" stop-color="#bfc5d0"/></linearGradient></defs>
+  <rect x="6" y="24" width="28" height="46" rx="3" fill="url(#rtt)" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+  <rect x="9" y="28" width="22" height="38" rx="1.5" fill="none" stroke="rgba(0,0,0,.08)"/>
+  <rect x="17" y="19" width="6" height="6" fill="#30343c"/>
+  <path d="M8 6c0-3 2.5-5 5.5-5h13c3 0 5.5 2 5.5 5v13c0 1.5-1 2.5-2.5 2.5h-19C9 21.5 8 20.5 8 19z" fill="url(#rtc)" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+  <path d="M10.5 4.5c1-1.6 2.4-2 4-2h11c1.6 0 3 .4 4 2l-1.2 4.2H11.7z" fill="#1d2433"/>
+  <rect x="5" y="9" width="3" height="5" rx="1" fill="#30343c"/><rect x="32" y="9" width="3" height="5" rx="1" fill="#30343c"/>
+  <rect x="11" y="1.2" width="4" height="1.6" rx=".8" fill="#fff6c8"/><rect x="25" y="1.2" width="4" height="1.6" rx=".8" fill="#fff6c8"/>
+  <rect x="9" y="67.5" width="4" height="2" rx="1" fill="#ef4444"/><rect x="27" y="67.5" width="4" height="2" rx="1" fill="#ef4444"/>
+</svg>`;
+
+export interface ReplayProps { data: ReplayData; theme: "dark" | "light"; loc: Locale; L: Record<string, string>; back: string }
+
+export default function ReplayMap({ data: d, theme, loc, L: t, back }: ReplayProps) {
+  const el = useRef<HTMLDivElement>(null);
+  const m = useRef<{ L: typeof Leaflet; map: Leaflet.Map; truck: Leaflet.Marker; trail: Leaflet.Polyline; halo: Leaflet.Polyline; ghost: Leaflet.Marker } | null>(null);
+  const [ready, setReady] = useState(false);
+  const [min, setMin] = useState(d.start);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(4);
+  const [follow, setFollow] = useState(false);
+  const minRef = useRef(d.start), headRef = useRef<number | null>(null), lastIdx = useRef(-1);
+  const priv = useMemo(() => d.events.filter((e) => e.kind === "private"), [d]);
+  const fuels = useMemo(() => d.events.filter((e) => e.kind === "fuel"), [d]);
+
+  // km(t): liniar pe porțiuni, cu accelerare/frânare (trapez) pe porțiunile lungi → mișcare și viteză fluide
+  const kmAt = useCallback((x: number) => {
+    const k = d.keys;
+    if (x <= k[0][0]) return k[0][1];
+    for (let i = 1; i < k.length; i++) if (x < k[i][0]) {
+      const [m0, k0] = k[i - 1], [m1, k1] = k[i], D = m1 - m0, dk = k1 - k0, tt = x - m0;
+      if (!dk || D <= 0) return k0;
+      if (D < 10) return k0 + (dk * tt) / D;
+      const r = Math.min(3, D / 3), vmax = dk / (D - r);
+      if (tt < r) return k0 + (vmax * tt * tt) / (2 * r);
+      if (tt > D - r) return k1 - (vmax * (D - tt) * (D - tt)) / (2 * r);
+      return k0 + vmax * (tt - r / 2);
+    }
+    return k[k.length - 1][1];
+  }, [d]);
+  const idxAt = useCallback((km: number) => { const p = d.path; let lo = 0, hi = p.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (p[mid][2] <= km) lo = mid; else hi = mid - 1; } return lo; }, [d]);
+  const posAt = useCallback((km: number): [number, number] => {
+    const p = d.path, i = idxAt(km), a = p[i], b = p[Math.min(p.length - 1, i + 1)];
+    const f = b[2] > a[2] ? Math.max(0, Math.min(1, (km - a[2]) / (b[2] - a[2]))) : 0;
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  }, [d, idxAt]);
+  const privAt = useCallback((x: number) => priv.find((e) => x >= e.min && x < (e.end ?? e.min)), [priv]);
+
+  // init hartă
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      const L = (await import("leaflet")).default;
+      if (dead || !el.current) return;
+      const map = L.map(el.current, { zoomControl: false, attributionControl: true, preferCanvas: false });
+      L.tileLayer(tileUrl(theme, "Base"), { attribution: "Esri, HERE, Garmin, © OpenStreetMap contributors", maxZoom: 16 }).addTo(map);
+      L.tileLayer(tileUrl(theme, "Reference"), { maxZoom: 16, opacity: 0.5, pane: "overlayPane" }).addTo(map);
+      const all = d.path.map((p) => [p[0], p[1]] as [number, number]);
+      const line = { lineCap: "round", lineJoin: "round", interactive: false, smoothFactor: 1 } as const;
+      // traseul rămas: estompat; segmentele private: doar o legătură punctată, fără drum
+      const segs: [number, number][][] = []; let cur: [number, number][] = [];
+      for (let i = 0; i < d.path.length; i++) {
+        if (i && priv.some((e) => d.path[i - 1][2] <= e.km + 0.001 && d.path[i][2] > e.km + 0.001 && d.path[i][2] - d.path[i - 1][2] > 0.01 && kmAt(e.end ?? e.min) >= d.path[i][2] - 0.05)) { segs.push(cur); cur = []; }
+        cur.push(all[i]);
+      }
+      segs.push(cur);
+      for (const s of segs) if (s.length > 1) L.polyline(s, { ...line, color: "#888", weight: 5, opacity: 1, className: "rp-dimline" }).addTo(map);
+      const halo = L.polyline([], { ...line, color: "#3b82f6", weight: 14, opacity: 0.2, className: "rp-halo" }).addTo(map);
+      const trail = L.polyline([], { ...line, color: "#3b82f6", weight: 4, opacity: 1, className: "rp-trail" }).addTo(map);
+      for (const e of priv) {
+        const a = posAt(e.km), b = posAt(kmAt(e.end ?? e.min) + 0.001);
+        L.polyline([a, b], { ...line, color: "#a78bfa", weight: 3, opacity: 0.95, dashArray: "2 9" }).addTo(map);
+        L.marker([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], { interactive: false, icon: L.divIcon({ className: "rp-privtag", html: `<span>🔒 ${t.private}</span>`, iconSize: [0, 0] }) }).addTo(map);
+      }
+      for (const e of d.events) {
+        if (e.kind === "private") continue;
+        const at = posAt(e.km);
+        const html = e.kind === "fuel" ? `<i class="rp-ev fuel"><svg viewBox="0 0 24 24"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M4 21h12M8 8h4M15 9l3 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg></i>` : e.kind === "pause" ? `<i class="rp-ev pause"><svg viewBox="0 0 24 24"><path d="M9 7v10M15 7v10"/></svg></i>` : `<i class="rp-ev ${e.kind}"></i>`;
+        L.marker(at, { icon: L.divIcon({ className: "", html, iconSize: [26, 26], iconAnchor: e.kind === "pause" ? [4, 22] : [13, 13] }), zIndexOffset: e.kind === "fuel" ? 400 : 100 }).addTo(map).on("click", () => { setPlaying(false); seek(e.min); });
+      }
+      const truck = L.marker(posAt(0), { icon: L.divIcon({ className: "rp-truck", html: `<div class="rt"><div class="rt-glow"></div>${TRUCK}</div>`, iconSize: [0, 0] }), zIndexOffset: 1000, keyboard: false, interactive: false }).addTo(map);
+      const ghost = L.marker(posAt(0), { icon: L.divIcon({ className: "rp-ghost", html: `<span>🔒 ${t.privShort}</span>`, iconSize: [0, 0] }), interactive: false, opacity: 0 }).addTo(map);
+      const mobile = matchMedia("(max-width:760px)").matches;
+      map.fitBounds(L.latLngBounds(all).pad(0.12), { paddingTopLeft: mobile ? [16, 90] : [24, 90], paddingBottomRight: mobile ? [16, 330] : [420, 120], maxZoom: 14 });
+      m.current = { L, map, truck, trail, halo, ghost };
+      setReady(true);
+    })();
+    return () => { dead = true; m.current?.map.remove(); m.current = null; };
+  }, [d, theme]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // un cadru: poziție, direcție, dâră
+  const draw = useCallback((x: number) => {
+    const r = m.current; if (!r) return;
+    const km = kmAt(x), p = posAt(km), pv = privAt(x);
+    const el2 = r.truck.getElement();
+    if (el2) el2.style.opacity = pv ? "0" : "1";
+    r.ghost.setOpacity(pv ? 1 : 0);
+    if (pv) r.ghost.setLatLng(posAt(pv.km));
+    else r.truck.setLatLng(p);
+    // direcție în pixeli (corect pe Mercator), netezită
+    const a = r.map.latLngToLayerPoint(posAt(Math.max(0, km - 0.04))), b = r.map.latLngToLayerPoint(posAt(km + 0.04));
+    if (Math.hypot(b.x - a.x, b.y - a.y) > 0.3) {
+      const target = (Math.atan2(b.x - a.x, a.y - b.y) * 180) / Math.PI;
+      const h = headRef.current ?? target;
+      const diff = ((target - h + 540) % 360) - 180;
+      headRef.current = h + diff * 0.22;
+    }
+    const rt = el2?.querySelector<HTMLElement>(".rt");
+    if (rt && headRef.current != null) rt.style.transform = `translate(-50%,-50%) rotate(${headRef.current}deg)`;
+    const i = idxAt(km);
+    {
+      const pts: [number, number][] = [];
+      for (let j = 0; j <= i; j++) if (!priv.some((e) => d.path[j][2] > e.km + 0.001 && d.path[j][2] < kmAt(e.end ?? e.min) - 0.001)) pts.push([d.path[j][0], d.path[j][1]]);
+      if (!pv) pts.push(p);
+      r.trail.setLatLngs(pts); r.halo.setLatLngs(pts); lastIdx.current = i;
+    }
+    if (follow && !pv) r.map.panTo(p, { animate: false });
+  }, [kmAt, posAt, privAt, idxAt, priv, d, follow]);
+
+  const seek = useCallback((x: number) => { minRef.current = Math.max(d.start, Math.min(d.end, x)); setMin(minRef.current); draw(minRef.current); }, [d, draw]);
+  useEffect(() => { if (ready) draw(minRef.current); }, [ready, draw]);
+  useEffect(() => { const r = m.current; if (!r || !ready) return; const f = () => draw(minRef.current); r.map.on("zoomend", f); return () => { r.map.off("zoomend", f); }; }, [ready, draw]);
+
+  // bucla de animație (rAF): fluid la 60fps; starea React se actualizează doar ~10×/s pentru panou
+  useEffect(() => {
+    if (!playing || !ready) return;
+    let raf = 0, last = performance.now(), ui = 0;
+    const step = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      let x = minRef.current + dt * BASE * speed;
+      // privat: trecem repede peste gol (nu e nimic de văzut)
+      const pv = privAt(x); if (pv) x = Math.min(pv.end ?? x, x + dt * BASE * speed * 3);
+      if (x >= d.end) { x = d.end; setPlaying(false); }
+      minRef.current = x; draw(x);
+      if (now - ui > 90) { ui = now; setMin(x); }
+      if (x < d.end) raf = requestAnimationFrame(step); else setMin(x);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, ready, speed, d.end, draw, privAt]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.code === "Space" && (e.target as HTMLElement).tagName !== "INPUT") { e.preventDefault(); toggle(); } };
+    addEventListener("keydown", k); return () => removeEventListener("keydown", k);
+  });
+  const toggle = () => { if (!playing && minRef.current >= d.end) seek(d.start); setPlaying((p) => !p); };
+
+  // panou
+  const km = kmAt(min), pv = privAt(min);
+  const spd = pv ? null : Math.max(0, (kmAt(min + 0.25) - kmAt(min - 0.25)) * 120);
+  const usedL = (km * d.rate) / 100;
+  const fueled = fuels.filter((e) => e.min <= min).reduce((a, e) => a + (e.litres ?? 0), 0);
+  const curEv = d.events.find((e) => e.kind !== "private" && e.end != null && min >= e.min && min < e.end);
+  const status = pv ? "private" : min >= d.end ? "end" : curEv?.kind === "fuel" ? "fuel" : curEv?.kind === "pause" || (spd ?? 0) < 1 ? "pause" : "drive";
+  const N = (n: number, dd = 0) => fmtNum(loc, n, dd);
+  const pct = (x: number) => ((x - d.start) / (d.end - d.start || 1)) * 100;
+  const evLabel = (e: ReplayEvent) => e.kind === "fuel" ? `${t.fuel}${e.litres ? ` · ${N(e.litres)} L` : ""}` : e.kind === "pause" ? `${t.pause} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "private" ? `${t.private} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "start" ? t.start : t.end;
+
+  return (
+    <div className="rp" data-status={status}>
+      <div ref={el} className="rp-map" />
+      <div className="rp-top">
+        <Link href={back} className="rp-back" aria-label={t.back}><svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" /></svg></Link>
+        <div><div className="eyebrow">{t.title} · {d.date}</div><div className="rp-name">{d.plate}{d.route ? <span> · {d.route}</span> : null}</div></div>
+        {d.demo ? <span className="badge acc">DEMO</span> : null}
+      </div>
+      <aside className="rp-panel">
+        <div className={`rp-status s-${status}`}><i />{t[`st_${status}`]}</div>
+        <div className="rp-speed"><b className={spd == null ? "off" : ""}>{spd == null ? "–" : N(Math.round(spd))}</b><span>km/h</span></div>
+        {pv ? <p className="rp-privnote">{t.privNote}</p> : null}
+        <div className="rp-stats">
+          <div><span>{t.time}</span><b>{hhmm(min)}</b><small>{N(Math.floor((min - d.start) / 60))} h {String(Math.floor((min - d.start) % 60)).padStart(2, "0")} min</small></div>
+          <div><span>{t.km}</span><b>{N(km, km < 100 ? 1 : 0)}</b><small>/ {N(d.km)} km</small></div>
+          <div><span>{t.litres}</span><b>{N(usedL, 0)} L</b><small>{N(d.rate, 1)} L/100km</small></div>
+          <div><span>{t.fueled}</span><b>{N(fueled)} L</b><small>{t.stops}: {fuels.length}</small></div>
+        </div>
+        <div className="eyebrow" style={{ marginTop: 22 }}>{t.events}</div>
+        <div className="rp-evlist">
+          {d.events.map((e, i) => (
+            <button key={i} type="button" className={`${min >= e.min && min < (e.end ?? e.min + 1) ? "on" : ""} ${min >= e.min ? "past" : ""}`} onClick={() => { setPlaying(false); seek(e.min + 0.01); }}>
+              <i style={{ background: EV_COL[e.kind] }} /><b>{hhmm(e.min)}</b><span>{evLabel(e)}</span>{e.place ? <small>{e.place}</small> : null}
+            </button>
+          ))}
+        </div>
+        {d.tripId ? <Link className="btn sec" style={{ marginTop: 18, width: "100%" }} href={`/trips/${d.tripId}`}>{t.openTrip}</Link> : null}
+      </aside>
+      <div className="rp-bar">
+        <button className="rp-play" onClick={toggle} aria-label={playing ? t.pauseBtn : t.play}><Icon name={playing ? "pause" : "play"} size={18} /></button>
+        <div className="rp-clock">{hhmm(min)}</div>
+        <div className="rp-scrub">
+          <div className="rp-track"><div className="rp-fill" style={{ width: `${pct(min)}%` }} /><div className="rp-thumb" style={{ left: `${pct(min)}%` }} />
+            {d.events.filter((e) => e.kind !== "start" && e.kind !== "end").map((e, i) => <span key={i} className={`rp-tick ${e.kind}`} title={evLabel(e)} style={{ left: `${pct(e.min)}%`, width: e.end ? `max(4px, ${pct(e.end) - pct(e.min)}%)` : undefined }} />)}
+          </div>
+          <input type="range" min={d.start} max={d.end} step={0.5} value={min} onChange={(e) => { setPlaying(false); seek(+e.target.value); }} aria-label={t.scrub} />
+          <div className="rp-hours"><span>{hhmm(d.start)}</span><span>{hhmm((d.start + d.end) / 2)}</span><span>{hhmm(d.end)}</span></div>
+        </div>
+        <div className="rp-seg">{SPEEDS.map((s) => <button key={s} className={speed === s ? "on" : ""} onClick={() => setSpeed(s)}>{s}×</button>)}</div>
+        <button className={`rp-follow${follow ? " on" : ""}`} onClick={() => setFollow(!follow)} title={t.follow} aria-label={t.follow}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg></button>
+      </div>
+    </div>
+  );
+}

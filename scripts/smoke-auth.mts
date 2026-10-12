@@ -51,4 +51,22 @@ ok("setup doar owner/admin", decide("/setup", owner).kind === "allow" && decide(
 ok("/admin doar admin", decide("/admin", admin).kind === "allow" && decide("/admin", owner).kind === "forbidden" && decide("/api/admin/firm", owner).kind === "forbidden");
 ok("owner nu poate schimba planul", !canSwitchPlan(owner) && !canSwitchPlan(driver));
 if (fail) { console.error(`smoke:auth: ${fail} eșec(uri)`); process.exit(1); }
+ok("demo poate deschide /import", decide("/import", user).kind === "allow");
+ok("demo poate previzualiza/importa (în memorie)", decide("/api/import/preview", user).kind === "allow" && decide("/api/import/commit", user).kind === "allow");
+ok("demo NU poate asocia carduri / setup", decide("/api/import/assign", user).kind === "forbidden" && decide("/setup", user).kind === "forbidden");
+ok("demo poate deschide /replay", decide("/replay", user).kind === "allow");
+{
+  const { demoSandbox } = await import("../src/lib/fuel/demo-import");
+  const { commit } = await import("../src/lib/fuel/import");
+  const { readFileSync } = await import("node:fs");
+  const a = await demoSandbox(), b2 = await demoSandbox();
+  const r = await commit(a.s, a.f.id, readFileSync("public/samples/anomalii.csv", "utf8"), "anomalii.csv");
+  ok("import demo în sandbox", r.ok && r.added > 0);
+  ok("sandbox demo izolat (alt sandbox gol)", (await b2.s.fuel(b2.f.id, { limit: 10 })).length === 0);
+  const { demoReplay } = await import("../src/lib/replay");
+  const rp = demoReplay("bh21qrt", "2026-10-15", null)!;
+  ok("replay demo: geometrie, alimentare, pauză, privat", rp.path.length > 100 && ["fuel", "pause", "private"].every((k) => rp.events.some((e) => e.kind === k)));
+  const pv = rp.events.find((e) => e.kind === "private")!;
+  ok("replay: nicio poziție în porțiunea privată", !rp.path.some((p) => p[2] > pv.km + 0.01 && p[2] < pv.km + 1));
+}
 console.log("smoke:auth OK");

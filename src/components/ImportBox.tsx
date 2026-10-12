@@ -2,11 +2,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Summary } from "@/lib/fuel/import";
-import { FIELDS, REQUIRED, type Field, type Mapping } from "@/lib/fuel/parse";
+import { FIELDS, REQUIRED, headerSig, type Field, type Mapping } from "@/lib/fuel/parse";
 
 type L = Record<string, string>;
 const fmt = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
-export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: Record<Field, string> }) {
+type DemoRes = { report: { plate: string; meta: string; base: string }[]; alerts: { id: string; severity: string; theft: boolean; title: string; why: string; nogps: boolean }[] };
+const LS = "qf-demo-map:";
+export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labels: L; fieldLabels: Record<Field, string>; demo?: boolean; samples?: [string, string][] }) {
+  const [res, setRes] = useState<DemoRes | null>(null);
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<{ name: string; text: string } | null>(null);
@@ -25,6 +28,8 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
     setBusy(false);
     if (!r.ok) { setMsg({ ok: false, text: r.status === 413 ? l.big : l.err }); return; }
     const s = (await r.json()) as Summary;
+    // demo: maparea „salvată” trăiește doar în browser (localStorage), nu pe server
+    if (demo && !m) { try { const saved = localStorage.getItem(LS + headerSig(s.headers)); if (saved) { await preview(text, JSON.parse(saved)); setSum((x) => (x ? { ...x, savedMapping: true, confident: !x.missing.length } : x)); return; } } catch {} }
     setSum(s); setMapping(s.mapping); setShowMap(!s.confident);
   }
   async function pick(f: File | undefined) {
@@ -36,7 +41,7 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
     let e = "UTF-8";
     if (text.includes("\uFFFD")) { text = new TextDecoder("windows-1250").decode(buf); e = "Windows-1250"; }
     setEnc(e);
-    setFile({ name: f.name, text }); setAssign({}); setSum(null);
+    setFile({ name: f.name, text }); setAssign({}); setSum(null); setRes(null);
     await preview(text);
   }
   async function go() {
@@ -46,9 +51,14 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
     setBusy(false);
     const j = await r.json().catch(() => null);
     if (!r.ok || !j?.ok) { setMsg({ ok: false, text: l.err }); return; }
-    setMsg({ ok: true, text: fmt(l.done, { added: j.added, dupes: j.dupes }) });
+    setMsg({ ok: true, text: fmt(demo ? l.demoDone : l.done, { added: j.added, dupes: j.dupes }) });
+    if (demo && j.demo) { setRes(j.demo); try { if (sum) localStorage.setItem(LS + headerSig(sum.headers), JSON.stringify(mapping ?? {})); } catch {} }
     setFile(null); setSum(null); if (input.current) input.current.value = "";
-    router.refresh();
+    if (!demo) router.refresh();
+  }
+  async function trySample(k: string, n: string) {
+    const r = await fetch(`/samples/${k}.csv`); if (!r.ok) { setMsg({ ok: false, text: l.err }); return; }
+    const b = await r.blob(); await pick(new File([b], `${k}.csv`, { type: "text/csv" })); void n;
   }
   const setField = (f: Field, v: string) => { const m = { ...mapping }; if (v === "") delete m[f]; else m[f] = +v; setMapping(m); if (file) preview(file.text, m); };
   return (
@@ -59,7 +69,19 @@ export function ImportBox({ labels: l, fieldLabels }: { labels: L; fieldLabels: 
         <b>{file ? file.name : l.drop}</b>
         <span>{busy ? l.reading : l.dropHint}</span>
       </label>
+      {samples.length && !sum ? (
+        <div className="trys"><span>{l.try}</span>{samples.map(([k, n]) => <button key={k} type="button" className="btn sec sm" disabled={busy} onClick={() => trySample(k, n)}>{n}</button>)}</div>
+      ) : null}
       {msg ? <p className={`msg ${msg.ok ? "ok" : "err"}`}>{msg.text}</p> : null}
+      {res ? (
+        <div className="sheet dres" style={{ marginTop: 18 }}>
+          <div className="eyebrow">{l.demoReport}</div>
+          <div className="list" style={{ marginTop: 10 }}>{res.report.map((r) => <div key={r.plate} className="it" style={{ cursor: "default" }}><div style={{ minWidth: 0 }}><div className="t">{r.plate}</div><div className="m">{r.meta}</div><div className="m">{r.base}</div></div><span className="badge ok">✓</span></div>)}</div>
+          <div className="eyebrow" style={{ marginTop: 20 }}>{fmt(l.demoAlerts, { n: res.alerts.length })}</div>
+          {res.alerts.length ? <div className="dalerts">{res.alerts.map((a) => <div key={a.id} className={`da ${a.severity}`}><i /><div><b>{a.title}</b>{a.theft ? <span className="badge neg">!</span> : null}{a.nogps ? <span className="badge priv">GPS —</span> : null}<p>{a.why}</p></div></div>)}</div> : <p className="hint">{l.demoNoAlerts}</p>}
+          <button type="button" className="btn sec" style={{ marginTop: 16, width: "100%" }} onClick={() => { setRes(null); setMsg(null); }}>{l.again}</button>
+        </div>
+      ) : null}
       {sum ? (
         <div className="sheet" style={{ marginTop: 18 }}>
           <div className="ihead">

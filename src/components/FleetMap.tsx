@@ -156,9 +156,10 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
         <div className="kv">
           {v.events.length ? v.events.slice(0, 6).map((e, i) => <Fragment key={i}><div>{e.time} {labels[e.kind]}</div><div>{e.zone}</div></Fragment>) : <><div>{labels.noZones}</div><div /></>}
         </div>
-        <div style={{ marginTop: 22, display: "flex", gap: 10 }}>
+        <div style={{ marginTop: 22, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link className="btn sec" href={`/vehicles/${v.id}`}>{labels.open}</Link>
           {v.tripId ? <Link className="btn sec" href={`/trips/${v.tripId}`}>{labels.trip}</Link> : null}
+          {v.kind === "truck" ? <Link className="btn pri" href={`/replay?v=${v.id}`}>▶ {labels.rpShift}</Link> : null}
         </div>
       </aside>
       <div className="tiles-note">{labels.tiles}</div>

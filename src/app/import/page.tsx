@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 const SAMPLES = (an: string): [string, string][] => [["dkv", "DKV"], ["omv-routex", "OMV / Routex"], ["mol", "MOL"], ["shell", "Shell"], ["e100", "E100"], ["generic", "CSV generic"], ["anomalii", an], ["manual-mapare", "CSV manual (cp1250)"]];
-const LKEYS = ["drop", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id"] as const;
+const LKEYS = ["drop", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id", "try", "demoDone", "demoReport", "demoAlerts", "demoNoAlerts", "again"] as const;
 export default async function Import({ searchParams }: { searchParams: { e?: string; assigned?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const tn = await tenant();
@@ -24,6 +24,27 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
       <p className="sub fade d1">{t(loc, "imp.sub")}</p>
     </>
   );
+  const labels = Object.fromEntries(LKEYS.map((k) => [k, t(loc, `imp.${k}` as MsgKey)]));
+  const fieldLabels = Object.fromEntries(FIELDS.map((x) => [x, t(loc, `imp.f.${x}` as MsgKey)])) as Record<Field, string>;
+  const samples = SAMPLES(t(loc, "imp.anomalies"));
+  if (!f && tn.demo && (tn.role === "user" || tn.role === "admin")) return (
+    <Gate feature="cardCsv" prefs={prefs}>
+      <main className="setup">
+        {head}
+        <p className="msg demobox">{t(loc, "imp.demoSandbox")}</p>
+        <section className="sgrid">
+          <ImportBox labels={labels} fieldLabels={fieldLabels} demo samples={samples} />
+          <div>
+            <div className="sheet">
+              <div className="eyebrow">{t(loc, "imp.samples")}</div>
+              <p className="hint" style={{ margin: "6px 0 12px" }}>{t(loc, "imp.demoSamplesHint")}</p>
+              <div className="chips">{samples.map(([k, n]) => <a key={k} className="btn sec sm" href={`/samples/${k}.csv`} download>{n}</a>)}</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </Gate>
+  );
   if (!f || tn.demo) return <Gate feature="cardCsv" prefs={prefs}><main className="setup">{head}<div className="msg warn">{f ? t(loc, "imp.demoOn") : t(loc, "set.e.nofirm")}</div></main></Gate>;
   const s = store();
   const [trucks, tx, imports] = await Promise.all([s.trucks(f.id), s.fuel(f.id, { limit: 50000 }), s.imports(f.id)]);
@@ -31,15 +52,13 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
   const since = f.createdAt.slice(0, 16);
   const unassigned = new Map<string, { n: number; litres: number; plate: string | null }>();
   for (const x of tx) if (!x.truckId && x.card) { const u = unassigned.get(x.card) ?? { n: 0, litres: 0, plate: x.plate }; u.n++; u.litres += x.litres; unassigned.set(x.card, u); }
-  const labels = Object.fromEntries(LKEYS.map((k) => [k, t(loc, `imp.${k}` as MsgKey)]));
-  const fieldLabels = Object.fromEntries(FIELDS.map((x) => [x, t(loc, `imp.f.${x}` as MsgKey)])) as Record<Field, string>;
   return (
     <Gate feature="cardCsv" prefs={prefs}>
       <main className="setup">
         {head}
         {searchParams.assigned ? <p className="msg ok">{t(loc, "set.saved")}</p> : searchParams.e ? <p className="msg err">{t(loc, "imp.err")}</p> : null}
         <section className="sgrid">
-          <ImportBox labels={labels} fieldLabels={fieldLabels} />
+          <ImportBox labels={labels} fieldLabels={fieldLabels} samples={samples} />
           <div>
             <div className="sheet">
               <div className="eyebrow">{t(loc, "imp.samples")}</div>

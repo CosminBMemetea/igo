@@ -8,6 +8,8 @@ export const isPublic = (path: string) => PUBLIC_PATHS.some((r) => r.test(path))
 export const DRIVER_PATHS = [/^\/driver$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/, /^\/notifications$/, /^\/api\/notifications\//, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/trips\/event$/];
 /** Doar proprietar/admin. */
 export const OWNER_PATHS = [/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
+/** Demo („Intră ca demo”): poate încerca importul CSV — totul în memorie, nimic în baza de date. */
+export const DEMO_OK = [/^\/import$/, /^\/api\/import\/(preview|commit)$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];
 /** Pagina de start a fiecărui rol după autentificare. */
 export const roleHome = (r: Session["role"]) => (r === "driver" ? "/driver" : r === "admin" ? "/admin" : "/");
@@ -17,7 +19,7 @@ export function decide(path: string, s: Session | null): Decision {
   if (!s) return path.startsWith("/api/") ? { kind: "unauthorized" } : { kind: "login" };
   const deny = { kind: "forbidden", home: roleHome(s.role) } as const;
   if (s.role === "driver" && !DRIVER_PATHS.some((r) => r.test(path))) return deny;
-  if (OWNER_PATHS.some((r) => r.test(path)) && s.role !== "owner" && s.role !== "admin") return deny;
+  if (OWNER_PATHS.some((r) => r.test(path)) && s.role !== "owner" && s.role !== "admin" && !(s.role === "user" && DEMO_OK.some((r) => r.test(path)))) return deny;
   if (ADMIN_PATHS.some((r) => r.test(path)) && s.role !== "admin") return deny;
   return { kind: "allow" };
 }
