@@ -12,8 +12,8 @@ import { ImportBox } from "@/components/ImportBox";
 import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
-const SAMPLES = (an: string): [string, string][] => [["dkv", "DKV"], ["omv-routex", "OMV / Routex"], ["mol", "MOL"], ["shell", "Shell"], ["e100", "E100"], ["generic", "CSV generic"], ["anomalii", an], ["manual-mapare", "CSV manual (cp1250)"]];
-const LKEYS = ["drop", "eur", "otherCur", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id", "try", "demoDone", "demoReport", "demoAlerts", "demoNoAlerts", "again"] as const;
+const SAMPLES = (an: string): [string, string][] => [["dkv", "DKV"], ["dkv-europa", "DKV Europa (HUF, EUR, PLN, BGN, TRY, CHF)"], ["omv-routex", "OMV / Routex"], ["mol", "MOL"], ["shell", "Shell"], ["e100", "E100"], ["generic", "CSV generic"], ["anomalii", an], ["manual-mapare", "CSV manual (cp1250)"]];
+const LKEYS = ["drop", "eur", "eur1", "otherCur", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id", "try", "demoDone", "demoReport", "demoAlerts", "demoNoAlerts", "again"] as const;
 export default async function Import({ searchParams }: { searchParams: { e?: string; assigned?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const tn = await tenant();

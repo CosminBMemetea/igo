@@ -10,6 +10,7 @@ const S: [string, string, string][] = [
   ["import", "/import", ".imp"],
   ["docs", "/documents", "main .list, main .section, main .big"],
   ["driver", "/driver", ".privbox, main .sheet"],
+  ["ranking", "/ranking", ".rk-two"],
   ["savings", "/savings", "main .big"],
 ];
 // desktop: suprascrieri pe pas — zona evidențiată (uniunea selectorilor) și cardul „andocat” într-un element

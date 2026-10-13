@@ -19,6 +19,7 @@ const P: Record<string, string> = {
   play: '<path d="M7 5l12 7-12 7z" fill="currentColor"/>',
   pause: '<path d="M8 5v14M16 5v14"/>',
   upload: '<path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+  ranking: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>',
   savings: '<path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/>',
 };
 export type IconName = keyof typeof P;

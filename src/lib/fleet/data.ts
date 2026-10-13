@@ -14,6 +14,8 @@ export interface FillUp {
   gpsAt: LatLng; litres: number; gpsKmSincePrev?: number;
   /** precizia coordonatelor stației (km); import CSV la nivel de oraș = 25 */
   stationPrecisionKm?: number; priceLei: number; odometerKm: number; card: string;
+  /** bon în străinătate: suma și moneda originale (priceLei = echivalentul în lei) */
+  amount?: number; currency?: string; country?: string;
 }
 export interface LevelPoint { min: number; levelL: number; moving: boolean }
 
@@ -33,7 +35,24 @@ const C: Record<string, LatLng> = {
   Deva: [45.8833, 22.9], "Sebeș": [45.9583, 23.5681], "Alba Iulia": [46.0667, 23.5833],
   "Borș": [47.1167, 21.8167], Debrecen: [47.5316, 21.6273], "Târgu Mureș": [46.5455, 24.5625],
   "Brașov": [45.6427, 25.5887], "Ploiești": [44.9416, 26.0136], Sighișoara: [46.2197, 24.7964],
+  // internațional (puncte de frontieră incluse)
+  "Győr": [47.6875, 17.6504], Hegyeshalom: [47.9095, 17.1546], Viena: [48.2082, 16.3738], Linz: [48.3069, 14.2858], Passau: [48.5667, 13.4319], "München": [48.1351, 11.582],
+  Rajka: [47.9963, 17.198], Bratislava: [48.1486, 17.1077], "Žilina": [49.2231, 18.7394], Skalité: [49.4986, 18.8956], Katowice: [50.2649, 19.0238],
+  Letenye: [46.4333, 16.7333], Ljubljana: [46.0569, 14.5058], Verona: [45.4384, 10.9916], Milano: [45.4642, 9.19],
+  "Nürnberg": [49.4521, 11.0767], Frankfurt: [50.1109, 8.6821], "Köln": [50.9375, 6.9603], Venlo: [51.3704, 6.1724], Rotterdam: [51.9244, 4.4777],
+  "Constanța": [44.1598, 28.6348], Giurgiu: [43.9037, 25.9699], Ruse: [43.8356, 25.9657], Sofia: [42.6977, 23.3219], Plovdiv: [42.1354, 24.7453], "Kapitan Andreevo": [41.7203, 26.3203], Edirne: [41.6771, 26.5557], Istanbul: [41.0082, 28.9784],
+  Salonta: [46.8, 21.65], "Zürich": [47.3769, 8.5417], Geneva: [46.2044, 6.1432], Lyon: [45.764, 4.8357],
 };
+/** țara fiecărui oraș (pentru moneda bonurilor din demo) */
+export const CITY_CC: Record<string, string> = {
+  "Győr": "HU", Hegyeshalom: "HU", Viena: "AT", Linz: "AT", Passau: "DE", "München": "DE", Rajka: "HU", Bratislava: "SK", "Žilina": "SK", Skalité: "SK", Katowice: "PL",
+  Letenye: "HU", Ljubljana: "SI", Verona: "IT", Milano: "IT", "Nürnberg": "DE", Frankfurt: "DE", "Köln": "DE", Venlo: "NL", Rotterdam: "NL",
+  Giurgiu: "RO", Ruse: "BG", Sofia: "BG", Plovdiv: "BG", "Kapitan Andreevo": "BG", Edirne: "TR", Istanbul: "TR", "Zürich": "CH", Geneva: "CH", Lyon: "FR",
+  Szeged: "HU", Kecskemét: "HU", Budapesta: "HU", Debrecen: "HU",
+};
+export const CC_CUR: Record<string, string> = { HU: "HUF", AT: "EUR", DE: "EUR", SK: "EUR", PL: "PLN", SI: "EUR", IT: "EUR", NL: "EUR", BG: "BGN", TR: "TRY", CH: "CHF", FR: "EUR", RO: "RON" };
+/** curs orientativ DOAR pentru a genera sumele din demo (lei per unitate); conversia reală folosește cursul BCE */
+export const DEMO_LEI_PER: Record<string, number> = { RON: 1, EUR: 5.0, HUF: 0.0127, PLN: 1.17, BGN: 2.56, TRY: 0.12, CHF: 5.35 };
 const r = (...names: string[]): Waypoint[] => names.map((name) => ({ name, at: C[name] }));
 
 export const TRUCKS: Truck[] = [
@@ -45,6 +64,13 @@ export const TRUCKS: Truck[] = [
   { id: "bh77qrt", plate: "BH 77 QRT", model: "Mercedes Actros 1845", driver: "Gabriel Tóth", tankL: 600, normalL100: 28, routeName: "Oradea → Debrecen → Budapesta", route: r("Oradea", "Borș", "Debrecen", "Budapesta"), hasLevelSensor: false, depMin: 8 * 60 },
   { id: "cj52qrt", plate: "CJ 52 QRT", model: "Renault T 480", driver: "Vasile Moldovan", tankL: 500, normalL100: 31, routeName: "Cluj → Târgu Mureș → Brașov", route: r("Cluj-Napoca", "Târgu Mureș", "Sighișoara", "Brașov"), hasLevelSensor: false, depMin: 6 * 60 + 30 },
   { id: "bv19qrt", plate: "BV 19 QRT", model: "Scania S500", driver: "Radu Neagu", tankL: 600, normalL100: 29, routeName: "Brașov → Ploiești → București", route: r("Brașov", "Ploiești", "București"), hasLevelSensor: false, depMin: 12 * 60 + 25 },
+  // curse internaționale (camioanele sunt pe drum la ora demo; traseul complet e cursa în desfășurare)
+  { id: "bh88qrt", plate: "BH 88 QRT", model: "Volvo FH 540", driver: "Sorin Bălaș", tankL: 900, normalL100: 29, routeName: "Oradea → Budapesta → Viena → München", route: r("Oradea", "Borș", "Budapesta", "Győr", "Hegyeshalom", "Viena", "Linz", "Passau", "München"), hasLevelSensor: true, depMin: 4 * 60 + 30 },
+  { id: "ar12qrt", plate: "AR 12 QRT", model: "DAF XG 480", driver: "Lucian Pașca", tankL: 800, normalL100: 30, routeName: "Arad → Bratislava → Katowice", route: r("Arad", "Nădlac", "Szeged", "Budapesta", "Rajka", "Bratislava", "Žilina", "Skalité", "Katowice"), hasLevelSensor: false, depMin: 5 * 60 },
+  { id: "tm61qrt", plate: "TM 61 QRT", model: "Scania R500", driver: "Dorin Lazăr", tankL: 900, normalL100: 30, routeName: "Timișoara → Ljubljana → Milano", route: r("Timișoara", "Nădlac", "Szeged", "Letenye", "Ljubljana", "Verona", "Milano"), hasLevelSensor: false, depMin: 3 * 60 + 45 },
+  { id: "cj90qrt", plate: "CJ 90 QRT", model: "Mercedes Actros 1851", driver: "Paul Crișan", tankL: 1000, normalL100: 28, routeName: "Cluj → Viena → Frankfurt → Rotterdam", route: r("Cluj-Napoca", "Oradea", "Borș", "Budapesta", "Hegyeshalom", "Viena", "Nürnberg", "Frankfurt", "Köln", "Venlo", "Rotterdam"), hasLevelSensor: true, depMin: 2 * 60 },
+  { id: "ct14qrt", plate: "CT 14 QRT", model: "MAN TGX 18.510", driver: "Emil Ganea", tankL: 800, normalL100: 31, routeName: "Constanța → Sofia → Istanbul", route: r("Constanța", "Giurgiu", "Ruse", "Sofia", "Plovdiv", "Kapitan Andreevo", "Edirne", "Istanbul"), hasLevelSensor: false, depMin: 5 * 60 + 15 },
+  { id: "bh42qrt", plate: "BH 42 QRT", model: "Renault T High 520", driver: "Nicolae Vlad", tankL: 900, normalL100: 30, routeName: "Bihor → Zürich → Lyon", route: r("Salonta", "Budapesta", "Hegyeshalom", "Viena", "München", "Zürich", "Geneva", "Lyon"), hasLevelSensor: false, depMin: 3 * 60 },
 ];
 
 // ---------- utilitare ----------
@@ -194,6 +220,11 @@ function buildFills(): FillUp[] {
       out.push({ id: `${t.id}-today`, truckId: t.id, time: `${DEMO_DAY}T${minToHHMM(pump.start + 8)}`, station: `${BRANDS[ti % BRANDS.length]} ${nearestWaypoint(t, at).name}`, stationAt: at, gpsAt: at, litres, priceLei: Math.round(litres * 7.31 * 100) / 100, odometerKm: (prev?.odometerKm ?? 0) + km, card: CARDS[ti % CARDS.length] });
     }
   });
+  // bonuri din străinătate: moneda țării stației (HUF, EUR, PLN, BGN, TRY, CHF…)
+  for (const f of out) {
+    const t = TRUCKS.find((x) => x.id === f.truckId)!, wp = nearestWaypoint(t, f.stationAt), cc = CITY_CC[wp.name], cur = cc ? CC_CUR[cc] : "RON";
+    if (cur && cur !== "RON") { f.currency = cur; f.country = cc; f.amount = Math.round((f.priceLei / DEMO_LEI_PER[cur]) * 100) / 100; }
+  }
   return out.sort((a, b) => a.time.localeCompare(b.time));
 }
 export const FILLS: FillUp[] = buildFills();

@@ -1,6 +1,6 @@
 // Querra Fleet: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
 import { tripProfit, savings, sumSavings, type ProfitBreakdown, type Savings } from "./calc";
-import { DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
+import { CITY_CC, CC_CUR, DEMO_LEI_PER, DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
 import { FUEL_PRICE, type Client, type Parcel, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 
 export interface TripView extends Trip { p: ProfitBreakdown; s: Savings; vehicle: Vehicle }
@@ -129,5 +129,10 @@ export function fullPath(vehicleId: string): LatLng[] {
 const BRANDS = ["OMV", "MOL", "Petrom", "Rompetrol", "Lukoil", "Shell"];
 /** Demo: bonurile de motorină derivate din curse (un bon pe cursă încheiată), ca totalurile să coincidă. */
 export function demoReceipts(views: TripView[]) {
-  return views.filter((v) => !v.active && v.litres > 0).map((v, i) => ({ id: `rc-${v.id}`, truckId: v.vehicleId, time: `${v.date}T${String(6 + (i % 9)).padStart(2, "0")}:${String((i * 17) % 60).padStart(2, "0")}`, station: `${BRANDS[i % BRANDS.length]} ${v.title.split(" → ")[0]}`, litres: v.litres, amount: v.p.fuel }));
+  return views.filter((v) => !v.active && v.litres > 0).map((v, i) => {
+    // curse internaționale: bonul e de pe drum, în moneda țării (HUF, EUR, PLN, BGN, TRY, CHF…)
+    const cities = v.title.split(" → "), abroad = cities.find((c) => CITY_CC[c] && CITY_CC[c] !== "RO"), city = abroad ?? cities[0];
+    const cur = abroad ? CC_CUR[CITY_CC[abroad]] : undefined;
+    return { id: `rc-${v.id}`, truckId: v.vehicleId, time: `${v.date}T${String(6 + (i % 9)).padStart(2, "0")}:${String((i * 17) % 60).padStart(2, "0")}`, station: `${BRANDS[i % BRANDS.length]} ${city}`, litres: v.litres, amount: v.p.fuel, ...(cur && cur !== "RON" ? { currency: cur, origAmount: Math.round((v.p.fuel / DEMO_LEI_PER[cur]) * 100) / 100 } : {}) };
+  });
 }

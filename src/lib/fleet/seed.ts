@@ -27,7 +27,7 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 
 // ---------- vehicule ----------
 /** Baza = consumul de dinainte de Querra Fleet (din istoricul cardului, 60–90 zile). Demo: ~11–14% peste consumul actual. */
-const TRUCK_BASE: Record<string, number> = { bh21qrt: 32.0, cj08qrt: 33.1, tm33qrt: 33.4, b120qrt: 34.6, ar45qrt: 33.0, bh77qrt: 31.4, cj52qrt: 34.2, bv19qrt: 32.6 };
+const TRUCK_BASE: Record<string, number> = { bh21qrt: 32.0, cj08qrt: 33.1, tm33qrt: 33.4, b120qrt: 34.6, ar45qrt: 33.0, bh77qrt: 31.4, cj52qrt: 34.2, bv19qrt: 32.6, bh88qrt: 32.4, ar12qrt: 33.6, tm61qrt: 34.0, cj90qrt: 31.2, ct14qrt: 35.8, bh42qrt: 33.1 };
 export const VEHICLES: Vehicle[] = [
   ...TRUCKS.map((t): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model, driver: t.driver, baselineRate: TRUCK_BASE[t.id], per100: true, tankL: t.tankL })),
   { id: "lexion760", name: "Claas Lexion 760", kind: "agri", model: "2019", driver: "Gheorghe Nagy", baselineRate: 19.2, per100: false, tankL: 800, lph: 34.2, engineHours: 2412 },
@@ -45,6 +45,10 @@ export const CLIENTS: Client[] = [
   { id: "continental", name: "Continental Logistic SRL", country: "RO", vat: "RO11223344", payDays: 42, contacts: [{ name: "Bogdan Marin", role: "dispatch", phone: "+40 745 222 333", email: "bogdan@contlog.example" }] },
   { id: "transitalia", name: "Trans Italia SRL", country: "IT", vat: "IT01234567890", payDays: 64, contacts: [{ name: "Marco Rossi", role: "owner", phone: "+39 02 1234 567", email: "marco@transitalia.example" }] },
   { id: "agrogepiu", name: "Agro Fermier Gepiu", country: "RO", vat: "RO33445566", payDays: 12, contacts: [{ name: "Ferenc Szabó", role: "owner", phone: "+40 740 333 444", email: "ferma@agrogepiu.example" }] },
+  { id: "slaskpol", name: "Śląsk Logistyka Sp. z o.o.", country: "PL", vat: "PL6340001234", payDays: 30, contacts: [{ name: "Agnieszka Nowak", role: "dispatch", phone: "+48 32 123 4567", email: "dyspozycja@slask.example" }] },
+  { id: "rhenus", name: "Rhein Maas Cargo B.V.", country: "NL", vat: "NL812345678B01", payDays: 45, contacts: [{ name: "Joris de Vries", role: "dispatch", phone: "+31 10 555 0199", email: "planning@rmcargo.example" }] },
+  { id: "bosfor", name: "Boğaziçi Lojistik A.Ş.", country: "TR", vat: "TR1234567890", payDays: 38, contacts: [{ name: "Elif Yılmaz", role: "dispatch", phone: "+90 212 555 0123", email: "operasyon@bogazici.example" }] },
+  { id: "rhonelog", name: "Rhône Logistique SAS", country: "FR", vat: "FR12345678901", payDays: 52, contacts: [{ name: "Camille Martin", role: "accounting", phone: "+33 4 72 00 11 22", email: "compta@rhonelog.example" }] },
 ];
 
 // ---------- parcele și zone ----------
@@ -75,6 +79,9 @@ const CITY_TRIPS: [string, string, number, string, number][] = [
   ["Oradea → Debrecen", "metro", 75, "int", 12.0],
   ["Cluj → Brașov", "dedeman", 280, "ro", 7.9],
 ];
+/** camioanele pe curse internaționale lungi și clientul lor principal */
+const INTL = new Set(["bh88qrt", "ar12qrt", "tm61qrt", "cj90qrt", "ct14qrt", "bh42qrt"]);
+const INTL_CLIENT: Record<string, string> = { bh88qrt: "huber", ar12qrt: "slaskpol", tm61qrt: "transitalia", cj90qrt: "rhenus", ct14qrt: "bosfor", bh42qrt: "rhonelog" };
 const pad = (n: number) => String(n).padStart(2, "0");
 function buildTrips(): Trip[] {
   const out: Trip[] = [];
@@ -83,9 +90,12 @@ function buildTrips(): Trip[] {
   TRUCKS.forEach((t, ti) => {
     const base = TRUCK_BASE[t.id];
     for (let day = 1 + (ti % 2); day <= 14; day += 2) {
-      const [title, clientId, km0, tollKind, rate] = CITY_TRIPS[(ti + day) % CITY_TRIPS.length];
+      const intl = INTL.has(t.id);
+      if (intl && day % 4 !== (ti % 2) + 1) continue; // cursele lungi: una la ~4 zile
+      const back = t.routeName.split(" → ").reverse().join(" → ");
+      const [title, clientId, km0, tollKind, rate] = intl ? [day % 8 < 4 ? t.routeName : back, INTL_CLIENT[t.id], Math.round(routeTotalKm(t) / 2), "int", 7.9] as const : CITY_TRIPS[(ti + day) % CITY_TRIPS.length];
       const km = Math.round(km0 * (0.97 + rnd() * 0.06));
-      const actualRate = r1(base * (0.85 + rnd() * 0.06));
+      const actualRate = r1(base * (t.id === "ct14qrt" ? 0.97 + rnd() * 0.06 : 0.85 + rnd() * 0.06)); // CT 14: consum peste normă (clasament: „are nevoie de ajutor”)
       const litres = Math.round((km * actualRate) / 100);
       const tolls = Math.round(km * (tollKind === "int" ? 1.78 : 0.42));
       const days = Math.max(1, Math.ceil(km / 450));
@@ -97,9 +107,9 @@ function buildTrips(): Trip[] {
       out.push({ id: `${t.id}-${pad(day)}`, vehicleId: t.id, clientId, type: "transport", date, title, km, hours: r1(km / 64), ha: 0, units: km, revenue, litres, fuelPrice: FUEL_PRICE, tolls, driver: days * 450, other: Math.round(km * 0.55), actualRate, active: false, payment, invoiceNo: `QF-2026-${String(inv++).padStart(4, "0")}`, tariffNote: `${rate} lei/km` });
     }
     // cursa de azi = traseul din harta live
-    const kmToday = Math.round(routeTotalKm(t));
+    const intlT = INTL.has(t.id), kmToday = Math.round(routeTotalKm(t) / (intlT ? 2 : 1)); // internațional: doar dus
     const ar = r1(base * 0.89);
-    out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId: CLIENTS[ti % 4].id, type: "transport", date: DEMO_DAY, title: t.routeName, km: kmToday, hours: r1(kmToday / 64), ha: 0, units: kmToday, revenue: Math.round((kmToday * 8.1) / 10) * 10, litres: Math.round((kmToday * ar) / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(kmToday * (t.id === "tm33qrt" || t.id === "bh77qrt" ? 1.78 : 0.42)), driver: Math.max(1, Math.ceil(kmToday / 450)) * 450, other: Math.round(kmToday * 0.55), actualRate: ar, active: true, payment: "due", invoiceNo: null, tariffNote: "8.1 lei/km" });
+    out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId: intlT ? INTL_CLIENT[t.id] : CLIENTS[ti % 4].id, type: "transport", date: DEMO_DAY, title: t.routeName, km: kmToday, hours: r1(kmToday / 64), ha: 0, units: kmToday, revenue: Math.round((kmToday * 8.1) / 10) * 10, litres: Math.round((kmToday * ar) / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(kmToday * (intlT || t.id === "tm33qrt" || t.id === "bh77qrt" ? 1.78 : 0.42)), driver: Math.max(1, Math.ceil(kmToday / 450)) * 450, other: Math.round(kmToday * 0.55), actualRate: ar, active: true, payment: "due", invoiceNo: null, tariffNote: "8.1 lei/km" });
   });
   // cursă pe pierdere: retur gol, taxe mari
   out.push({ id: "tm33qrt-milano", vehicleId: "tm33qrt", clientId: "transitalia", type: "transport", date: "2026-10-13", title: "Timișoara → Milano", km: 1180, hours: 18.4, ha: 0, units: 1180, revenue: 9800, litres: 352, fuelPrice: FUEL_PRICE, tolls: 2140, driver: 3 * 450, other: 649 + 3510, actualRate: 29.8, active: false, payment: "overdue", invoiceNo: "QF-2026-0118", tariffNote: "9.800 lei / cursă" });
