@@ -124,7 +124,9 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   if (mode === "strip") return <div ref={el} style={{ position: "absolute", inset: 0 }} />;
   const N = (n: number, d = 0) => fmtNum(loc, n, d);
   const ago = v.secondsAgo < 60 ? labels["ago.s"].replace("{n}", String(v.secondsAgo)) : labels["ago.m"].replace("{n}", String(Math.round(v.secondsAgo / 60)));
-  const counts = { all: vehicles.length, truck: vehicles.filter((x) => x.kind === "truck").length, agri: vehicles.filter((x) => x.kind === "agri").length, van: vehicles.filter((x) => x.kind === "van").length };
+  // numărăm ce e pe hartă: vehiculele în pauză privată nu au marker (le arată chip-ul „🔒 N în privat”)
+  const onMap = vehicles.filter(located);
+  const counts = { all: onMap.length, truck: onMap.filter((x) => x.kind === "truck").length, agri: onMap.filter((x) => x.kind === "agri").length, van: onMap.filter((x) => x.kind === "van").length };
   return (
     <>
       <div ref={el} className="livemap" />

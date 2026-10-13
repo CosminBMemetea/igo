@@ -1,3 +1,4 @@
+import { HScroll } from "@/components/HScroll";
 import { Roadmap } from "@/components/Roadmap";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
@@ -27,8 +28,8 @@ export default async function Savings() {
     <Gate feature="savings" prefs={prefs}>
       <main>
         <div className="eyebrow fade">{t(loc, "sav.measured")}</div>
-        <div className="big fade pos" style={{ marginTop: 8 }}>{fmtMoney(loc, e.lines.fuel)}</div>
-        <p className="sub fade d1">{how.fuel}</p>
+        <div className="big fade pos" style={{ marginTop: 8 }}>{fmtMoney(loc, Math.round(e.lines.fuel / e.months))}<small className="pm"> {t(loc, "sav.perMonth")}</small></div>
+        <p className="sub fade d1">{t(loc, "sav.measuredIn", { lei: fmtMoney(loc, e.lines.fuel), days })} {how.fuel}</p>
         <p className="hint fade d1">{t(loc, "sav.baseline", { days })}</p>
         <section className="section grid2">
           <div className="card risk"><div className="k">{t(loc, "sav.risk")}</div><div className="n warnc">{fmtMoney(loc, e.lines.theft)}</div><div className="d">{t(loc, "sav.riskSub", { n: d.alerts.filter((a) => a.theft).length, l: fmtNum(loc, e.theftL), price: fmtNum(loc, e.price, 2) })}</div><Link className="link" href="/alerts" style={{ display: "inline-block", marginTop: 10 }}>{t(loc, "home.allAlerts")} →</Link></div>
@@ -37,7 +38,7 @@ export default async function Savings() {
         <section className="section">
           <div className="head"><h2>{t(loc, "sav.estTitle")}</h2></div>
           <p className="hint" style={{ marginTop: -6 }}>{t(loc, "sav.estHint")}</p>
-          <div className="wf">
+          <HScroll hint={t(loc, "ui.swipe")} min={560}><div className="wf">
             {(["docs", "time", "cash"] as const).map((k) => (
               <div key={k} className="r" style={{ alignItems: "start" }}>
                 <span>{t(loc, `sav.cat.${k}` as MsgKey)}<small className="d" style={{ display: "block", color: "var(--fg2)", fontSize: 12, marginTop: 4, maxWidth: 360 }}>{how[k]}</small></span>
@@ -45,7 +46,7 @@ export default async function Savings() {
                 <span className="v">{fmtMoney(loc, e.lines[k])}</span>
               </div>
             ))}
-          </div>
+          </div></HScroll>
         </section>
         {e.best.length ? (
           <section className="section">

@@ -25,12 +25,14 @@ export async function POST(req: Request) {
   const fxCols = currency === "RON" ? { currency: null, amountRon: null, fxRate: null, fxDate: null } : { currency, amountRon: fx?.ron ?? null, fxRate: fx?.rate ?? null, fxDate: fx?.fxDate ?? null };
   // demo: nimic în memoria comună a serverului; doar „ultima alimentare” în cookie-ul vizitatorului
   if (tn.demo) {
-    const res = NextResponse.json({ ok: true, demo: true, overTank: litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null });
     const st = String(fd.get("station") ?? "").trim().slice(0, 80);
     const a = amount != null && amount > 0 ? amount : null;
-    const { dup } = addDemoFill(res, { v: vehicleId, t: localNow().slice(0, 16), l: litres, o: odometerKm, a: fxCols.currency ? fx?.ron ?? null : a, c: fxCols.currency ? currency : null, r: fxCols.currency ? a : null, s: st });
+    const res = NextResponse.json({});
+    const { dup, id } = addDemoFill(res, { v: vehicleId, t: localNow().slice(0, 16), l: litres, o: odometerKm, a: fxCols.currency ? fx?.ron ?? null : a, c: fxCols.currency ? currency : null, r: fxCols.currency ? a : null, s: st, p: photo instanceof File && photo.size > 0 ? 1 : 0 });
+    const out = NextResponse.json({ ok: true, demo: true, id, overTank: litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null });
+    for (const c of res.cookies.getAll()) out.cookies.set(c);
     if (dup) return saveDemoFill(NextResponse.json({ ok: true, demo: true, dup: true, overTank: litres > v.tankL }), vehicleId, litres, st);
-    return saveDemoFill(res, vehicleId, litres, st);
+    return saveDemoFill(out, vehicleId, litres, st);
   }
   // idempotent: același bon (vehicul + litri + km la bord) trimis de două ori → aceeași alimentare, nu un duplicat
   const dup = (await r.driverFills(vehicleId)).find((x) => x.litres === litres && x.odometerKm === odometerKm);

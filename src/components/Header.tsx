@@ -44,7 +44,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
           <div className="menu">
             <div className="monly">
               <div className="mhead">{badge}</div>
-              {plan === "trial" && !adminView ? <Link href="/plans" className="mrow"><span>{t(loc, "trial.banner", { n: trialLeft })}</span><b>{t(loc, "trial.choose")}</b></Link> : null}
+              {plan === "trial" && !adminView && !firm.demo ? <Link href="/plans" className="mrow"><span>{t(loc, "trial.banner", { n: trialLeft })}</span><b>{t(loc, "trial.choose")}</b></Link> : null}
               {firm.demo && role === "user" ? <TourButton label={t(loc, "tour.btn")} /> : null}
               <Link href="/notifications" className="mrow"><span>{t(loc, "ntf.title")}</span>{firm.unread ? <b className="cnt">{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link>
               <a href={`?theme=${theme === "dark" ? "light" : "dark"}`} className="mrow"><span>{t(loc, "pref.theme")}</span><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
@@ -96,7 +96,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
         {onAdmin ? <nav className="adnav">{(["firms", "support", "emails", "test-email"] as const).map((k) => <a key={k} href={`/admin#${k}`}>{t(loc, `rl.nav.${k}`)}</a>)}<Link href="/">{t(loc, "rl.nav.app")}</Link></nav> : <NavIcons demo={firm.demo} labels={{ import: t(loc, "nav.import"), savings: t(loc, "nav.savings"), ranking: t(loc, "nav.ranking"),  home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />}
         {prefsBox}
       </header>
-      {plan === "trial" && !adminView ? (
+      {plan === "trial" && !adminView && !firm.demo ? (
         <Link href="/plans" className="trial">
           <span className="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" stroke="var(--bg3)" /><circle cx="18" cy="18" r="15" stroke="var(--acc)" strokeDasharray="94.2" strokeDashoffset={94.2 * (1 - trialLeft / 14)} /></svg><b>{trialLeft}</b></span>
           <span>{t(loc, "trial.banner", { n: trialLeft })}</span><span className="go">{t(loc, "trial.choose")}</span>

@@ -1,4 +1,5 @@
 "use client";
+import { saveThumb } from "./ReceiptThumb";
 import { useEffect, useRef, useState } from "react";
 import { shrinkImage } from "@/lib/shrink";
 import { sniffImage, MAX_PHOTO_IN } from "@/lib/imgsniff";
@@ -119,10 +120,10 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       if (photo) fd.append("photo", photo);
       const r = await fetch("/api/driver/fill", { method: "POST", body: fd }).catch(() => null);
       const j = r ? await r.json().catch(() => ({})) : {};
-      if (r?.ok) { idem.current = newKey(); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
+      if (r?.ok) { idem.current = newKey(); const fid = (j.id ?? j.fill?.id) as string | undefined; if (photo && fid && !j.dup) void saveThumb(fid, photo); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
         const fxT = fx ? (fx.ok && fx.amountRon != null ? " " + L["drv.fxOk"].replace("{ron}", fmtNum(loc, fx.amountRon, 2)).replace("{rate}", fmtNum(loc, fx.fxRate ?? 0, 4)).replace(/\{cur\}/g, fx.currency).replace("{date}", (fx.fxDate ?? "").split("-").reverse().join(".")) : " " + L["drv.fxNo"].replace("{cur}", fx.currency)) : "";
         setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
-      else setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]);
+      else { if (r?.status === 409) setMsg({ t: "", k: "" }); setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]); }
     } finally { setBusy(false); }
   }
   const hours = start ? (now - start) / 3600000 : 0;

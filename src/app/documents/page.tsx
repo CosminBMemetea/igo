@@ -1,3 +1,4 @@
+import { HScroll } from "@/components/HScroll";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
@@ -114,7 +115,7 @@ export default async function Documents({ searchParams }: { searchParams: { tab?
             </div>
           </Gate>
         ) : (
-          <div className="list">
+<HScroll hint={t(loc, "ui.swipe")} min={0}>          <div className="list">
             {tab === "trips" ? <p className="sub" style={{ marginBottom: 12 }}>{t(loc, "docs.tripNote")}</p> : null}
             {list.map((d, i) => {
               const st = d.expires ? docStatus(d.expires, today) : null;
@@ -136,7 +137,7 @@ export default async function Documents({ searchParams }: { searchParams: { tab?
               );
             })}
             {!list.length ? <p className="sub">{t(loc, "dc.none")}</p> : null}
-          </div>
+          </div></HScroll>
         )}
       </section>
     </main>

@@ -1,3 +1,4 @@
+import { HScroll } from "@/components/HScroll";
 import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { fmtDate, fmtMoney, fmtNum, t } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { leiOf, isRon } from "@/lib/fuel/lei";
 import { demoFills } from "@/lib/demo-shift";
+import { ReceiptThumb } from "@/components/ReceiptThumb";
 
 export const dynamic = "force-dynamic";
 export default async function Receipts() {
@@ -24,7 +26,7 @@ export default async function Receipts() {
           <div className="eyebrow fade">{t(loc, "rc.title")}</div>
           <h1 className="h1 fade">{fmtMoney(loc, lei)}</h1>
           <p className="sub fade d1">{t(loc, "rc.firmSub", { n: tx.length, litres: fmtNum(loc, L) })}</p>
-          <section className="section">
+          <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>
             {tx.map((x) => {
               const v = d.vehicles.find((y) => y.id === x.truckId);
               return (
@@ -36,17 +38,17 @@ export default async function Receipts() {
                 </div>
               );
             })}
-          </section>
+          </div></HScroll></section>
         </main>
       </Gate>
     );
   }
   // demo: bonurile trimise de șofer în sesiunea demo a acestui browser (cookie), primele în listă
-  const driver = [...demoFills().map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null }))];
+  const driver = [...demoFills().map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r, photo: !!x.p })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null, photo: !!x.photo }))];
   // aceeași sursă ca Acasă/Curse/Clienți: cursele încheiate
   const m = monthSummary(d.views);
   const fills = demoReceipts(d.views).sort((a, b) => b.time.localeCompare(a.time)).map((f) => ({ ...f, priceLei: f.amount }));
-  const fuel = m.fuelLei, tolls = m.tolls;
+  const fuel = m.fuelLei + driver.reduce((a, x) => a + (x.amount ?? 0), 0), tolls = m.tolls;
   const cats: [string, number][] = [[t(loc, "cat.fuel"), fuel], [t(loc, "cat.tolls"), tolls], [t(loc, "cat.service"), 11900], [t(loc, "cat.adblue"), Math.round(fuel * 0.04)], [t(loc, "cat.parking"), 1260]];
   const max = Math.max(...cats.map((c) => c[1]));
   return (
@@ -54,26 +56,26 @@ export default async function Receipts() {
       <main>
         <div className="eyebrow fade">{t(loc, "rc.title")}</div>
         <h1 className="h1 fade">{t(loc, "rc.sub")}</h1>
-        <p className="sub fade d1">{t(loc, "rc.firmSub", { n: fills.length + driver.length, litres: fmtNum(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, m.fuelLei)}</p>
+        <p className="sub fade d1">{t(loc, "rc.firmSub", { n: fills.length + driver.length, litres: fmtNum(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, fuel)}</p>
         <section className="section">
           <div className="head"><h2>{t(loc, "rc.byCat")}</h2></div>
           <div className="wf">
             {cats.map(([n, v]) => <div className="r" key={n}><span>{n}</span><div className="bar"><i style={{ left: 0, width: `${(v / max) * 100}%`, background: n === cats[0][0] ? "var(--fg)" : "var(--fg2)" }} /></div><span className="v">{fmtMoney(loc, v)}</span></div>)}
           </div>
         </section>
-        <section className="section">
-          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead, drv: true, orig: f.cur && f.orig ? { amount: f.orig, cur: f.cur } : null })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
+        <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>
+          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead, drv: true, photo: f.photo, orig: f.cur && f.orig ? { amount: f.orig, cur: f.cur } : null })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
               <div key={f.id} className="row r4 rcrow" style={{ cursor: "default" }}>
-                <div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div>
+                <div className="rcmain">{"photo" in f ? <ReceiptThumb id={f.id} has={!!f.photo} label={t(loc, "drv.photo")} /> : null}<div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div></div>
                 <div className="v">{fmtNum(loc, f.litres)} L</div>
                 <div className="v">{f.amount ? fmtMoney(loc, f.amount) : "—"}{"orig" in f && f.orig ? <small className="fxo">{fmtNum(loc, (f.orig as { amount: number }).amount, 2)} {(f.orig as { cur: string }).cur}</small> : null}</div>
                 <div style={{ textAlign: "right" }}>{"drv" in f && f.drv ? <span className="badge acc">{t(loc, "rc.fromDriver")}</span> : f.ok ? <span className="badge ok">{t(loc, "rc.matched")} {v?.name}</span> : <Link href="/alerts" className="badge bad">{t(loc, "rule.card-fara-camion")}</Link>}</div>
               </div>
             );
           })}
-        </section>
+        </div></HScroll></section>
       </main>
     </Gate>
   );

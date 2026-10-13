@@ -1,10 +1,12 @@
+import { HScroll } from "@/components/HScroll";
 import Link from "next/link";
 import { fmtDate, fmtMoney, fmtPct, t, type Locale } from "@/lib/i18n";
 import type { TripView } from "@/lib/query";
 
 export function TripRows({ rows, loc }: { rows: TripView[]; loc: Locale }) {
   return (
-    <>
+    <HScroll hint={t(loc, "ui.swipe")} min={600}>
+      <div>
       {rows.map((r, i) => (
         <div key={r.id} className={`trow${r.vehicle.kind === "truck" ? " has-rp" : ""}`}>
         <Link className={`row fade d${Math.min(4, i)}`} href={`/trips/${r.id}`}>
@@ -20,6 +22,7 @@ export function TripRows({ rows, loc }: { rows: TripView[]; loc: Locale }) {
         {r.vehicle.kind === "truck" ? <Link className="rp-rowbtn" href={`/replay?trip=${r.id}`} aria-label={`${t(loc, "rp.cta")} · ${r.title}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" /></svg><span>{t(loc, "rp.cta")}</span></Link> : null}
         </div>
       ))}
-    </>
+      </div>
+    </HScroll>
   );
 }

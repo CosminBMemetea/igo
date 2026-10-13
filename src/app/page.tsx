@@ -49,15 +49,28 @@ export default async function Home() {
   const kmToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => a + x.today, 0));
   const saveToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => { const v = d.vehicles.find((y) => y.id === x.id); return a + (v ? Math.max(0, ((v.baselineRate - x.rate) * x.today) / 100) * FUEL_PRICE : 0); }, 0));
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo), rkHelp = [...rk.drivers].reverse().find((x) => x.worst && x.score < 75) ?? null;
+  // economie pe lună: aceeași perioadă ca pe /savings (demo: 15 zile de istoric)
+  const savDays = d.demo ? 15 : Math.max(1, Math.round((Date.now() - Date.parse(d.tn.firm?.createdAt ?? new Date().toISOString())) / 86400000));
+  const perMonth = Math.round(m.savings.savedLei / (savDays / 30));
+  // alerta de furt cea mai gravă (card plătit departe de camion) — prima pe ecran, deasupra economiei
+  const theft = d.alerts.find((a) => a.rule === "card-fara-camion") ?? d.alerts.find((a) => a.theft) ?? null;
+  const theftV = theft ? d.vehicles.find((v) => v.id === theft.vehicleId) : null;
   const alertsToday = d.alerts.filter((a) => a.time.slice(0, 10) === today).length;
   return (
     <main>
       {welcome}
+      {theft && theft.rule === "card-fara-camion" ? (
+        <Link href={`/alerts#${theft.id}`} className="theft fade">
+          <span className="tic" aria-hidden="true">!</span>
+          <span className="tx"><span className="ey">{t(loc, "home.theftEy")}</span><b>{t(loc, "home.theft", { litres: fmtNum(loc, Number(theft.params.litres)), station: String(theft.params.station), dist: fmtNum(loc, Number(theft.params.dist)) })}</b><small>{theftV?.name} · {fmtDate(loc, String(theft.params.time ?? theft.time))} · {fmtMoney(loc, Number(theft.params.litres) * FUEL_PRICE)} {t(loc, "home.theftRisk")}</small></span>
+          <span className="go">{t(loc, "home.theftGo")} →</span>
+        </Link>
+      ) : null}
       <section className="hero">
         <div className="fade">
           <div className="eyebrow">{t(loc, "home.savings")}</div>
           <div className="big">{enoughData(km, hours) ? <><CountUp value={m.savings.pct * 100} d={1} loc={loc} /><small>%</small></> : <small>{t(loc, "home.insufficient")}</small>}</div>
-          <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.savingsSub", { lei: fmtMoney(loc, m.savings.savedLei) }) }} />
+          <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.savingsSub", { lei: fmtMoney(loc, perMonth) }) }} />
           {m.n ? <Link className="link" href="/savings" style={{ display: "inline-block", marginTop: 10 }}>{t(loc, "sav.open")} →</Link> : null}
         </div>
         <div className="fade d1">

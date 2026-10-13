@@ -9,7 +9,7 @@ type L = Record<string, string>;
 const fmt = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
 type DemoRes = { report: { plate: string; meta: string; base: string }[]; alerts: { id: string; severity: string; theft: boolean; title: string; why: string; nogps: boolean }[] };
 const LS = "qf-demo-map:";
-export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labels: L; fieldLabels: Record<Field, string>; demo?: boolean; samples?: [string, string][] }) {
+export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLabels: Record<Field, string>; demo?: boolean; samples?: [string, string][] }) {
   const [res, setRes] = useState<DemoRes | null>(null);
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -68,6 +68,8 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
     setFile(null); setSum(null); if (input.current) input.current.value = "";
     if (!demo) router.refresh();
   }
+  useEffect(() => { const h = (e: Event) => { const d = (e as CustomEvent<{ k: string; n: string }>).detail; if (d && !busyRef.current) { if (window.innerWidth < 900) document.querySelector(".sgrid")?.scrollIntoView({ behavior: "smooth", block: "start" }); void trySample(d.k, d.n); } }; window.addEventListener("qf-sample", h); return () => window.removeEventListener("qf-sample", h); });
+  const busyRef = useRef(false); busyRef.current = busy;
   async function trySample(k: string, n: string) {
     const r = await fetch(`/samples/${k}.csv`).catch(() => null); if (!r || !r.ok) { setMsg({ ok: false, text: l.err }); return; }
     const b = await r.blob(); await pick(new File([b], `${k}.csv`, { type: "text/csv" })); void n;
@@ -81,9 +83,7 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
         <b>{file ? file.name : l.drop}</b>
         <span>{busy ? l.reading : l.dropHint}</span>
       </label>
-      {samples.length && !sum ? (
-        <div className="trys"><span>{l.try}</span>{samples.map(([k, n]) => <span key={k} style={{ display: "inline-flex", alignItems: "center" }}><button type="button" className="btn sec sm" disabled={busy} onClick={() => trySample(k, n)}>{n}</button><a className="dl" href={`/samples/${k}.csv`} download aria-label={`${n} CSV`} title="CSV">↓</a></span>)}</div>
-      ) : null}
+      {/* exemplele: în caseta laterală (SampleList) — trimit evenimentul „qf-sample” */}
       {msg ? <p className={`msg ${msg.ok ? "ok" : "err"}`}>{msg.text}</p> : null}
       {res ? (
         <div className="sheet dres" style={{ marginTop: 18 }}>
@@ -107,7 +107,7 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
             {sum.savedMapping ? <span className="badge ok" title={l.savedHint}>✓ {l.saved}</span> : null}
           </div>
           <div className="eyebrow" style={{ marginTop: 14 }}>{l.prev}</div>
-          <div className="ptable"><table><thead><tr><th>#</th>{sum.headers.map((h, i) => { const f = FIELDS.find((x) => mapping?.[x] === i); return <th key={i} className={f ? "mapped" : ""}>{h}{f ? <small>→ {fieldLabels[f]}</small> : null}</th>; })}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}><td>{i + 2}</td>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
+          <div className="ptable hsx"><table><thead><tr><th>#</th>{sum.headers.map((h, i) => { const f = FIELDS.find((x) => mapping?.[x] === i); return <th key={i} className={f ? "mapped" : ""}>{h}{f ? <small>→ {fieldLabels[f]}</small> : null}</th>; })}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}><td>{i + 2}</td>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
           <div className="istats">
             <div><b>{sum.newRows}</b><span>{l.new}</span></div>
             <div><b>{sum.dupes}</b><span>{l.dupes}</span></div>

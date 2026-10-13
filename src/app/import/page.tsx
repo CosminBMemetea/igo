@@ -1,3 +1,4 @@
+import { SampleList } from "@/components/SampleList";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { fmtDate, fmtMoney, fmtNum, plural, t, type MsgKey } from "@/lib/i18n";
@@ -39,6 +40,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
             <div className="sheet">
               <div className="eyebrow">{t(loc, "imp.samples")}</div>
               <p className="hint" style={{ margin: "6px 0 12px" }}>{t(loc, "imp.demoSamplesHint")}</p>
+              <SampleList samples={samples} tryLabel={t(loc, "imp.tryOne")} />
             </div>
           </div>
         </section>
@@ -63,6 +65,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
             <div className="sheet">
               <div className="eyebrow">{t(loc, "imp.samples")}</div>
               <p className="hint" style={{ margin: "6px 0 12px" }}>{t(loc, "imp.samplesHint")}</p>
+              <SampleList samples={samples} tryLabel={t(loc, "imp.tryOne")} />
             </div>
             {unassigned.size ? (
               <div className="sheet" style={{ marginTop: 16 }}>

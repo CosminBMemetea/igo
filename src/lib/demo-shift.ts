@@ -29,21 +29,22 @@ export function saveDemoFill(res: NextResponse, vehicleId: string, litres: numbe
  *  Nimic pe server/DB. Se resetează la 24 h de la începutul sesiunii demo sau la logarea într-un cont real. */
 export const DEMO_SID = "qf-dsid", FILLS = "qf-dfills", DEMO_TTL_S = 60 * 60 * 24;
 export const DEMO_COOKIES = [C, F, FILLS, DEMO_SID];
-export interface DemoFill { id: string; v: string; t: string; l: number; o: number; a: number | null; c: string | null; r: number | null; s: string }
+export interface DemoFill { id: string; v: string; t: string; l: number; o: number; a: number | null; c: string | null; r: number | null; s: string; p?: number }
 export function demoFills(): DemoFill[] {
   const sid = cookies().get(DEMO_SID)?.value;
   if (!sid) return [];
   try { const j = JSON.parse(cookies().get(FILLS)?.value ?? "{}") as { sid?: string; f?: DemoFill[] }; return j.sid === sid && Array.isArray(j.f) ? j.f : []; } catch { return []; }
 }
 /** adaugă bonul; același vehicul+litri+km → duplicat (ca în modul real) */
-export function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): { dup: boolean } {
+export function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): { dup: boolean; id?: string } {
   const sid = cookies().get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
   if (!cookies().get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
   const cur = demoFills();
   if (cur.some((x) => x.v === f.v && x.l === f.l && x.o === f.o)) return { dup: true };
-  const list = [...cur, { ...f, s: f.s.slice(0, 50), id: `df-${Date.now().toString(36)}` }].slice(-12);
+  const id = `df-${Date.now().toString(36)}`;
+  const list = [...cur, { ...f, s: f.s.slice(0, 50), id, ...(f.p ? { p: 1 } : {}) }].slice(-12);
   res.cookies.set(FILLS, JSON.stringify({ sid, f: list }), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
-  return { dup: false };
+  return { dup: false, id };
 }
 /** începe o sesiune demo nouă (id nou → bonurile/tura vechi nu mai apar) */
 export function newDemoSession(res: NextResponse) {

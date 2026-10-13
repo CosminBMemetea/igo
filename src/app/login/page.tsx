@@ -31,11 +31,11 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
           <form action="/api/auth/demo" method="post" className="fade d1 ldemo">
             {nx}
             <button className="btn pri xl" style={{ width: "100%" }} disabled={!secret}>{t(loc, "login.demo")} →</button>
-            <p className="hint" style={{ textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
+            <p className="hint" style={{ textAlign: "center", marginTop: 10 }}>{secret ? <><b className="nocard">{t(loc, "login.noCard")}</b> · {t(loc, "acct.demoHint")}</> : t(loc, "acct.nosecret")}</p>
           </form>
-          <form action="/api/auth/demo" method="post" className="fade d1" style={{ textAlign: "center", marginTop: 4 }}>
+          <form action="/api/auth/demo" method="post" className="fade d1 ldemo" style={{ marginTop: 6 }}>
             <input type="hidden" name="as" value="driver" />{nx}
-            <button className="btn sec sm" disabled={!secret}>{t(loc, "login.demoDriver")}</button>
+            <button className="btn sec ldrv" style={{ width: "100%" }} disabled={!secret}>🚚 {t(loc, "login.demoDriver")} →</button>
           </form>
           {cookies().get(DEMO_SID) ? (
             <form action="/api/auth/demo" method="post" className="fade d1" style={{ textAlign: "center", marginTop: 2 }}>
