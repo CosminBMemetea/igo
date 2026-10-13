@@ -778,3 +778,5 @@ html{scroll-padding-top:120px}
 @media (min-width:761px){html.tour-rp .rp-evlist{max-height:max(96px,calc(100vh - 590px));overflow:auto}}
 .ell{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.field .ell{max-width:65%}
 .rcrow>div{min-width:0}.rcrow .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.field .cursel{margin-left:auto;margin-right:8px;width:auto;min-width:72px}
+.fxo{display:block;font-size:11px;color:var(--fg3);font-weight:400}

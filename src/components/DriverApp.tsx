@@ -15,6 +15,7 @@ async function blankImage(file: File): Promise<boolean | null> {
     return Math.sqrt(Math.max(0, s2 / n - (s / n) ** 2)) < 4;
   } catch { return null; } // nu se poate decoda
 }
+const CURS = ["RON", "EUR", "PLN", "HUF", "CZK", "BGN", "CHF", "GBP", "SEK", "DKK", "NOK"];
 const CHECKS = ["chk.tyres", "chk.fluids", "chk.docs", "chk.damage"];
 function hav(a: [number, number], b: [number, number]) {
   const R = 6371, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLng = (b[1] - a[1]) * r;
@@ -23,9 +24,9 @@ function hav(a: [number, number], b: [number, number]) {
 }
 export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo }: { demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
   const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
-  const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "" }>({ t: "", k: "" });
+  const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
-  const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey());
+  const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey()), [cur, setCur] = useState("RON"), [rDate, setRDate] = useState("");
   const [priv, setPriv] = useState(!!initial?.priv);
   // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
   const shownKm = demoKm != null ? (on ? demoKm : 0) : km;
@@ -70,7 +71,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     setPriv(next); privRef.current = next; window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
   }
   async function onPhoto(file0: File | null) {
-    setPhoto(file0); setRead(""); setReadInfo(""); setAiOk(false);
+    setPhoto(file0); setRead(""); setReadInfo(""); setAiOk(false); setCur("RON"); setRDate("");
     if (!file0) return;
     const manual = (m: string) => { setPhoto(null); setRead(m); setF((x) => ({ ...x, litres: "", odo: "", amount: "", station: "" })); };
     // validare înainte de orice: mărime, apoi conținutul real (primii octeți), nu extensia
@@ -89,13 +90,14 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       const r = await fetch("/api/receipt/extract", { method: "POST", body: fd, cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.fields) {
-        const x0 = j.fields as { operator?: string | null; station?: string | null; date?: string | null; plate?: string | null; litres?: number | null; amount?: number | null; odometerKm?: number | null };
+        const x0 = j.fields as { currency?: string | null; operator?: string | null; station?: string | null; date?: string | null; plate?: string | null; litres?: number | null; amount?: number | null; odometerKm?: number | null };
         // operator și stație separate: „Petrom Oradea 3”, nu două rânduri lipite
         const st = [x0.operator, x0.station && x0.operator && x0.station.toLowerCase().startsWith(x0.operator.toLowerCase()) ? x0.station.slice(x0.operator.length).trim() : x0.station].filter(Boolean).join(" ").slice(0, 80);
         setF((x) => ({ litres: x0.litres?.toString() ?? x.litres, odo: x0.odometerKm?.toString() ?? x.odo, amount: x0.amount?.toString() ?? x.amount, station: st || x.station }));
         const norm = (p: string) => p.replace(/[^A-Z0-9]/gi, "").toUpperCase();
         const meta = [x0.date ? x0.date.split("-").reverse().join(".") : null, x0.plate ? `${x0.plate}${norm(x0.plate) !== norm(vehicleName) ? ` ≠ ${vehicleName}` : ""}` : null].filter(Boolean).join(" · ");
         setReadInfo(meta);
+        if (x0.currency && CURS.includes(x0.currency)) setCur(x0.currency); if (x0.date) setRDate(x0.date);
         // exemplul demo NU e etichetat ca citire AI (nici în mesaj, nici în aiRead)
         setAiOk(!j.sample); setRead(j.sample ? L["drv.sample"] : L["drv.read"]);
       } else manual(r.status === 413 ? L["drv.tooBig"] : r.status === 415 ? L["drv.notImage"] : r.status === 422 ? L["drv.notReceipt"] : L["drv.readManual"]);
@@ -110,11 +112,13 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     setFormErr(""); setBusy(true);
     try {
       const fd = new FormData();
-      fd.append("vehicleId", vehicleId); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station.trim().slice(0, 80)); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current);
+      fd.append("vehicleId", vehicleId); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station.trim().slice(0, 80)); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current); fd.append("currency", cur); if (rDate) fd.append("date", rDate);
       if (photo) fd.append("photo", photo);
       const r = await fetch("/api/driver/fill", { method: "POST", body: fd }).catch(() => null);
       const j = r ? await r.json().catch(() => ({})) : {};
-      if (r?.ok) { idem.current = newKey(); setMsg({ t: j.dup ? L["drv.dup"] : L["drv.sent"], k: "ok" }); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
+      if (r?.ok) { idem.current = newKey(); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
+        const fxT = fx ? (fx.ok && fx.amountRon != null ? " " + L["drv.fxOk"].replace("{ron}", fmtNum(loc, fx.amountRon, 2)).replace("{rate}", fmtNum(loc, fx.fxRate ?? 0, 4)).replace(/\{cur\}/g, fx.currency).replace("{date}", (fx.fxDate ?? "").split("-").reverse().join(".")) : " " + L["drv.fxNo"].replace("{cur}", fx.currency)) : "";
+        setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
       else setFormErr(r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]);
     } finally { setBusy(false); }
   }
@@ -148,7 +152,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
           <label className="field" style={{ paddingTop: 0, cursor: "pointer" }}><span>{L["drv.photo"]}<br /><small style={{ color: "var(--fg3)" }}>{photo ? photo.name : L["drv.photoHint"]}</small></span><span className="ico" style={{ background: "var(--bg3)" }}><Icon name="camera" /></span><input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onPhoto(e.target.files?.[0] ?? null)} /></label>
           {read ? <p className="msg">{read}{readInfo ? <><br /><small style={{ color: "var(--fg2)" }}>{L["drv.readMeta"]}: {readInfo}</small></> : null}</p> : null}
           {([["litres", "drv.litres", "decimal"], ["odo", "drv.odo", "numeric"], ["amount", "drv.amount", "decimal"], ["station", "drv.station", "text"]] as const).map(([k, lab, mode]) => (
-            <label key={k} className="field"><span>{L[lab]}</span><input className="input" inputMode={mode} maxLength={k === "station" ? 80 : 12} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></label>
+            <label key={k} className="field"><span>{L[lab]}</span>{k === "amount" ? <select className="tsel cursel" aria-label={L["drv.cur"]} value={cur} onChange={(e) => setCur(e.target.value)}>{CURS.map((c) => <option key={c} value={c}>{c === "RON" ? "lei" : c}</option>)}</select> : null}<input className="input" inputMode={mode} maxLength={k === "station" ? 80 : 12} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></label>
           ))}
           {formErr ? <p className="msg err" role="alert">{formErr}</p> : null}
           <button className="btn pri start" style={{ height: 60, marginTop: 8 }} disabled={busy} aria-busy={busy}>{busy ? L["drv.sending"] : L["drv.send"]}</button>

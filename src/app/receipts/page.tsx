@@ -7,6 +7,7 @@ import { load } from "@/lib/data";
 import { demoReceipts, monthSummary } from "@/lib/query";
 import { fmtDate, fmtMoney, fmtNum, t } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
+import { leiOf, isRon } from "@/lib/fuel/lei";
 
 export const dynamic = "force-dynamic";
 export default async function Receipts() {
@@ -15,7 +16,7 @@ export default async function Receipts() {
   if (!d.demo) {
     const tx = d.tn.firm ? await store().fuel(d.tn.firm.id, { limit: 80 }) : [];
     if (!tx.length) return <main><EmptyState kind="receipts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
-    const lei = tx.reduce((a, x) => a + (x.amount ?? 0), 0), L = tx.reduce((a, x) => a + x.litres, 0);
+    const lei = tx.reduce((a, x) => a + (leiOf(x) ?? 0), 0), L = tx.reduce((a, x) => a + x.litres, 0);
     return (
       <Gate feature="receipts" prefs={prefs}>
         <main>
@@ -29,7 +30,7 @@ export default async function Receipts() {
                 <div key={x.id} className="row r4 rcrow" style={{ cursor: "default" }}>
                   <div><div className="t">{x.station || "—"}</div><div className="m">{fmtDate(loc, x.at)} · {v?.name ?? x.card ?? "—"}</div></div>
                   <div className="v">{fmtNum(loc, x.litres, 1)} L</div>
-                  <div className="v">{x.amount != null ? fmtMoney(loc, x.amount) : "—"}</div>
+                  <div className="v">{leiOf(x) != null ? fmtMoney(loc, leiOf(x)!) : "—"}{x.amount != null && !isRon(x.currency) ? <small className="fxo" title={x.fxRate ? t(loc, "rc.fx", { rate: fmtNum(loc, x.fxRate, 4), cur: x.currency ?? "", date: fmtDate(loc, x.fxDate ?? "") }) : t(loc, "rc.fxNo")}>{fmtNum(loc, x.amount, 2)} {x.currency}{x.fxRate ? ` · ${fmtNum(loc, x.fxRate, 4)}` : " · ?"}</small> : null}</div>
                   <div style={{ textAlign: "right" }}>{v ? <span className={`badge ${x.source === "driver" ? "acc" : "ok"}`}>{x.source === "driver" ? t(loc, "rc.fromDriver") : t(loc, "rc.fromCard")}</span> : <Link href="/import" className="badge warn">{t(loc, "imp.unknown")}</Link>}</div>
                 </div>
               );

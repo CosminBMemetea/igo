@@ -8,7 +8,7 @@ import { byDelta, realToday, roIso, shiftDeep } from "./demo-time";
 
 export type AlertRule = RuleId | "loss" | "agri-over" | "doc-expiry" | "gps-privat";
 export interface AppAlert { id: string; rule: AlertRule; vehicleId: string; time: string; severity: Severity; theft: boolean; params: Record<string, string | number> }
-export interface DriverFill { id: string; vehicleId: string; time: string; litres: number; odometerKm: number; amount: number | null; station: string; photo: { name: string; size: number } | null; aiRead: boolean }
+export interface DriverFill { id: string; vehicleId: string; time: string; litres: number; odometerKm: number; amount: number | null; currency?: string | null; amountRon?: number | null; fxRate?: number | null; fxDate?: string | null; station: string; photo: { name: string; size: number } | null; aiRead: boolean }
 export interface Shift { vehicleId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
 
 export interface IgoRepository {

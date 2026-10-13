@@ -1,4 +1,4 @@
-import { EUR_RON } from "./fuel/fx";
+import { leiOf } from "./fuel/lei";
 // Querra Fleet: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
 import type { FleetData } from "./fleet/rules";
 import type { Client, Doc, Trip, Vehicle } from "./fleet/seed";
@@ -24,9 +24,9 @@ export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   // litri estimați → înlocuiți cu alimentările reale ale camionului din ziua cursei (CSV card / bon șofer)
   if (r.litresSource === "estimate") {
     const day = tx.filter((x) => x.truckId === r.truckId && x.at.slice(0, 10) === r.date);
-    const L = day.reduce((s, x) => s + x.litres, 0), lei = day.reduce((s, x) => s + (x.amount ?? 0) * (x.currency === "EUR" ? EUR_RON : 1), 0);
-    // EUR (ex. DKV în străinătate) convertit la curs; altă monedă necunoscută → nu ghicim prețul
-    if (L > 0) { litres = r1(L); if (lei > 0 && day.every((x) => x.amount != null && (!x.currency || x.currency === "RON" || x.currency === "EUR"))) fuelPrice = Math.round((lei / L) * 100) / 100; }
+    const L = day.reduce((s, x) => s + x.litres, 0), lei = day.reduce((s, x) => s + (leiOf(x) ?? 0), 0);
+    // altă monedă: suma în lei convertită la import (curs BCE la data bonului); fără curs → nu ghicim prețul
+    if (L > 0) { litres = r1(L); if (lei > 0 && day.every((x) => leiOf(x) != null)) fuelPrice = Math.round((lei / L) * 100) / 100; }
   }
   return {
     id: r.id, vehicleId: r.truckId, clientId: slug(r.client), type: "transport", date: r.date, title: r.title, km: r.km, hours: 0, ha: 0, units: r.km,
@@ -70,13 +70,13 @@ export class FirmRepository implements IgoRepository {
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const hash = `driver:${newId("h")}`;
-    await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: null, photoName: f.photo?.name ?? null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
+    await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: f.currency ?? null, amountRon: f.amountRon ?? null, fxRate: f.fxRate ?? null, fxDate: f.fxDate ?? null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: null, photoName: f.photo?.name ?? null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
     this.txCache = undefined; this.m.delete("alerts");
     return { ...f, id: hash };
   }
   async driverFills(vehicleId?: string): Promise<DriverFill[]> {
     const rows = await this.s.fuel(this.firm.id, { source: "driver", truckId: vehicleId, limit: 50 });
-    return rows.reverse().map((x) => ({ id: x.id, vehicleId: x.truckId ?? "", time: x.at, litres: x.litres, odometerKm: x.odometer ?? 0, amount: x.amount, station: x.station, photo: x.photoName ? { name: x.photoName, size: x.photoSize ?? 0 } : null, aiRead: x.aiRead }));
+    return rows.reverse().map((x) => ({ id: x.id, vehicleId: x.truckId ?? "", time: x.at, litres: x.litres, odometerKm: x.odometer ?? 0, amount: x.amount, currency: x.currency, amountRon: x.amountRon, fxRate: x.fxRate, fxDate: x.fxDate, station: x.station, photo: x.photoName ? { name: x.photoName, size: x.photoSize ?? 0 } : null, aiRead: x.aiRead }));
   }
   async setShift(s: Shift) { await this.s.setShift(this.firm.id, { truckId: s.vehicleId, start: s.start, end: s.end, checklist: s.checklist, privateSince: s.privateSince ?? null }); return s; }
   async shift(vehicleId: string) { const r = await this.s.shift(this.firm.id, vehicleId); return r ? { vehicleId: r.truckId, start: r.start, end: r.end, checklist: r.checklist, privateSince: r.privateSince ?? null } : null; }

@@ -94,7 +94,7 @@ else {
   ok("B nu vede tranzacțiile lui A", (await s.fuel(B.id)).length === 0 && (await s.fuelCards(B.id)).length === 0 && (await s.imports(B.id)).length === 0);
   let threw = false; try { await s.setCard(B.id, "X", a1.id); } catch { threw = true; }
   ok("B nu poate lega un card de camionul lui A", threw);
-  threw = false; try { await s.addFuel(B.id, [{ truckId: a1.id, source: "generic", importId: null, hash: "h", card: null, plate: null, at: "2026-10-01T10:00", station: "", country: null, product: null, litres: 1, amount: null, currency: null, odometer: null, lat: null, lng: null, userId: null, photoName: null, photoSize: null, aiRead: false }]); } catch { threw = true; }
+  threw = false; try { await s.addFuel(B.id, [{ truckId: a1.id, source: "generic", importId: null, hash: "h", card: null, plate: null, at: "2026-10-01T10:00", station: "", country: null, product: null, litres: 1, amount: null, currency: null, amountRon: null, fxRate: null, fxDate: null, odometer: null, lat: null, lng: null, userId: null, photoName: null, photoSize: null, aiRead: false }]); } catch { threw = true; }
   ok("B nu poate scrie tranzacții pe camionul lui A", threw);
   const cb = await commit(s, B.id, dkv, "dkv.csv");
   ok("același fișier la B: importat separat (fără duplicat între firme), pe camionul lui B", cb.ok && cb.added === 39 && (await s.fuel(B.id)).filter((x) => x.truckId === b1.id).length === 19);

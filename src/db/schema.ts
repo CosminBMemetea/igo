@@ -136,6 +136,10 @@ export const fuelTransactions = pgTable("fuel_transactions", {
   litres: real("litres").notNull(),
   amount: real("amount"),
   currency: text("currency"),
+  /** suma convertită în lei (curs BCE, prin EUR) + cursul și data cursului folosite; null = RON sau curs indisponibil */
+  amountRon: real("amount_ron"),
+  fxRate: doublePrecision("fx_rate"),
+  fxDate: text("fx_date"),
   odometer: integer("odometer"),
   lat: doublePrecision("lat"),
   lng: doublePrecision("lng"),
@@ -231,3 +235,10 @@ export const importMappings = pgTable("import_mappings", {
   mapping: text("mapping").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.firmId, t.sig] })]);
+
+/** Cache cursuri BCE (euro de referință): 1 EUR = perEur unități din `cur`, publicat la `date` (YYYY-MM-DD). */
+export const fxRates = pgTable("fx_rates", {
+  date: text("date").notNull(),
+  cur: text("cur").notNull(),
+  perEur: doublePrecision("per_eur").notNull(),
+}, (t) => [uniqueIndex("fx_rates_date_cur_uq").on(t.date, t.cur)]);

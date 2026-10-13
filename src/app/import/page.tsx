@@ -6,7 +6,7 @@ import { tenant, writableFirm } from "@/lib/tenant";
 import { truckBaseline } from "@/lib/firm-repo";
 import { FIELDS, SOURCE_NAME, type Field, type Source } from "@/lib/fuel/parse";
 import { fillToFill } from "@/lib/fuel/rules";
-import { EUR_RON } from "@/lib/fuel/fx";
+import { leiOf } from "@/lib/fuel/lei";
 import { Gate } from "@/components/Gate";
 import { ImportBox } from "@/components/ImportBox";
 import { EmptyState } from "@/components/EmptyState";
@@ -89,7 +89,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
             {trucks.map((tr) => {
               const mine = tx.filter((x) => x.truckId === tr.id);
               const b = truckBaseline(tr, tx, since), recent = fillToFill(mine.filter((x) => x.at >= since).map((x) => ({ ...x })));
-              const lei = mine.reduce((a, x) => a + (x.amount ?? 0) * (x.currency === "EUR" ? EUR_RON : 1), 0);
+              const lei = mine.reduce((a, x) => a + (leiOf(x) ?? 0), 0);
               return (
                 <div key={tr.id} className="it" style={{ cursor: "default" }}>
                   <div style={{ minWidth: 0 }}>

@@ -2,6 +2,8 @@
 import { createHash } from "node:crypto";
 import { parseFuelCsv, parseCsv, headerSig, txKey, SOURCE_NAME, type FuelRow, type Mapping } from "./parse";
 import { normPlate } from "../validate";
+import { toRon, normCur, type Fx } from "./fx";
+import { isRon } from "./lei";
 import { newId, type NewFuelTx, type Store } from "../store/types";
 
 export const MAX_CSV_BYTES = 3 * 1024 * 1024;
@@ -37,11 +39,16 @@ export async function analyze(s: Store, firmId: string, text: string, mapping?: 
     u.n++; u.litres = Math.round((u.litres + x.r.litres) * 10) / 10; unknownMap.set(k, u);
   }
   const ats = p.rows.map((r) => r.at).sort();
+  // monede străine: curs BCE la data fiecărui rând (prin EUR → RON); fără curs → păstrăm suma originală și avertizăm
+  const fx = new Map<number, Fx | null>();
+  await Promise.all(rows.map(async (x, i) => { if (x.r.amount != null && !isRon(x.r.currency)) fx.set(i, await toRon(x.r.amount, x.r.currency, x.r.at.slice(0, 10))); }));
+  const fxSum = new Map<string, { cur: string; n: number; rate: number | null; fxDate: string | null; missing: number }>();
+  for (const [i, f] of fx) { const cur = normCur(rows[i].r.currency) ?? String(rows[i].r.currency); const g = fxSum.get(cur) ?? { cur, n: 0, rate: null, fxDate: null, missing: 0 }; g.n++; if (f) { if (!g.fxDate || f.fxDate > g.fxDate) { g.rate = f.rate; g.fxDate = f.fxDate; } } else g.missing++; fxSum.set(cur, g); }
   return {
-    parsed: p, rows, learned,
+    parsed: p, rows, learned, fxRows: fx,
     summary: {
       source: p.source, sourceName: SOURCE_NAME[p.source], headers: p.headers, mapping: p.mapping, confident: p.confident || (saved && !p.missing.length), missing: p.missing,
-      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, errors: p.errors, delimiter: p.delimiter, savedMapping: saved, newRows: p.rows.length - dupes, dupes, eurRows: p.rows.filter((x) => x.currency === "EUR").length, otherCur: [...new Set(p.rows.map((x) => x.currency).filter((c): c is string => !!c && c !== "RON" && c !== "LEI" && c !== "EUR"))],
+      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, errors: p.errors, delimiter: p.delimiter, savedMapping: saved, newRows: p.rows.length - dupes, dupes, fx: [...fxSum.values()],
       matched: rows.filter((x) => x.truckId).length, unknown: [...unknownMap.values()], from: ats[0] ?? null, to: ats[ats.length - 1] ?? null,
       trucks: trucks.map((t) => ({ id: t.id, plate: t.plate })),
     },
@@ -49,6 +56,7 @@ export async function analyze(s: Store, firmId: string, text: string, mapping?: 
 }
 export type Summary = Awaited<ReturnType<typeof analyze>>["summary"];
 
+const fxCols = (cur: string | null, f: Fx | null | undefined) => (f ? { currency: f.cur, amountRon: f.ron, fxRate: f.rate, fxDate: f.fxDate } : { currency: normCur(cur) ?? cur, amountRon: null, fxRate: null, fxDate: null });
 export async function commit(s: Store, firmId: string, text: string, filename: string, mapping?: Mapping, assign: Record<string, string> = {}) {
   const trucks = new Set((await s.trucks(firmId)).map((t) => t.id));
   const clean = Object.fromEntries(Object.entries(assign).filter(([, v]) => trucks.has(v)));
@@ -57,7 +65,7 @@ export async function commit(s: Store, firmId: string, text: string, filename: s
   for (const [card, truckId] of Object.entries(clean)) await s.setCard(firmId, card, truckId);
   for (const [card, truckId] of a.learned) if (!clean[card]) await s.setCard(firmId, card, truckId);
   const imp = { id: newId("m") };
-  const rows: NewFuelTx[] = a.rows.map(({ r, truckId, hash }) => ({ truckId, source: a.parsed.source, importId: imp.id, hash, card: r.card, plate: r.plate, at: r.at, station: r.station, country: r.country, product: r.product, litres: r.litres, amount: r.amount, currency: r.currency, odometer: r.odometer, lat: r.lat, lng: r.lng, userId: null, photoName: null, photoSize: null, aiRead: false }));
+  const rows: NewFuelTx[] = a.rows.map(({ r, truckId, hash }, i) => ({ ...fxCols(r.currency, a.fxRows.get(i)), truckId, source: a.parsed.source, importId: imp.id, hash, card: r.card, plate: r.plate, at: r.at, station: r.station, country: r.country, product: r.product, litres: r.litres, amount: r.amount, odometer: r.odometer, lat: r.lat, lng: r.lng, userId: null, photoName: null, photoSize: null, aiRead: false }));
   const res = await s.addFuel(firmId, rows);
   await s.saveMapping(firmId, headerSig(a.parsed.headers), a.parsed.mapping).catch(() => {});
   await s.addImport(firmId, { id: imp.id, source: a.parsed.source, filename: filename.slice(0, 120), rows: a.parsed.total, added: res.added, dupes: res.dupes, skipped: a.parsed.total - a.parsed.rows.length });

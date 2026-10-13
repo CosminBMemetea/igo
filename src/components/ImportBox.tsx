@@ -160,8 +160,12 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
               </div>
             </div>
           ) : null}
-          {sum.eurRows ? <p className="msg warn" style={{ marginTop: 16 }}>{fmt(l.eur, { n: sum.eurRows, rate: "5,08" })}</p> : null}
-          {sum.otherCur?.length ? <p className="msg warn" style={{ marginTop: 8 }}>{fmt(l.otherCur, { cur: sum.otherCur.join(", ") })}</p> : null}
+          {sum.fx?.map((x) => (
+            <p key={x.cur} className={`msg ${x.missing ? "warn" : ""}`} style={{ marginTop: 10 }}>
+              {x.n > x.missing && x.rate ? fmt(l.eur, { fills: `${x.n - x.missing} ${pluralForm(l.loc, x.n - x.missing, l.fillUnit)}`, cur: x.cur, rate: x.rate.toLocaleString(l.loc, { maximumFractionDigits: 4 }), date: x.fxDate!.split("-").reverse().join(".") }) : null}
+              {x.missing ? <>{x.n > x.missing ? <br /> : null}{fmt(l.otherCur, { cur: x.cur })}</> : null}
+            </p>
+          ))}
           <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length} onClick={go}>{busy ? l.reading : fmt(l.go, { fills: `${sum.newRows} ${pluralForm(l.loc, sum.newRows, l.fillUnit)}` })}</button>
         </div>
       ) : null}
