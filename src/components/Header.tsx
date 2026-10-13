@@ -3,6 +3,8 @@ import { DenyToast } from "./DenyToast";
 import { t } from "@/lib/i18n";
 import type { Prefs } from "@/lib/prefs";
 import { PLANS } from "@/lib/features";
+import { LT } from "@/lib/lead-i18n";
+import { BtnSize } from "./BtnSize";
 import { Icon } from "./icons";
 import { NavIcons } from "./NavIcons";
 import { TourButton } from "./DemoTour";
@@ -42,6 +44,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
           <Suspense fallback={null}><MenuCloser /></Suspense>
           <summary className="ico" aria-label={t(loc, "acct.menu")}>{badge}<span className={`mdot r-${look ?? "owner"}`}>{firm.unread ? <b /> : null}</span><svg className="mburg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16" /></svg></summary>
           <div className="menu">
+            <BtnSize label={t(loc, "pref.bsize")} opts={[t(loc, "pref.bsize.n"), t(loc, "pref.bsize.l"), t(loc, "pref.bsize.xl")]} />
             <div className="monly">
               <div className="mhead">{badge}</div>
               {plan === "trial" && !adminView && !firm.demo ? <Link href="/plans" className="mrow"><span>{t(loc, "trial.banner", { n: trialLeft })}</span><b>{t(loc, "trial.choose")}</b></Link> : null}
@@ -60,6 +63,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
             ) : null}
             {role === "owner" || role === "admin" ? <Link className="btn sec sm" href={role === "admin" ? "/admin" : "/setup"}>{role === "admin" ? t(loc, "adm.title") : t(loc, "set.title")}</Link> : null}
             {role === "owner" || (role === "admin" && !firm.demo) ? <Link className="btn sec sm" href="/import">{t(loc, "imp.title")}</Link> : null}
+            {role === "owner" || role === "user" ? <Link className="btn sec sm" href="/recomanda">🎁 {LT[loc].refNav}</Link> : null}
             {role !== "admin" ? <Link className="btn sec sm" href="/support">{t(loc, "sup.title")}</Link> : null}
             {role === "admin" ? (
               <>

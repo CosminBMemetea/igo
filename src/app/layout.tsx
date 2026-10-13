@@ -1,3 +1,4 @@
+import { BSIZE_BOOT } from "@/components/BtnSize";
 import { Footer } from "@/components/Footer";
 import { WheelX } from "@/components/WheelX";
 import type { Metadata, Viewport } from "next";
@@ -30,8 +31,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const h = headers();
   const ctx = { ...firm, who: me?.name ?? null, plate, path: h.get("x-igo-path") ?? "/", denied: h.get("x-igo-denied") };
   return (
-    <html lang={prefs.loc} data-theme={prefs.theme} data-role={lookOf(prefs.role) ?? undefined} className={inter.variable}>
-      <head><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /></head>
+    <html suppressHydrationWarning lang={prefs.loc} data-theme={prefs.theme} data-role={lookOf(prefs.role) ?? undefined} className={inter.variable}>
+      <head><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /><script dangerouslySetInnerHTML={{ __html: BSIZE_BOOT }} /></head>
       <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView && !ctx.demo ? "has-trial" : undefined}>
         <Header prefs={prefs} firm={ctx} />
         <WheelX />

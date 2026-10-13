@@ -6,13 +6,15 @@ export type DocType = VehicleDocType | DriverDocType;
 export const VEHICLE_DOC_TYPES: VehicleDocType[] = ["itp", "rca", "casco", "vignette", "tacho", "copy", "service"];
 export const DRIVER_DOC_TYPES: DriverDocType[] = ["licence", "cpc", "tachoCard", "medical"];
 export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
-export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; createdAt: string }
+export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; referredBy: string | null; createdAt: string }
 export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; truckId?: string | null; locale?: string | null }
 export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
 export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 export type NewDoc = Omit<DocRow, "id" | "firmId">;
 export interface TripRow { id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean }
+export interface LeadRow { id: string; firm: string; person: string; phone: string; email: string; trucks: number | null; fuelCard: string | null; gps: boolean | null; gpsProvider: string | null; locale: string | null; source: string | null; referralCode: string | null; utm: string | null; ipHash: string | null; consentAt: string; status: string; createdAt: string }
+export type NewLead = Omit<LeadRow, "id" | "status" | "createdAt">;
 export interface SupportRow { id: string; firmId: string | null; email: string | null; name: string; phone: string; slot: string | null; message: string; status: string; createdAt: string }
 
 export interface FuelTxRow { id: string; firmId: string; truckId: string | null; source: string; importId: string | null; hash: string; card: string | null; plate: string | null; at: string; station: string; country: string | null; product: string | null; litres: number; amount: number | null; currency: string | null; amountRon: number | null; fxRate: number | null; fxDate: string | null; odometer: number | null; lat: number | null; lng: number | null; userId: string | null; photoName: string | null; photoSize: number | null; aiRead: boolean }
@@ -34,7 +36,7 @@ export interface TripEventRow { id: string; firmId: string; tripId: string; kind
 
 export interface Store {
   readonly persistent: boolean;
-  createFirm(f: Pick<FirmRow, "name" | "cui">): Promise<FirmRow>;
+  createFirm(f: Pick<FirmRow, "name" | "cui"> & { referredBy?: string | null }): Promise<FirmRow>;
   firm(id: string): Promise<FirmRow | null>;
   firms(): Promise<(FirmRow & { trucks: number; users: number })[]>;
   updateFirm(id: string, p: Partial<Pick<FirmRow, "name" | "cui" | "currency" | "demoMode" | "detailsDone" | "csvSkipped">>): Promise<void>;
@@ -75,6 +77,10 @@ export interface Store {
   trips(firmId: string): Promise<TripRow[]>;
   addSupport(s: Omit<SupportRow, "id" | "status" | "createdAt">): Promise<SupportRow>;
   support(): Promise<SupportRow[]>;
+  addLead(l: NewLead): Promise<LeadRow>;
+  leads(): Promise<LeadRow[]>;
+  /** câte cereri de la același IP (hash) după momentul dat — pentru limitare */
+  leadsFromIp(ipHash: string, sinceIso: string): Promise<number>;
   // carburant
   fuelCards(firmId: string): Promise<CardRow[]>;
   /** Reține cardul → camion și atribuie tranzacțiile acelui card. Camionul trebuie să fie al firmei. Întoarce câte tranzacții s-au mutat. */

@@ -5,13 +5,16 @@ import { dbConfigured, store } from "@/lib/store";
 import { ADMIN_FIRM_COOKIE } from "@/lib/tenant";
 import { emailProvider } from "@/lib/email";
 import { blobConfigured } from "@/lib/files";
+import { LT, lfill } from "@/lib/lead-i18n";
+import { firmByRef, refCode } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 /** Admin (ADMIN_EMAIL): toate firmele + cererile „Asistență Querra”. Middleware blochează ruta pentru alte roluri. */
 export default async function Admin({ searchParams }: { searchParams: { rem?: string; te?: string; id?: string; msg?: string } }) {
   const { loc } = getPrefs();
   const s = store();
-  const [firms, reqs, mails] = await Promise.all([s.firms(), s.support(), s.emails(50)]);
+  const [firms, reqs, mails, leads] = await Promise.all([s.firms(), s.support(), s.emails(50), s.leads()]);
+  const LL = LT[loc], referred = firms.filter((f) => f.referredBy);
   const mailOn = !!emailProvider();
   const rem = searchParams.rem?.split("-").map(Number);
   const cur = cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo";
@@ -30,11 +33,34 @@ export default async function Admin({ searchParams }: { searchParams: { rem?: st
           </div>
           {firms.map((f) => (
             <div key={f.id} className={`it${cur === f.id ? " on" : ""}`}>
-              <div style={{ minWidth: 0 }}><div className="t">{f.name}{f.cui ? ` · ${f.cui}` : ""}</div><div className="m">{t(loc, "adm.firmMeta", { trucks: f.trucks, users: f.users })} · {fmtDate(loc, f.createdAt.slice(0, 10), true)}{f.demoMode ? ` · ${t(loc, "firm.demoOn")}` : ""}</div></div>
+              <div style={{ minWidth: 0 }}><div className="t">{f.name}{f.cui ? ` · ${f.cui}` : ""} <span className="badge" title="ref">{refCode(f.id)}</span></div><div className="m">{t(loc, "adm.firmMeta", { trucks: f.trucks, users: f.users })} · {fmtDate(loc, f.createdAt.slice(0, 10), true)}{f.demoMode ? ` · ${t(loc, "firm.demoOn")}` : ""}</div></div>
               <form action="/api/admin/firm" method="post"><input type="hidden" name="id" value={f.id} /><button className="btn sec sm">{cur === f.id ? "✓" : t(loc, "rl.viewAs")}</button></form>
             </div>
           ))}
           {!firms.length ? <div className="empty"><p>{t(loc, "adm.noFirms")}</p></div> : null}
+        </div>
+      </section>
+      <section className="section" id="leads">
+        <div className="eyebrow">{lfill(LL.admLeads, { n: leads.length })}</div>
+        <div className="list" style={{ marginTop: 16 }}>
+          {leads.map((l) => (
+            <div key={l.id} className="it" style={{ cursor: "default" }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="t">{l.firm} · {l.trucks ?? "—"} 🚚 · {l.person}</div>
+                <div className="m"><a className="lnk" href={`tel:${l.phone}`}>{l.phone}</a> · <a className="lnk" href={`mailto:${l.email}`}>{l.email}</a> · {LL.card}: {l.fuelCard === "other" ? LL.cardOther : l.fuelCard === "none" ? LL.cardNone : l.fuelCard ?? "—"} · GPS: {l.gps == null ? "—" : l.gps ? LL.yes : LL.no}{l.gpsProvider ? ` (${l.gpsProvider})` : ""}</div>
+                <div className="m">{fmtDate(loc, l.createdAt.slice(0, 10), true)} · {l.source ?? "—"}{l.referralCode ? ` · ref ${l.referralCode}${firmByRef(firms, l.referralCode) ? ` (${firmByRef(firms, l.referralCode)!.name})` : ""}` : ""}{l.utm ? ` · ${l.utm}` : ""} · {l.locale}</div>
+              </div>
+              <span className="badge acc">{t(loc, "adm.new")}</span>
+            </div>
+          ))}
+          {!leads.length ? <div className="empty"><p>{LL.admNoLeads}</p></div> : null}
+        </div>
+      </section>
+      <section className="section" id="referrals">
+        <div className="eyebrow">{lfill(LL.admRefs, { n: referred.length })}</div>
+        <div className="list" style={{ marginTop: 16 }}>
+          {referred.map((f) => <div key={f.id} className="it" style={{ cursor: "default" }}><div><div className="t">{f.name}</div><div className="m">{lfill(LL.admRefBy, { by: firmByRef(firms, f.referredBy)?.name ?? f.referredBy ?? "—" })} · {fmtDate(loc, f.createdAt.slice(0, 10), true)}</div></div></div>)}
+          {!referred.length ? <div className="empty"><p>{LL.admNoRefs}</p></div> : null}
         </div>
       </section>
       <section className="section" id="support">

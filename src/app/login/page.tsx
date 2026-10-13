@@ -4,6 +4,7 @@ import { DEMO_SID } from "@/lib/demo-shift";
 import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
+import { LT } from "@/lib/lead-i18n";
 import { ROLE_LOOK, RoleIcon, type RoleLook } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,7 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
             </form>
           ) : null}
 
+          <Link href="/incearca" className="btn sec ltry fade d1" style={{ width: "100%", marginTop: 10 }}>🎁 {LT[loc].loginLink}</Link>
           <div className="or">{t(loc, "login.or")}</div>
           <div className="rtabs fade d2">{tab("owner")}{tab("driver")}</div>
         </>

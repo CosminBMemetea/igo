@@ -10,6 +10,8 @@ export const firms = pgTable("firms", {
   demoMode: boolean("demo_mode").notNull().default(false),
   detailsDone: boolean("details_done").notNull().default(false),
   csvSkipped: boolean("csv_skipped").notNull().default(false),
+  /** codul de recomandare al firmei care a adus-o (?ref=) */
+  referredBy: text("referred_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -242,3 +244,24 @@ export const fxRates = pgTable("fx_rates", {
   cur: text("cur").notNull(),
   perEur: doublePrecision("per_eur").notNull(),
 }, (t) => [uniqueIndex("fx_rates_date_cur_uq").on(t.date, t.cur)]);
+
+/** Cereri „Încearcă gratuit” de pe /incearca (lead-uri). Fără marketing: doar contact pentru probă. */
+export const leads = pgTable("leads", {
+  id: text("id").primaryKey(),
+  firm: text("firm").notNull(),
+  person: text("person").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email").notNull(),
+  trucks: integer("trucks"),
+  fuelCard: text("fuel_card"),
+  gps: boolean("gps"),
+  gpsProvider: text("gps_provider"),
+  locale: text("locale"),
+  source: text("source"),
+  referralCode: text("referral_code"),
+  utm: text("utm"),
+  ipHash: text("ip_hash"),
+  consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("new"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("leads_created_ix").on(t.createdAt), index("leads_ip_ix").on(t.ipHash)]);

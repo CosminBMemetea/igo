@@ -22,7 +22,7 @@ export function getPrefs(): Prefs {
   const p = c.get("igo-plan")?.value;
   const previewPlan: PlanState = isPlanState(p) ? p : "trial";
   const view: View = c.get("igo-view")?.value === "user" ? "user" : "admin";
-  // firma demo: probă de 14 zile, apoi Start
+  // firma demo: probă de 30 de zile, apoi Start
   const firmPlan: PlanState = trialLeft > 0 ? "trial" : "start";
   const e = effectivePlan(role ? { role, email: email ?? "", firm: h.get("x-igo-firm") ?? "demo", exp: 0 } : null, view, previewPlan, firmPlan);
   return { loc, theme, plan: e.plan, trialLeft, role, email, view, adminView: e.adminView, previewPlan };

@@ -1,10 +1,11 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
-import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
+const leadOut = (r: typeof leads.$inferSelect): LeadRow => ({ ...r, consentAt: iso(r.consentAt)!, createdAt: iso(r.createdAt)! });
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
 const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId, locale: u.locale });
 const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt), locale: i.locale });
@@ -20,7 +21,7 @@ const txOut = ({ createdAt: _c, ...x }: typeof fuelTransactions.$inferSelect): F
 export class PgStore implements Store {
   readonly persistent = true;
   constructor(private d: Db) {}
-  async createFirm(f: Pick<FirmRow, "name" | "cui">) { const [r] = await this.d.insert(firms).values({ id: newId("f"), name: f.name, cui: f.cui, trialStart: today() }).returning(); return firmOut(r); }
+  async createFirm(f: Pick<FirmRow, "name" | "cui"> & { referredBy?: string | null }) { const [r] = await this.d.insert(firms).values({ id: newId("f"), name: f.name, cui: f.cui, trialStart: today(), referredBy: f.referredBy ?? null }).returning(); return firmOut(r); }
   async firm(id: string) { const [r] = await this.d.select().from(firms).where(eq(firms.id, id)); return r ? firmOut(r) : null; }
   async firms() {
     const all = await this.d.select().from(firms).orderBy(desc(firms.createdAt));
@@ -158,5 +159,8 @@ export class PgStore implements Store {
   async saveMapping(firmId: string, sig: string, m: Record<string, number>) { const v = { mapping: JSON.stringify(m), updatedAt: new Date() }; await this.d.insert(importMappings).values({ firmId, sig, ...v }).onConflictDoUpdate({ target: [importMappings.firmId, importMappings.sig], set: v }); }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
   async positions(firmId: string, sinceAt = "") { return this.d.select({ truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng }).from(positions).where(and(eq(positions.firmId, firmId), gte(positions.at, sinceAt))).orderBy(positions.at).limit(20000); }
+  async addLead(l: NewLead) { const [r] = await this.d.insert(leads).values({ ...l, id: newId("l"), consentAt: new Date(l.consentAt) }).returning(); return leadOut(r); }
+  async leads() { return (await this.d.select().from(leads).orderBy(desc(leads.createdAt)).limit(300)).map(leadOut); }
+  async leadsFromIp(ipHash: string, sinceIso: string) { const [r] = await this.d.select({ n: count() }).from(leads).where(and(eq(leads.ipHash, ipHash), gte(leads.createdAt, new Date(sinceIso)))); return r?.n ?? 0; }
   async support() { return (await this.d.select().from(supportRequests).orderBy(desc(supportRequests.createdAt)).limit(200)).map((r) => ({ ...r, createdAt: iso(r.createdAt)! })); }
 }

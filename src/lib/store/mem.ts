@@ -1,10 +1,10 @@
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
-import { newId, today, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 export class MemStore implements Store {
   readonly persistent = false;
   private F: FirmRow[] = []; private U: UserRow[] = []; private I: InviteRow[] = []; private T: TruckRow[] = [];
-  private D: DocRow[] = []; private R: TripRow[] = []; private S: SupportRow[] = [];
-  async createFirm(f: Pick<FirmRow, "name" | "cui">) { const r: FirmRow = { id: newId("f"), name: f.name, cui: f.cui, currency: "RON", trialStart: today(), demoMode: false, detailsDone: false, csvSkipped: false, createdAt: new Date().toISOString() }; this.F.push(r); return { ...r }; }
+  private D: DocRow[] = []; private R: TripRow[] = []; private S: SupportRow[] = []; private LD: LeadRow[] = [];
+  async createFirm(f: Pick<FirmRow, "name" | "cui"> & { referredBy?: string | null }) { const r: FirmRow = { id: newId("f"), name: f.name, cui: f.cui, currency: "RON", trialStart: today(), demoMode: false, detailsDone: false, csvSkipped: false, referredBy: f.referredBy ?? null, createdAt: new Date().toISOString() }; this.F.push(r); return { ...r }; }
   async firm(id: string) { const f = this.F.find((x) => x.id === id); return f ? { ...f } : null; }
   async firms() { return this.F.map((f) => ({ ...f, trucks: this.T.filter((t) => t.firmId === f.id).length, users: this.U.filter((u) => u.firmId === f.id).length })); }
   async updateFirm(id: string, p: Partial<FirmRow>) { const f = this.F.find((x) => x.id === id); if (f) Object.assign(f, p); }
@@ -57,6 +57,9 @@ export class MemStore implements Store {
   async trips(firmId: string) { return this.R.filter((x) => x.firmId === firmId).sort((a, b) => b.date.localeCompare(a.date)); }
   async addSupport(s: Omit<SupportRow, "id" | "status" | "createdAt">) { const r: SupportRow = { ...s, id: newId("s"), status: "new", createdAt: new Date().toISOString() }; this.S.push(r); return { ...r }; }
   async support() { return [...this.S].reverse(); }
+  async addLead(l: NewLead) { const r: LeadRow = { ...l, id: newId("l"), status: "new", createdAt: new Date().toISOString() }; this.LD.push(r); return { ...r }; }
+  async leads() { return [...this.LD].reverse(); }
+  async leadsFromIp(ipHash: string, sinceIso: string) { return this.LD.filter((x) => x.ipHash === ipHash && x.createdAt >= sinceIso).length; }
   private C: (CardRow & { firmId: string })[] = []; private X: FuelTxRow[] = []; private M: ImportRow[] = []; private H = new Map<string, ShiftRow>(); private P: (PosRow & { firmId: string })[] = [];
   private own = (firmId: string, truckId: string | null) => truckId == null || this.T.some((x) => x.id === truckId && x.firmId === firmId);
   async fuelCards(firmId: string) { return this.C.filter((c) => c.firmId === firmId).map(({ card, truckId }) => ({ card, truckId })); }

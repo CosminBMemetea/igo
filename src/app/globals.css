@@ -1004,3 +1004,37 @@ html{scroll-padding-top:120px}
 .fres{margin:6px 0 18px}.fres>summary{cursor:pointer;list-style:none;padding:10px 4px;font-weight:600;color:var(--fg2);font-size:14px}.fres>summary::-webkit-details-marker{display:none}
 .fres>summary::before{content:"✓ ";color:var(--pos,#22c55e)}.fres[open]>summary{color:var(--fg)}
 .alert.is-res{opacity:.8}.alert .rsv{max-width:520px}
+/* /incearca + /recomanda */
+.lead .lgrid{gap:12px}.lead .lgrid .lf{margin-bottom:16px}
+.lead select,.lead .lf select{width:100%;background:var(--bg3);border:0;border-radius:14px;padding:14px 16px;color:var(--fg);font:400 16px var(--font-inter),Inter,system-ui}
+.lead fieldset{border:0;padding:0;margin:0 0 16px}
+.lconsent{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:var(--fg2);margin:6px 0 4px}.lconsent input{margin-top:3px;width:18px;height:18px;flex:none;accent-color:var(--acc)}
+.lcheck{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--pos);color:#fff;font-size:30px;margin-bottom:18px}
+.refbox{display:flex;flex-direction:column}.refrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}.refrow code{flex:1;min-width:0;overflow-wrap:anywhere;background:var(--bg3);padding:12px 14px;border-radius:12px;font-size:14px}
+@media (max-width:760px){.lead .lgrid{grid-template-columns:1fr;gap:0}}
+/* bara de jos: butoane mai mari (icon 26px + etichetă, ținte ≥56px, derulabilă) + „Mărime butoane” (data-bsize) */
+.nav .ico small{display:none}
+@media (max-width:760px){
+  .nav{justify-content:flex-start!important;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;gap:0!important;padding:6px 6px calc(8px + env(safe-area-inset-bottom))!important;scroll-snap-type:x proximity}
+  .nav::-webkit-scrollbar{display:none}
+  .nav .ico{flex:1 0 64px!important;max-width:none!important;min-width:64px!important;min-height:58px!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px 4px;border-radius:16px;scroll-snap-align:start}
+  .nav .ico svg{width:26px;height:26px}
+  .nav .ico small{display:block;font-size:10.5px;line-height:1.1;font-weight:500;letter-spacing:.01em;white-space:nowrap;color:var(--fg2)}
+  .nav .ico.on small{color:var(--fg)}
+  main{padding-bottom:calc(120px + env(safe-area-inset-bottom))}
+  html[data-bsize="l"] .nav .ico{min-width:76px!important;flex-basis:76px!important;min-height:68px!important}
+  html[data-bsize="l"] .nav .ico svg{width:30px;height:30px}
+  html[data-bsize="l"] .nav .ico small{font-size:12px}
+  html[data-bsize="xl"] .nav .ico{min-width:90px!important;flex-basis:90px!important;min-height:80px!important}
+  html[data-bsize="xl"] .nav .ico svg{width:34px;height:34px}
+  html[data-bsize="xl"] .nav .ico small{font-size:13.5px}
+  html[data-bsize="l"] main{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
+  html[data-bsize="xl"] main{padding-bottom:calc(146px + env(safe-area-inset-bottom))}
+}
+/* butoanele mari ale șoferului */
+html[data-bsize="l"] .phone .start{height:88px;font-size:20px}
+html[data-bsize="xl"] .phone .start{height:104px;font-size:23px;border-radius:28px}
+html[data-bsize="l"] .phone .btn{font-size:17px}
+html[data-bsize="xl"] .phone .btn{font-size:19px}
+.bsize{padding:4px 0 12px;margin-bottom:10px;border-bottom:1px solid color-mix(in srgb,var(--fg) 8%,transparent)}.bsize .eyebrow{margin-bottom:8px}
+.bsize .seg{display:flex;width:100%}.bsize .seg button{flex:1;border:0;background:none;color:var(--fg2);padding:9px 6px;border-radius:999px;font:500 13px var(--font-inter),Inter,system-ui;cursor:pointer}.bsize .seg button.on{background:var(--fg);color:var(--bg)}

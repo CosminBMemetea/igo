@@ -7,7 +7,7 @@ export type FeatureId = "profit" | "savings" | "live" | "fuelAlerts" | "receipts
 export interface Plan { name: string; who: string; top: string[]; recommended?: boolean }
 export interface Feature { id: FeatureId; rank: number; plan: PlanId; cat: keyof typeof CATS; name: string; desc: string; planned?: boolean }
 export const PLAN_ORDER: PlanId[] = ["start", "pro", "business"];
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 30;
 export const PLANS: Record<PlanId, Plan> = {
   start: {
     name: "Start", 

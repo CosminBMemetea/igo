@@ -48,7 +48,7 @@ export const TERMS: Record<Locale, LegalDoc> = {
     intro: `Acești termeni se aplică folosirii Querra Fleet.`,
     sections: [
       ["Serviciul", "Querra Fleet este o aplicație online pentru firme de transport: profit pe cursă, consum de motorină, alerte la alimentări, documente cu expirare și aplicația șoferului. Funcțiile marcate „În curând” nu fac încă parte din serviciu."],
-      ["Contul și proba", "Contul se creează pentru o firmă, de către proprietar. Proba gratuită de 14 zile nu cere card. Datele demo sunt fictive."],
+      ["Contul și proba", "Contul se creează pentru o firmă, de către proprietar. Proba gratuită de 30 de zile nu cere card. Datele demo sunt fictive."],
       ["Licență și plată", "După probă, serviciul se folosește pe baza unei licențe anuale per firmă, la prețul din oferta agreată cu firma, fără TVA. Hardware-ul (GPS, sondă) se cumpără separat, prin parteneri."],
       ["Datele tale", "Datele firmei îți aparțin. Le poți exporta sau cere ștergerea lor. Prelucrarea datelor personale este descrisă în pagina Confidențialitate."],
       ["Limitarea răspunderii", "Alertele și estimările sunt instrumente de ajutor, nu dovezi. Deciziile față de șoferi, clienți sau autorități rămân ale firmei. Nu răspundem pentru pierderi indirecte."],
@@ -61,7 +61,7 @@ export const TERMS: Record<Locale, LegalDoc> = {
     intro: `These terms apply to the use of Querra Fleet.`,
     sections: [
       ["The service", "Querra Fleet is an online app for transport companies: profit per trip, fuel consumption, fuel-fill alerts, expiring documents and the driver app. Features marked “Coming soon” are not yet part of the service."],
-      ["Account and trial", "An account is created for a company by its owner. The 14-day free trial needs no card. Demo data is fictitious."],
+      ["Account and trial", "An account is created for a company by its owner. The 30-day free trial needs no card. Demo data is fictitious."],
       ["Licence and payment", "After the trial, the service is used under an annual licence per company, at the price in the offer agreed with the company, excluding VAT. Hardware (GPS, fuel probe) is bought separately through partners."],
       ["Your data", "The company's data belongs to you. You can export it or ask for it to be deleted. Processing of personal data is described on the Privacy page."],
       ["Limitation of liability", "Alerts and estimates are decision aids, not proof. Decisions about drivers, clients or authorities remain the company's. We are not liable for indirect losses."],
@@ -74,7 +74,7 @@ export const TERMS: Record<Locale, LegalDoc> = {
     intro: `Niniejszy regulamin dotyczy korzystania z Querra Fleet.`,
     sections: [
       ["Usługa", "Querra Fleet to aplikacja online dla firm transportowych: zysk na kurs, zużycie paliwa, alerty tankowań, dokumenty z terminem ważności i aplikacja kierowcy. Funkcje oznaczone „Wkrótce” nie są jeszcze częścią usługi."],
-      ["Konto i okres próbny", "Konto zakłada właściciel dla firmy. 14-dniowy bezpłatny okres próbny nie wymaga karty. Dane demo są fikcyjne."],
+      ["Konto i okres próbny", "Konto zakłada właściciel dla firmy. 30-dniowy bezpłatny okres próbny nie wymaga karty. Dane demo są fikcyjne."],
       ["Licencja i płatność", "Po okresie próbnym usługa działa na podstawie rocznej licencji na firmę, według ceny z uzgodnionej oferty, bez VAT. Sprzęt (GPS, sonda) kupuje się osobno, przez partnerów."],
       ["Twoje dane", "Dane firmy należą do Ciebie. Możesz je wyeksportować lub zażądać ich usunięcia. Przetwarzanie danych osobowych opisuje strona Prywatność."],
       ["Ograniczenie odpowiedzialności", "Alerty i szacunki są narzędziami pomocniczymi, nie dowodami. Decyzje wobec kierowców, klientów lub urzędów należą do firmy. Nie odpowiadamy za straty pośrednie."],

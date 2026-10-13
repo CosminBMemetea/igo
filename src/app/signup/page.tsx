@@ -3,10 +3,11 @@ import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { dbConfigured } from "@/lib/store";
 import { Logo } from "@/components/Logo";
+import { normRef } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { firm: "su.e.firm", email: "su.e.email", password: "su.e.password", cui: "su.e.cui", exists: "su.e.exists", nosecret: "acct.nosecret", form: "su.e.firm" };
-export default function Signup({ searchParams }: { searchParams: { e?: string } }) {
+export default function Signup({ searchParams }: { searchParams: { e?: string; ref?: string } }) {
   const { loc } = getPrefs();
   const err = searchParams.e && ERR[searchParams.e];
   return (
@@ -17,6 +18,7 @@ export default function Signup({ searchParams }: { searchParams: { e?: string } 
       {!dbConfigured() ? <p className="msg warn">{t(loc, "su.noDb")}</p> : null}
       {err ? <p className="msg err">{t(loc, err)}</p> : null}
       <form className="sheet fade d1" action="/api/auth/signup" method="post">
+        {normRef(searchParams.ref) ? <input type="hidden" name="ref" value={normRef(searchParams.ref)!} /> : null}
         <label className="lf"><span>{t(loc, "su.firm")}</span><input name="firm" required minLength={2} maxLength={120} autoComplete="organization" /></label>
         <label className="lf"><span>{t(loc, "su.cui")}</span><input name="cui" maxLength={20} placeholder="RO12345678" /></label>
         <label className="lf"><span>{t(loc, "acct.email")}</span><input name="email" type="email" required autoComplete="email" /></label>

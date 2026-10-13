@@ -11,7 +11,7 @@ export function NavIcons({ labels, demo }: { labels: Record<string, string>; dem
   const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && path.startsWith("/vehicles")) || (h === "/features" && path.startsWith("/plans")) || (h === "/import" && path.startsWith("/import")));
   return (
     <nav className="nav">
-      {(demo ? DEMO : ITEMS).map(([k, h, m]) => <Link key={k} href={h} className={`ico${on(h) ? " on" : ""}${m ? " mhide" : ""}`} title={labels[k === "upload" ? "import" : k]} aria-label={labels[k === "upload" ? "import" : k]}><Icon name={k} /></Link>)}
+      {(demo ? DEMO : ITEMS).map(([k, h, m]) => <Link key={k} href={h} className={`ico${on(h) ? " on" : ""}${m ? " mhide" : ""}`} title={labels[k === "upload" ? "import" : k]} aria-label={labels[k === "upload" ? "import" : k]}><Icon name={k} /><small>{labels[k === "upload" ? "import" : k]}</small></Link>)}
     </nav>
   );
 }
