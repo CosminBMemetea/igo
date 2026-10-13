@@ -124,7 +124,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
       map.fitBounds(L.latLngBounds(all).pad(0.12), { paddingTopLeft: mobile ? [16, 90] : [24, 90], paddingBottomRight: mobile ? [16, 330] : [420, 120], maxZoom: 14 });
       // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
       requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
-      if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
+      if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => { if (dead || !(map as unknown as { _mapPane?: unknown })._mapPane) { ro.disconnect(); return; } try { map.invalidateSize(); } catch {} }); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       m.current = { L, map, truck, trail, halo, ghost };
       await tilesReady; if (dead) return;
       setReady(true);
@@ -139,7 +139,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
         }, 900);
       }
     })();
-    return () => { dead = true; m.current?.map.remove(); m.current = null; };
+    return () => { dead = true; if (m.current) { try { const mp = m.current.map; mp.stop(); mp.off(); (mp as unknown as { _panAnim?: { stop(): void } })._panAnim?.stop(); mp.options.zoomAnimation = false; mp.remove(); } catch { /* demontare rapidă: animații Leaflet deja oprite */ } } m.current = null; };
   }, [d, theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // vizibilitatea punctelor (fără porțiunile private) — calculată o dată

@@ -59,11 +59,11 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       map.setView([46.9, 21.9], 7);
       // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
       requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
-      if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => map.invalidateSize()); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
+      if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => { if (dead || !(map as unknown as { _mapPane?: unknown })._mapPane) { ro.disconnect(); return; } try { map.invalidateSize(); } catch {} }); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       mapRef.current = { L, map, cluster };
       setReady(true);
     })();
-    return () => { dead = true; mapRef.current?.map.remove(); mapRef.current = null; };
+    return () => { dead = true; if (mapRef.current) { try { const mp = mapRef.current.map; mp.stop(); mp.off(); (mp as unknown as { _panAnim?: { stop(): void } })._panAnim?.stop(); mp.options.zoomAnimation = false; mp.remove(); } catch { /* demontare rapidă: animații Leaflet deja oprite */ } } mapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
