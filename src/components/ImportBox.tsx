@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { pluralForm } from "@/lib/i18n/plural";
 import type { Summary } from "@/lib/fuel/import";
@@ -19,6 +19,9 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
   const [assign, setAssign] = useState<Record<string, string>>({});
   const [showMap, setShowMap] = useState(false);
   const [busy, setBusy] = useState(false);
+  // reîmprospătare / închidere în timpul importului sau cu un fișier necomis: browserul cere confirmare
+  const pending = busy || !!sum;
+  useEffect(() => { if (!pending) return; const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; }; addEventListener("beforeunload", h); return () => removeEventListener("beforeunload", h); }, [pending]);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [drag, setDrag] = useState(false);
   const [enc, setEnc] = useState("UTF-8");
@@ -157,7 +160,9 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
               </div>
             </div>
           ) : null}
-          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length} onClick={go}>{busy ? l.reading : fmt(l.go, { n: sum.newRows })}</button>
+          {sum.eurRows ? <p className="msg warn" style={{ marginTop: 16 }}>{fmt(l.eur, { n: sum.eurRows, rate: "5,08" })}</p> : null}
+          {sum.otherCur?.length ? <p className="msg warn" style={{ marginTop: 8 }}>{fmt(l.otherCur, { cur: sum.otherCur.join(", ") })}</p> : null}
+          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length} onClick={go}>{busy ? l.reading : fmt(l.go, { fills: `${sum.newRows} ${pluralForm(l.loc, sum.newRows, l.fillUnit)}` })}</button>
         </div>
       ) : null}
     </div>

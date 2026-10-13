@@ -14,7 +14,7 @@ import { docStatus, STATUS_CLASS } from "@/lib/docs";
 import { todayFor } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
-const KEYS: MsgKey[] = ["drv.vehicle", "drv.kmToday", "drv.hoursToday", "drv.start", "drv.stop", "drv.onShift", "drv.offShift", "drv.check", "drv.checkNeeded", "chk.tyres", "chk.fluids", "chk.docs", "chk.damage", "drv.fill", "drv.photo", "drv.photoHint", "drv.reading", "drv.sample", "drv.readMeta", "drv.read", "drv.readManual", "drv.litres", "drv.odo", "drv.amount", "drv.station", "drv.send", "drv.sent", "drv.lastFill", "drv.consent", "drv.gpsOff", "drv.invalid", "priv.on", "priv.break", "priv.offShift", "priv.tracking", "priv.trackingHint", "priv.toggle", "priv.resume", "priv.geoOff"];
+const KEYS: MsgKey[] = ["drv.vehicle", "drv.kmToday", "drv.hoursToday", "drv.start", "drv.stop", "drv.onShift", "drv.offShift", "drv.check", "drv.checkNeeded", "chk.tyres", "chk.fluids", "chk.docs", "chk.damage", "drv.fill", "drv.photo", "drv.photoHint", "drv.reading", "drv.sample", "drv.tooBig", "drv.notImage", "drv.notReceipt", "drv.litresRange", "drv.odoRange", "drv.sending", "drv.dup", "drv.readMeta", "drv.read", "drv.readManual", "drv.litres", "drv.odo", "drv.amount", "drv.station", "drv.send", "drv.sent", "drv.lastFill", "drv.consent", "drv.gpsOff", "drv.invalid", "priv.on", "priv.break", "priv.offShift", "priv.tracking", "priv.trackingHint", "priv.toggle", "priv.resume", "priv.geoOff"];
 const PW: MsgKey[] = ["pw.today", "pw.loaded", "pw.unloaded", "pw.tap", "pw.wait", "pw.waitStop", "pw.waitHint", "pw.cmr", "pw.pod", "pw.photo", "pw.none", "pw.geo", "pw.geoOff", "pw.err", "pw.tooBig", "pw.uploaded", "pw.demo", "pw.ev.loaded", "pw.ev.unloaded", "pw.ev.wait_start", "pw.ev.wait_end"];
 export default async function Driver({ searchParams }: { searchParams: { v?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
@@ -33,7 +33,10 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const trips = (await r.trips()).filter((x) => x.vehicleId === v.id).sort((a, b) => Number(b.active) - Number(a.active) || b.date.localeCompare(a.date));
   const trip = trips.find((x) => x.date === today) ?? trips[0];
   const pw = trip ? await paperworkFor(tn, trip.id) : null;
-  const shift = (tn.demo ? demoShift(v.id) : null) ?? await r.shift(v.id);
+  const shift0 = (tn.demo ? demoShift(v.id) : null) ?? await r.shift(v.id);
+  // demo: o tură nu durează peste 12 h și nu începe în viitor (cookie de ieri / noaptea înainte de 05:30) → tură proaspătă, realistă (~2,5 h)
+  const age = shift0 && !shift0.end ? Date.now() - Date.parse(shift0.start) : 0;
+  const shift = tn.demo && shift0 && !shift0.end && (age < 0 || age > 12 * 3600e3 || Number.isNaN(age)) ? (() => { const st = new Date(Date.now() - 2.5 * 3600e3).toISOString(); return { ...shift0, start: st, privateSince: shift0.privateSince ? st : null }; })() : shift0;
   // demo: aceeași sursă ca harta live (liveFleet la minutul demo)
   const liveKm = tn.demo ? (liveFleet(vehicles, tripViews(await r.trips(), vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
   const nowMs = Date.now();

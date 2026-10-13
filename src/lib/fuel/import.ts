@@ -41,7 +41,7 @@ export async function analyze(s: Store, firmId: string, text: string, mapping?: 
     parsed: p, rows, learned,
     summary: {
       source: p.source, sourceName: SOURCE_NAME[p.source], headers: p.headers, mapping: p.mapping, confident: p.confident || (saved && !p.missing.length), missing: p.missing,
-      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, errors: p.errors, delimiter: p.delimiter, savedMapping: saved, newRows: p.rows.length - dupes, dupes,
+      total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, errors: p.errors, delimiter: p.delimiter, savedMapping: saved, newRows: p.rows.length - dupes, dupes, eurRows: p.rows.filter((x) => x.currency === "EUR").length, otherCur: [...new Set(p.rows.map((x) => x.currency).filter((c): c is string => !!c && c !== "RON" && c !== "LEI" && c !== "EUR"))],
       matched: rows.filter((x) => x.truckId).length, unknown: [...unknownMap.values()], from: ats[0] ?? null, to: ats[ats.length - 1] ?? null,
       trucks: trucks.map((t) => ({ id: t.id, plate: t.plate })),
     },

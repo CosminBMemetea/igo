@@ -776,3 +776,5 @@ html{scroll-padding-top:120px}
  html.tour-rp .tour.m.soft .tour-card{top:auto!important;bottom:calc(84px + env(safe-area-inset-bottom))!important}
 }
 @media (min-width:761px){html.tour-rp .rp-evlist{max-height:max(96px,calc(100vh - 590px));overflow:auto}}
+.ell{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.field .ell{max-width:65%}
+.rcrow>div{min-width:0}.rcrow .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

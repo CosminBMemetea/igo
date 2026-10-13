@@ -17,7 +17,10 @@ export async function POST(req: Request) {
   if (photo instanceof File && photo.size > MAX_PHOTO) return NextResponse.json({ error: "photo too large" }, { status: 413 });
   const amount = amountRaw ? Number(amountRaw) : null;
   // demo: nimic în memoria comună a serverului; doar „ultima alimentare” în cookie-ul vizitatorului
-  if (tn.demo) return saveDemoFill(NextResponse.json({ ok: true, demo: true, overTank: litres > v.tankL }), vehicleId, litres, String(fd.get("station") ?? ""));
-  const row = await r.addDriverFill({ vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, station: String(fd.get("station") ?? "").slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
+  if (tn.demo) return saveDemoFill(NextResponse.json({ ok: true, demo: true, overTank: litres > v.tankL }), vehicleId, litres, String(fd.get("station") ?? "").trim().slice(0, 80));
+  // idempotent: același bon (vehicul + litri + km la bord) trimis de două ori → aceeași alimentare, nu un duplicat
+  const dup = (await r.driverFills(vehicleId)).find((x) => x.litres === litres && x.odometerKm === odometerKm);
+  if (dup) return NextResponse.json({ ok: true, fill: dup, dup: true, overTank: litres > v.tankL });
+  const row = await r.addDriverFill({ vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, station: String(fd.get("station") ?? "").trim().slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
   return NextResponse.json({ ok: true, fill: row, overTank: litres > v.tankL });
 }

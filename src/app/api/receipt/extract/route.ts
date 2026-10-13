@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { groqChat, hasGroq } from "@/lib/groq";
 import { tenant } from "@/lib/tenant";
 import { realToday } from "@/lib/demo-time";
+import { sniffImage, MIME } from "@/lib/imgsniff";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
@@ -25,23 +26,28 @@ export async function POST(req: Request) {
   const demo = (await tenant()).demo;
   const fd = await req.formData().catch(() => null);
   const photo = fd?.get("photo");
-  if (!(photo instanceof File) || !photo.type.startsWith("image/")) return NextResponse.json({ error: "photo" }, { status: 400 });
+  if (!(photo instanceof File)) return NextResponse.json({ error: "photo" }, { status: 400 });
   if (photo.size > MAX) return NextResponse.json({ error: "too-large" }, { status: 413 });
+  // conținutul real, nu extensia: un .txt redenumit .jpg sau octeți aleatori nu ajung la AI și nu primesc exemplu
+  const buf = Buffer.from(await photo.arrayBuffer()), kind = sniffImage(new Uint8Array(buf.subarray(0, 16)));
+  if (!kind || kind === "heic") return NextResponse.json({ error: "not-image" }, { status: 415 });
   if (!hasGroq()) return demo ? sample("no-key") : NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
-  const b64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
+  const b64 = buf.toString("base64");
   let last = "groq"; const errs: string[] = [];
   for (const m of MODELS) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const j = await groqChat({
           model: m, temperature: 0, response_format: { type: "json_object" },
-          messages: [{ role: "user", content: [{ type: "text", text: PROMPT }, { type: "image_url", image_url: { url: `data:${photo.type};base64,${b64}` } }] }],
+          messages: [{ role: "user", content: [{ type: "text", text: PROMPT }, { type: "image_url", image_url: { url: `data:${MIME[kind]};base64,${b64}` } }] }],
         }, 15000);
         const txt = String((j.choices as { message?: { content?: string } }[] | undefined)?.[0]?.message?.content ?? "{}").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
         const raw = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1) || "{}") as Record<string, unknown>;
         const num = (x: unknown) => { const n = typeof x === "string" ? Number(x.replace(",", ".")) : x; return typeof n === "number" && n > 0 && n < 10_000_000 ? n : null; };
         const str = (x: unknown, n: number) => (typeof x === "string" && x.trim() ? x.replace(/\s+/g, " ").trim().slice(0, n) : null);
         const fields = { operator: str(raw.operator, 40), station: str(raw.station, 80), date: typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : null, plate: str(raw.plate, 16)?.toUpperCase() ?? null, litres: num(raw.litres), amount: num(raw.amount), odometerKm: num(raw.odometerKm) };
+        // nimic citit (poză goală, nu e bon): spunem asta, nu inventăm valori
+        if (fields.litres == null && fields.amount == null && fields.odometerKm == null) return NextResponse.json({ error: "not-receipt" }, { status: 422 });
         return NextResponse.json({ fields, model: m, sample: false }, { headers: { "cache-control": "no-store" } });
       } catch (e) {
         last = e instanceof Error ? e.message : "error"; errs.push(`${m}:${last}`);

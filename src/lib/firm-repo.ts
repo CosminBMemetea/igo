@@ -1,3 +1,4 @@
+import { EUR_RON } from "./fuel/fx";
 // Querra Fleet: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
 import type { FleetData } from "./fleet/rules";
 import type { Client, Doc, Trip, Vehicle } from "./fleet/seed";
@@ -23,8 +24,9 @@ export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   // litri estimați → înlocuiți cu alimentările reale ale camionului din ziua cursei (CSV card / bon șofer)
   if (r.litresSource === "estimate") {
     const day = tx.filter((x) => x.truckId === r.truckId && x.at.slice(0, 10) === r.date);
-    const L = day.reduce((s, x) => s + x.litres, 0), lei = day.reduce((s, x) => s + (x.amount ?? 0), 0);
-    if (L > 0) { litres = r1(L); if (lei > 0 && day.every((x) => x.amount != null)) fuelPrice = Math.round((lei / L) * 100) / 100; }
+    const L = day.reduce((s, x) => s + x.litres, 0), lei = day.reduce((s, x) => s + (x.amount ?? 0) * (x.currency === "EUR" ? EUR_RON : 1), 0);
+    // EUR (ex. DKV în străinătate) convertit la curs; altă monedă necunoscută → nu ghicim prețul
+    if (L > 0) { litres = r1(L); if (lei > 0 && day.every((x) => x.amount != null && (!x.currency || x.currency === "RON" || x.currency === "EUR"))) fuelPrice = Math.round((lei / L) * 100) / 100; }
   }
   return {
     id: r.id, vehicleId: r.truckId, clientId: slug(r.client), type: "transport", date: r.date, title: r.title, km: r.km, hours: 0, ha: 0, units: r.km,

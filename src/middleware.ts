@@ -14,7 +14,7 @@ export async function middleware(req: NextRequest) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
     const u = req.nextUrl.clone(); u.pathname = d.home; u.search = `?denied=${encodeURIComponent(path.slice(0, 60))}`; return NextResponse.redirect(u);
   }
-  if (d.kind === "login") { const u = req.nextUrl.clone(); u.pathname = "/login"; u.search = ""; return NextResponse.redirect(u); }
+  if (d.kind === "login") { const u = req.nextUrl.clone(); u.pathname = "/login"; const nx = path + req.nextUrl.search; u.search = path !== "/" && nx.length <= 200 ? `?next=${encodeURIComponent(nx)}` : ""; return NextResponse.redirect(u); }
   const set: [string, string][] = [];
   for (const [q, c, re] of [...PUBLIC_PARAMS, ...(canSwitchPlan(s) ? ADMIN_PARAMS : [])]) {
     const v = req.nextUrl.searchParams.get(q);

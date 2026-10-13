@@ -6,13 +6,16 @@ import { ROLE_LOOK, RoleIcon, type RoleLook } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { bad: "acct.bad", disabled: "acct.disabled", nosecret: "acct.nosecret" };
-export default function Login({ searchParams }: { searchParams: { e?: string; as?: string } }) {
+export default function Login({ searchParams }: { searchParams: { e?: string; as?: string; next?: string } }) {
   const { loc } = getPrefs();
   const secret = (process.env.SESSION_SECRET?.length ?? 0) >= 32;
   const err = searchParams.e && ERR[searchParams.e];
+  // ?next= se păstrează prin formulare; serverul îl validează (cale relativă, permisă rolului)
+  const next = typeof searchParams.next === "string" && /^\/(?![/\\])/.test(searchParams.next) ? searchParams.next.slice(0, 200) : "";
+  const nx = next ? <input type="hidden" name="next" value={next} /> : null;
   const as: RoleLook = searchParams.as === "driver" ? "driver" : searchParams.as === "admin" ? "admin" : "owner";
   const tab = (k: RoleLook) => (
-    <Link key={k} href={`/login?as=${k}`} className={`rtab r-${k}${as === k ? " on" : ""}`} aria-current={as === k ? "page" : undefined}>
+    <Link key={k} href={`/login?as=${k}${next ? `&next=${encodeURIComponent(next)}` : ""}`} className={`rtab r-${k}${as === k ? " on" : ""}`} aria-current={as === k ? "page" : undefined}>
       <RoleIcon k={k} /><b>{t(loc, ROLE_LOOK[k].label)}</b><span>{t(loc, `rl.${k}.hint` as MsgKey)}</span>
     </Link>
   );
@@ -24,11 +27,12 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
           <h1 className="h1 fade lhero">{t(loc, "login.hero")}</h1>
           <p className="sub fade d1 lsub">{t(loc, "login.heroSub")}</p>
           <form action="/api/auth/demo" method="post" className="fade d1 ldemo">
+            {nx}
             <button className="btn pri xl" style={{ width: "100%" }} disabled={!secret}>{t(loc, "login.demo")} →</button>
             <p className="hint" style={{ textAlign: "center", marginTop: 10 }}>{secret ? t(loc, "acct.demoHint") : t(loc, "acct.nosecret")}</p>
           </form>
           <form action="/api/auth/demo" method="post" className="fade d1" style={{ textAlign: "center", marginTop: 4 }}>
-            <input type="hidden" name="as" value="driver" />
+            <input type="hidden" name="as" value="driver" />{nx}
             <button className="btn sec sm" disabled={!secret}>{t(loc, "login.demoDriver")}</button>
           </form>
           <div className="or">{t(loc, "login.or")}</div>
@@ -38,6 +42,7 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
       {err ? <p className="msg err">{t(loc, err)}</p> : null}
       {secret ? (
         <form className={`sheet fade d1 rform r-${as}`} action="/api/auth/login" method="post">
+          {nx}
           {as === "driver" ? (
             <>
               <label className="lf big"><span>{t(loc, "rl.phone")}</span><input name="email" type="tel" inputMode="tel" autoComplete="tel" placeholder="07xx xxx xxx" required /></label>

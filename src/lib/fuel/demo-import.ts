@@ -1,5 +1,5 @@
-/** Curs orientativ EUR→RON pentru totalurile din demo (aprox. BNR 2026). */
-export const EUR_RON = 5.08;
+export { EUR_RON } from "./fx";
+import { EUR_RON } from "./fx";
 // Querra Fleet: importul CSV în modul demo — totul într-un MemStore nou, per cerere. Nimic nu ajunge în baza de date.
 import { MemStore } from "../store/mem";
 import { FirmRepository, truckBaseline } from "../firm-repo";
