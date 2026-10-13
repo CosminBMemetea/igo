@@ -771,8 +771,9 @@ html{scroll-padding-top:120px}
 /* mobil, turul pe reluare: player + HUD sus, cardul jos */
 @media (max-width:760px){
  html.tour-rp .rp-top,html.tour-rp .rp-toasts{display:none}
- html.tour-rp .rp-bar{top:calc(66px + env(safe-area-inset-top));bottom:auto}
- html.tour-rp .rp-hud{top:calc(66px + 108px + env(safe-area-inset-top))!important;bottom:auto!important}
+ html.tour-rp,html.tour-rp body{overflow:hidden;overscroll-behavior:none;height:100dvh}
+ html.tour-rp .rp-bar{top:auto!important;bottom:calc(var(--tour-ch,190px) + 84px + 12px + env(safe-area-inset-bottom))!important}
+ html.tour-rp .rp-hud{top:auto!important;bottom:calc(var(--tour-ch,190px) + 84px + 22px + var(--rp-bar-h,64px) + env(safe-area-inset-bottom))!important}
  html.tour-rp .tour.m.soft .tour-card{top:auto!important;bottom:calc(84px + env(safe-area-inset-bottom))!important}
 }
 @media (min-width:761px){html.tour-rp .rp-evlist{max-height:max(96px,calc(100vh - 590px));overflow:auto}}
@@ -1038,3 +1039,18 @@ html[data-bsize="l"] .phone .btn{font-size:17px}
 html[data-bsize="xl"] .phone .btn{font-size:19px}
 .bsize{padding:4px 0 12px;margin-bottom:10px;border-bottom:1px solid color-mix(in srgb,var(--fg) 8%,transparent)}.bsize .eyebrow{margin-bottom:8px}
 .bsize .seg{display:flex;width:100%}.bsize .seg button{flex:1;border:0;background:none;color:var(--fg2);padding:9px 6px;border-radius:999px;font:500 13px var(--font-inter),Inter,system-ui;cursor:pointer}.bsize .seg button.on{background:var(--fg);color:var(--bg)}
+/* r15: segment L/XL/XXL centrat */
+.bsize .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;border-radius:12px;background:var(--bg3);border:1px solid var(--bg3)}
+.bsize .seg button{display:flex;align-items:center;justify-content:center;text-align:center;min-height:36px;padding:0 6px;border:0;border-radius:9px;background:transparent;color:inherit;font-weight:700;letter-spacing:.02em;-webkit-appearance:none;appearance:none}
+.bsize .seg button[aria-pressed="true"],.bsize .seg button.on{background:var(--acc,#2563eb);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+/* r15: invitație tur */
+.tinv{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom));width:min(420px,calc(100vw - 24px));display:grid;grid-template-columns:auto 1fr;gap:10px 12px;padding:16px;border-radius:18px;background:var(--bg2);color:inherit;border:1px solid var(--bg3);box-shadow:0 18px 50px rgba(0,0,0,.35);animation:tinvIn .35s ease-out}
+.tinv-ic svg{width:40px;height:40px;stroke:var(--acc,#2563eb);fill:none;stroke-width:2;color:var(--acc,#2563eb)}
+.tinv-tx b{font-size:17px}.tinv-tx p{margin:4px 0 0;opacity:.8;font-size:14px;line-height:1.4}
+.tinv-btns{grid-column:1/-1;display:flex;gap:8px}.tinv-btns .btn{flex:1;min-height:44px}
+@media (max-width:760px){.tinv{bottom:calc(90px + env(safe-area-inset-bottom))}}
+@keyframes tinvIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+.tourico{background:none;border:0;cursor:pointer;color:inherit;font:inherit}
+.tourico svg{stroke:currentColor;fill:none;stroke-width:2}
+.tourico.pulse svg{color:var(--acc,#2563eb);animation:tpulse 1.6s ease-in-out infinite;border-radius:50%}
+@keyframes tpulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.5)}50%{box-shadow:0 0 0 7px rgba(37,99,235,0)}}

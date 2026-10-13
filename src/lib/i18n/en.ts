@@ -576,6 +576,7 @@ export const en: Record<MsgKey, string> = {
   "imp.again": "Try another file",
   "nav.import": "CSV import",
   "nav.savings": "Savings",
+  "tour.invT": "Want a 1-minute tour?", "tour.invB": "A quick look at what the owner sees: the feed, the live map, shift replay and alerts.", "tour.invGo": "Start the tour", "tour.invSkip": "Skip", "tour.chip": "Tour",
   "tour.btn": "Guided tour",
   "tour.next": "Next",
   "tour.back": "Back",

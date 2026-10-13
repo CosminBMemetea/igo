@@ -1,5 +1,5 @@
 "use client";
-// „Mărime butoane”: Normal / Mare / Foarte mare, ținută pe dispozitiv (localStorage) → <html data-bsize>.
+// „Mărime butoane”: L / XL / XXL, ținută pe dispozitiv (localStorage) → <html data-bsize>.
 import { useEffect, useState } from "react";
 export const BSIZE_KEY = "qf-bsize";
 type S = "n" | "l" | "xl";

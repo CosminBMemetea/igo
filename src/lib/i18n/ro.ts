@@ -576,6 +576,7 @@ export const ro = {
   "imp.again": "Încearcă alt fișier",
   "nav.import": "Import CSV",
   "nav.savings": "Economie",
+  "tour.invT": "Vrei un tur de 1 minut?", "tour.invB": "Îți arătăm pe scurt ce vede patronul: fluxul, harta live, reluarea turei și alertele.", "tour.invGo": "Începe turul", "tour.invSkip": "Sari peste", "tour.chip": "Tur",
   "tour.btn": "Tur ghidat",
   "tour.next": "Următorul",
   "tour.back": "Înapoi",

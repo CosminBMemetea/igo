@@ -44,7 +44,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
           <Suspense fallback={null}><MenuCloser /></Suspense>
           <summary className="ico" aria-label={t(loc, "acct.menu")}>{badge}<span className={`mdot r-${look ?? "owner"}`}>{firm.unread ? <b /> : null}</span><svg className="mburg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16M4 16h16" /></svg></summary>
           <div className="menu">
-            <BtnSize label={t(loc, "pref.bsize")} opts={[t(loc, "pref.bsize.n"), t(loc, "pref.bsize.l"), t(loc, "pref.bsize.xl")]} />
+            <BtnSize label={t(loc, "pref.bsize")} opts={["L", "XL", "XXL"]} />
             <div className="monly">
               <div className="mhead">{badge}</div>
               {plan === "trial" && !adminView && !firm.demo ? <Link href="/plans" className="mrow"><span>{t(loc, "trial.banner", { n: trialLeft })}</span><b>{t(loc, "trial.choose")}</b></Link> : null}
@@ -97,7 +97,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       <header className="top">
         <Link href={role === "admin" ? "/admin" : firm.demo ? "/feed" : "/"} className="logo" aria-label="Querra Fleet"><Logo /></Link>
         {ptitle ? <span className="ptitle">{ptitle}</span> : null}
-        {onAdmin ? <nav className="adnav">{(["firms", "support", "emails", "test-email"] as const).map((k) => <a key={k} href={`/admin#${k}`}>{t(loc, `rl.nav.${k}`)}</a>)}<Link href="/">{t(loc, "rl.nav.app")}</Link></nav> : <NavIcons demo={firm.demo} labels={{ import: t(loc, "nav.import"), savings: t(loc, "nav.savings"), ranking: t(loc, "nav.ranking"), feed: t(loc, "nav.feed"),  home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />}
+        {onAdmin ? <nav className="adnav">{(["firms", "support", "emails", "test-email"] as const).map((k) => <a key={k} href={`/admin#${k}`}>{t(loc, `rl.nav.${k}`)}</a>)}<Link href="/">{t(loc, "rl.nav.app")}</Link></nav> : <NavIcons demo={firm.demo} tour={firm.demo && role === "user" ? t(loc, "tour.chip") : undefined} labels={{ import: t(loc, "nav.import"), savings: t(loc, "nav.savings"), ranking: t(loc, "nav.ranking"), feed: t(loc, "nav.feed"),  home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />}
         {prefsBox}
       </header>
       {plan === "trial" && !adminView && !firm.demo ? (

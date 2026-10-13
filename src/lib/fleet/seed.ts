@@ -150,7 +150,7 @@ export const DOCS: Doc[] = [
   { id: "d4", scope: "vehicle", ownerId: "cj08qrt", type: "tacho", expires: D(140) },
   { id: "d5", scope: "vehicle", ownerId: "lexion760", type: "casco", expires: D(258), provider: "Groupama" },
   { id: "d6", scope: "vehicle", ownerId: "bh77qrt", type: "rca", expires: D(201), provider: "Omniasig" },
-  { id: "d7", scope: "driver", ownerId: "Ovid Vaslea", type: "tachoCard", expires: D(11) },
+  { id: "d7", scope: "driver", ownerId: "Ogrud Dat", type: "tachoCard", expires: D(11) },
   { id: "d8", scope: "driver", ownerId: "Ioan Pop", type: "licence", expires: D(1460) },
   { id: "d9", scope: "driver", ownerId: "Ioan Pop", type: "cpc", expires: D(690) },
   { id: "d10", scope: "driver", ownerId: "Gheorghe Nagy", type: "licence", expires: D(900) },

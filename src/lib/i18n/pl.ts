@@ -576,6 +576,7 @@ export const pl: Record<MsgKey, string> = {
   "imp.again": "Spróbuj innego pliku",
   "nav.import": "Import CSV",
   "nav.savings": "Oszczędności",
+  "tour.invT": "Chcesz minutową wycieczkę?", "tour.invB": "Krótko pokażemy, co widzi właściciel: strumień, mapę na żywo, odtwarzanie zmiany i alerty.", "tour.invGo": "Zacznij wycieczkę", "tour.invSkip": "Pomiń", "tour.chip": "Tur",
   "tour.btn": "Przewodnik",
   "tour.next": "Dalej",
   "tour.back": "Wstecz",
