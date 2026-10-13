@@ -12,7 +12,8 @@ export const OWNER_PATHS = [/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^
 export const DEMO_OK = [/^\/import$/, /^\/api\/import\/(preview|commit)$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];
 /** Pagina de start a fiecărui rol după autentificare. */
-export const roleHome = (r: Session["role"]) => (r === "driver" ? "/driver" : r === "admin" ? "/admin" : "/");
+/** pagina de start: șofer → /driver, admin → /admin, patron → Fluxul flotei (/feed; firmă fără date live → /feed trimite la Acasă) */
+export const roleHome = (r: Session["role"]) => (r === "driver" ? "/driver" : r === "admin" ? "/admin" : "/feed");
 export type Decision = { kind: "allow" } | { kind: "login" } | { kind: "unauthorized" } | { kind: "forbidden"; home: string };
 export function decide(path: string, s: Session | null): Decision {
   if (isPublic(path)) return { kind: "allow" };

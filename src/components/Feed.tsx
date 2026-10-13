@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { FeedEvent, MiniMap, Story } from "@/lib/feed";
 import type { FeedText } from "@/lib/feed-i18n";
+import { Resolve, type RKind, type RState } from "./Resolve";
 
 const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
 const ICON: Record<FeedEvent["kind"], string> = { border: "🛂", fuel: "⛽", idle: "⏸", delivered: "📦", group: "📦", doc: "📄", theft: "⚠", eco: "🍃", rank: "🏆", ontime: "⏱" };
@@ -27,7 +28,9 @@ function ago(F: FeedText, nowMin: number, e: FeedEvent) {
   return d < 1 ? F.now : d < 60 ? fill(F.ago, { n: d }) : fill(F.agoH, { h: Math.floor(d / 60) });
 }
 
-function Card({ e, F, nowMin, clapped, onClap, fresh }: { e: FeedEvent; F: FeedText; nowMin: number; clapped: boolean; onClap: (e: FeedEvent) => void; fresh?: boolean }) {
+const RES_KIND: Partial<Record<FeedEvent["kind"], RKind>> = { theft: "theft", doc: "doc", idle: "idle" };
+function Card({ e, F, nowMin, clapped, onClap, fresh, res, onRes }: { e: FeedEvent; F: FeedText; nowMin: number; clapped: boolean; onClap: (e: FeedEvent) => void; fresh?: boolean; res?: RState | null; onRes?: (id: string, r: RState | null) => void }) {
+  const rk = onRes ? RES_KIND[e.kind] : undefined;
   const ref = useRef<HTMLElement>(null), [seen, setSeen] = useState(false);
   useEffect(() => {
     const el = ref.current; if (!el) return;
@@ -36,7 +39,7 @@ function Card({ e, F, nowMin, clapped, onClap, fresh }: { e: FeedEvent; F: FeedT
   }, []);
   const live = e.min != null && nowMin - e.min < 45 && (e.kind === "border" || e.kind === "idle" || e.kind === "fuel");
   return (
-    <article ref={ref} className={`fcard k-${e.kind} p-${e.prio}${seen ? " in" : ""}${fresh ? " fresh" : ""}`} id={e.id}>
+    <article ref={ref} className={`fcard k-${e.kind} p-${e.prio}${seen ? " in" : ""}${fresh ? " fresh" : ""}${res ? " is-res" : ""}`} id={e.id}>
       <header>
         <Avatar hue={e.hue} initials={e.initials} />
         <div className="who"><b>{e.driver}</b><span>{e.plate} · <time suppressHydrationWarning>{ago(F, nowMin, e)}</time></span></div>
@@ -57,7 +60,7 @@ function Card({ e, F, nowMin, clapped, onClap, fresh }: { e: FeedEvent; F: FeedT
           ) : null}
         </div>
       ) : null}
-      {e.cta || e.clap ? (
+      {rk ? <Resolve id={e.id} kind={rk} F={F} init={res} tel={e.cta?.tel ? e.cta : undefined} onChange={onRes} /> : e.cta || e.clap ? (
         <footer>
           {e.cta ? (e.cta.tel ? <a className="btn sec sm fcall" href={e.cta.href} title={e.cta.note}>📞 {e.cta.label}</a> : <Link className="btn sec sm" href={e.cta.href}>{e.cta.label} →</Link>) : null}
           {e.clap ? <button type="button" className={`fclap${clapped ? " on" : ""}`} aria-pressed={clapped} onClick={() => onClap(e)}><span className="em">👏</span>{clapped ? F.clapped : F.clap}</button> : null}
@@ -69,11 +72,11 @@ function Card({ e, F, nowMin, clapped, onClap, fresh }: { e: FeedEvent; F: FeedT
 
 function StoryView({ stories, start, F, onClose }: { stories: Story[]; start: number; F: FeedText; onClose: () => void }) {
   const [i, setI] = useState(start), [p, setP] = useState(0), paused = useRef(false), tx = useRef<number | null>(null);
-  const s = stories[i], DUR = 15000;
+  const s = stories[i], DUR = 5000;
   const go = useCallback((d: number) => { setP(0); setI((x) => { const n = x + d; if (n < 0) return 0; if (n >= stories.length) { onClose(); return x; } return n; }); }, [stories.length, onClose]);
   useEffect(() => {
     let last = performance.now(), raf = 0;
-    const tick = (now: number) => { if (!paused.current) setP((v) => { const nv = v + (now - last) / DUR; if (nv >= 1) { go(1); return 0; } return nv; }); last = now; raf = requestAnimationFrame(tick); };
+    const tick = (now: number) => { const dt = (now - last) / DUR; last = now; if (!paused.current) setP((v) => { const nv = v + dt; if (nv >= 1) { go(1); return 0; } return nv; }); raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf);
   }, [i, go]);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); }; addEventListener("keydown", k); document.body.style.overflow = "hidden"; return () => { removeEventListener("keydown", k); document.body.style.overflow = ""; }; }, [go, onClose]);
@@ -86,7 +89,7 @@ function StoryView({ stories, start, F, onClose }: { stories: Story[]; start: nu
       <div className="sbox" key={s.vehicleId}>
         <div className="sbars">{stories.map((x, k) => <i key={x.vehicleId}><b style={{ width: `${k < i ? 100 : k === i ? p * 100 : 0}%` }} /></i>)}</div>
         <div className="shead"><Avatar hue={s.hue} initials={s.initials} size={38} ring={ST_COL[s.status]} /><div><b>{s.driver}</b><span>{s.plate} · {fill(F.storyKm, { km: s.km })}{s.priv ? "" : ` · ${s.rate}`}</span></div><button type="button" className="sx" aria-label={F.close} onClick={(e) => { e.stopPropagation(); onClose(); }} onPointerDown={(e) => e.stopPropagation()}>×</button></div>
-        {s.priv ? <div className="spriv">🔒 {F.storyPriv}</div> : s.map ? <div className="smap"><Mini m={s.map} live draw={11} /></div> : <div className="spriv">{F.storyNone}</div>}
+        {s.priv ? <div className="spriv">🔒 {F.storyPriv}</div> : s.map ? <div className="smap"><Mini m={s.map} live draw={3.8} /></div> : <div className="spriv">{F.storyNone}</div>}
         {!s.priv && s.stops.length ? (
           <ol className="sstops">{s.stops.map((x, k) => <li key={k} className={k < shown ? "on" : ""}><time>{x.time}</time><b>{F.st[x.kind]}</b><span>{x.place}</span></li>)}</ol>
         ) : null}
@@ -99,7 +102,9 @@ function StoryView({ stories, start, F, onClose }: { stories: Story[]; start: nu
 }
 
 export interface FeedData { pinned: FeedEvent[]; events: FeedEvent[]; queue: FeedEvent[]; stories: Story[]; now: number }
-export function Feed({ data, F, reacted, demo }: { data: FeedData; F: FeedText; reacted: string[]; demo: boolean }) {
+export function Feed({ data, F, reacted, demo, resolved = {} }: { data: FeedData; F: FeedText; reacted: string[]; demo: boolean; resolved?: Record<string, RState> }) {
+  const [res, setRes] = useState<Record<string, RState>>(resolved);
+  const onRes = (id: string, r: RState | null) => setRes((m) => { const n = { ...m }; if (r) n[id] = r; else delete n[id]; return n; });
   const [events, setEvents] = useState(data.events), [queue, setQueue] = useState(data.queue), [fresh, setFresh] = useState<Set<string>>(new Set());
   const [claps, setClaps] = useState(new Set(reacted)), [toast, setToast] = useState(""), [story, setStory] = useState<number | null>(null), [unseen, setUnseen] = useState(0);
   const t0 = useRef(0), [nowMin, setNowMin] = useState(data.now);
@@ -129,6 +134,8 @@ export function Feed({ data, F, reacted, demo }: { data: FeedData; F: FeedText; 
     if (navigator.vibrate) navigator.vibrate(12);
     await fetch("/api/feed/react", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: e.id, vehicleId: e.vehicleId, label: e.title, on }) }).catch(() => null);
   };
+  // avertizări: furt + documente + opriri lungi; rezolvatele coboară într-o secțiune pliată
+  const attn = [...data.pinned, ...events.filter((e) => e.kind === "idle")], open = attn.filter((e) => !res[e.id]), done = attn.filter((e) => res[e.id]);
   // „trage pentru actualizare” (touch, doar sus de tot)
   const onTS = (ev: React.TouchEvent) => { y0.current = window.scrollY <= 0 && story == null ? ev.touches[0].clientY : null; };
   const onTM = (ev: React.TouchEvent) => { if (y0.current == null || busy) return; const dy = ev.touches[0].clientY - y0.current; setPull(dy > 0 ? Math.min(110, dy * 0.5) : 0); };
@@ -148,11 +155,15 @@ export function Feed({ data, F, reacted, demo }: { data: FeedData; F: FeedText; 
         ))}
       </div>
       {unseen ? <button type="button" className="fnew" onClick={() => { scrollTo({ top: 0, behavior: "smooth" }); setUnseen(0); }}>↑ {unseen === 1 ? F.new1 : fill(F.newPill, { n: unseen })}</button> : null}
-      {data.pinned.length ? (
-        <section className="fpin"><div className="fsec">{F.pinned}</div>{data.pinned.map((e) => <Card key={e.id} e={e} F={F} nowMin={nowMin} clapped={false} onClap={clap} />)}</section>
+      {attn.length ? (
+        <section className="fpin" aria-live="polite">
+          <div className={`fsec${open.length ? "" : " ok"}`}>{open.length ? <>{F.attn}<span className="fcnt">{open.length}</span></> : <>✓ {F.attnNone}</>}</div>
+          {open.map((e) => <Card key={e.id} e={e} F={F} nowMin={nowMin} clapped={false} onClap={clap} res={null} onRes={demo ? onRes : undefined} />)}
+          {done.length ? <details className="fres"><summary>{F.resolved} · {done.length}</summary>{done.map((e) => <Card key={e.id} e={e} F={F} nowMin={nowMin} clapped={false} onClap={clap} res={res[e.id]} onRes={onRes} />)}</details> : null}
+        </section>
       ) : null}
       <section className="flist" aria-live="polite">
-        {events.map((e) => <Card key={e.id} e={e} F={F} nowMin={nowMin} clapped={claps.has(e.id)} onClap={clap} fresh={fresh.has(e.id)} />)}
+        {events.filter((e) => e.kind !== "idle").map((e) => <Card key={e.id} e={e} F={F} nowMin={nowMin} clapped={claps.has(e.id)} onClap={clap} fresh={fresh.has(e.id)} />)}
       </section>
       <div className="fend"><span>✓</span><b>{F.upToDate.replace(" ✓", "")}</b><p>{F.upToDateSub}</p></div>
       {toast ? <div className="ftoast" role="status">{toast}</div> : null}

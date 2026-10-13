@@ -143,7 +143,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       </div>
       <aside className="panel">
         <div className="eyebrow">{labels[`kind.${v.kind}`]}</div>
-        <div style={{ fontSize: 32, fontWeight: 300, letterSpacing: "-.02em", marginTop: 6 }}>{v.name}</div>
+        <div className="phead"><div style={{ fontSize: 32, fontWeight: 300, letterSpacing: "-.02em", marginTop: 6 }}>{v.name}</div>{v.kind === "truck" ? <Link className="rp-mini" href={`/replay?v=${v.id}`}><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{labels.rpShift}</Link> : null}</div>
         <div className="pill" style={{ marginTop: 10 }}><span className="dot" style={{ background: COL[v.status], margin: 0 }} />{labels[`st.${v.status}`]}{v.status === "private" ? "" : ` · ${ago}`}</div>
         {v.status === "private" ? <div className="privnote">{labels.privPanel}</div> : null}
         <div style={{ display: v.status === "private" ? "none" : "flex", alignItems: "baseline", gap: 8, marginTop: 26 }}><span style={{ fontSize: 76, fontWeight: 200, letterSpacing: "-.04em", lineHeight: 1 }}>{N(v.speed)}</span><span style={{ color: "var(--fg2)" }}>km/h</span></div>
@@ -165,7 +165,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
         <div style={{ marginTop: 22, display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link className="btn sec" href={`/vehicles/${v.id}`}>{labels.open}</Link>
           {v.tripId ? <Link className="btn sec" href={`/trips/${v.tripId}`}>{labels.trip}</Link> : null}
-          {v.kind === "truck" ? <Link className="btn pri rp-cta rp-livecta" href={`/replay?v=${v.id}`}>▶ {labels.rpShift}</Link> : null}
+
         </div>
       </aside>
       <div className="tiles-note">{labels.tiles}</div>

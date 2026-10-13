@@ -1,6 +1,6 @@
 // Querra Fleet: datele pentru REPLAY-ul unei ture/curse. Demo: ziua camionului pe drumuri reale (roads.json/OSRM).
 // Firme reale: pozițiile salvate în tură (pingurile șoferului). Golurile (mod privat / fără semnal) NU au geometrie — doar o legătură punctată.
-import { TRUCKS, dayPlan, haversineKm, pathBetween, routeTotalKm, type LatLng } from "./fleet/data";
+import { TRUCKS, dayPlan, kmAt, haversineKm, pathBetween, routeTotalKm, type LatLng } from "./fleet/data";
 import type { PosRow, FuelTxRow } from "./store/types";
 
 export type RKind = "start" | "fuel" | "pause" | "private" | "end";
@@ -21,9 +21,12 @@ export function demoReplay(vehicleId: string, date: string, tripId: string | nul
   let dep = t.depMin;
   if (dep >= 1440) dep = 5 * 60 + 30; // AR 45 pleacă „mâine”: în replay îi arătăm o tură de dimineață
   const total = routeTotalKm(t);
-  const phases = dayPlan({ ...t, depMin: dep }).filter((p) => p.kind !== "stop");
-  const keys: [number, number][] = [[dep, 0]];
-  const events: ReplayEvent[] = [{ kind: "start", min: dep, km: 0, place: t.route[0].name }];
+  // plecat ieri (cursă internațională lungă): reluarea zilei începe la 00:00, din locul unde era camionul
+  const k0 = dep < 0 ? kmAt(t, 0) : 0;
+  const phases = dayPlan({ ...t, depMin: dep }).filter((p) => p.kind !== "stop" && p.end > 0).map((p) => (p.start < 0 ? { ...p, start: 0, kmStart: k0 } : p));
+  if (dep < 0) dep = 0;
+  const keys: [number, number][] = [[dep, k0]];
+  const events: ReplayEvent[] = [{ kind: "start", min: dep, km: k0, place: dep === 0 && k0 > 0 ? undefined : t.route[0].name }];
   for (const p of phases) {
     keys.push([Math.round(p.end), Math.round(p.kmEnd * 10) / 10]);
     if (p.kind === "pump") events.push({ kind: "fuel", min: p.start, end: p.end, km: p.kmStart, place: "OMV / Petrom", litres: Math.round(Math.min(t.tankL * 0.8, (p.kmStart * t.normalL100) / 100 + 180)) });

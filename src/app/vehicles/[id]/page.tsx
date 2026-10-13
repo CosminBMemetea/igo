@@ -10,6 +10,9 @@ import { CountUp } from "@/components/CountUp";
 import FleetMap from "@/components/FleetMap";
 import { Gate } from "@/components/Gate";
 import { VehicleArt } from "@/components/VehicleArt";
+import { Mini } from "@/components/Feed";
+import { miniRoute } from "@/lib/feed";
+import { truckById } from "@/lib/fleet/data";
 import { TripRows } from "../../TripRows";
 
 export const dynamic = "force-dynamic";
@@ -23,21 +26,21 @@ export default async function VehiclePage({ params }: { params: { id: string } }
   const unit = agri ? t(loc, "veh.lha") : t(loc, "veh.l100");
   const myParcels = d.parcels.filter((p) => s.trips.some((x) => x.parcelId === p.id));
   const liveV = d.live().find((x) => x.id === v.id);
+  const truck = truckById(v.id), route = truck && liveV ? miniRoute(truck, liveV.today) : null;
   const body = (
     <main>
       <section className="vehicle">
         <div className="fade">
           <div className="eyebrow">{t(loc, `kind.${v.kind}`)} · {v.model}</div>
-          <h1 className="h1">{v.name}</h1>
+          <div className="vhead"><h1 className="h1">{v.name}</h1>{v.kind === "truck" ? <Link className="rp-mini" href={`/replay?v=${v.id}`} aria-label={t(loc, "rp.cta")}><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.cta")}</Link> : null}</div>
           <p className="sub">{v.driver}{agri ? ` · ${t(loc, "veh.season")}` : ""}</p>
-          {v.kind === "truck" ? <Link className="btn pri xl rp-cta" style={{ marginTop: 18 }} href={`/replay?v=${v.id}`}><svg viewBox="0 0 24 24" width="14" height="14" style={{ marginRight: 8, verticalAlign: "-2px" }}><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.cta")}</Link> : null}
           <div style={{ marginTop: 44 }}>
             <div className="eyebrow">{t(loc, "home.savings")}</div>
             <div className="big"><CountUp value={s.savings.pct * 100} d={1} loc={loc} /><small>%</small></div>
             <p className="sub">{fmtNum(loc, s.actualRate, 1)} {unit} · {t(loc, "veh.savings", { base: fmtNum(loc, v.baselineRate, 1), unit })}</p>
           </div>
         </div>
-        <VehicleArt kind={v.kind} />
+        {route ? <div className="vroute fade d1"><Mini m={route} live={liveV?.status === "moving"} draw={1.8} /><span>{truck!.routeName}</span></div> : <VehicleArt kind={v.kind} />}
       </section>
       <section className="cards section">
         {agri ? (

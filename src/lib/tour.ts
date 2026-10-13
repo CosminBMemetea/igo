@@ -2,8 +2,8 @@ import { t, type Locale, type MsgKey } from "./i18n";
 import type { TourStep, TourL } from "@/components/DemoTour";
 // Povestea unei firme de transport, în 9 pași. sel = elementul evidențiat (primul găsit).
 const S: [string, string, string][] = [
-  ["dash", "/", ".hero"],
   ["feed", "/feed", ".fstories"],
+  ["dash", "/", ".hero"],
   ["live", "/live", ".panel"],
   ["trip", "/trips/bh21qrt-15", ".hero"],
   ["replay", "/replay?trip=bh21qrt-15", ".rp-bar"],

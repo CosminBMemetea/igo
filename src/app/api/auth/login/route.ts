@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const u = login ? await store().userByLogin(normLogin(login)) : null;
   if (u && verifyPassword(password, u.passwordHash)) {
     const f = await store().firm(u.firmId);
-    if (f) { const sess = { role: u.role, email: u.email ?? u.phone ?? u.name, firm: f.id, uid: u.id, trial: f.trialStart }; const res = back(req, safeNext(next, sess) ?? (u.role === "driver" ? "/driver" : "/")); if (u.locale) res.cookies.set("igo-locale", u.locale, { path: "/", maxAge: 31536000, sameSite: "lax" }); clearDemo(res); return withSession(res, sess); }
+    if (f) { const sess = { role: u.role, email: u.email ?? u.phone ?? u.name, firm: f.id, uid: u.id, trial: f.trialStart }; const res = back(req, safeNext(next, sess) ?? (u.role === "driver" ? "/driver" : "/feed")); if (u.locale) res.cookies.set("igo-locale", u.locale, { path: "/", maxAge: 31536000, sameSite: "lax" }); clearDemo(res); return withSession(res, sess); }
   }
   await new Promise((r) => setTimeout(r, 600));
   return back(req, `/login?e=bad${typeof next === "string" && next ? `&next=${encodeURIComponent(next.slice(0, 200))}` : ""}`);

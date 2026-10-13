@@ -40,11 +40,16 @@ function mini(t: Truck, toKm: number, focusKm?: number): MiniMap {
   const fk = Math.min(focusKm ?? toKm, half);
   return { full: d(full), done: d(done), dot: P(pointAtKm(t, fk)), w: W, h: H };
 }
+/** mini-harta traseului de azi (km parcurși → poziția pe drumul de dus/întors) */
+export function miniRoute(t: Truck, kmToday: number): MiniMap { const half = routeTotalKm(t) / 2, total = half * 2, k = Math.min(kmToday, total); return mini(t, Math.min(k, half), k > half ? total - k : k); }
 /** minutul zilei la care camionul ajunge la km-ul dat (după planul zilei) */
 function minuteAtKm(t: Truck, km: number): number | null {
-  for (const p of dayPlan(t)) if (p.kind === "drive" && km >= p.kmStart && km <= p.kmEnd) return p.start + ((km - p.kmStart) / (p.kmEnd - p.kmStart || 1)) * (p.end - p.start);
+  for (const p of dayPlan(t)) if (p.kind === "drive" && km >= p.kmStart && km <= p.kmEnd) { const m = p.start + ((km - p.kmStart) / (p.kmEnd - p.kmStart || 1)) * (p.end - p.start); return m < 0 ? null : m; }
   return null;
 }
+/** puncte de descărcare intermediare (demo): CJ 90 lasă marfă la Frankfurt în drum spre Rotterdam */
+const DROPS: Record<string, string[]> = { cj90qrt: ["Frankfurt"] };
+function dropMin(t: Truck, name: string): number | null { const i = t.route.findIndex((w) => w.name === name); return i < 0 ? null : minuteAtKm(t, waypointKm(t)[i]); }
 const WPK = new Map<string, number[]>();
 /** km-ul fiecărui punct de traseu pe drumul de dus */
 function waypointKm(t: Truck): number[] {
@@ -61,7 +66,7 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
   const evs: FeedEvent[] = [], queue: FeedEvent[] = [], stories: Story[] = [];
   const avgPrice = FILLS.reduce((a, f) => a + f.priceLei, 0) / FILLS.reduce((a, f) => a + f.litres, 0);
   const who = (v: Vehicle) => ({ vehicleId: v.id, plate: v.name, driver: v.driver, hue: hueOf(v.driver), initials: initialsOf(v.driver) });
-  const push = (e: FeedEvent) => (e.min != null && e.min > now ? queue : evs).push(e);
+  const push = (e: FeedEvent) => { if (e.min != null && e.min < 0) return; (e.min != null && e.min > now ? queue : evs).push(e); };
   for (const t of TRUCKS) {
     const v = vehicles.find((x) => x.id === t.id), lv = live.find((x) => x.id === t.id);
     if (!v || !lv) continue;
@@ -70,11 +75,14 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
     const dest = t.route[t.route.length - 1].name, kmNow = Math.min(lv.today, total);
     // poveste
     const stops: Story["stops"] = [];
-    if (t.depMin < now) stops.push({ kind: "depart", time: minToHHMM(t.depMin), place: t.route[0].name });
-    for (const p of plan) if (p.start < now && p.kind !== "drive" && p.start > 0) {
+    if (t.depMin < now) stops.push({ kind: "depart", time: t.depMin < 0 ? `${F.yday} ${minToHHMM(t.depMin + 1440)}` : minToHHMM(t.depMin), place: t.route[0].name });
+    // doar momentele-cheie (plecare, alimentare, descărcări, acum)
+    for (const p of plan) if (p.start < now && (p.kind === "pump" || (p.kind === "break" && Math.abs(p.kmStart - half) < 1)) && p.start > 0) {
       const place = nearestWaypoint(t, pointAtKm(t, p.kmStart)).name, isDel = p.kind === "break" && Math.abs(p.kmStart - half) < 1;
       stops.push({ kind: p.kind === "pump" ? "pump" : isDel ? "deliver" : "break", time: minToHHMM(p.start), place });
     }
+    for (const d of DROPS[t.id] ?? []) { const m = dropMin(t, d); if (m != null && m < now) stops.push({ kind: "deliver", time: minToHHMM(m), place: d }); }
+    stops.sort((a, b) => (a.kind === "depart" ? -1 : b.kind === "depart" ? 1 : a.time.localeCompare(b.time)));
     if (priv) { stories.push({ ...who(v), status: lv.status, km: Math.round(lv.today), rate: "—", priv: true, stops: [] }); }
     else {
       // GDPR: camionul în pauză privată nu apare în flux cu poziție (doar alertele și documentele)
@@ -104,6 +112,12 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
       if (del && del.start <= now + 240) {
         const early = 10 + (hueOf(t.id) % 35);
         push({ id: `d-${t.id}`, kind: "delivered", prio: "trivial", min: Math.round(del.start), ...who(v), flag: ccOf(dest) !== "RO" ? flagOf(ccOf(dest)) : undefined, title: fill(F.delivered, { place: dest }), sub: `${fill(F.deliveredSub, { client: client || "—", time: minToHHMM(del.start) })} · ${fill(F.early, { n: early })}`, map: mini(t, half), clap: true, place: dest });
+      }
+      // descărcări intermediare (cursă cu mai multe puncte de livrare)
+      for (const d of DROPS[t.id] ?? []) {
+        const m = dropMin(t, d); if (m == null || m > now + 240) continue;
+        const k = waypointKm(t)[t.route.findIndex((w) => w.name === d)], cc = ccOf(d);
+        push({ id: `d-${t.id}-${d}`, kind: "delivered", prio: "trivial", min: Math.round(m), ...who(v), flag: cc !== "RO" ? flagOf(cc) : undefined, title: fill(F.delivered, { place: d }), sub: `${fill(F.deliveredSub, { client: client || "—", time: minToHHMM(m) })} · ${F.onTime}`, map: mini(t, k), clap: true, place: d });
       }
       // oprire lungă acum
       const cur = plan.find((p) => now >= p.start && now < p.end);

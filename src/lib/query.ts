@@ -93,7 +93,7 @@ function liveFleetRaw(vehicles: Vehicle[], views: TripView[], parcels: Parcel[],
       const out = km < half, left = Math.max(0, Math.round((out ? half : total) - km));
       const dest = out ? truck.route[truck.route.length - 1].name : truck.route[0].name;
       const ahead = left ? pathBetween(truck, km, out ? half : total) : [];
-      return { ...base, status: pos.status, speed: pos.speedKmh, at: pos.at, secondsAgo: pos.status === "moving" ? 12 : 95, track, ahead, done: pathBetween(truck, 0, km), dest, left, leftUnit: "km", eta: left ? minToHHMM(now + (left / 64) * 60) : null, today: Math.round(km), todayUnit: "km", rate: active?.actualRate ?? v.baselineRate, rateUnit: "L/100km", events: zoneEvents(track, zones) };
+      return { ...base, status: pos.status, speed: pos.speedKmh, at: pos.at, secondsAgo: pos.status === "moving" ? 12 : 95, track, ahead, done: pathBetween(truck, 0, km), dest, left, leftUnit: "km", eta: left ? minToHHMM(now + (left / 64) * 60) : null, today: Math.round(km - (truck.depMin < 0 ? kmAt(truck, 0) : 0)), todayUnit: "km", rate: active?.actualRate ?? v.baselineRate, rateUnit: "L/100km", events: zoneEvents(track, zones) };
     }
     if (v.kind === "agri") {
       const parcel = active ? parcels.find((p) => p.id === active.parcelId) : undefined;
