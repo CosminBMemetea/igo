@@ -1,3 +1,4 @@
+import { activeFleet } from "@/lib/econ-store";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { TOOLS, detectLocale, parseToolCall, render, ruleIntent, type ToolCall } from "@/lib/ask";
@@ -29,8 +30,9 @@ export async function POST(req: Request) {
   const q = typeof body.question === "string" ? body.question.trim() : "";
   if (!q || q.length > 500) return NextResponse.json({ error: "question" }, { status: 400 });
   const loc: Locale = detectLocale(q, isLocale(body.locale) ? body.locale : "ro");
-  const r = (await tenant()).repo;
-  const [vehicles, trips, clients, alerts] = await Promise.all([r.vehicles(), r.trips(), r.clients(), r.alerts()]);
+  const tn = await tenant(), r = tn.repo;
+  const [v0, t0, clients, a0] = await Promise.all([r.vehicles(), r.trips(), r.clients(), r.alerts()]);
+  const { vehicles, trips } = activeFleet(tn.demo, v0, t0), alerts = a0.filter((a) => vehicles.some((v) => v.id === (a as { vehicleId?: string }).vehicleId) || !(a as { vehicleId?: string }).vehicleId);
   const data = { vehicles, trips, clients, alerts };
   let reason: string | null = null;
   try {

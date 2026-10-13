@@ -19,3 +19,9 @@ export function applyDemoEcon(vehicles: Vehicle[], trips: Trip[]): { vehicles: V
     trips: trips.map((x) => { const o = e.t[x.id]; return o ? { ...x, revenue: o.r ?? x.revenue, tonnes: o.t ?? x.tonnes } : x; }),
   };
 }
+/** Flota activă (fără camioanele scoase din flotă) — pentru API live, ecranul șoferului și asistentul AI. */
+export function activeFleet(demo: boolean, vehicles: Vehicle[], trips: Trip[] = []): { vehicles: Vehicle[]; trips: Trip[] } {
+  const a = demo ? applyDemoEcon(vehicles, trips) : { vehicles, trips };
+  const vs = a.vehicles.filter((v) => !v.archived), ids = new Set(vs.map((v) => v.id));
+  return { vehicles: vs, trips: a.trips.filter((t) => ids.has(t.vehicleId)) };
+}

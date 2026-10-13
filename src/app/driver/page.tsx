@@ -1,3 +1,4 @@
+import { activeFleet } from "@/lib/econ-store";
 import { liveFleet, tripViews } from "@/lib/query";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
 import { demoLastFill, demoReactions, demoShift } from "@/lib/demo-shift";
@@ -20,7 +21,7 @@ const PW: MsgKey[] = ["pw.today", "pw.loaded", "pw.unloaded", "pw.tap", "pw.wait
 export default async function Driver({ searchParams }: { searchParams: { v?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const tn = await tenant(), r = tn.repo;
-  const vehicles = await r.vehicles();
+  const vehicles = activeFleet(tn.demo, await r.vehicles()).vehicles;
   if (!vehicles.length) return <main><EmptyState kind={tn.role === "driver" ? "driver" : "driverOwner"} loc={loc} canSetup={tn.role !== "driver"} /></main>;
   const me = tn.uid && tn.firm ? (await store().users(tn.firm.id)).find((u) => u.id === tn.uid) : null;
   const v = vehicles.find((x) => x.id === searchParams.v) ?? vehicles.find((x) => x.id === me?.truckId) ?? vehicles[0];
@@ -40,7 +41,7 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const age = shift0 && !shift0.end ? Date.now() - Date.parse(shift0.start) : 0;
   const shift = tn.demo && shift0 && !shift0.end && (age < 0 || age > 12 * 3600e3 || Number.isNaN(age)) ? (() => { const st = new Date(Date.now() - 2.5 * 3600e3).toISOString(); return { ...shift0, start: st, privateSince: shift0.privateSince ? st : null }; })() : shift0;
   // demo: aceeași sursă ca harta live (liveFleet la minutul demo)
-  const liveKm = tn.demo ? (liveFleet(vehicles, tripViews(await r.trips(), vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
+  const liveKm = tn.demo ? (liveFleet(vehicles, tripViews(activeFleet(tn.demo, vehicles, await r.trips()).trips, vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
   const nowMs = Date.now();
   const driverName = v.driver || me?.name || "";
   const myDocs = (await r.docs()).filter((d) => d.expires && ((d.scope === "vehicle" && d.ownerId === v.id) || (d.scope === "driver" && (tn.demo ? d.ownerId === driverName : d.userId === tn.uid))))

@@ -1137,3 +1137,10 @@ html.msheet-open,html.msheet-open body{overflow:hidden}
 .fcr .br i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--fg2)}.fcr.me .br i{background:var(--acc)}.fcr.hi .br i{background:color-mix(in srgb,var(--neg) 70%,var(--fg2))}
 .fcr .br em{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg);opacity:.6}
 @media (max-width:520px){.fcr{grid-template-columns:84px 1fr 78px 38px;gap:8px;font-size:12.5px}}
+/* r18: detaliu cursă pe mobil — fără carusel, nimic peste marginea dreaptă */
+@media (max-width:760px){
+  main>.hero.thero{display:grid;grid-template-columns:1fr;gap:12px;overflow:visible;margin:0;padding:0}
+  main>.hero.thero>div{flex:none;min-width:0;padding:18px 18px 16px}
+  main>.hero.thero .big{font-size:52px}
+  main>.hero.thero .sub{overflow-wrap:anywhere}
+}
