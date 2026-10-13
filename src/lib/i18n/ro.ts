@@ -69,6 +69,7 @@ export const ro = {
   "plans.quote": "Cere o ofertă",
   "plans.talk": "Hai să vorbim",
   "plans.quoteSub": "Spune-ne câte camioane ai și ce te interesează — revenim cu o ofertă.",
+  "sup.subject": "Subiect", "sup.trucks": "Număr de camioane",
   "plans.title": "Un preț pe măsura flotei tale.", "plans.sub": "14 zile cu totul deblocat, fără card. Apoi îți facem o ofertă după numărul de vehicule.", "plans.trucks": "Camioane", "plans.agri": "Utilaje · pe sezon", "plans.perVehicle": "/vehicul/lună · licență anuală per firmă", "plans.perMachine": "/utilaj/sezon", "plans.recommended": "Recomandat", "plans.start": "Începe proba de 14 zile", "plans.choose": "Alege {plan}", "plans.current": "Planul tău", "plans.plus": "Tot din {prev}, plus {n} funcții.", "plans.base": "{n} funcții de bază.", "plans.note": "Oferta depinde de numărul de vehicule și de funcțiile alese. Hardware-ul (GPS, sondă) se cumpără separat, prin parteneri.", "plans.compare": "Comparație completă",
   "feat.title.trial": "Toate cele {n} funcții sunt deschise.", "feat.title.plan": "{on} din {n} funcții incluse în {plan}.", "feat.lead.trial": "Probă gratuită de 14 zile, încă {d} zile. Apoi păstrezi ce folosești.", "feat.lead.plan": "Funcțiile blocate se pot vedea, dar nu folosi.", "feat.included": "Inclus", "feat.inTrial": "În probă", "feat.planned": "Planificat", "feat.trial": "Probă",
   "ans.totals": "Până acum: <b>{n}</b> curse încheiate, profit total <b>{profit}</b> (medie <b>{avg}</b>/cursă), economie <b>{pct}</b> față de bază (<b>{lei}</b>).",

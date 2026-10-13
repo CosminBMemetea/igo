@@ -44,7 +44,7 @@ export const CLIENTS: Client[] = [
   { id: "dedeman", name: "Dedeman SRL", country: "RO", vat: "RO2816464", payDays: 18, contacts: [{ name: "Raluca Ionescu", role: "dispatch", phone: "+40 744 000 111", email: "transport@dedeman.example" }] },
   { id: "continental", name: "Continental Logistic SRL", country: "RO", vat: "RO11223344", payDays: 42, contacts: [{ name: "Bogdan Marin", role: "dispatch", phone: "+40 745 222 333", email: "bogdan@contlog.example" }] },
   { id: "transitalia", name: "Trans Italia SRL", country: "IT", vat: "IT01234567890", payDays: 64, contacts: [{ name: "Marco Rossi", role: "owner", phone: "+39 02 1234 567", email: "marco@transitalia.example" }] },
-  { id: "agrogepiu", name: "Agro Fermier Gepiu", country: "RO", vat: "RO33445566", payDays: 12, contacts: [{ name: "Ferenc Szabó", role: "owner", phone: "+40 740 333 444", email: "ferma@agrogepiu.example" }] },
+  { id: "agrocampia", name: "Agro Fermier Câmpia", country: "RO", vat: "RO33445566", payDays: 12, contacts: [{ name: "Ferenc Szabó", role: "owner", phone: "+40 740 333 444", email: "ferma@agrocampia.example" }] },
   { id: "slaskpol", name: "Śląsk Logistyka Sp. z o.o.", country: "PL", vat: "PL6340001234", payDays: 30, contacts: [{ name: "Agnieszka Nowak", role: "dispatch", phone: "+48 32 123 4567", email: "dyspozycja@slask.example" }] },
   { id: "rhenus", name: "Rhein Maas Cargo B.V.", country: "NL", vat: "NL812345678B01", payDays: 45, contacts: [{ name: "Joris de Vries", role: "dispatch", phone: "+31 10 555 0199", email: "planning@rmcargo.example" }] },
   { id: "bosfor", name: "Boğaziçi Lojistik A.Ş.", country: "TR", vat: "TR1234567890", payDays: 38, contacts: [{ name: "Elif Yılmaz", role: "dispatch", phone: "+90 212 555 0123", email: "operasyon@bogazici.example" }] },
@@ -54,8 +54,8 @@ export const CLIENTS: Client[] = [
 // ---------- parcele și zone ----------
 const rect = (lat: number, lng: number, dLat: number, dLng: number): LatLng[] => [[lat, lng], [lat + dLat, lng], [lat + dLat, lng + dLng], [lat, lng + dLng]];
 export const PARCELS: Parcel[] = [
-  { id: "gepiu3", name: "Gepiu 3", ha: 42, crop: "wheat", poly: rect(46.935, 21.785, 0.015, 0.045) },
-  { id: "gepiu1", name: "Gepiu 1", ha: 28, crop: "maize", poly: rect(46.951, 21.735, 0.012, 0.035) },
+  { id: "lotnord", name: "Lot Nord", ha: 42, crop: "wheat", poly: rect(46.935, 21.785, 0.015, 0.045) },
+  { id: "lotsud", name: "Lot Sud", ha: 28, crop: "maize", poly: rect(46.951, 21.735, 0.012, 0.035) },
   { id: "ceica1", name: "Ceica 1", ha: 31, crop: "sunflower", poly: rect(46.855, 22.17, 0.014, 0.04) },
   { id: "salonta2", name: "Salonta 2", ha: 55, crop: "rapeseed", poly: rect(46.79, 21.66, 0.018, 0.05) },
   { id: "tinca4", name: "Tinca 4", ha: 37, crop: "wheat", poly: rect(46.76, 21.93, 0.015, 0.042) },
@@ -65,7 +65,7 @@ export const ZONES: Zone[] = [
   { id: "dep-cluj", name: "Hub Cluj", kind: "depot", at: [46.7712, 23.6236], radiusM: 1500 },
   { id: "cl-metro", name: "Metro Kft · Budapesta", kind: "client", at: [47.4979, 19.0402], radiusM: 3000 },
   { id: "cl-dedeman", name: "Dedeman · Sibiu", kind: "client", at: [45.7983, 24.1256], radiusM: 2000 },
-  { id: "ferma", name: "Ferma Gepiu", kind: "depot", at: [46.93, 21.77], radiusM: 800 },
+  { id: "ferma", name: "Ferma demo", kind: "depot", at: [46.93, 21.77], radiusM: 800 },
 ];
 
 // ---------- curse și lucrări (1–15 octombrie 2026) ----------
@@ -116,12 +116,12 @@ function buildTrips(): Trip[] {
   // utilaje agricole: lucrări pe parcele
   const AG: [string, string, JobType, number, number, number, number, number][] = [
     // vehicul, parcelă, tip, L/ha real, ha/h, tarif lei/ha, uzură lei/ha, zi
-    ["lexion760", "gepiu3", "harvest", 16.8, 3.5, 650, 90, 13],
+    ["lexion760", "lotnord", "harvest", 16.8, 3.5, 650, 90, 13],
     ["lexion760", "tinca4", "harvest", 16.6, 3.6, 650, 90, 15],
     ["lexion760", "salonta2", "harvest", 17.1, 3.4, 640, 90, 6],
     ["fendt724", "ceica1", "plough", 21.4, 2.0, 420, 60, 12],
-    ["fendt724", "gepiu1", "plough", 21.9, 2.1, 420, 60, 8],
-    ["fendt724", "gepiu3", "plough", 21.2, 2.0, 420, 60, 15],
+    ["fendt724", "lotsud", "plough", 21.9, 2.1, 420, 60, 8],
+    ["fendt724", "lotnord", "plough", 21.2, 2.0, 420, 60, 15],
     ["puma240", "tinca4", "seed", 8.9, 4.1, 260, 30, 11],
     ["puma240", "salonta2", "seed", 9.0, 4.0, 260, 30, 9],
   ];
@@ -129,7 +129,7 @@ function buildTrips(): Trip[] {
     const p = PARCELS.find((x) => x.id === pid)!;
     const ha = day === 15 ? Math.round(p.ha * 0.45) : p.ha;
     const hours = r1(ha / haph);
-    out.push({ id: `${vid}-${pid}-${pad(day)}`, vehicleId: vid, clientId: "agrogepiu", type, date: `2026-10-${pad(day)}`, title: p.name, km: 0, hours, ha, units: ha, revenue: ha * tariff, litres: Math.round(ha * lha), fuelPrice: FUEL_PRICE, tolls: 0, driver: Math.round(hours * 60), other: ha * wear, actualRate: lha, active: day === 15, payment: day < 10 ? "paid" : "due", invoiceNo: day === 15 ? null : `QF-2026-A${pad(day)}`, parcelId: pid, tariffNote: `${tariff} lei/ha` });
+    out.push({ id: `${vid}-${pid}-${pad(day)}`, vehicleId: vid, clientId: "agrocampia", type, date: `2026-10-${pad(day)}`, title: p.name, km: 0, hours, ha, units: ha, revenue: ha * tariff, litres: Math.round(ha * lha), fuelPrice: FUEL_PRICE, tolls: 0, driver: Math.round(hours * 60), other: ha * wear, actualRate: lha, active: day === 15, payment: day < 10 ? "paid" : "due", invoiceNo: day === 15 ? null : `QF-2026-A${pad(day)}`, parcelId: pid, tariffNote: `${tariff} lei/ha` });
   }
   // utilitara
   for (let day = 2; day <= 14; day += 3) {

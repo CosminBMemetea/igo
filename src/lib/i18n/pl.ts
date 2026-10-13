@@ -69,6 +69,7 @@ export const pl: Record<MsgKey, string> = {
   "plans.quote": "Poproś o ofertę",
   "plans.talk": "Porozmawiajmy",
   "plans.quoteSub": "Napisz, ile masz ciężarówek i czego potrzebujesz — wrócimy z ofertą.",
+  "sup.subject": "Temat", "sup.trucks": "Liczba ciężarówek",
   "plans.title": "Cena dopasowana do Twojej floty.", "plans.sub": "14 dni ze wszystkim odblokowanym, bez karty. Potem przygotujemy ofertę według liczby pojazdów.", "plans.trucks": "Ciężarówki", "plans.agri": "Maszyny · za sezon", "plans.perVehicle": "/pojazd/mies. · roczna licencja na firmę", "plans.perMachine": "/maszyna/sezon", "plans.recommended": "Polecany", "plans.start": "Zacznij 14-dniowy okres próbny", "plans.choose": "Wybierz {plan}", "plans.current": "Twój plan", "plans.plus": "Wszystko z {prev} i {n} funkcji.", "plans.base": "{n} funkcji podstawowych.", "plans.note": "Oferta zależy od liczby pojazdów i wybranych funkcji. Sprzęt (GPS, sonda) kupuje się osobno, przez partnerów.", "plans.compare": "Pełne porównanie",
   "feat.title.trial": "Wszystkie {n} funkcji jest odblokowanych.", "feat.title.plan": "{on} z {n} funkcji w planie {plan}.", "feat.lead.trial": "14 dni za darmo, zostało {d}. Potem zostawiasz to, czego używasz.", "feat.lead.plan": "Zablokowane funkcje można podejrzeć, ale nie używać.", "feat.included": "W planie", "feat.inTrial": "W próbie", "feat.planned": "Planowane", "feat.trial": "Próba",
   "ans.totals": "Do tej pory: <b>{n}</b> zakończonych kursów, zysk razem <b>{profit}</b> (średnio <b>{avg}</b>/kurs), oszczędność <b>{pct}</b> wobec bazy (<b>{lei}</b>).",
