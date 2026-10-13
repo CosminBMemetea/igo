@@ -591,6 +591,7 @@ export const pl: Record<MsgKey, string> = {
   "tour.dash.b": "Strona główna pokazuje, ile flota oszczędza na paliwie i ile średnio zarabiasz na kursie — bez Excela.",
   "tour.live.t": "Twoje ciężarówki na żywo",
   "tour.live.b": "Gdzie jest każda ciężarówka, prędkość, ETA i zysk dzisiejszego kursu. Jedna jest w trybie prywatnym: bez pozycji, zgodnie z RODO.",
+  "tour.profit.t": "Rzeczywisty zysk na kurs", "tour.profit.b": "Dla każdego kursu: cena minus paliwo, opłaty drogowe, kierowca, zużycie od tonażu i udział kosztów stałych (leasing, OC, AC, pensja). Zielony = zarabiasz, czerwony = tracisz. Widać też załadunek i puste km.",
   "tour.trip.t": "Zysk jednego kursu",
   "tour.trip.b": "Przychód minus paliwo, opłaty drogowe, kierowca i zużycie. Od razu widzisz, które kursy się opłacają.",
   "tour.replay.t": "Odtworzenie zmiany",

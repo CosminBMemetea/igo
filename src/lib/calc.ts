@@ -9,7 +9,7 @@ export interface TripCosts {
   driver: number;       // lei (ore × cost orar sau zile × (diurnă + salariu/zi))
   other: number;        // lei (uzură/km sau /ha, AdBlue, parcări)
 }
-export interface ProfitBreakdown { revenue: number; fuel: number; tolls: number; driver: number; other: number; costs: number; profit: number; margin: number }
+export interface ProfitBreakdown { revenue: number; fuel: number; tolls: number; driver: number; other: number; fixed?: number; costs: number; profit: number; margin: number }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 

@@ -1,14 +1,21 @@
 // Querra Fleet: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
 import { tripProfit, savings, sumSavings, type ProfitBreakdown, type Savings } from "./calc";
 import { CITY_CC, CC_CUR, DEMO_LEI_PER, DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
-import { FUEL_PRICE, type Client, type Parcel, type Trip, type Vehicle, type Zone } from "./fleet/seed";
+import { demoLoad, hasCosts, kmPerMonth, tripEcon, type Econ } from "./costs";
+import { VEHICLES, FUEL_PRICE, type Client, type Parcel, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 
-export interface TripView extends Trip { p: ProfitBreakdown; s: Savings; vehicle: Vehicle }
-export function tripView(tr: Trip, vehicles: Vehicle[]): TripView {
+export interface TripView extends Trip { p: ProfitBreakdown; s: Savings; vehicle: Vehicle; e: Econ | null }
+const DEMO_IDS = new Set(VEHICLES.map((v) => v.id));
+export function tripView(tr: Trip, vehicles: Vehicle[], kmM?: Map<string, number>): TripView {
   const vehicle = vehicles.find((v) => v.id === tr.vehicleId)!;
-  return { ...tr, vehicle, p: tripProfit(tr), s: savings(tr.units, vehicle.baselineRate, tr.actualRate, tr.fuelPrice, vehicle.per100) };
+  const s = savings(tr.units, vehicle.baselineRate, tr.actualRate, tr.fuelPrice, vehicle.per100);
+  if (!hasCosts(vehicle) || !tr.km) return { ...tr, vehicle, p: tripProfit(tr), s, e: null };
+  // profit real: costuri fixe + variabile pe camion + uzură din tonaj (vezi lib/costs.ts)
+  const ld = DEMO_IDS.has(vehicle.id) ? demoLoad(tr, vehicle, TRUCKS.find((x) => x.id === vehicle.id)?.routeName) : { tonnes: tr.tonnes ?? null, emptyKm: tr.emptyKm ?? 0 };
+  const e = tripEcon(tr, vehicle, kmM?.get(vehicle.id) ?? 9000, ld);
+  return { ...tr, vehicle, s, e, p: { revenue: tr.revenue, fuel: e.fuel, tolls: e.tolls, driver: e.driver, other: Math.round((e.adblue + e.tyres + e.service + e.loadWear) * 100) / 100, fixed: e.fixed, costs: e.costs, profit: e.profit, margin: e.margin } };
 }
-export const tripViews = (trips: Trip[], vehicles: Vehicle[]) => trips.map((t) => tripView(t, vehicles));
+export const tripViews = (trips: Trip[], vehicles: Vehicle[]) => { const kmM = kmPerMonth(trips.filter((t) => vehicles.some((v) => v.id === t.vehicleId))); return trips.filter((t) => vehicles.some((v) => v.id === t.vehicleId)).map((t) => tripView(t, vehicles, kmM)); };
 
 /** Sursa unică pentru totaluri (acasă, curse, clienți, bonuri, economii): doar cursele încheiate. */
 export interface MonthSummary { n: number; profit: number; avgProfit: number; savings: Savings; revenue: number; fuelLei: number; litres: number; tolls: number }

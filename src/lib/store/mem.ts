@@ -20,6 +20,7 @@ export class MemStore implements Store {
   async invites(firmId: string) { return this.I.filter((x) => x.firmId === firmId); }
   async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) { if (this.T.some((x) => x.firmId === firmId && x.plate === t.plate)) throw new Error("exists"); const r = { ...t, id: newId("t"), firmId }; this.T.push(r); return { ...r }; }
+  async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) { const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; if (p.costs) t.costs = p.costs; if (p.archived !== undefined) t.archivedAt = p.archived ? new Date().toISOString() : null; return true; }
   async trucks(firmId: string) { return this.T.filter((x) => x.firmId === firmId); }
   private ownDoc(firmId: string, d: Partial<NewDoc>) {
     if (d.truckId && !this.T.some((x) => x.id === d.truckId && x.firmId === firmId)) throw new Error("truck");

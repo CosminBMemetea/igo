@@ -591,6 +591,7 @@ export const ro = {
   "tour.dash.b": "Pe prima pagină vezi cât economisește flota la motorină și cât câștigi, în medie, pe fiecare cursă. Fără Excel.",
   "tour.live.t": "Camioanele tale, live",
   "tour.live.b": "Unde e fiecare camion, cu ce viteză merge, când ajunge și cât aduce cursa de azi. Un camion e în modul privat: fără poziție, conform GDPR.",
+  "tour.profit.t": "Profit real pe cursă", "tour.profit.b": "Pentru fiecare cursă: preț minus motorină, taxe de drum, șofer, uzură din tonaj și cota din costurile fixe (leasing, RCA, CASCO, salariu). Verde = câștigi, roșu = pierzi. Vezi și gradul de încărcare și km goi.",
   "tour.trip.t": "Profitul unei curse",
   "tour.trip.b": "Venit minus motorină, taxe de drum, șofer și uzură. Vezi imediat care curse aduc bani și care te costă.",
   "tour.replay.t": "Reluarea turei",

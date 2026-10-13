@@ -9,7 +9,7 @@ export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
 export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; referredBy: string | null; createdAt: string }
 export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; truckId?: string | null; locale?: string | null }
 export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
-export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null }
+export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; archivedAt?: string | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 export type NewDoc = Omit<DocRow, "id" | "firmId">;
 export interface TripRow { id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean }
@@ -50,6 +50,7 @@ export interface Store {
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;
   addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">): Promise<TruckRow>;
   trucks(firmId: string): Promise<TruckRow[]>;
+  updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }): Promise<boolean>;
   /** Documentul trebuie să aparțină unui camion SAU unui șofer al firmei. */
   addDoc(firmId: string, d: NewDoc): Promise<DocRow>;
   updateDoc(firmId: string, id: string, d: Partial<NewDoc>): Promise<DocRow | null>;

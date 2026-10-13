@@ -9,7 +9,7 @@ const leadOut = (r: typeof leads.$inferSelect): LeadRow => ({ ...r, consentAt: i
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
 const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId, locale: u.locale });
 const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt), locale: i.locale });
-const truckOut = ({ createdAt: _c, ...t }: typeof trucks.$inferSelect): TruckRow => t;
+const truckOut = ({ createdAt: _c, archivedAt, ...t }: typeof trucks.$inferSelect): TruckRow => ({ ...t, archivedAt: iso(archivedAt) });
 const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, scope: d.scope === "driver" ? "driver" : "vehicle", type: d.type as DocType });
 const fileOut = ({ data: _d, createdAt, ...f }: typeof files.$inferSelect): FileMeta => ({ ...f, kind: f.kind as FileMeta["kind"], storage: f.storage === "blob" ? "blob" : "db", createdAt: iso(createdAt)! });
 const notOut = (n: typeof notifications.$inferSelect): NotificationRow => ({ ...n, params: JSON.parse(n.params), readAt: iso(n.readAt), createdAt: iso(n.createdAt)! });
@@ -45,8 +45,15 @@ export class PgStore implements Store {
     return r.length === 1;
   }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) {
-    try { const [r] = await this.d.insert(trucks).values({ ...t, id: newId("t"), firmId }).returning(); return truckOut(r); }
+    try { const [r] = await this.d.insert(trucks).values({ ...t, archivedAt: null, id: newId("t"), firmId }).returning(); return truckOut(r); }
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
+  }
+  async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) {
+    const set: Partial<typeof trucks.$inferInsert> = {};
+    if (p.costs) set.costs = p.costs;
+    if (p.archived !== undefined) set.archivedAt = p.archived ? new Date() : null;
+    const r = await this.d.update(trucks).set(set).where(and(eq(trucks.id, id), eq(trucks.firmId, firmId))).returning({ id: trucks.id });
+    return r.length > 0;
   }
   async trucks(firmId: string) { return (await this.d.select().from(trucks).where(eq(trucks.firmId, firmId)).orderBy(trucks.createdAt)).map(truckOut); }
   private async ownTarget(firmId: string, d: Partial<NewDoc>) {

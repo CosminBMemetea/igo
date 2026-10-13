@@ -591,6 +591,7 @@ export const en: Record<MsgKey, string> = {
   "tour.dash.b": "The home page shows how much your fleet saves on diesel and what you earn on average per trip — no spreadsheets.",
   "tour.live.t": "Your trucks, live",
   "tour.live.b": "Where each truck is, its speed, ETA and today's trip profit. One truck is in private mode: no position, GDPR-compliant.",
+  "tour.profit.t": "Real profit per trip", "tour.profit.b": "For every trip: price minus fuel, road tolls, driver, load wear and a share of fixed costs (leasing, insurance, salary). Green = you earn, red = you lose. Load factor and empty km are right there too.",
   "tour.trip.t": "Profit of a single trip",
   "tour.trip.b": "Revenue minus diesel, tolls, driver and wear. You instantly see which trips pay off and which cost you.",
   "tour.replay.t": "Shift replay",

@@ -1,3 +1,4 @@
+import { EconKpis } from "@/components/Econ";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
@@ -26,9 +27,11 @@ export default async function FeedPage() {
         <div className="eyebrow fade"><span className="flive" />{F.eyebrow}</div>
         <h1 className="h1 fade">{F.title}</h1>
         <p className="sub fade d1">{F.sub}</p>
+        <div className="fecon-m"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>
         <Feed data={{ pinned: f.pinned, events: f.events, queue: f.queue, stories: f.stories, now: f.now }} F={F} reacted={demoReactions().map((r) => r.id)} demo={d.demo} resolved={Object.fromEntries(Object.entries(rs).map(([k, v]) => [k, { a: v.a, ...(v.n ? { n: v.n } : {}) }]))} />
       </div>
       <aside className="fside">
+        <div className="fecon-d"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>
         <div className="fsum">
           <div className="eyebrow">{F.sideToday}</div>
           <div className="fsgrid">

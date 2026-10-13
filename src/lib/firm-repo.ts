@@ -18,7 +18,7 @@ export function truckBaseline(t: TruckRow, tx: FuelTxRow[], since: string): { l1
   return { l100: DEFAULT_L100, kind: "default", km: 0 };
 }
 const toR = (x: FuelTxRow) => ({ id: x.id, truckId: x.truckId, at: x.at, litres: x.litres, odometer: x.odometer, station: x.station, card: x.card, lat: x.lat, lng: x.lng });
-export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0 });
+export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, archived: !!t.archivedAt });
 export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   let litres = r.litres, fuelPrice = r.fuelPrice;
   // litri estimați → înlocuiți cu alimentările reale ale camionului din ziua cursei (CSV card / bon șofer)

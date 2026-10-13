@@ -1,3 +1,4 @@
+import { EconKpis } from "@/components/Econ";
 import { ReplayTeaser } from "@/components/ReplayTeaser";
 import { buildFeed } from "@/lib/feed";
 import { FT } from "@/lib/feed-i18n";
@@ -83,6 +84,7 @@ export default async function Home() {
           <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.profitSub", { n: m.n, total: fmtMoney(loc, m.profit) }) }} />
         </div>
       </section>
+      <EconKpis vehicles={d.vehicles} views={d.views} loc={loc} />
       <Gate feature="ai" prefs={prefs} inline>
         <AskBox loc={loc} labels={{ ph: t(loc, "ask.ph"), fallback: t(loc, "ask.fallback"), ai: t(loc, "ask.ai"), error: t(loc, "ask.error") }} />
       </Gate>

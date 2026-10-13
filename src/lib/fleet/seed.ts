@@ -9,6 +9,10 @@ export interface Vehicle {
   baselineRate: number; per100: boolean; tankL: number;
   /** L/h pentru utilaje (informativ) */
   lph?: number; engineHours?: number;
+  /** costuri editate de patron (suprascriu valorile implicite) */
+  costs?: Partial<import("../costs").CostProfile>;
+  /** scos din flotă: istoric păstrat, exclus din calcule */
+  archived?: boolean;
 }
 export interface Client { id: string; name: string; country: string; vat: string; contacts: { name: string; role: "dispatch" | "accounting" | "owner"; phone: string; email: string }[]; payDays: number }
 export interface Trip {
@@ -17,6 +21,8 @@ export interface Trip {
   revenue: number; litres: number; fuelPrice: number; tolls: number; driver: number; other: number;
   actualRate: number; active: boolean; payment: "paid" | "due" | "overdue"; invoiceNo: string | null; parcelId?: string;
   tariffNote: string;
+  /** tonaj transportat (t) și km goi (retur / poziționare) */
+  tonnes?: number; emptyKm?: number;
 }
 export interface Parcel { id: string; name: string; ha: number; crop: "wheat" | "maize" | "sunflower" | "rapeseed"; poly: LatLng[] }
 export interface Zone { id: string; name: string; kind: "depot" | "client"; at: LatLng; radiusM: number }
@@ -112,7 +118,7 @@ function buildTrips(): Trip[] {
     out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId: intlT ? INTL_CLIENT[t.id] : CLIENTS[ti % 4].id, type: "transport", date: DEMO_DAY, title: t.routeName, km: kmToday, hours: r1(kmToday / 64), ha: 0, units: kmToday, revenue: Math.round((kmToday * 8.1) / 10) * 10, litres: Math.round((kmToday * ar) / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(kmToday * (intlT || t.id === "tm33qrt" || t.id === "bh77qrt" ? 1.78 : 0.42)), driver: Math.max(1, Math.ceil(kmToday / 450)) * 450, other: Math.round(kmToday * 0.55), actualRate: ar, active: true, payment: "due", invoiceNo: null, tariffNote: "8.1 lei/km" });
   });
   // cursă pe pierdere: retur gol, taxe mari
-  out.push({ id: "tm33qrt-milano", vehicleId: "tm33qrt", clientId: "transitalia", type: "transport", date: "2026-10-13", title: "Timișoara → Milano", km: 1180, hours: 18.4, ha: 0, units: 1180, revenue: 9800, litres: 352, fuelPrice: FUEL_PRICE, tolls: 2140, driver: 3 * 450, other: 649 + 3510, actualRate: 29.8, active: false, payment: "overdue", invoiceNo: "QF-2026-0118", tariffNote: "9.800 lei / cursă" });
+  out.push({ id: "tm33qrt-milano", vehicleId: "tm33qrt", clientId: "transitalia", type: "transport", date: "2026-10-13", title: "Timișoara → Milano", km: 1180, hours: 18.4, ha: 0, units: 1180, revenue: 8400, litres: 352, fuelPrice: FUEL_PRICE, tolls: 2140, driver: 3 * 450, other: 649 + 3510, actualRate: 29.8, active: false, payment: "overdue", invoiceNo: "QF-2026-0118", tariffNote: "8.400 lei / cursă" });
   // utilaje agricole: lucrări pe parcele
   const AG: [string, string, JobType, number, number, number, number, number][] = [
     // vehicul, parcelă, tip, L/ha real, ha/h, tarif lei/ha, uzură lei/ha, zi

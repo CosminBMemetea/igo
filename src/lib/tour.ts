@@ -5,6 +5,7 @@ const S: [string, string, string][] = [
   ["feed", "/feed", ".fstories"],
   ["dash", "/", ".hero"],
   ["live", "/live", ".panel"],
+  ["profit", "/trips", ".ekpis"],
   ["trip", "/trips/bh21qrt-15", ".hero"],
   ["replay", "/replay?trip=bh21qrt-15", ".rp-bar"],
   ["alerts", "/alerts", ".alert:has(.badge.bad)"],

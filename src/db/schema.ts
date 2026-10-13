@@ -1,5 +1,5 @@
 // Querra Fleet: schema Postgres (Drizzle). Orice rând de date are firm_id; depozitul filtrează MEREU după el.
-import { customType, boolean, date, doublePrecision, index, integer, pgTable, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { customType, jsonb, boolean, date, doublePrecision, index, integer, pgTable, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const firms = pgTable("firms", {
   id: text("id").primaryKey(),
@@ -50,6 +50,10 @@ export const trucks = pgTable("trucks", {
   model: text("model"),
   tankL: integer("tank_l"),
   normalL100: real("normal_l100"),
+  /** costuri editate de patron (fixe lunare + variabile pe km, capacitate) — JSON parțial peste valorile implicite */
+  costs: jsonb("costs").$type<Record<string, number>>(),
+  /** scos din flotă: istoric păstrat, exclus din calcule */
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("trucks_firm_plate_uq").on(t.firmId, t.plate)]);
 

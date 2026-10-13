@@ -31,7 +31,7 @@ export function saveDemoFill(res: NextResponse, vehicleId: string, litres: numbe
 /** Demo: bonurile trimise de șofer în sesiunea demo a acestui browser (cookie, 24 h). Patronul le vede în /receipts.
  *  Nimic pe server/DB. Se resetează la 24 h de la începutul sesiunii demo sau la logarea într-un cont real. */
 export const DEMO_SID = "qf-dsid", FILLS = "qf-dfills", DEMO_TTL_S = 60 * 60 * 24;
-export const DEMO_COOKIES = [C, F, FILLS, DEMO_SID, "qf-dreact", "qf-dres"];
+export const DEMO_COOKIES = [C, F, FILLS, DEMO_SID, "qf-dreact", "qf-dres", "qf-decon"];
 export interface DemoFill { id: string; v: string; t: string; l: number; o: number; a: number | null; c: string | null; r: number | null; s: string; p?: number }
 export function demoFills(): DemoFill[] {
   const sid = cookies().get(DEMO_SID)?.value;
@@ -51,7 +51,7 @@ export function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): { dup: 
 }
 /** începe o sesiune demo nouă (id nou → bonurile/tura vechi nu mai apar) */
 export function newDemoSession(res: NextResponse) {
-  for (const c of [C, F, FILLS, "qf-dreact", "qf-dres"]) res.cookies.set(c, "", { path: "/", maxAge: 0 });
+  for (const c of [C, F, FILLS, "qf-dreact", "qf-dres", "qf-decon"]) res.cookies.set(c, "", { path: "/", maxAge: 0 });
   res.cookies.set(DEMO_SID, Math.random().toString(36).slice(2, 10), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
   return res;
 }
