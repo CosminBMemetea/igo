@@ -3,9 +3,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "./icons";
 
-const ITEMS: [IconName, string, boolean][] = [["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["crm", "/crm", true], ["docs", "/documents", true], ["receipts", "/receipts", true], ["invoices", "/invoices", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["features", "/features", false]];
+const ITEMS: [IconName, string, boolean][] = [["home", "/", false], ["feed", "/feed", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["crm", "/crm", true], ["docs", "/documents", true], ["receipts", "/receipts", true], ["invoices", "/invoices", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["features", "/features", false]];
 // demo: doar esențialul pentru o firmă de transport
-const DEMO: [IconName, string, boolean][] = [["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["docs", "/documents", true], ["receipts", "/receipts", true], ["upload", "/import", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["savings", "/savings", false]];
+const DEMO: [IconName, string, boolean][] = [["home", "/", false], ["feed", "/feed", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["docs", "/documents", true], ["receipts", "/receipts", true], ["upload", "/import", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["savings", "/savings", false]];
 export function NavIcons({ labels, demo }: { labels: Record<string, string>; demo?: boolean }) {
   const path = usePathname();
   const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && path.startsWith("/vehicles")) || (h === "/features" && path.startsWith("/plans")) || (h === "/import" && path.startsWith("/import")));

@@ -1,0 +1,66 @@
+import type { Locale } from "./i18n";
+// Textele „Fluxul flotei” (RO / EN / PL). Ținute separat ca să nu umfle catalogul principal.
+const RO = {
+  title: "Fluxul flotei", eyebrow: "Azi · în timp real", sub: "Doar ce contează: treceri de graniță, alimentări, opriri lungi, livrări și momentele bune ale șoferilor.",
+  pinned: "Necesită atenție", now: "acum", ago: "acum {n} min", agoH: "acum {h} h", earlier: "Mai devreme", newPill: "{n} noi", new1: "1 nou",
+  upToDate: "Ești la zi ✓", upToDateSub: "Ai văzut tot ce s-a întâmplat azi. Te anunțăm când apare ceva nou.", pull: "Trage pentru actualizare", release: "Eliberează", refreshing: "Se actualizează…", nothingNew: "Nimic nou deocamdată",
+  border: "A intrat în {country} {flag}", borderSub: "Lângă {place} · ETA {dest} {eta}",
+  fuel: "Alimentare: {litres} L la {station}", fuelSub: "{price}/L · {vs} față de media flotei", fuelAbroad: "{orig} ≈ {lei}",
+  idle: "Oprit de {min} min", idleSub: "{place} · motorul a mers în gol {idle} min", call: "Sună-l",
+  delivered: "Livrat la {place}", deliveredSub: "{client} · descărcat la {time}", onTime: "la timp", early: "cu {n} min mai devreme",
+  group: "{n} camioane descărcate în {country} {flag}", groupSub: "{list}",
+  doc: "{doc} expiră în {days} zile", docToday: "{doc} expiră azi", docSub: "{owner} · până pe {date}", renew: "Reînnoiește",
+  theft: "Suspiciune de furt: {litres} L la {station}", theftSub: "Camionul era la {dist} km de pompă · {lei} la risc", seeAlert: "Vezi alerta",
+  eco: "Consum record azi: {rate} L/100", ecoSub: "{pct} sub normă pe {km} km — merită un 👏",
+  rank1: "{driver} e pe locul 1 în clasament", rankSub: "Scor {score} · {why}",
+  ontimeStreak: "{driver}: {n} livrări la timp la rând", ontimeSub: "Ultima: {place}",
+  clap: "Bravo", clapped: "Ai aplaudat", clapSent: "{driver} vede 👏 în aplicația șoferului", clapDrv: "Patronul te-a aplaudat 👏 ({n})",
+  sideToday: "Azi în flotă", sMoving: "în cursă", sFills: "alimentări", sKm: "km parcurși", sAlerts: "alerte", sNext: "Urmează", sTop: "Cel mai bun azi", openFeed: "Deschide fluxul", teaser: "Ce se întâmplă acum",
+  story: "Ziua lui {name}", storyKm: "{km} km", storyStops: "Opriri", storyFill: "Alimentări", storyPriv: "Pauză privată — locația nu se vede (GDPR).", close: "Închide", storyNone: "Încă nu a plecat azi",
+  st: { depart: "Plecare", pump: "Alimentare", break: "Pauză", deliver: "Descărcare", now: "Acum" },
+  demoPhone: "Număr demo — nu sună pe nimeni", liveTag: "LIVE", empty: "Fluxul apare după ce conectezi GPS-ul și cardurile de carburant.",
+};
+type F = typeof RO;
+const EN: F = {
+  title: "Fleet feed", eyebrow: "Today · live", sub: "Only what matters: border crossings, fill-ups, long stops, deliveries and your drivers' good moments.",
+  pinned: "Needs attention", now: "now", ago: "{n} min ago", agoH: "{h} h ago", earlier: "Earlier", newPill: "{n} new", new1: "1 new",
+  upToDate: "You're all caught up ✓", upToDateSub: "You've seen everything that happened today. We'll let you know when something new comes in.", pull: "Pull to refresh", release: "Release", refreshing: "Refreshing…", nothingNew: "Nothing new yet",
+  border: "Entered {country} {flag}", borderSub: "Near {place} · ETA {dest} {eta}",
+  fuel: "Fill-up: {litres} L at {station}", fuelSub: "{price}/L · {vs} vs fleet average", fuelAbroad: "{orig} ≈ {lei}",
+  idle: "Stopped for {min} min", idleSub: "{place} · engine idling {idle} min", call: "Call",
+  delivered: "Delivered in {place}", deliveredSub: "{client} · unloaded at {time}", onTime: "on time", early: "{n} min early",
+  group: "{n} trucks unloaded in {country} {flag}", groupSub: "{list}",
+  doc: "{doc} expires in {days} days", docToday: "{doc} expires today", docSub: "{owner} · until {date}", renew: "Renew",
+  theft: "Suspected theft: {litres} L at {station}", theftSub: "The truck was {dist} km from the pump · {lei} at risk", seeAlert: "View alert",
+  eco: "Best fuel use today: {rate} L/100", ecoSub: "{pct} below norm over {km} km — worth a 👏",
+  rank1: "{driver} is #1 in the ranking", rankSub: "Score {score} · {why}",
+  ontimeStreak: "{driver}: {n} on-time deliveries in a row", ontimeSub: "Latest: {place}",
+  clap: "Well done", clapped: "You clapped", clapSent: "{driver} sees 👏 in the driver app", clapDrv: "Your boss clapped for you 👏 ({n})",
+  sideToday: "Fleet today", sMoving: "on the road", sFills: "fill-ups", sKm: "km driven", sAlerts: "alerts", sNext: "Up next", sTop: "Best today", openFeed: "Open the feed", teaser: "Happening now",
+  story: "{name}'s day", storyKm: "{km} km", storyStops: "Stops", storyFill: "Fill-ups", storyPriv: "Private break — location hidden (GDPR).", close: "Close", storyNone: "Hasn't left yet today",
+  st: { depart: "Departure", pump: "Fill-up", break: "Break", deliver: "Unloading", now: "Now" },
+  demoPhone: "Demo number — calls no one", liveTag: "LIVE", empty: "The feed appears once you connect GPS and fuel cards.",
+};
+const PL: F = {
+  title: "Strumień floty", eyebrow: "Dziś · na żywo", sub: "Tylko to, co ważne: przejścia graniczne, tankowania, długie postoje, dostawy i dobre chwile kierowców.",
+  pinned: "Wymaga uwagi", now: "teraz", ago: "{n} min temu", agoH: "{h} h temu", earlier: "Wcześniej", newPill: "{n} nowe", new1: "1 nowe",
+  upToDate: "Jesteś na bieżąco ✓", upToDateSub: "Widziałeś wszystko z dzisiaj. Damy znać, gdy pojawi się coś nowego.", pull: "Pociągnij, aby odświeżyć", release: "Puść", refreshing: "Odświeżam…", nothingNew: "Na razie nic nowego",
+  border: "Wjechał do: {country} {flag}", borderSub: "Okolice: {place} · ETA {dest} {eta}",
+  fuel: "Tankowanie: {litres} L na {station}", fuelSub: "{price}/L · {vs} wobec średniej floty", fuelAbroad: "{orig} ≈ {lei}",
+  idle: "Postój od {min} min", idleSub: "{place} · silnik na biegu jałowym {idle} min", call: "Zadzwoń",
+  delivered: "Dostarczono: {place}", deliveredSub: "{client} · rozładunek o {time}", onTime: "na czas", early: "{n} min przed czasem",
+  group: "{n} ciężarówki rozładowane: {country} {flag}", groupSub: "{list}",
+  doc: "{doc} wygasa za {days} dni", docToday: "{doc} wygasa dziś", docSub: "{owner} · do {date}", renew: "Odnów",
+  theft: "Podejrzenie kradzieży: {litres} L na {station}", theftSub: "Ciężarówka była {dist} km od dystrybutora · {lei} zagrożone", seeAlert: "Zobacz alert",
+  eco: "Rekordowe spalanie dziś: {rate} L/100", ecoSub: "{pct} poniżej normy na {km} km — warto dać 👏",
+  rank1: "{driver} jest na 1. miejscu w rankingu", rankSub: "Wynik {score} · {why}",
+  ontimeStreak: "{driver}: {n} dostaw na czas z rzędu", ontimeSub: "Ostatnia: {place}",
+  clap: "Brawo", clapped: "Doceniono", clapSent: "{driver} widzi 👏 w aplikacji kierowcy", clapDrv: "Szef bije Ci brawo 👏 ({n})",
+  sideToday: "Flota dziś", sMoving: "w trasie", sFills: "tankowania", sKm: "km przejechane", sAlerts: "alerty", sNext: "Następne", sTop: "Najlepszy dziś", openFeed: "Otwórz strumień", teaser: "Dzieje się teraz",
+  story: "Dzień: {name}", storyKm: "{km} km", storyStops: "Postoje", storyFill: "Tankowania", storyPriv: "Przerwa prywatna — lokalizacja ukryta (RODO).", close: "Zamknij", storyNone: "Dziś jeszcze nie wyjechał",
+  st: { depart: "Wyjazd", pump: "Tankowanie", break: "Przerwa", deliver: "Rozładunek", now: "Teraz" },
+  demoPhone: "Numer demo — do nikogo nie dzwoni", liveTag: "LIVE", empty: "Strumień pojawi się po podłączeniu GPS i kart paliwowych.",
+};
+export const FT: Record<Locale, F> = { ro: RO, en: EN, pl: PL };
+export type FeedText = F;
+export const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));

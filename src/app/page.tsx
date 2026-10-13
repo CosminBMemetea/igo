@@ -1,4 +1,7 @@
 import { ReplayTeaser } from "@/components/ReplayTeaser";
+import { buildFeed } from "@/lib/feed";
+import { FT } from "@/lib/feed-i18n";
+import { Avatar } from "@/components/Feed";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
@@ -55,6 +58,7 @@ export default async function Home() {
   // alerta de furt cea mai gravă (card plătit departe de camion) — prima pe ecran, deasupra economiei
   const theft = d.alerts.find((a) => a.rule === "card-fara-camion") ?? d.alerts.find((a) => a.theft) ?? null;
   const theftV = theft ? d.vehicles.find((v) => v.id === theft.vehicleId) : null;
+  const feed = d.demo ? buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers }) : null;
   const alertsToday = d.alerts.filter((a) => a.time.slice(0, 10) === today).length;
   return (
     <main>
@@ -93,6 +97,13 @@ export default async function Home() {
           {alertsToday ? <span className="hc bad"><b>{alertsToday}</b>{t(loc, alertsToday === 1 ? "hc.alert1" : "hc.alerts")}</span> : null}
         </div>
       </Link> : null}
+      {feed ? (
+        <Link href="/feed" className="fteaser fade">
+          <div className="fth"><div><div className="eyebrow"><span className="flive" />{FT[loc].teaser}</div><b>{FT[loc].title}</b></div><span className="link">{FT[loc].openFeed} →</span></div>
+          <div className="fsr">{feed.stories.slice(0, 7).map((s) => <Avatar key={s.vehicleId} hue={s.hue} initials={s.initials} size={34} ring={s.status === "moving" ? "var(--pos)" : s.status === "private" ? "#a78bfa" : s.status === "pump" ? "#f5a524" : "var(--fg3)"} />)}</div>
+          <ul>{[...feed.pinned.slice(0, 1), ...feed.events.slice(0, 3)].map((e) => <li key={e.id}><span className="k">{e.flag ?? (e.kind === "theft" ? "⚠" : e.kind === "fuel" ? "⛽" : e.kind === "idle" ? "⏸" : e.kind === "doc" ? "📄" : e.prio === "positive" ? "👏" : "📦")}</span><div><b>{e.title}</b><span>{e.plate} · {e.driver}</span></div><time>{e.min != null ? `${String(Math.floor(e.min / 60)).padStart(2, "0")}:${String(Math.floor(e.min % 60)).padStart(2, "0")}` : e.when}</time></li>)}</ul>
+        </Link>
+      ) : null}
       {d.demo ? <ReplayTeaser loc={loc} tripId={d.views.find((v) => v.vehicleId === "bh21qrt" && v.active)?.id ?? null} /> : null}
       {rk.drivers.length >= 3 ? (
         <section className="section rk-home">

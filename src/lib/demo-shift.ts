@@ -28,7 +28,7 @@ export function saveDemoFill(res: NextResponse, vehicleId: string, litres: numbe
 /** Demo: bonurile trimise de șofer în sesiunea demo a acestui browser (cookie, 24 h). Patronul le vede în /receipts.
  *  Nimic pe server/DB. Se resetează la 24 h de la începutul sesiunii demo sau la logarea într-un cont real. */
 export const DEMO_SID = "qf-dsid", FILLS = "qf-dfills", DEMO_TTL_S = 60 * 60 * 24;
-export const DEMO_COOKIES = [C, F, FILLS, DEMO_SID];
+export const DEMO_COOKIES = [C, F, FILLS, DEMO_SID, "qf-dreact"];
 export interface DemoFill { id: string; v: string; t: string; l: number; o: number; a: number | null; c: string | null; r: number | null; s: string; p?: number }
 export function demoFills(): DemoFill[] {
   const sid = cookies().get(DEMO_SID)?.value;
@@ -48,8 +48,23 @@ export function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): { dup: 
 }
 /** începe o sesiune demo nouă (id nou → bonurile/tura vechi nu mai apar) */
 export function newDemoSession(res: NextResponse) {
-  for (const c of [C, F, FILLS]) res.cookies.set(c, "", { path: "/", maxAge: 0 });
+  for (const c of [C, F, FILLS, "qf-dreact"]) res.cookies.set(c, "", { path: "/", maxAge: 0 });
   res.cookies.set(DEMO_SID, Math.random().toString(36).slice(2, 10), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
   return res;
 }
 export function clearDemo(res: NextResponse) { for (const c of DEMO_COOKIES) res.cookies.set(c, "", { path: "/", maxAge: 0 }); return res; }
+
+/** Demo: aplauze 👏 de la patron (cookie al sesiunii demo; șoferul le vede pe /driver). */
+const RX = "qf-dreact";
+export interface DemoReaction { id: string; v: string; l: string; t: string }
+export function demoReactions(): DemoReaction[] {
+  const sid = cookies().get(DEMO_SID)?.value; if (!sid) return [];
+  try { const j = JSON.parse(cookies().get(RX)?.value ?? "{}") as { sid?: string; r?: DemoReaction[] }; return j.sid === sid && Array.isArray(j.r) ? j.r : []; } catch { return []; }
+}
+export function addDemoReaction(res: NextResponse, x: { id: string; v: string; l: string; on: boolean }) {
+  const sid = cookies().get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
+  if (!cookies().get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
+  const cur = demoReactions().filter((r) => r.id !== x.id);
+  const list = x.on ? [...cur, { id: x.id, v: x.v, l: x.l, t: new Date().toISOString().slice(0, 16) }].slice(-15) : cur;
+  res.cookies.set(RX, JSON.stringify({ sid, r: list }), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
+}

@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { DEMO_SID } from "@/lib/demo-shift";
 import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
@@ -37,12 +35,7 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
             <input type="hidden" name="as" value="driver" />{nx}
             <button className="btn sec ldrv" style={{ width: "100%" }} disabled={!secret}>🚚 {t(loc, "login.demoDriver")} →</button>
           </form>
-          {cookies().get(DEMO_SID) ? (
-            <form action="/api/auth/demo" method="post" className="fade d1" style={{ textAlign: "center", marginTop: 2 }}>
-              <input type="hidden" name="reset" value="1" />{nx}
-              <button className="link" style={{ background: "none", border: 0, padding: 0, cursor: "pointer", fontSize: 12, color: "var(--fg3)" }} disabled={!secret}>{t(loc, "login.demoReset")}</button>
-            </form>
-          ) : null}
+
           <div className="or">{t(loc, "login.or")}</div>
           <div className="rtabs fade d2">{tab("owner")}{tab("driver")}</div>
         </>

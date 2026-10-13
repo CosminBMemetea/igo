@@ -1,4 +1,5 @@
 import { Footer } from "@/components/Footer";
+import { WheelX } from "@/components/WheelX";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -33,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /></head>
       <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView && !ctx.demo ? "has-trial" : undefined}>
         <Header prefs={prefs} firm={ctx} />
+        <WheelX />
         {children}
         {/^\/(live|replay)(\/|$)/.test(ctx.path) ? null : <Footer loc={prefs.loc} />}
         {tn?.demo && prefs.role === "user" ? <DemoTour steps={tourSteps(prefs.loc)} L={tourLabels(prefs.loc)} /> : null}

@@ -1,6 +1,7 @@
 import { liveFleet, tripViews } from "@/lib/query";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
-import { demoLastFill, demoShift } from "@/lib/demo-shift";
+import { demoLastFill, demoReactions, demoShift } from "@/lib/demo-shift";
+import { FT } from "@/lib/feed-i18n";
 import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
@@ -28,6 +29,7 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const lastCard = fd.fills.filter((f) => f.truckId === v.id).pop();
   const dl = tn.demo ? demoLastFill(v.id) : null;
   const lastFill = dl ? `${fmtNum(loc, dl.litres, dl.litres % 1 ? 1 : 0)} L · ${dl.station || "—"}` : last ? `${last.litres} L · ${last.station || "—"}` : lastCard ? `${lastCard.litres} L · ${lastCard.station}` : "—";
+  const claps = tn.demo ? demoReactions().filter((x) => x.v === v.id) : [];
   const labels = Object.fromEntries(KEYS.map((k) => [k, t(loc, k)]));
   const today = todayFor(tn.demo);
   const trips = (await r.trips()).filter((x) => x.vehicleId === v.id).sort((a, b) => Number(b.active) - Number(a.active) || b.date.localeCompare(a.date));
@@ -46,6 +48,7 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   return (
     <Gate feature="driverApp" prefs={prefs}>
       <main>{!tn.demo && vehicles.length > 1 ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
+        {claps.length ? <div className="drvclap fade" role="status"><span>👏</span><div><b>{FT[loc].clapDrv.replace("{n}", String(claps.length))}</b><small>{claps[claps.length - 1].l}</small></div></div> : null}
         <DriverApp preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} />
         {trip && pw ? <TripPaperwork serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
         <section className="section" id="docs">

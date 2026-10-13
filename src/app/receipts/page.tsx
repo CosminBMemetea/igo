@@ -49,7 +49,7 @@ export default async function Receipts() {
   const m = monthSummary(d.views);
   const fills = demoReceipts(d.views).sort((a, b) => b.time.localeCompare(a.time)).map((f) => ({ ...f, priceLei: f.amount }));
   const fuel = m.fuelLei + driver.reduce((a, x) => a + (x.amount ?? 0), 0), tolls = m.tolls;
-  const cats: [string, number][] = [[t(loc, "cat.fuel"), fuel], [t(loc, "cat.tolls"), tolls], [t(loc, "cat.service"), 11900], [t(loc, "cat.adblue"), Math.round(fuel * 0.04)], [t(loc, "cat.parking"), 1260]];
+  const cats: [string, number][] = [[t(loc, "cat.fuel"), fuel], [t(loc, "cat.tolls"), tolls], [t(loc, "cat.service"), 11900], [t(loc, "cat.adblue"), Math.round(m.fuelLei * 0.04)], [t(loc, "cat.parking"), 1260]];
   const max = Math.max(...cats.map((c) => c[1]));
   return (
     <Gate feature="receipts" prefs={prefs}>

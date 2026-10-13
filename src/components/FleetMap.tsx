@@ -125,7 +125,8 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   const N = (n: number, d = 0) => fmtNum(loc, n, d);
   const ago = v.secondsAgo < 60 ? labels["ago.s"].replace("{n}", String(v.secondsAgo)) : labels["ago.m"].replace("{n}", String(Math.round(v.secondsAgo / 60)));
   // numărăm ce e pe hartă: vehiculele în pauză privată nu au marker (le arată chip-ul „🔒 N în privat”)
-  const onMap = vehicles.filter(located);
+  // „Toate” = toată flota (ca pe Economii/Clasament); cele în pauză privată n-au marker — le arată chip-ul „🔒 N în privat”
+  const onMap = vehicles;
   const counts = { all: onMap.length, truck: onMap.filter((x) => x.kind === "truck").length, agri: onMap.filter((x) => x.kind === "agri").length, van: onMap.filter((x) => x.kind === "van").length };
   return (
     <>
