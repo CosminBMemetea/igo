@@ -162,7 +162,7 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
           ) : null}
           {sum.fx?.map((x) => (
             <p key={x.cur} className={`msg ${x.missing ? "warn" : ""}`} style={{ marginTop: 10 }}>
-              {x.n > x.missing && x.rate ? fmt(x.n - x.missing === 1 ? l.eur1 : l.eur, { fills: `${x.n - x.missing} ${pluralForm(l.loc, x.n - x.missing, l.fillUnit)}`, cur: x.cur, rate: x.rate.toLocaleString(l.loc, { maximumFractionDigits: 4 }), date: x.fxDate!.split("-").reverse().join(".") }) : null}
+              {x.n > x.missing && x.rate ? fmt(x.n - x.missing === 1 ? l.eur1 : l.eur, { fills: `${x.n - x.missing} ${pluralForm(l.loc, x.n - x.missing, l.fillUnit)}`, cur: x.cur, rate: x.rate.toLocaleString(l.loc, { maximumFractionDigits: 4 }), date: x.fxDate!.split("-").reverse().join(".") }) + (x.peg ? " " + l.peg : "") : null}
               {x.missing ? <>{x.n > x.missing ? <br /> : null}{fmt(l.otherCur, { cur: x.cur })}</> : null}
             </p>
           ))}

@@ -67,7 +67,9 @@ async function fromDb(date: string) {
     for (const x of rows) { const r = MEM.get(x.date) ?? { EUR: 1 }; r[x.cur] = x.perEur; MEM.set(x.date, r); }
   } catch { /* tabel lipsă / DB căzut: mergem la feed */ }
 }
-export interface Fx { ron: number; rate: number; fxDate: string; cur: string }
+export interface Fx { ron: number; rate: number; fxDate: string; cur: string; peg?: boolean }
+/** BGN: Bulgaria e în zona euro din 2026; BCE nu mai publică BGN → paritatea fixă. */
+export const BGN_PER_EUR = 1.95583;
 /** amount în `cur` la data `date` (YYYY-MM-DD) → lei. RON → identic. Curs indisponibil → null. */
 export async function toRon(amount: number, cur0: string | null | undefined, date: string): Promise<Fx | null> {
   const cur = normCur(cur0 ?? "RON") ?? "";
@@ -79,6 +81,10 @@ export async function toRon(amount: number, cur0: string | null | undefined, dat
   const age = (Date.now() - Date.parse(date + "T00:00:00Z")) / 864e5;
   if (!ok(p)) { await feed(age < 3 ? "daily" : age < 85 ? "hist-90d" : "hist"); p = pick(date); }
   if (!ok(p) && age < 3) { await feed("hist-90d"); p = pick(date); }
+  if (!ok(p) && cur === "BGN") {
+    const q = p && p[1].RON ? p : (await feed("hist-90d"), pick(date));
+    if (q && q[1].RON) { const rate = q[1].RON / BGN_PER_EUR; return { ron: Math.round(amount * rate * 100) / 100, rate: Math.round(rate * 1e6) / 1e6, fxDate: q[0], cur, peg: true }; }
+  }
   if (!ok(p)) return null;
   const [d, r] = p!, rate = r.RON / r[cur];
   return { ron: Math.round(amount * rate * 100) / 100, rate: Math.round(rate * 1e6) / 1e6, fxDate: d, cur };

@@ -50,7 +50,7 @@ export const CITY_CC: Record<string, string> = {
   Giurgiu: "RO", Ruse: "BG", Sofia: "BG", Plovdiv: "BG", "Kapitan Andreevo": "BG", Edirne: "TR", Istanbul: "TR", "Zürich": "CH", Geneva: "CH", Lyon: "FR",
   Szeged: "HU", Kecskemét: "HU", Budapesta: "HU", Debrecen: "HU",
 };
-export const CC_CUR: Record<string, string> = { HU: "HUF", AT: "EUR", DE: "EUR", SK: "EUR", PL: "PLN", SI: "EUR", IT: "EUR", NL: "EUR", BG: "BGN", TR: "TRY", CH: "CHF", FR: "EUR", RO: "RON" };
+export const CC_CUR: Record<string, string> = { HU: "HUF", AT: "EUR", DE: "EUR", SK: "EUR", PL: "PLN", SI: "EUR", IT: "EUR", NL: "EUR", BG: "EUR", TR: "TRY", CH: "CHF", FR: "EUR", RO: "RON" };
 /** curs orientativ DOAR pentru a genera sumele din demo (lei per unitate); conversia reală folosește cursul BCE */
 export const DEMO_LEI_PER: Record<string, number> = { RON: 1, EUR: 5.0, HUF: 0.0127, PLN: 1.17, BGN: 2.56, TRY: 0.12, CHF: 5.35 };
 const r = (...names: string[]): Waypoint[] => names.map((name) => ({ name, at: C[name] }));

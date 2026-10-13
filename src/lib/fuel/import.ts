@@ -42,8 +42,8 @@ export async function analyze(s: Store, firmId: string, text: string, mapping?: 
   // monede străine: curs BCE la data fiecărui rând (prin EUR → RON); fără curs → păstrăm suma originală și avertizăm
   const fx = new Map<number, Fx | null>();
   await Promise.all(rows.map(async (x, i) => { if (x.r.amount != null && !isRon(x.r.currency)) fx.set(i, await toRon(x.r.amount, x.r.currency, x.r.at.slice(0, 10))); }));
-  const fxSum = new Map<string, { cur: string; n: number; rate: number | null; fxDate: string | null; missing: number }>();
-  for (const [i, f] of fx) { const cur = normCur(rows[i].r.currency) ?? String(rows[i].r.currency); const g = fxSum.get(cur) ?? { cur, n: 0, rate: null, fxDate: null, missing: 0 }; g.n++; if (f) { if (!g.fxDate || f.fxDate > g.fxDate) { g.rate = f.rate; g.fxDate = f.fxDate; } } else g.missing++; fxSum.set(cur, g); }
+  const fxSum = new Map<string, { cur: string; n: number; rate: number | null; fxDate: string | null; missing: number; peg?: boolean }>();
+  for (const [i, f] of fx) { const cur = normCur(rows[i].r.currency) ?? String(rows[i].r.currency); const g = fxSum.get(cur) ?? { cur, n: 0, rate: null, fxDate: null, missing: 0 }; g.n++; if (f) { if (!g.fxDate || f.fxDate > g.fxDate) { g.rate = f.rate; g.fxDate = f.fxDate; } if (f.peg) g.peg = true; } else g.missing++; fxSum.set(cur, g); }
   return {
     parsed: p, rows, learned, fxRows: fx,
     summary: {

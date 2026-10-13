@@ -296,7 +296,7 @@ export const en: Record<MsgKey, string> = {
   "imp.card": "Card",
   "imp.assign": "Pick truck",
   "imp.addTruck": "Add the truck in setup",
-  "imp.go": "Import {fills}", "imp.eur": "{fills} in {cur}: converted at {rate} lei/{cur} (ECB rate of {date}).", "imp.eur1": "{fills} in {cur}: converted at {rate} lei/{cur} (ECB rate of {date}).", "imp.otherCur": "{cur}: ECB rate unavailable right now — original amount kept; left out of the fuel price.",
+  "imp.go": "Import {fills}", "imp.eur": "{fills} in {cur}: converted at {rate} lei/{cur} (ECB rate of {date}).", "imp.eur1": "{fills} in {cur}: converted at {rate} lei/{cur} (ECB rate of {date}).", "imp.peg": "Fixed peg 1.95583 BGN/EUR (Bulgaria uses the euro since 2026).", "imp.otherCur": "{cur}: ECB rate unavailable right now — original amount kept; left out of the fuel price.",
   "imp.done": "Done: {added} new fill-ups, {dupes} already there.",
   "imp.err": "We couldn't read the file. Check the format or try another export.",
   "imp.big": "The file is over 3 MB. Export a shorter period.",

@@ -296,7 +296,7 @@ export const ro = {
   "imp.card": "Card",
   "imp.assign": "Alege camionul",
   "imp.addTruck": "Adaugă camionul în Configurare",
-  "imp.go": "Importă {fills}", "imp.eur": "{fills} în {cur}: convertite la {rate} lei/{cur} (curs BCE din {date}).", "imp.eur1": "{fills} în {cur}: convertită la {rate} lei/{cur} (curs BCE din {date}).", "imp.otherCur": "{cur}: cursul BCE nu e disponibil acum — păstrăm suma originală; nu intră în prețul motorinei.",
+  "imp.go": "Importă {fills}", "imp.eur": "{fills} în {cur}: convertite la {rate} lei/{cur} (curs BCE din {date}).", "imp.eur1": "{fills} în {cur}: convertită la {rate} lei/{cur} (curs BCE din {date}).", "imp.peg": "Paritate fixă 1,95583 BGN/EUR (Bulgaria folosește euro din 2026).", "imp.otherCur": "{cur}: cursul BCE nu e disponibil acum — păstrăm suma originală; nu intră în prețul motorinei.",
   "imp.done": "Gata: {added} alimentări noi, {dupes} deja existente.",
   "imp.err": "Nu am putut citi fișierul. Verifică formatul sau încearcă alt export.",
   "imp.big": "Fișierul are peste 3 MB. Exportă o perioadă mai scurtă.",

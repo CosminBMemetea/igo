@@ -296,7 +296,7 @@ export const pl: Record<MsgKey, string> = {
   "imp.card": "Karta",
   "imp.assign": "Wybierz ciężarówkę",
   "imp.addTruck": "Dodaj ciężarówkę w konfiguracji",
-  "imp.go": "Importuj {fills}", "imp.eur": "{fills} w {cur}: przeliczone po {rate} lei/{cur} (kurs EBC z {date}).", "imp.eur1": "{fills} w {cur}: przeliczone po {rate} lei/{cur} (kurs EBC z {date}).", "imp.otherCur": "{cur}: kurs EBC jest teraz niedostępny — zachowujemy oryginalną kwotę; nie wchodzi do ceny paliwa.",
+  "imp.go": "Importuj {fills}", "imp.eur": "{fills} w {cur}: przeliczone po {rate} lei/{cur} (kurs EBC z {date}).", "imp.eur1": "{fills} w {cur}: przeliczone po {rate} lei/{cur} (kurs EBC z {date}).", "imp.peg": "Stały kurs 1,95583 BGN/EUR (Bułgaria używa euro od 2026).", "imp.otherCur": "{cur}: kurs EBC jest teraz niedostępny — zachowujemy oryginalną kwotę; nie wchodzi do ceny paliwa.",
   "imp.done": "Gotowe: {added} nowych tankowań, {dupes} już było.",
   "imp.err": "Nie udało się odczytać pliku. Sprawdź format lub spróbuj innego eksportu.",
   "imp.big": "Plik ma ponad 3 MB. Wyeksportuj krótszy okres.",
