@@ -1,19 +1,60 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Icon, type IconName } from "./icons";
-import { TourNav } from "./DemoTour";
+import { TourNav, startTour } from "./DemoTour";
 
-const ITEMS: [IconName, string, boolean][] = [["feed", "/feed", false], ["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["crm", "/crm", true], ["docs", "/documents", true], ["receipts", "/receipts", true], ["invoices", "/invoices", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["features", "/features", false]];
+type It = [IconName, string, boolean];
+const ITEMS: It[] = [["feed", "/feed", false], ["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["crm", "/crm", true], ["docs", "/documents", true], ["receipts", "/receipts", true], ["invoices", "/invoices", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["features", "/features", false]];
 // demo: doar esențialul pentru o firmă de transport
-const DEMO: [IconName, string, boolean][] = [["feed", "/feed", false], ["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["docs", "/documents", true], ["receipts", "/receipts", true], ["upload", "/import", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["savings", "/savings", false]];
-export function NavIcons({ labels, demo, tour }: { labels: Record<string, string>; demo?: boolean; tour?: string }) {
+const DEMO: It[] = [["feed", "/feed", false], ["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["docs", "/documents", true], ["receipts", "/receipts", true], ["upload", "/import", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["savings", "/savings", false]];
+// mobil: 4 principale (în ordinea asta) + „Mai mult”
+const MAIN: IconName[] = ["feed", "live", "alerts", "trips"];
+const lk = (k: IconName) => (k === "upload" ? "import" : k);
+
+function AlertBadge({ n: init }: { n: number }) {
+  const [n, setN] = useState(init);
+  useEffect(() => setN(init), [init]);
+  useEffect(() => { const h = (e: Event) => { const r = (e as CustomEvent<{ r: unknown }>).detail?.r; setN((x) => Math.max(0, x + (r ? -1 : 1))); }; addEventListener("qf-res", h); return () => removeEventListener("qf-res", h); }, []);
+  return n ? <b className="nbadge" aria-label={String(n)}>{n > 9 ? "9+" : n}</b> : null;
+}
+
+export function NavIcons({ labels, demo, tour, driver, alerts = 0 }: { labels: Record<string, string>; demo?: boolean; tour?: string; driver?: boolean; alerts?: number }) {
   const path = usePathname();
-  const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && path.startsWith("/vehicles")) || (h === "/features" && path.startsWith("/plans")) || (h === "/import" && path.startsWith("/import")));
-  return (
+  const [open, setOpen] = useState(false);
+  const [tourFresh, setTourFresh] = useState(false);
+  useEffect(() => setOpen(false), [path]);
+  useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false); addEventListener("keydown", k); document.documentElement.classList.add("msheet-open"); return () => { removeEventListener("keydown", k); document.documentElement.classList.remove("msheet-open"); }; }, [open]);
+  useEffect(() => { if (!tour) return; const u = () => { try { setTourFresh(!JSON.parse(localStorage.getItem("qf-tour2") || "{}").done); } catch { setTourFresh(true); } }; u(); addEventListener("qf-tour-seen", u); addEventListener("storage", u); return () => { removeEventListener("qf-tour-seen", u); removeEventListener("storage", u); }; }, [tour]);
+  const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && (path.startsWith("/vehicles") || path.startsWith("/replay"))) || (h === "/features" && path.startsWith("/plans")));
+  const list = demo ? DEMO : ITEMS;
+  if (driver) return (
     <nav className="nav">
-      {(demo ? DEMO : ITEMS).map(([k, h, m]) => <Fragment key={k}><Link key={k} href={h} className={`ico${on(h) ? " on" : ""}${m ? " mhide" : ""}`} title={labels[k === "upload" ? "import" : k]} aria-label={labels[k === "upload" ? "import" : k]}><Icon name={k} /><small>{labels[k === "upload" ? "import" : k]}</small></Link>{tour && k === "alerts" ? <TourNav label={tour} /> : null}</Fragment>)}
+      {list.map(([k, h, m]) => <Link key={k} href={h} className={`ico${on(h) ? " on" : ""}${m ? " mhide" : ""}`} title={labels[lk(k)]} aria-label={labels[lk(k)]}><Icon name={k} /><small>{labels[lk(k)]}</small></Link>)}
     </nav>
+  );
+  const more = list.filter(([k]) => !MAIN.includes(k));
+  const moreOn = more.some(([, h]) => on(h)) || path.startsWith("/notifications") || path.startsWith("/recomanda");
+  return (
+    <>
+      <nav className="nav nav5">
+        {list.map(([k, h]) => { const mi = MAIN.indexOf(k); return <Fragment key={k}><Link href={h} className={`ico${on(h) ? " on" : ""}${mi < 0 ? " inmore" : ` o${mi + 1}`}`} title={labels[lk(k)]} aria-label={labels[lk(k)]}><span className="nic"><Icon name={k} />{k === "alerts" ? <AlertBadge n={alerts} /> : null}</span><small>{labels[lk(k)]}</small></Link>{tour && k === "alerts" ? <span className="inmore tourwrap"><TourNav label={tour} /></span> : null}</Fragment>; })}
+        <button type="button" className={`ico morebtn o5${moreOn || open ? " on" : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)} aria-label={labels.more}><span className="nic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>{tour && tourFresh ? <i className="ndot" /> : null}</span><small>{labels.more}</small></button>
+      </nav>
+      {open ? (
+        <div className="msheet-bg" onClick={() => setOpen(false)}>
+          <div className="msheet" role="dialog" aria-modal="true" aria-label={labels.more} onClick={(e) => e.stopPropagation()}>
+            <div className="msheet-grab" aria-hidden="true" />
+            <div className="msheet-head"><b>{labels.more}</b><button type="button" className="msheet-x" onClick={() => setOpen(false)} aria-label={labels.close}>×</button></div>
+            <div className="msheet-grid">
+              {more.map(([k, h]) => <Link key={k} href={h} className={`mtile${on(h) ? " on" : ""}`} onClick={() => setOpen(false)}><Icon name={k} /><span>{labels[lk(k)]}</span></Link>)}
+              {tour ? <button type="button" className="mtile" onClick={() => { setOpen(false); startTour(); }}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none" /></svg><span>{tour}</span>{tourFresh ? <i className="ndot" /> : null}</button> : null}
+              <Link href="/notifications" className={`mtile${path.startsWith("/notifications") ? " on" : ""}`} onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0" /></svg><span>{labels.notif}</span></Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -1,3 +1,4 @@
+import { demoResolved } from "@/lib/demo-shift";
 import { BSIZE_BOOT } from "@/components/BtnSize";
 import { Footer } from "@/components/Footer";
 import { WheelX } from "@/components/WheelX";
@@ -26,10 +27,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // în paralel: notificări + (pentru șofer) utilizatori și camioane
   const [notes, users, trucks] = await Promise.all([tn ? notificationsFor(tn).catch(() => []) : [], drv ? store().users(drv).catch(() => []) : [], drv ? store().trucks(drv).catch(() => []) : []]);
   const firm = { name: tn?.role === "admin" ? (tn.firm?.name ?? null) : tn?.firm?.name ?? null, demo: tn?.demo ?? true, demoMode: !!tn?.firm?.demoMode, canToggle: tn?.role === "owner" && !!tn.firm, dbOk: tn?.dbOk ?? true, unread: notes.filter((n) => !n.readAt).length, blobOk: blobConfigured() };
+  // badge roșu pe „Alerte” (bara mobilă): alerte care cer atenție, minus cele rezolvate în demo
+  let alerts = 0;
+  if (tn && tn.role !== "driver") { try { const al = await tn.repo.alerts(); const rs = tn.demo ? demoResolved() : {}; alerts = al.filter((a) => (a.theft || a.rule === "doc-expiry") && !(rs as Record<string, unknown>)[(a.theft ? "t-" : "c-") + a.id]).length; } catch {} }
   const me = drv ? users.find((u) => u.id === tn!.uid) : null;
   const plate = me?.truckId ? trucks.find((x) => x.id === me.truckId)?.plate ?? null : null;
   const h = headers();
-  const ctx = { ...firm, who: me?.name ?? null, plate, path: h.get("x-igo-path") ?? "/", denied: h.get("x-igo-denied") };
+  const ctx = { ...firm, alerts, who: me?.name ?? null, plate, path: h.get("x-igo-path") ?? "/", denied: h.get("x-igo-denied") };
   return (
     <html suppressHydrationWarning lang={prefs.loc} data-theme={prefs.theme} data-role={lookOf(prefs.role) ?? undefined} className={inter.variable}>
       <head><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /><script dangerouslySetInnerHTML={{ __html: BSIZE_BOOT }} /></head>

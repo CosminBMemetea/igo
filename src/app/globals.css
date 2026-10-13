@@ -1054,3 +1054,37 @@ html[data-bsize="xl"] .phone .btn{font-size:19px}
 .tourico svg{stroke:currentColor;fill:none;stroke-width:2}
 .tourico.pulse svg{color:var(--acc,#2563eb);animation:tpulse 1.6s ease-in-out infinite;border-radius:50%}
 @keyframes tpulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.5)}50%{box-shadow:0 0 0 7px rgba(37,99,235,0)}}
+/* r16: bara mobilă cu 5 butoane + „Mai mult” */
+.nav5 .morebtn{display:none}
+.nav5 .tourwrap{display:contents}
+.nav .nic{position:relative;display:inline-grid;place-items:center}
+.nbadge{position:absolute;top:-6px;right:-10px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--neg,#ef4444);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;box-shadow:0 0 0 2px var(--bg)}
+.ndot{position:absolute;top:-2px;right:-4px;width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 2px var(--bg)}
+@media (max-width:760px){
+  .nav5{overflow:visible!important;justify-content:space-between!important;scroll-snap-type:none!important}
+  .nav5 .inmore{display:none!important}
+  .nav5 .morebtn{display:flex!important;background:none;border:0;color:inherit;font:inherit;cursor:pointer}
+  .nav5 .o1{order:1}.nav5 .o2{order:2}.nav5 .o3{order:3}.nav5 .o4{order:4}.nav5 .o5{order:5}
+  html .nav5 .ico,html[data-bsize] .nav5 .ico{flex:1 1 0!important;min-width:0!important;max-width:none!important;flex-basis:0!important}
+  .nav5 .ico small{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .nav5 .morebtn svg{stroke:currentColor;fill:none;stroke-width:2}
+  html[data-bsize="xl"] .nbadge{min-width:21px;height:21px;line-height:21px;font-size:12.5px}
+}
+.msheet-bg{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;animation:msFade .2s ease-out}
+.msheet{width:100%;max-width:560px;max-height:calc(100dvh - 60px - env(safe-area-inset-top));overflow:auto;background:var(--bg2);color:var(--fg);border-radius:24px 24px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(0,0,0,.35);animation:msUp .26s cubic-bezier(.2,.8,.2,1)}
+.msheet-grab{width:40px;height:5px;border-radius:3px;background:var(--fg3);opacity:.5;margin:2px auto 8px}
+.msheet-head{display:flex;align-items:center;justify-content:space-between;margin:0 2px 12px}.msheet-head b{font-size:18px}
+.msheet-x{width:36px;height:36px;border-radius:50%;border:0;background:var(--bg3);color:var(--fg);font-size:22px;line-height:1;cursor:pointer}
+.msheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mtile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:88px;padding:12px 6px;border-radius:18px;background:var(--bg3);border:1px solid transparent;color:var(--fg);text-decoration:none;font:inherit;font-size:13px;font-weight:600;text-align:center;cursor:pointer}
+.mtile svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:1.8}
+.mtile.on{border-color:var(--acc);color:var(--acc)}
+.mtile:active{transform:scale(.97)}
+.mtile .ndot{top:12px;right:14px}
+html[data-bsize="l"] .mtile{min-height:100px;font-size:14.5px}html[data-bsize="l"] .mtile svg{width:32px;height:32px}
+html[data-bsize="xl"] .mtile{min-height:116px;font-size:16px}html[data-bsize="xl"] .mtile svg{width:36px;height:36px}
+html[data-bsize="xl"] .msheet-grid{grid-template-columns:repeat(2,1fr)}
+html.msheet-open,html.msheet-open body{overflow:hidden}
+@media (min-width:761px){.msheet-bg{display:none}}
+@keyframes msUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes msFade{from{opacity:0}to{opacity:1}}
