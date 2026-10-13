@@ -27,9 +27,10 @@ const located = (x: LiveVehicle): x is LiveVehicle & { at: [number, number] } =>
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 export interface MapLabels { [k: string]: string }
-interface Props { mode: "strip" | "full"; vehicles: LiveVehicle[]; zones: Zone[]; parcels: Parcel[]; theme: "dark" | "light"; loc: Locale; labels: MapLabels; now: number; initial?: string }
+interface Props { mode: "strip" | "full"; vehicles: LiveVehicle[]; zones: Zone[]; parcels: Parcel[]; theme: "dark" | "light"; loc: Locale; labels: MapLabels; now: number; initial?: string ; fitAll?: boolean }
 
-export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, labels, now, initial }: Props) {
+export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, labels, now, initial, fitAll }: Props) {
+  const fitted = useRef(false);
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{ L: typeof Leaflet; map: Leaflet.Map; cluster: Leaflet.MarkerClusterGroup; trail?: Leaflet.LayerGroup; ghost?: Leaflet.CircleMarker } | null>(null);
   const [ready, setReady] = useState(false);
@@ -99,10 +100,12 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
     for (const x of vehicles) if (x.id !== v.id && x.ahead.length > 1) g.addLayer(m.L.polyline(x.ahead, { color: ACC, weight: 2, opacity: 0.28, lineCap: "round", lineJoin: "round", interactive: false }));
     drawRoute(m.L, g, v.done, v.ahead);
     const fleet = vehicles.filter(located).map((x) => x.at);
-    const all = pts(v).length > 1 ? pts(v) : v.at ? [v.at, v.at] : fleet;
+    // prima încadrare pe /live (fără ?v=): toată flota pe ecran → „Toate · 14” = markerele vizibile + cele în privat
+    const first = fitAll && !fitted.current; fitted.current = true;
+    const all = first && fleet.length ? [...fleet, ...pts(v)] : pts(v).length > 1 ? pts(v) : v.at ? [v.at, v.at] : fleet;
     if (!all.length) return;
     const mobile = matchMedia("(max-width:760px)").matches;
-    m.map.fitBounds(m.L.latLngBounds(all).pad(mobile ? 0.15 : 0.3), { paddingTopLeft: mobile ? [20, 170] : [0, 0], paddingBottomRight: mobile ? [20, innerHeight * 0.46 + 90] : [420, 90], maxZoom: 13 });
+    m.map.fitBounds(m.L.latLngBounds(all).pad(mobile ? 0.15 : 0.3), { paddingTopLeft: mobile ? [20, 170] : [0, 0], paddingBottomRight: mobile ? [20, innerHeight * 0.46 + 120] : [420, 120], maxZoom: 13 });
   }, [ready, sel, mode, v, vehicles]);
 
   // reluare

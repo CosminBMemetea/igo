@@ -17,7 +17,7 @@ export default async function Live({ searchParams }: { searchParams: { v?: strin
   return (
     <main className="live-page" style={{ padding: 0 }}>
       <Gate feature="live" prefs={prefs}>
-        <FleetMap mode="full" vehicles={live} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={prefs.loc} labels={mapLabels(prefs.loc)} now={DEMO_NOW_MIN} initial={initial} />
+        <FleetMap mode="full" vehicles={live} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={prefs.loc} labels={mapLabels(prefs.loc)} now={DEMO_NOW_MIN} initial={initial} fitAll={!searchParams.v} />
       </Gate>
     </main>
   );

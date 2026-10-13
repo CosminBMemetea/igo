@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-const RK = ["tank", "sumTitle", "hours", "normal", "profit", "again", "hl", "hlHint", "title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
+const RK = ["dayStart", "tank", "sumTitle", "hours", "normal", "profit", "again", "hl", "hlHint", "title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Bucharest" });
 
 export default async function Replay({ searchParams }: { searchParams: { v?: string; trip?: string; d?: string; autoplay?: string } }) {

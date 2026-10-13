@@ -4,13 +4,13 @@
 export type PlanId = "start" | "pro" | "business";
 export type PlanState = PlanId | "trial";
 export type FeatureId = "profit" | "savings" | "live" | "fuelAlerts" | "receipts" | "documents" | "driverApp" | "alertsCenter" | "crm" | "invoicing" | "gpsApi" | "cardCsv" | "replay" | "ai" | "maintenance" | "agri" | "reports" | "efactura" | "probe" | "roles";
-export interface Plan { name: string; eurPerVehicleMonth: number; eurPerMachineSeason: number; who: string; top: string[]; recommended?: boolean }
+export interface Plan { name: string; who: string; top: string[]; recommended?: boolean }
 export interface Feature { id: FeatureId; rank: number; plan: PlanId; cat: keyof typeof CATS; name: string; desc: string; planned?: boolean }
 export const PLAN_ORDER: PlanId[] = ["start", "pro", "business"];
 export const TRIAL_DAYS = 14;
 export const PLANS: Record<PlanId, Plan> = {
   start: {
-    name: "Start", eurPerVehicleMonth: 5, eurPerMachineSeason: 40,
+    name: "Start", 
     who: "Pentru început, fără aparate în mașini|To get started, no devices in the vehicles|Na start, bez urządzeń w pojazdach",
     top: [
       "Profit pe cursă și economie %|Profit per trip and savings %|Zysk na kurs i oszczędność %",
@@ -19,7 +19,7 @@ export const PLANS: Record<PlanId, Plan> = {
     ],
   },
   pro: {
-    name: "Pro", eurPerVehicleMonth: 12, eurPerMachineSeason: 90, recommended: true,
+    name: "Pro",  recommended: true,
     who: "Pentru firma care vrea control complet|For firms that want full control|Dla firm, które chcą pełnej kontroli",
     top: [
       "Clienți (CRM), facturi pe cursă, profit pe client|Clients (CRM), invoices per trip, profit per client|Klienci (CRM), faktury za kurs, zysk na klienta",
@@ -28,8 +28,7 @@ export const PLANS: Record<PlanId, Plan> = {
     ],
   },
   business: {
-    name: "Business", eurPerVehicleMonth: 25,
-    eurPerMachineSeason: 180,
+    name: "Business", 
     who: "Pentru flote cu sondă și echipă de birou|For fleets with fuel probes and an office team|Dla flot z sondami i zespołem biurowym",
     top: [
       "Anti-furt cu sondă în rezervor (prin partener)|Anti-theft with a tank probe (via partner)|Ochrona przed kradzieżą z sondą w zbiorniku (przez partnera)",

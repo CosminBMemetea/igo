@@ -248,7 +248,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
   // nivel rezervor estimat: plecare la ~55%, minus consum, plus alimentări
   const tankL = extra?.tank ?? 600, tankPct = Math.max(2, Math.min(100, ((tankL * 0.55 - usedL + fueled) / tankL) * 100));
   const pct = (x: number) => ((x - d.start) / (d.end - d.start || 1)) * 100;
-  const evLabel = (e: ReplayEvent) => e.kind === "fuel" ? `${t.fuel}${e.litres ? ` · ${N(e.litres)} L` : ""}` : e.kind === "pause" ? `${t.pause} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "private" ? `${t.private} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "start" ? t.start : t.end;
+  const evLabel = (e: ReplayEvent) => e.kind === "fuel" ? `${t.fuel}${e.litres ? ` · ${N(e.litres)} L` : ""}` : e.kind === "pause" ? `${t.pause} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "private" ? `${t.private} · ${N(Math.round((e.end ?? e.min) - e.min))} min` : e.kind === "start" ? (e.day ? t.dayStart : t.start) : t.end;
 
   return (
     <div className="rp" data-status={status} data-ready={ready ? "1" : undefined}>

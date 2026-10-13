@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { DEMO_SID } from "@/lib/demo-shift";
 import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
@@ -8,7 +10,7 @@ export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { bad: "acct.bad", disabled: "acct.disabled", nosecret: "acct.nosecret" };
 export default function Login({ searchParams }: { searchParams: { e?: string; as?: string; next?: string } }) {
   const { loc } = getPrefs();
-  const secret = (process.env.SESSION_SECRET?.length ?? 0) >= 32;
+  const secret = (process.env.SESSION_SECRET?.length ?? 0) >= 32, hasDemo = !!cookies().get(DEMO_SID)?.value;
   const err = searchParams.e && ERR[searchParams.e];
   // ?next= se păstrează prin formulare; serverul îl validează (cale relativă, permisă rolului)
   const next = typeof searchParams.next === "string" && /^\/(?![/\\])/.test(searchParams.next) ? searchParams.next.slice(0, 200) : "";
@@ -35,6 +37,13 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
             <input type="hidden" name="as" value="driver" />{nx}
             <button className="btn sec ldrv" style={{ width: "100%" }} disabled={!secret}>🚚 {t(loc, "login.demoDriver")} →</button>
           </form>
+          {hasDemo ? (
+            <form action="/api/auth/demo" method="post" className="fade d1 ldemo lreset" style={{ marginTop: 10, textAlign: "center" }}>
+              <input type="hidden" name="reset" value="1" />
+              <button className="link" style={{ background: "none", border: 0, cursor: "pointer", fontSize: 14 }} disabled={!secret}>↺ {t(loc, "login.demoReset")}</button>
+              <p className="hint" style={{ marginTop: 4 }}>{t(loc, "login.demoResetHint")}</p>
+            </form>
+          ) : null}
 
           <div className="or">{t(loc, "login.or")}</div>
           <div className="rtabs fade d2">{tab("owner")}{tab("driver")}</div>

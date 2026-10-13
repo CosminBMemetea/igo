@@ -27,7 +27,7 @@ export default async function Invoices({ searchParams }: { searchParams: { trip?
         <section className="grid2 inv section" style={{ marginTop: 40 }}>
           <div className="paper fade d1">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-              <div><div style={{ letterSpacing: ".3em", fontWeight: 500 }}>QUERRA TRANS SRL</div><div style={{ color: "#8a8c92", marginTop: 6 }}>RO 41234567 · J05/1234/2019<br />Oradea</div></div>
+              <div><div style={{ letterSpacing: ".3em", fontWeight: 500 }}>TRANS DEMO SRL</div><div style={{ color: "#8a8c92", marginTop: 6 }}>RO 41234567 · J05/1234/2019<br />Oradea</div></div>
               <div style={{ textAlign: "right" }}><div style={{ fontSize: 24, fontWeight: 300 }}>{t(loc, "inv.invoice")}</div><div style={{ color: "#8a8c92" }}>{sel.invoiceNo} · {fmtDate(loc, sel.date, true)}</div><div style={{ color: "#8a8c92", fontSize: 11 }}>{t(loc, "inv.draft")}</div></div>
             </div>
             <div style={{ marginTop: 30, color: "#8a8c92", fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase" }}>{t(loc, "inv.billTo")}</div>
