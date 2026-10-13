@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   const ok = b && typeof b.vehicleId === "string" && typeof b.lat === "number" && typeof b.lng === "number" && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180;
   if (!ok) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const tn = await tenant();
+  if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   if (!tn.demo && tn.firm) {
     const sh = await tn.repo.shift(b.vehicleId as string);
     if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });

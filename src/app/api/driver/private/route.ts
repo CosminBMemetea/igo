@@ -8,6 +8,7 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { vehicleId?: unknown; on?: unknown } | null;
   if (!b || typeof b.vehicleId !== "string" || typeof b.on !== "boolean") return NextResponse.json({ error: "bad request" }, { status: 400 });
   const tn = await tenant(), r = tn.repo;
+  if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   if (!(await r.vehicles()).some((v) => v.id === b.vehicleId)) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const sh = (tn.demo ? demoShift(b.vehicleId) : null) ?? await r.shift(b.vehicleId);
   if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });

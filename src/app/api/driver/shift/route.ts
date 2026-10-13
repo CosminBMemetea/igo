@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { vehicleId?: unknown; action?: unknown; checklist?: unknown } | null;
   const tn = await tenant(), r = tn.repo;
+  if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   if (!b || typeof b.vehicleId !== "string" || !(await r.vehicles()).some((v) => v.id === b.vehicleId) || (b.action !== "start" && b.action !== "stop")) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const prev = (tn.demo ? demoShift(b.vehicleId) : null) ?? await r.shift(b.vehicleId);
   const now = new Date().toISOString();

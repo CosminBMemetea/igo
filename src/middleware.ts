@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
-import { canSwitchPlan, decide } from "@/lib/access";
+import { canSwitchPlan, decide, roleHome } from "@/lib/access";
 
 // ?lang= / ?theme= pentru toți; ?plan= / ?view= doar pentru admin. Antetele x-igo-* se setează aici (cele venite din afară se șterg).
 const PUBLIC_PARAMS: [string, string, RegExp][] = [["lang", "igo-locale", /^(ro|en|pl)$/], ["theme", "igo-theme", /^(dark|light)$/]];
@@ -8,6 +8,7 @@ const ADMIN_PARAMS: [string, string, RegExp][] = [["plan", "igo-plan", /^(trial|
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const s = await verifySession(req.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET);
+  if (s && (path === "/login" || path === "/signup") && req.method === "GET") { const u = req.nextUrl.clone(); u.pathname = roleHome(s.role); u.search = ""; return NextResponse.redirect(u); }
   const d = decide(path, s);
   if (d.kind === "unauthorized") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (d.kind === "forbidden") {

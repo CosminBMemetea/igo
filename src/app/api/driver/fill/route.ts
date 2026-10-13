@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { localNow } from "@/lib/validate";
 import { tenant } from "@/lib/tenant";
-import { saveDemoFill } from "@/lib/demo-shift";
+import { addDemoFill, saveDemoFill } from "@/lib/demo-shift";
 import { normCur, toRon } from "@/lib/fuel/fx";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
@@ -10,6 +10,8 @@ export async function POST(req: Request) {
   const fd = await req.formData().catch(() => null);
   if (!fd) return NextResponse.json({ error: "form" }, { status: 400 });
   const tn = await tenant(), r = tn.repo;
+  // rolul se verifică la trimitere: un tab vechi de șofer, după ce în alt tab s-a logat patronul, nu trimite bonuri în numele lui
+  if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   const vehicleId = String(fd.get("vehicleId") ?? "");
   const litres = Number(fd.get("litres")), odometerKm = Number(fd.get("odometerKm")), amountRaw = String(fd.get("amount") ?? "").trim();
   const v = (await r.vehicles()).find((x) => x.id === vehicleId);
@@ -22,7 +24,14 @@ export async function POST(req: Request) {
   const fx = amount != null && amount > 0 && currency !== "RON" ? await toRon(amount, currency, day) : null;
   const fxCols = currency === "RON" ? { currency: null, amountRon: null, fxRate: null, fxDate: null } : { currency, amountRon: fx?.ron ?? null, fxRate: fx?.rate ?? null, fxDate: fx?.fxDate ?? null };
   // demo: nimic în memoria comună a serverului; doar „ultima alimentare” în cookie-ul vizitatorului
-  if (tn.demo) return saveDemoFill(NextResponse.json({ ok: true, demo: true, overTank: litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null }), vehicleId, litres, String(fd.get("station") ?? "").trim().slice(0, 80));
+  if (tn.demo) {
+    const res = NextResponse.json({ ok: true, demo: true, overTank: litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null });
+    const st = String(fd.get("station") ?? "").trim().slice(0, 80);
+    const a = amount != null && amount > 0 ? amount : null;
+    const { dup } = addDemoFill(res, { v: vehicleId, t: localNow().slice(0, 16), l: litres, o: odometerKm, a: fxCols.currency ? fx?.ron ?? null : a, c: fxCols.currency ? currency : null, r: fxCols.currency ? a : null, s: st });
+    if (dup) return saveDemoFill(NextResponse.json({ ok: true, demo: true, dup: true, overTank: litres > v.tankL }), vehicleId, litres, st);
+    return saveDemoFill(res, vehicleId, litres, st);
+  }
   // idempotent: același bon (vehicul + litri + km la bord) trimis de două ori → aceeași alimentare, nu un duplicat
   const dup = (await r.driverFills(vehicleId)).find((x) => x.litres === litres && x.odometerKm === odometerKm);
   if (dup) return NextResponse.json({ ok: true, fill: dup, dup: true, overTank: litres > v.tankL });

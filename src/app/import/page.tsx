@@ -39,7 +39,6 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
             <div className="sheet">
               <div className="eyebrow">{t(loc, "imp.samples")}</div>
               <p className="hint" style={{ margin: "6px 0 12px" }}>{t(loc, "imp.demoSamplesHint")}</p>
-              <div className="chips">{samples.map(([k, n]) => <a key={k} className="btn sec sm" href={`/samples/${k}.csv`} download>{n}</a>)}</div>
             </div>
           </div>
         </section>
@@ -64,7 +63,6 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
             <div className="sheet">
               <div className="eyebrow">{t(loc, "imp.samples")}</div>
               <p className="hint" style={{ margin: "6px 0 12px" }}>{t(loc, "imp.samplesHint")}</p>
-              <div className="chips">{SAMPLES(t(loc, "imp.anomalies")).map(([k, n]) => <a key={k} className="btn sec sm" href={`/samples/${k}.csv`} download>{n}</a>)}</div>
             </div>
             {unassigned.size ? (
               <div className="sheet" style={{ marginTop: 16 }}>

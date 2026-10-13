@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DenyToast } from "./DenyToast";
 import { t } from "@/lib/i18n";
 import type { Prefs } from "@/lib/prefs";
 import { PLANS } from "@/lib/features";
@@ -28,7 +29,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   const notices = (
     <>
       {role === "admin" && !onAdmin ? <div className="rolebar r-admin"><RoleIcon k="admin" /><span>{t(loc, "rl.adminViewing", { firm: firm.demo ? t(loc, "rl.demoFirm") : firm.name ?? "—" })}</span><Link href="/admin">{t(loc, "rl.exit")}</Link></div> : null}
-      {firm.denied ? <div className="rolebar r-deny"><span>{t(loc, "rl.denied", { role: look ? t(loc, ROLE_LOOK[look].label) : "" })}</span></div> : null}
+      {firm.denied ? <DenyToast text={t(loc, "rl.denied", { role: look ? t(loc, ROLE_LOOK[look].label) : "" })} close={t(loc, "rl.close")} /> : null}
     </>
   );
   const prefsBox = (
@@ -73,6 +74,9 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
                 </div>
                 <p className="hint">{t(loc, "acct.previewHint")}</p>
               </>
+            ) : null}
+            {firm.demo && !firm.name && (role === "user" || role === "driver") ? (
+              <form action="/api/auth/demo" method="post" style={{ marginBottom: 8 }}><input type="hidden" name="as" value={role === "driver" ? "owner" : "driver"} /><button className="btn sec sm" style={{ width: "100%" }}>{t(loc, role === "driver" ? "acct.asOwner" : "acct.asDriver")}</button></form>
             ) : null}
             <form action="/api/auth/logout" method="post"><button className="btn sec" style={{ width: "100%" }}>{t(loc, "acct.logout")}</button></form>
           </div>

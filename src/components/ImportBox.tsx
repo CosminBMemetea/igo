@@ -82,7 +82,7 @@ export function ImportBox({ labels: l, fieldLabels, demo, samples = [] }: { labe
         <span>{busy ? l.reading : l.dropHint}</span>
       </label>
       {samples.length && !sum ? (
-        <div className="trys"><span>{l.try}</span>{samples.map(([k, n]) => <button key={k} type="button" className="btn sec sm" disabled={busy} onClick={() => trySample(k, n)}>{n}</button>)}</div>
+        <div className="trys"><span>{l.try}</span>{samples.map(([k, n]) => <span key={k} style={{ display: "inline-flex", alignItems: "center" }}><button type="button" className="btn sec sm" disabled={busy} onClick={() => trySample(k, n)}>{n}</button><a className="dl" href={`/samples/${k}.csv`} download aria-label={`${n} CSV`} title="CSV">↓</a></span>)}</div>
       ) : null}
       {msg ? <p className={`msg ${msg.ok ? "ok" : "err"}`}>{msg.text}</p> : null}
       {res ? (

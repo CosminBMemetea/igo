@@ -22,7 +22,7 @@ function hav(a: [number, number], b: [number, number]) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo }: { demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview }: { preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
   const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
@@ -37,10 +37,12 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
 
   async function toggle() {
     if (!on && checks.length < 3) { setMsg({ t: L["drv.checkNeeded"], k: "err" }); return; }
+    if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
     const next = !on;
     setPriv(false); privRef.current = false;
     setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
-    await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
+    const rs = await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
+    if (rs?.status === 409) { setOn(!next); setMsg({ t: L["drv.role"], k: "err" }); return; }
     if (next) {
       setStart(Date.now()); setKm(0); lastPos.current = null;
     }
@@ -65,9 +67,10 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     lastPos.current = null;
   }, [on, priv]); // eslint-disable-line react-hooks/exhaustive-deps
   async function togglePriv() {
+    if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
     const next = !priv;
     const r = await fetch("/api/driver/private", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, on: next }) }).catch(() => null);
-    if (!r?.ok) { setMsg({ t: L["drv.invalid"], k: "err" }); return; }
+    if (!r?.ok) { setMsg({ t: r?.status === 409 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
     setPriv(next); privRef.current = next; window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
   }
   async function onPhoto(file0: File | null) {
@@ -119,12 +122,13 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       if (r?.ok) { idem.current = newKey(); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
         const fxT = fx ? (fx.ok && fx.amountRon != null ? " " + L["drv.fxOk"].replace("{ron}", fmtNum(loc, fx.amountRon, 2)).replace("{rate}", fmtNum(loc, fx.fxRate ?? 0, 4)).replace(/\{cur\}/g, fx.currency).replace("{date}", (fx.fxDate ?? "").split("-").reverse().join(".")) : " " + L["drv.fxNo"].replace("{cur}", fx.currency)) : "";
         setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
-      else setFormErr(r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]);
+      else setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]);
     } finally { setBusy(false); }
   }
   const hours = start ? (now - start) / 3600000 : 0;
   return (
     <div className="phone">
+      {preview ? <div className="pvbar fade" role="note"><b>{L["drv.preview"]}</b><span>{L["drv.previewHint"]}</span></div> : null}
       <div className="eyebrow fade">{vehicleName}</div>
       <h1 className="fade" style={{ fontWeight: 300, fontSize: 40, letterSpacing: "-.02em", marginTop: 8 }}>{hello}</h1>
       <div className="pill fade d1" style={{ marginTop: 14 }}><span className="dot" style={{ background: on ? "var(--pos)" : "var(--fg3)", margin: 0 }} />{on ? L["drv.onShift"] : L["drv.offShift"]}</div>
@@ -155,7 +159,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
             <label key={k} className="field"><span>{L[lab]}</span>{k === "amount" ? <select className="tsel cursel" aria-label={L["drv.cur"]} value={cur} onChange={(e) => setCur(e.target.value)}>{CURS.map((c) => <option key={c} value={c}>{c === "RON" ? "lei" : c}</option>)}</select> : null}<input className="input" inputMode={mode} maxLength={k === "station" ? 80 : 12} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></label>
           ))}
           {formErr ? <p className="msg err" role="alert">{formErr}</p> : null}
-          <button className="btn pri start" style={{ height: 60, marginTop: 8 }} disabled={busy} aria-busy={busy}>{busy ? L["drv.sending"] : L["drv.send"]}</button>
+          <button className="btn pri start" style={{ height: 60, marginTop: 8 }} disabled={busy || preview} aria-busy={busy} title={preview ? L["drv.previewNo"] : undefined}>{busy ? L["drv.sending"] : L["drv.send"]}</button>
         </form>
       ) : null}
       <div className="sheet fade d3"><div className="field" style={{ padding: "4px 0" }}><span style={{ whiteSpace: "nowrap" }}>{L["drv.lastFill"]}</span><span className="ell" title={last} style={{ color: "var(--fg2)", fontSize: 14 }}>{last}</span></div></div>

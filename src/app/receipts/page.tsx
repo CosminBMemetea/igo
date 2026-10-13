@@ -8,6 +8,7 @@ import { demoReceipts, monthSummary } from "@/lib/query";
 import { fmtDate, fmtMoney, fmtNum, t } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { leiOf, isRon } from "@/lib/fuel/lei";
+import { demoFills } from "@/lib/demo-shift";
 
 export const dynamic = "force-dynamic";
 export default async function Receipts() {
@@ -40,7 +41,8 @@ export default async function Receipts() {
       </Gate>
     );
   }
-  const driver = await (await tenant()).repo.driverFills();
+  // demo: bonurile trimise de șofer în sesiunea demo a acestui browser (cookie), primele în listă
+  const driver = [...demoFills().map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null }))];
   // aceeași sursă ca Acasă/Curse/Clienți: cursele încheiate
   const m = monthSummary(d.views);
   const fills = demoReceipts(d.views).sort((a, b) => b.time.localeCompare(a.time)).map((f) => ({ ...f, priceLei: f.amount }));
@@ -52,7 +54,7 @@ export default async function Receipts() {
       <main>
         <div className="eyebrow fade">{t(loc, "rc.title")}</div>
         <h1 className="h1 fade">{t(loc, "rc.sub")}</h1>
-        <p className="sub fade d1">{t(loc, "rc.firmSub", { n: fills.length, litres: fmtNum(loc, m.litres) })} · {fmtMoney(loc, m.fuelLei)}</p>
+        <p className="sub fade d1">{t(loc, "rc.firmSub", { n: fills.length + driver.length, litres: fmtNum(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, m.fuelLei)}</p>
         <section className="section">
           <div className="head"><h2>{t(loc, "rc.byCat")}</h2></div>
           <div className="wf">
@@ -60,14 +62,14 @@ export default async function Receipts() {
           </div>
         </section>
         <section className="section">
-          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
+          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead, drv: true, orig: f.cur && f.orig ? { amount: f.orig, cur: f.cur } : null })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
               <div key={f.id} className="row r4 rcrow" style={{ cursor: "default" }}>
                 <div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div>
                 <div className="v">{fmtNum(loc, f.litres)} L</div>
-                <div className="v">{fmtMoney(loc, f.amount)}{"orig" in f && f.orig ? <small className="fxo">{fmtNum(loc, (f.orig as { amount: number }).amount, 2)} {(f.orig as { cur: string }).cur}</small> : null}</div>
-                <div style={{ textAlign: "right" }}>{f.ok ? <span className="badge ok">{t(loc, "rc.matched")} {v?.name}</span> : <Link href="/alerts" className="badge bad">{t(loc, "rule.card-fara-camion")}</Link>}</div>
+                <div className="v">{f.amount ? fmtMoney(loc, f.amount) : "—"}{"orig" in f && f.orig ? <small className="fxo">{fmtNum(loc, (f.orig as { amount: number }).amount, 2)} {(f.orig as { cur: string }).cur}</small> : null}</div>
+                <div style={{ textAlign: "right" }}>{"drv" in f && f.drv ? <span className="badge acc">{t(loc, "rc.fromDriver")}</span> : f.ok ? <span className="badge ok">{t(loc, "rc.matched")} {v?.name}</span> : <Link href="/alerts" className="badge bad">{t(loc, "rule.card-fara-camion")}</Link>}</div>
               </div>
             );
           })}
