@@ -58,7 +58,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       map.addLayer(cluster);
       map.setView([46.9, 21.9], 7);
       // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
-      requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
+      const inv = () => { if (!dead && (map as unknown as { _mapPane?: unknown })._mapPane) try { map.invalidateSize(); } catch {} }; requestAnimationFrame(inv); setTimeout(inv, 400);
       if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => { if (dead || !(map as unknown as { _mapPane?: unknown })._mapPane) { ro.disconnect(); return; } try { map.invalidateSize(); } catch {} }); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       mapRef.current = { L, map, cluster };
       setReady(true);

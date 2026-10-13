@@ -86,7 +86,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
       const tilesReady = new Promise<void>((res) => {
         setTimeout(res, 5000); // plasă de siguranță
         // după re-măsurarea containerului (400 ms) Leaflet cere alte dale; așteptăm să se termine TOATE cele vizibile
-        setTimeout(() => { map.invalidateSize(); const b = base as unknown as { isLoading?: () => boolean }; if (!b.isLoading?.()) res(); else base.once("load", () => res()); }, 450);
+        setTimeout(() => { if (dead) return; try { map.invalidateSize(); } catch {} const b = base as unknown as { isLoading?: () => boolean }; if (!b.isLoading?.()) res(); else base.once("load", () => res()); }, 450);
       });
       const all = d.path.map((p) => [p[0], p[1]] as [number, number]);
       const line = { lineCap: "round", lineJoin: "round", interactive: false, smoothFactor: 1 } as const;
@@ -123,7 +123,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
       const mobile = matchMedia("(max-width:760px)").matches;
       map.fitBounds(L.latLngBounds(all).pad(0.12), { paddingTopLeft: mobile ? [16, 90] : [24, 90], paddingBottomRight: mobile ? [16, 330] : [420, 120], maxZoom: 14 });
       // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
-      requestAnimationFrame(() => map.invalidateSize()); setTimeout(() => map.invalidateSize(), 400);
+      const inv = () => { if (!dead && (map as unknown as { _mapPane?: unknown })._mapPane) try { map.invalidateSize(); } catch {} }; requestAnimationFrame(inv); setTimeout(inv, 400);
       if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => { if (dead || !(map as unknown as { _mapPane?: unknown })._mapPane) { ro.disconnect(); return; } try { map.invalidateSize(); } catch {} }); ro.observe(el.current); map.on("unload", () => ro.disconnect()); }
       m.current = { L, map, truck, trail, halo, ghost };
       await tilesReady; if (dead) return;
