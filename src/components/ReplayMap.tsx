@@ -118,8 +118,8 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
         const html = e.kind === "fuel" ? `<i class="rp-ev fuel"><svg viewBox="0 0 24 24"><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M4 21h12M8 8h4M15 9l3 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg></i>` : e.kind === "pause" ? `<i class="rp-ev pause"><svg viewBox="0 0 24 24"><path d="M9 7v10M15 7v10"/></svg></i>` : `<i class="rp-ev ${e.kind}"></i>`;
         L.marker(at, { icon: L.divIcon({ className: "", html, iconSize: [26, 26], iconAnchor: e.kind === "pause" ? [4, 22] : [13, 13] }), zIndexOffset: e.kind === "fuel" ? 400 : 100 }).addTo(map).on("click", () => { setPlaying(false); seek(e.min); });
       }
-      const truck = L.marker(posAt(0), { icon: L.divIcon({ className: "rp-truck", html: `<div class="rt"><div class="rt-glow"></div>${TRUCK}</div>`, iconSize: [0, 0] }), zIndexOffset: 1000, keyboard: false, interactive: false }).addTo(map);
-      const ghost = L.marker(posAt(0), { icon: L.divIcon({ className: "rp-ghost", html: `<span>🔒 ${t.privShort}</span>`, iconSize: [0, 0] }), interactive: false, opacity: 0 }).addTo(map);
+      const truck = L.marker(posAt(d.keys[0]?.[1] ?? 0), { icon: L.divIcon({ className: "rp-truck", html: `<div class="rt"><div class="rt-glow"></div>${TRUCK}</div>`, iconSize: [0, 0] }), zIndexOffset: 1000, keyboard: false, interactive: false }).addTo(map);
+      const ghost = L.marker(posAt(d.keys[0]?.[1] ?? 0), { icon: L.divIcon({ className: "rp-ghost", html: `<span>🔒 ${t.privShort}</span>`, iconSize: [0, 0] }), interactive: false, opacity: 0 }).addTo(map);
       const mobile = matchMedia("(max-width:760px)").matches;
       map.fitBounds(L.latLngBounds(all).pad(0.12), { paddingTopLeft: mobile ? [16, 90] : [24, 90], paddingBottomRight: mobile ? [16, 330] : [420, 120], maxZoom: 14 });
       // QA: harta goală la prima încărcare — containerul își primește mărimea după init; re-măsurăm
@@ -134,8 +134,8 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
         setTimeout(() => {
           if (dead) return;
           const go = () => { if (dead) return; setFollow(true); setIntro(false); window.dispatchEvent(new Event("qf-replay-play")); };
-          if (calm) { map.setView(posAt(0), 10, { animate: false }); go(); return; }
-          map.flyTo(posAt(0), 10, { duration: 1.8, easeLinearity: 0.2 }); map.once("moveend", go);
+          if (calm) { map.setView(posAt(d.keys[0]?.[1] ?? 0), 10, { animate: false }); go(); return; }
+          map.flyTo(posAt(d.keys[0]?.[1] ?? 0), 10, { duration: 1.8, easeLinearity: 0.2 }); map.once("moveend", go);
         }, 900);
       }
     })();

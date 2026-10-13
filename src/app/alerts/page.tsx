@@ -8,6 +8,7 @@ import { Gate } from "@/components/Gate";
 import { AlertList } from "../AlertList";
 import { demoResolved } from "@/lib/demo-shift";
 import { FT } from "@/lib/feed-i18n";
+import { AttnCount } from "@/components/Resolve";
 
 export const dynamic = "force-dynamic";
 export default async function Alerts() {
@@ -21,7 +22,7 @@ export default async function Alerts() {
         <div className="eyebrow fade">{t(loc, "alerts.title")}</div>
         <div className="big fade" style={{ marginTop: 8 }}>{d.alerts.length}</div>
         <p className="sub fade d1" dangerouslySetInnerHTML={{ __html: t(loc, "alerts.sub", { n: d.alerts.length, theft: d.alerts.filter((a) => a.theft).length }) }} />
-        {d.demo ? (() => { const rs = demoResolved(), n = d.alerts.filter((a) => (a.theft || a.rule === "doc-expiry") && !rs[(a.theft ? "t-" : "c-") + a.id]).length; return <div className={`fsec${n ? "" : " ok"}`} style={{ marginTop: 18 }}>{n ? <>{FT[loc].attn}<span className="fcnt">{n}</span></> : <>✓ {FT[loc].attnNone}</>}</div>; })() : null}
+        {d.demo ? (() => { const rs = demoResolved(); return <AttnCount F={FT[loc]} open={d.alerts.filter((a) => a.theft || a.rule === "doc-expiry").map((a) => (a.theft ? "t-" : "c-") + a.id).filter((id) => !rs[id])} />; })() : null}
         <section className="section"><AlertList alerts={d.alerts} vehicles={d.vehicles} loc={loc} res={d.demo ? demoResolved() : undefined} F={FT[loc]} /></section>
         <section className="section">
           <div className="head"><h2>{t(loc, "alerts.rules")}</h2></div>

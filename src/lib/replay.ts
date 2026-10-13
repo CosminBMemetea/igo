@@ -44,7 +44,7 @@ export function demoReplay(vehicleId: string, date: string, tripId: string | nul
   // geometrie: fără porțiunea privată (nu desenăm drumul pe care l-a făcut în privat)
   const pts: [number, number, number][] = [];
   const add = (from: number, to: number) => { let k = from, prev: LatLng | null = null; for (const p of pathBetween(t, from, to)) { if (prev) k += near(prev, p); pts.push([p[0], p[1], Math.round(k * 1000) / 1000]); prev = p; } };
-  add(0, brk.kmStart); add(pKm, total);
+  add(k0, brk.kmStart); add(pKm, total);
   return { vehicleId, plate: t.plate, driver: t.driver, route: t.routeName, date, tripId, demo: true, path: pts, keys, events, start: dep, end: endMin, rate: t.normalL100, km: Math.round(total) };
 }
 

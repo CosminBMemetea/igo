@@ -28,7 +28,7 @@ export function Resolve({ id, kind, F, init, tel, onChange }: { id: string; kind
     setBusy(false); if (!ok) return;
     const nr = a ? { a, ...(n ? { n } : {}) } : null;
     if (navigator.vibrate) navigator.vibrate(a ? [10, 40, 10] : 8);
-    setR(nr); onChange?.(id, nr);
+    setR(nr); onChange?.(id, nr); dispatchEvent(new CustomEvent("qf-res", { detail: { id, r: nr } }));
   };
   if (r) return (
     <div className="rsv done" data-res={r.a}>
@@ -55,4 +55,12 @@ export function Resolve({ id, kind, F, init, tel, onChange }: { id: string; kind
       </div>}
     </div>
   );
+}
+
+/** Contorul „Necesită atenție” de pe /alerts: se actualizează imediat la rezolvare (eveniment din <Resolve>). */
+export function AttnCount({ open: init, F }: { open: string[]; F: FeedText }) {
+  const [open, setOpen] = useState(() => new Set(init));
+  useEffect(() => { const h = (e: Event) => { const { id, r } = (e as CustomEvent<{ id: string; r: RState | null }>).detail; setOpen((s) => { const n = new Set(s); if (r) n.delete(id); else n.add(id); return n; }); }; addEventListener("qf-res", h); return () => removeEventListener("qf-res", h); }, []);
+  const n = open.size;
+  return <div className={`fsec${n ? "" : " ok"}`} style={{ marginTop: 18 }} aria-live="polite">{n ? <>{F.attn}<span className="fcnt">{n}</span></> : <>✓ {F.attnNone}</>}</div>;
 }
