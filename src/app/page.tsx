@@ -1,3 +1,5 @@
+import { EL, ef } from "@/lib/econ-i18n";
+import { fleetEcon } from "@/lib/econ";
 import { EconKpis } from "@/components/Econ";
 import { ReplayTeaser } from "@/components/ReplayTeaser";
 import { buildFeed } from "@/lib/feed";
@@ -8,7 +10,7 @@ import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { monthSummary } from "@/lib/query";
 import { enoughData } from "@/lib/calc";
-import { fmtMoney, fmtNum, t, plural } from "@/lib/i18n";
+import { fmtMoney, fmtNum, fmtPct, t, plural } from "@/lib/i18n";
 import { FUEL_PRICE } from "@/lib/fleet/seed";
 import { rankings } from "@/lib/ranking";
 import { DriverCard } from "@/components/Ranking";
@@ -60,6 +62,8 @@ export default async function Home() {
   const theft = d.alerts.find((a) => a.rule === "card-fara-camion") ?? d.alerts.find((a) => a.theft) ?? null;
   const theftV = theft ? d.vehicles.find((v) => v.id === theft.vehicleId) : null;
   const feed = d.demo ? buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers }) : null;
+  const thefts = d.alerts.filter((a) => a.theft).reduce((o, a) => ({ n: o.n + 1, lei: o.lei + (Number(a.params.litres) || 0) * FUEL_PRICE }), { n: 0, lei: 0 });
+  const fe = fleetEcon(d.vehicles, d.views);
   const alertsToday = d.alerts.filter((a) => a.time.slice(0, 10) === today).length;
   return (
     <main>
@@ -71,11 +75,20 @@ export default async function Home() {
           <span className="go">{t(loc, "home.theftGo")} →</span>
         </Link>
       ) : null}
-      <section className="hero">
-        <div className="fade">
+      <section className="hero hhero">
+        <div className="fade hsav">
           <div className="eyebrow">{t(loc, "home.savings")}</div>
-          <div className="big">{enoughData(km, hours) ? <><CountUp value={m.savings.pct * 100} d={1} loc={loc} /><small>%</small></> : <small>{t(loc, "home.insufficient")}</small>}</div>
-          <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.savingsSub", { lei: fmtMoney(loc, perMonth) }) }} />
+          {enoughData(km, hours) ? (
+            <>
+              <div className="big hsav-lei"><span>≈ </span><CountUp value={perMonth} loc={loc} /><small>{t(loc, "cur")} {EL[loc].perMonth}</small></div>
+              <span className="hsav-chip">▼ {ef(EL[loc].savLess, { p: fmtPct(loc, m.savings.pct, 1) })}</span>
+              <ul className="hben">
+                <li><i aria-hidden="true">⛽</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b1, { l: fmtNum(loc, Math.round(m.savings.savedLitres / (savDays / 30))) }) }} /></li>
+                {thefts.n ? <li><i aria-hidden="true">🛡</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b2, { n: thefts.n, lei: fmtMoney(loc, thefts.lei) }) }} /></li> : null}
+                {fe.km ? <li><i aria-hidden="true">↩</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b3, { km: fmtNum(loc, fe.emptyKm), p: fmtPct(loc, fe.emptyKm / fe.km, 0) }) }} /></li> : null}
+              </ul>
+            </>
+          ) : <div className="big"><small>{t(loc, "home.insufficient")}</small></div>}
           {m.n ? <Link className="link" href="/savings" style={{ display: "inline-block", marginTop: 10 }}>{t(loc, "sav.open")} →</Link> : null}
         </div>
         <div className="fade d1">
@@ -118,7 +131,7 @@ export default async function Home() {
       ) : null}
       <section className="section">
         <div className="head"><h2>{t(loc, "home.recent")}</h2><Link className="link" href="/trips">{t(loc, "home.all")}</Link></div>
-        <TripRows rows={recent} loc={loc} />
+        <TripRows rows={recent} loc={loc} fit />
       </section>
       {docs.length ? (
         <section className="section">

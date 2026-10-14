@@ -4,9 +4,9 @@ import { fmtDate, fmtMoney, fmtNum, fmtPct, t, type Locale } from "@/lib/i18n";
 import { EL } from "@/lib/econ-i18n";
 import type { TripView } from "@/lib/query";
 
-export function TripRows({ rows, loc }: { rows: TripView[]; loc: Locale }) {
+export function TripRows({ rows, loc, fit }: { rows: TripView[]; loc: Locale; fit?: boolean }) {
   return (
-    <HScroll hint={t(loc, "ui.swipe")} min={600}>
+    <HScroll hint={fit ? "" : t(loc, "ui.swipe")} min={fit ? 0 : 600}>
       <div>
       {rows.map((r, i) => (
         <div key={r.id} className={`trow${r.vehicle.kind === "truck" ? " has-rp" : ""}`}>

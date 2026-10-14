@@ -1144,3 +1144,17 @@ html.msheet-open,html.msheet-open body{overflow:hidden}
   main>.hero.thero .big{font-size:52px}
   main>.hero.thero .sub{overflow-wrap:anywhere}
 }
+/* r20: Acasă pe mobil — fără glisare: Economie + Profit pe cursă stivuite */
+.hsav-lei span{font-size:.55em;opacity:.7}.hsav-lei small{font-size:.32em}
+.hsav-chip{display:inline-flex;margin-top:8px;padding:5px 10px;border-radius:999px;background:color-mix(in srgb,var(--pos) 15%,transparent);color:var(--pos);font-size:13px;font-weight:600}
+.hben{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:8px}
+.hben li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.4;color:var(--fg2)}.hben li b{color:var(--fg);font-weight:600}
+.hben i{font-style:normal;width:22px;text-align:center;flex:none}
+@media (max-width:760px){
+  main>.hero.hhero{display:grid;grid-template-columns:1fr;gap:12px;overflow:visible;margin:0;padding:0}
+  main>.hero.hhero>div{flex:none;min-width:0;padding:18px 18px 16px}
+  main>.hero.hhero .big{font-size:44px}
+  main>.hero.hhero .hsav-lei{font-size:54px!important;margin-top:4px}
+  main>.hero.hhero .hben{margin-top:12px;gap:6px}.hben li{font-size:14px}
+  main>.hero.hhero .sub{overflow-wrap:anywhere}
+}

@@ -1,5 +1,6 @@
 import type { Locale } from "./i18n";
 const RO = {
+  savLess: "{p} mai puțină motorină", b1: "Motorină economisită: <b>{l} L</b> / lună", b2: "Furturi prinse la timp: <b>{n}</b> · {lei} protejați", b3: "Km goi la vedere: <b>{km} km</b> ({p}) de redus", benOpen: "Detalii economii",
   tabOverview: "Prezentare", tabCosts: "Costuri", fixedT: "Costuri fixe pe lună", varT: "Costuri variabile pe km",
   leasing: "Leasing", rca: "RCA", casco: "CASCO", rovinieta: "Rovinietă", salary: "Salariu șofer", parking: "Parcare",
   adblue: "AdBlue", tyres: "Anvelope / uzură", service: "Service", loadWear: "Uzură din tonaj (lei / t·km)", capacityT: "Capacitate (tone)",
@@ -18,6 +19,7 @@ const RO = {
 };
 type L = typeof RO;
 const EN: L = {
+  savLess: "{p} less fuel", b1: "Fuel saved: <b>{l} L</b> / month", b2: "Theft caught in time: <b>{n}</b> · {lei} protected", b3: "Empty km in view: <b>{km} km</b> ({p}) to cut", benOpen: "Savings details",
   tabOverview: "Overview", tabCosts: "Costs", fixedT: "Fixed costs per month", varT: "Variable costs per km",
   leasing: "Leasing", rca: "Liability insurance", casco: "Comprehensive cover", rovinieta: "Road vignette", salary: "Driver salary", parking: "Parking",
   adblue: "AdBlue", tyres: "Tyres / wear", service: "Service", loadWear: "Load wear (lei / t·km)", capacityT: "Capacity (tonnes)",
@@ -35,6 +37,7 @@ const EN: L = {
   costsLink: "Costs per truck", perTrip: "per trip", loss: "loss",
 };
 const PL: L = {
+  savLess: "{p} mniej paliwa", b1: "Zaoszczędzone paliwo: <b>{l} L</b> / mies.", b2: "Kradzieże wykryte na czas: <b>{n}</b> · {lei} ochronione", b3: "Puste km na widoku: <b>{km} km</b> ({p}) do ograniczenia", benOpen: "Szczegóły oszczędności",
   tabOverview: "Przegląd", tabCosts: "Koszty", fixedT: "Koszty stałe miesięcznie", varT: "Koszty zmienne na km",
   leasing: "Leasing", rca: "OC", casco: "AC", rovinieta: "Winieta", salary: "Pensja kierowcy", parking: "Parking",
   adblue: "AdBlue", tyres: "Opony / zużycie", service: "Serwis", loadWear: "Zużycie od tonażu (lei / t·km)", capacityT: "Ładowność (tony)",

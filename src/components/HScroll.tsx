@@ -11,7 +11,7 @@ export function HScroll({ children, hint, min = 640, className = "" }: { childre
   }, []);
   return (
     <div className={`hsw${st.l ? " fl" : ""}${st.r ? " fr" : ""} ${className}`}>
-      {st.r && !st.used ? <span className="hshint" aria-hidden="true">{hint} →</span> : null}
+      {hint && st.r && !st.used ? <span className="hshint" aria-hidden="true">{hint} →</span> : null}
       <div ref={ref} className="hsx" style={{ ["--hsmin" as string]: `${min}px` }}>{children}</div>
     </div>
   );
