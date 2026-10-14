@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const f = await writableFirm(); if (!f) return back(req, "/setup?e=nofirm");
   const fd = await req.formData(), st = fd.get("ret") === "settings";
-  const name = clip(fd.get("name"), 120), cui = clip(fd.get("cui"), 20).toUpperCase().replace(/\s/g, "") || null, currency = fd.get("currency") === "EUR" ? "EUR" : "RON";
+  const name = clip(fd.get("name"), 120), cui = clip(fd.get("cui"), 20).toUpperCase().replace(/\s/g, "") || null, currency = "RON" as const;
   if (name.length < 2) return back(req, st ? "/settings?e=firm#firm" : "/setup?step=1&e=firm");
   if (cui && !/^(RO)?\d{2,10}$/.test(cui)) return back(req, st ? "/settings?e=cui#firm" : "/setup?step=1&e=cui");
   await store().updateFirm(f.id, { name, cui, currency, detailsDone: true });

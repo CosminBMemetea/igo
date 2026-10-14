@@ -4,7 +4,7 @@ export const STEPS = [1, 2, 3, 4, 5] as const;
 export type Step = (typeof STEPS)[number];
 export async function setupState(s: Store, firmId: string) {
   const [firm, trucks, invites, users, docs, trips, fuel] = await Promise.all([s.firm(firmId), s.trucks(firmId), s.invites(firmId), s.users(firmId), s.docs(firmId), s.trips(firmId), s.fuel(firmId, { limit: 1 })]);
-  const done: Record<Step, boolean> = { 1: !!firm?.detailsDone, 2: trucks.length > 0, 3: users.some((u) => u.role === "driver" && !u.disabledAt), /* gata doar cu un șofer alăturat, nu doar invitat */ 4: docs.length > 0, 5: trips.length > 0 || fuel.length > 0 || !!firm?.csvSkipped };
+  const done: Record<Step, boolean> = { 1: !!firm?.detailsDone, 2: trucks.length > 0, 3: users.some((u) => u.role === "driver" && !u.disabledAt), /* fișa șoferului este suficientă; activarea accesului se urmărește separat */ 4: docs.length > 0, 5: trips.length > 0 || fuel.length > 0 || !!firm?.csvSkipped };
   const n = STEPS.filter((k) => done[k]).length;
   const next = STEPS.find((k) => !done[k]) ?? null;
   return { firm, trucks, invites, users, docs, trips, done, n, next, complete: n === 5 };

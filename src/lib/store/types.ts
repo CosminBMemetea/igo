@@ -7,7 +7,7 @@ export const VEHICLE_DOC_TYPES: VehicleDocType[] = ["itp", "rca", "casco", "vign
 export const DRIVER_DOC_TYPES: DriverDocType[] = ["licence", "cpc", "tachoCard", "medical"];
 export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
 export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; referredBy: string | null; createdAt: string }
-export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; disabledAt?: string | null; truckId?: string | null; locale?: string | null }
+export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; sessionVersion?: number; disabledAt?: string | null; truckId?: string | null; locale?: string | null }
 export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
 export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; archivedAt?: string | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
@@ -56,10 +56,13 @@ export interface Store {
   setUserLocale(id: string, locale: string): Promise<void>;
   invite(firmId: string, id: string): Promise<InviteRow | null>;
   invites(firmId: string): Promise<InviteRow[]>;
+  acceptInvite(firmId: string, id: string, phone: string, passwordHash: string): Promise<UserRow | null>;
+  createDriverInvite(firmId: string, name: string, phone: string, locale: string): Promise<InviteRow>;
+  updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }): Promise<boolean>;
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;
   addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">): Promise<TruckRow>;
   trucks(firmId: string): Promise<TruckRow[]>;
-  updateTruck(firmId: string, id: string, p: { plate: string; model: string | null; tankL: number | null; normalL100: number | null }): Promise<boolean>;
+  updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }): Promise<boolean>;
   setUserEmail(id: string, email: string): Promise<void>;
   updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }): Promise<boolean>;
   /** Documentul trebuie să aparțină unui camion SAU unui șofer al firmei. */
@@ -67,6 +70,7 @@ export interface Store {
   updateDoc(firmId: string, id: string, d: Partial<NewDoc>): Promise<DocRow | null>;
   deleteDoc(firmId: string, id: string): Promise<boolean>;
   setUserTruck(firmId: string, userId: string, truckId: string | null): Promise<void>;
+  renewInvite(firmId: string, id: string): Promise<boolean>;
   revokeInvite(firmId: string, id: string): Promise<boolean>;
   setPod(firmId: string, tripId: string, received: boolean): Promise<boolean>;
   addFile(firmId: string, f: NewFile): Promise<FileMeta>;
@@ -103,6 +107,7 @@ export interface Store {
   setCard(firmId: string, card: string, truckId: string | null): Promise<number>;
   /** Inserează cu deduplicare pe (firm_id, hash). */
   addFuel(firmId: string, rows: NewFuelTx[]): Promise<{ added: number; dupes: number }>;
+  fuelByHash(firmId: string, hash: string): Promise<FuelTxRow | null>;
   fuel(firmId: string, o?: { truckId?: string; source?: string; limit?: number }): Promise<FuelTxRow[]>;
   addImport(firmId: string, i: Omit<ImportRow, "id" | "firmId" | "createdAt"> & { id?: string }): Promise<ImportRow>;
   imports(firmId: string): Promise<ImportRow[]>;

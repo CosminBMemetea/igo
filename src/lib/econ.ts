@@ -1,5 +1,5 @@
 // Agregări: cost real / km pe camion, grad de încărcare, km goi (doar curse încheiate, doar camioane din flotă).
-import type { TripView } from "./query";
+import { reportViews, type TripView } from "./query";
 import type { Vehicle } from "./fleet/seed";
 export interface VEcon { v: Vehicle; n: number; km: number; costs: number; revenue: number; profit: number; cpk: number; margin: number; loadPct: number | null; emptyKm: number; tonnes: number }
 export function econOf(v: Vehicle, views: TripView[]): VEcon {
@@ -12,6 +12,7 @@ export function econOf(v: Vehicle, views: TripView[]): VEcon {
   return { v, n: done.length, km, costs, revenue, profit, cpk: km ? costs / km : 0, margin: revenue ? profit / revenue : 0, loadPct: known && cap ? used / cap : null, emptyKm, tonnes };
 }
 export function fleetEcon(vehicles: Vehicle[], views: TripView[]) {
+  views = reportViews(views).filter((x) => vehicles.some((v) => v.id === x.vehicleId && (v.kind === "truck" || v.kind === "van")));
   const rows = vehicles.filter((v) => v.kind === "truck" || v.kind === "van").map((v) => econOf(v, views)).filter((r) => r.n > 0);
   const sum = (f: (r: VEcon) => number) => rows.reduce((a, r) => a + f(r), 0);
   const km = sum((r) => r.km), costs = sum((r) => r.costs), revenue = sum((r) => r.revenue), profit = sum((r) => r.profit);

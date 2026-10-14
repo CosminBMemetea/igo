@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { DenyToast } from "./DenyToast";
-import { t } from "@/lib/i18n";
+import { t, tri } from "@/lib/i18n";
 import type { Prefs } from "@/lib/prefs";
-import { PLANS } from "@/lib/features";
+import { PLANS, TRIAL_DAYS } from "@/lib/features";
 import { LT } from "@/lib/lead-i18n";
 import { BtnSize } from "./BtnSize";
 import { Icon } from "./icons";
@@ -55,6 +55,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
               <a href={`?theme=${theme === "dark" ? "light" : "dark"}`} className="mrow"><span>{t(loc, "pref.theme")}</span><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
             </div>
             <Suspense fallback={null}><LangPicker loc={loc} title={t(loc, "pref.lang")} inline persist /></Suspense>
+            {role === "owner" || (role === "admin" && !firm.demo) ? <><Link className="btn sec sm" href="/trucks">{tri(loc, "Camioane|Trucks|Pojazdy")}</Link><Link className="btn sec sm" href="/drivers">{tri(loc, "Șoferi|Drivers|Kierowcy")}</Link></> : null}
             <div className="who">{prefs.email}{firm.name ? <><br /><span className="firmtag">{firm.name}</span></> : null}</div>
             {firm.canToggle ? (
               <form action="/api/firm/demo" method="post" className="demoTgl">
@@ -104,7 +105,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       </header>
       {plan === "trial" && !adminView && !firm.demo ? (
         <Link href="/plans" className="trial">
-          <span className="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" stroke="var(--bg3)" /><circle cx="18" cy="18" r="15" stroke="var(--acc)" strokeDasharray="94.2" strokeDashoffset={94.2 * (1 - trialLeft / 14)} /></svg><b>{trialLeft}</b></span>
+          <span className="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" stroke="var(--bg3)" /><circle cx="18" cy="18" r="15" stroke="var(--acc)" strokeDasharray="94.2" strokeDashoffset={94.2 * (1 - trialLeft / TRIAL_DAYS)} /></svg><b>{trialLeft}</b></span>
           <span>{t(loc, "trial.banner", { n: trialLeft })}</span><span className="go">{t(loc, "trial.choose")}</span>
         </Link>
       ) : null}

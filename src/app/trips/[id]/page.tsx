@@ -1,3 +1,5 @@
+import { ActionForm } from "@/components/ActionForm";
+import { tri } from "@/lib/i18n";
 import { localNow } from "@/lib/validate";
 import { store } from "@/lib/store";
 import { NewTrip } from "@/components/NewTrip";
@@ -25,7 +27,7 @@ export default async function TripDetail({ params }: { params: { id: string } })
   if (!r) notFound();
   const agri = r.vehicle.kind === "agri";
   const unit = r.vehicle.per100 ? "L/100km" : "L/ha";
-  const p = r.p, max = Math.max(p.revenue, p.costs);
+  const p = r.p, max = Math.max(1, p.revenue, p.costs);
   const segs: [string, number, string][] = [
     [t(loc, "trip.fuel"), p.fuel, `${fmtNum(loc, r.litres)} L × ${fmtMoney(loc, r.fuelPrice, 2)}`],
     [t(loc, "trip.tolls"), p.tolls, agri ? "—" : ""],
@@ -41,9 +43,10 @@ export default async function TripDetail({ params }: { params: { id: string } })
     [L.tyres, E.tyres, ""],
     [L.service, E.service, ""],
     [L.wearLoad, E.loadWear, E.tonnes ? `${fmtNum(loc, E.tonnes, 1)} t × ${fmtNum(loc, r.km - E.emptyKm)} km` : "—"],
+    [t(loc, "trip.other"), r.other, ""],
     [L.fixedShare, E.fixed, `${fmtMoney(loc, E.fixedPerKm, 2)} ${L.perKm}`],
   );
-  const canEdit = d.tn.role !== "driver" && d.demo;
+  const canEdit = d.tn.role !== "driver" && (d.demo || d.tn.role === "owner" || d.tn.role === "admin");
   let acc = 0;
   const client = d.clients.find((c) => c.id === r.clientId)!;
   const liveV = (await d.live()).find((x) => x.id === r.vehicleId);
@@ -70,6 +73,8 @@ export default async function TripDetail({ params }: { params: { id: string } })
         <div className="r" style={{ paddingTop: 24 }}><b style={{ fontWeight: 500 }}>{E ? L.realProfit : t(loc, "col.profit")}</b><div className="bar">{p.profit > 0 ? <i style={{ left: `${(p.costs / max) * 100}%`, width: `${(p.profit / max) * 100}%`, background: "var(--pos)", animationDelay: ".5s" }} /> : <i style={{ left: `${(p.revenue / max) * 100}%`, width: `${(-p.profit / max) * 100}%`, background: "var(--neg)", animationDelay: ".5s" }} />}</div><span className={`v ${p.profit < 0 ? "neg" : "pos"}`} style={{ fontSize: 22 }}>{fmtMoney(loc, p.profit)}</span></div>
         <p className="sub" style={{ fontSize: 12 }}>{E ? L.formula : t(loc, "trip.formula")}</p>
       </section>
+      {!d.demo && (!r.vehicle.costsConfigured || r.litresSource === "estimate") ? <p className="msg warn">{tri(loc, "Profit estimat din datele completate. Costurile necompletate nu sunt incluse; alimentările nu înlocuiesc consumul cursei.|Estimated profit based on entered data. Missing costs are excluded; fuel purchases do not replace trip consumption.|Szacowany zysk na podstawie wpisanych danych. Brakujące koszty nie są uwzględnione; zakupy paliwa nie zastępują zużycia kursu.")}</p> : null}
+      {!d.demo && raw?.planned && raw.date <= localNow().slice(0, 10) ? <details className="sheet"><summary className="btn pri">{tri(loc, "Finalizează cursa|Complete trip|Zakończ kurs")}</summary><ActionForm action="/api/trips/complete" loc={loc}><input type="hidden" name="id" value={raw.id} /><p>{tri(loc, "Confirmă că transportul a fost efectuat. Cursa va intra în rezultatele lunii sale.|Confirm that transport was completed. The trip will enter results for its month.|Potwierdź wykonanie transportu. Kurs zostanie ujęty w wynikach swojego miesiąca.")}</p><button className="btn pri">{tri(loc, "Confirm finalizarea|Confirm completion|Potwierdź zakończenie")}</button></ActionForm></details> : null}
       {E ? (
         <section className="section">
           <div className="head"><h2>{L.load}</h2>{E.tonnes === 0 ? <span className="lbadge empty">↩ {L.emptyRet}</span> : null}</div>
@@ -81,13 +86,13 @@ export default async function TripDetail({ params }: { params: { id: string } })
             <div className="card"><div className="k">{L.costT}</div><div className="n">{E.costPerT === null ? "—" : fmtMoney(loc, E.costPerT, 0)}</div><div className="d">{L.costKm}: {fmtMoney(loc, E.costPerKm, 2)}</div></div>
           </div>
           {canEdit ? (
-            <form className="etrip" action="/api/vehicles/econ" method="post">
+            <ActionForm action="/api/vehicles/econ" loc={loc}>
               <input type="hidden" name="action" value="trip" /><input type="hidden" name="tid" value={r.id} /><input type="hidden" name="vid" value={r.vehicleId} />
               <label><span>{L.freight} ({t(loc, "cur")})</span><input className="input" name="revenue" inputMode="decimal" defaultValue={String(r.revenue)} /></label>
               <label><span>{L.tonnes} (t)</span><input className="input" name="tonnes" inputMode="decimal" defaultValue={E.tonnes === null ? "" : String(E.tonnes)} /></label>
               <button className="btn sec">{L.apply}</button>
-              <p className="hint">{L.editTrip} · {L.demoNote}</p>
-            </form>
+              <p className="hint">{L.editTrip}{d.demo ? ` · ${L.demoNote}` : ""}</p>
+            </ActionForm>
           ) : null}
         </section>
       ) : null}

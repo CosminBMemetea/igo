@@ -12,7 +12,7 @@ export default async function Join({ searchParams }: { searchParams: { t?: strin
   const inv = await readInvite(searchParams.t, process.env.SESSION_SECRET);
   const row = inv ? await store().invite(inv.firm, inv.inv) : null;
   const firm = inv ? await store().firm(inv.firm) : null;
-  const bad = !row || !firm ? "token" : row.usedAt ? "used" : row.revokedAt ? "revoked" : null;
+  const bad = !row || !firm || inv!.exp !== Math.floor(Date.parse(row.createdAt) / 1000) + 14 * 86400 ? "token" : row.usedAt ? "used" : row.revokedAt ? "revoked" : null;
   const err = ERR[bad ?? searchParams.e ?? ""];
   return (
     <main className="login">

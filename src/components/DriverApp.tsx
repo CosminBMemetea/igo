@@ -39,6 +39,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
   useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
   useEffect(() => () => { if (watch.current != null) navigator.geolocation?.clearWatch(watch.current); }, []);
 
+  const shiftBusy = useRef(false);
   const [askEnd, setAskEnd] = useState(false), [gps, setGps] = useState<"wait" | "ok" | "off">("wait");
   useEffect(() => { if (!askEnd) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAskEnd(false); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [askEnd]);
   // „Termină tura”: întâi confirmare (foaie proprie), abia apoi oprim tura
@@ -46,11 +47,14 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
   async function doToggle() {
     if (!on && checks.length < 3) { setMsg({ t: L["drv.checkNeeded"], k: "err" }); return; }
     if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
+    if (shiftBusy.current) return;
+    shiftBusy.current = true;
     const next = !on;
+    const rs = await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
+    shiftBusy.current = false;
+    if (!rs?.ok) { setMsg({ t: rs?.status === 409 || rs?.status === 403 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
     setPriv(false); privRef.current = false;
     setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
-    const rs = await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
-    if (rs?.status === 409) { setOn(!next); setMsg({ t: L["drv.role"], k: "err" }); return; }
     if (next) { setStart(Date.now()); lastPos.current = null; work.current.since = Date.now(); }
     else pauseWork();
   }

@@ -15,6 +15,7 @@ export async function POST(req: Request) {
   const row = await s.invite(inv.firm, inv.inv);
   const firm = await s.firm(inv.firm);
   if (!row || !firm) return back(req, "/join?e=token");
+  if (inv.exp !== Math.floor(Date.parse(row.createdAt) / 1000) + 14 * 86400) return back(req, "/join?e=token");
   if (row.usedAt) return back(req, "/join?e=used");
   if (row.revokedAt) return back(req, "/join?e=revoked");
   const phone = normPhone(clip(fd!.get("phone"), 30)), pin = String(fd!.get("pin") ?? ""), pin2 = String(fd!.get("pin2") ?? "");
@@ -22,10 +23,17 @@ export async function POST(req: Request) {
   if (!isPin(pin)) return back(req, `${q}&e=len`);
   if (pin !== pin2) return back(req, `${q}&e=mismatch`);
   if (weakPin(pin)) return back(req, `${q}&e=weak`);
+  if (row.phone && row.phone !== phone) return back(req, `${q}&e=phone`);
   let uid: string;
-  try { uid = (await s.createUser({ firmId: firm.id, role: "driver", name: row.name, email: null, phone, passwordHash: hashPassword(pin), locale: row.locale ?? "ro" })).id; }
-  catch { return back(req, `${q}&e=phoneused`); }
-  if (!(await s.useInvite(firm.id, row.id, uid))) return back(req, "/join?e=used");
+  try {
+    const user = await s.acceptInvite(firm.id, row.id, phone, hashPassword(pin));
+    if (!user) return back(req, "/join?e=used");
+    uid = user.id;
+  } catch (e) {
+    const code = (e as { code?: string; cause?: { code?: string } }).code ?? (e as { cause?: { code?: string } }).cause?.code;
+    if (code === "23505" || (e as Error).message === "exists") return back(req, `${q}&e=phoneused`);
+    throw e;
+  }
   const res = back(req, "/driver"); res.cookies.set("igo-locale", row.locale ?? "ro", { path: "/", maxAge: 31536000, sameSite: "lax" });
   return withSession(res, { role: "driver", email: phone, firm: firm.id, uid, trial: firm.trialStart });
 }

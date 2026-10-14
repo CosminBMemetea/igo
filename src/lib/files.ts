@@ -3,7 +3,7 @@
 import type { FileKind, FileMeta, Store } from "./store/types";
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 export const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-export const blobConfigured = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+export const blobConfigured = () => !!process.env.BLOB_READ_WRITE_TOKEN && process.env.BLOB_ACCESS === "private";
 export type FileErr = "size" | "type" | "empty";
 export function checkFile(size: number, mime: string): FileErr | null {
   if (!size) return "empty";
@@ -18,8 +18,9 @@ export async function saveFile(s: Store, firmId: string, o: { kind: FileKind; tr
   if (blobConfigured()) {
     const { put } = await import("@vercel/blob");
     // cale greu de ghicit; fișierul se servește tot prin /api/files/[id] (verificare de firmă)
-    const b = await put(`${firmId}/${o.kind}/${crypto.randomUUID()}-${o.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}`, o.bytes, { access: "public", contentType: o.mime, addRandomSuffix: true });
-    return s.addFile(firmId, { ...base, storage: "blob", url: b.url, data: null });
+    const b = await put(`${firmId}/${o.kind}/${crypto.randomUUID()}-${o.name.replace(/[^\w.-]+/g, "_").slice(0, 60)}`, o.bytes, { access: "private", contentType: o.mime, addRandomSuffix: true });
+    try { return await s.addFile(firmId, { ...base, storage: "blob", url: b.url, data: null }); }
+    catch (e) { const { del } = await import("@vercel/blob"); await del(b.url); throw e; }
   }
   return s.addFile(firmId, { ...base, storage: "db", url: null, data: o.bytes });
 }
@@ -27,6 +28,18 @@ export async function readFile(s: Store, firmId: string, id: string): Promise<{ 
   const f = await s.file(firmId, id);
   if (!f) return null;
   if (f.storage === "db") return f.data ? { meta: f, bytes: Buffer.from(f.data) } : null;
+  if (new URL(f.url!).hostname.includes(".private.blob.")) {
+    const { get } = await import("@vercel/blob");
+    const r = await get(f.url!, { access: "private", useCache: false });
+    return r?.statusCode === 200 ? { meta: f, bytes: Buffer.from(await new Response(r.stream).arrayBuffer()) } : null;
+  }
+  // Backward-compatible read of legacy public objects; migration is a separate operation.
   const r = await fetch(f.url!);
   return r.ok ? { meta: f, bytes: Buffer.from(await r.arrayBuffer()) } : null;
+}
+
+export async function deleteStoredFile(s: Store, firmId: string, id: string) {
+  const file = await s.file(firmId, id); if (!file) return false;
+  if (file.storage === "blob" && file.url) { const { del } = await import("@vercel/blob"); await del(file.url); }
+  return s.deleteFile(firmId, id);
 }

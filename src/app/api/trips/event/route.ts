@@ -1,3 +1,4 @@
+import { driverTrip, driverTruck } from "@/lib/driver-access";
 import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
@@ -13,7 +14,11 @@ export async function POST(req: Request) {
   const at = new Date().toISOString();
   const tn = await tenant();
   if (tn.demo || !tn.firm) return NextResponse.json({ at, demo: true });
-  const geo = typeof b.lat === "number" && typeof b.lng === "number" && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180;
+  if (!(await driverTrip(store(), tn, b.tripId))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const ownTrip = (await store().trips(tn.firm.id)).find((t) => t.id === b.tripId)!;
+  if (tn.role === "driver" && !(await driverTruck(store(), tn, ownTrip.truckId))) return NextResponse.json({ error: "assignment" }, { status: 403 });
+  const shift = await tn.repo.shift(ownTrip.truckId);
+  const geo = !!shift && !shift.end && !shift.privateSince && typeof b.lat === "number" && typeof b.lng === "number" && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180;
   const trip = (await tn.repo.trips().catch(() => [])).find((x) => x.id === b.tripId);
   if (trip) await logDriver(tn, trip.vehicleId, b.kind as TripEventKind, { lat: geo ? (b.lat as number) : null, lng: geo ? (b.lng as number) : null, note: trip.title });
   try { const e = await store().addTripEvent(tn.firm.id, { tripId: b.tripId, kind: b.kind as TripEventKind, at, lat: geo ? (b.lat as number) : null, lng: geo ? (b.lng as number) : null, userId: tn.uid }); return NextResponse.json({ at: e.at }); }

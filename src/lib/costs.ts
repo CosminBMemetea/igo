@@ -23,7 +23,8 @@ export function defaultProfile(v: Pick<Vehicle, "id" | "kind" | "model">): CostP
   const paidOff = v.kind === "truck" && h < 0.22;
   return { ...b, leasing: paidOff ? 0 : Math.round((b.leasing * (0.85 + h2 * 0.35)) / 50) * 50, casco: paidOff ? Math.round(b.casco * 0.6) : b.casco, service: r2(b.service * (paidOff ? 1.45 : 0.9 + h * 0.3)), tyres: r2(b.tyres * (0.9 + h2 * 0.25)), capacityT: v.kind === "truck" && h2 > 0.8 ? 22 : b.capacityT };
 }
-export const profileOf = (v: Vehicle): CostProfile => ({ ...defaultProfile(v), ...(v.costs ?? {}) });
+export const EMPTY_PROFILE: CostProfile = { leasing: 0, rca: 0, casco: 0, rovinieta: 0, salary: 0, parking: 0, adblue: 0, tyres: 0, service: 0, loadWear: 0, capacityT: 0 };
+export const profileOf = (v: Vehicle): CostProfile => ({ ...(v.real ? EMPTY_PROFILE : defaultProfile(v)), ...(v.costs ?? {}) });
 export const fixedMonthly = (p: CostProfile) => FIXED_KEYS.reduce((a, k) => a + p[k], 0);
 export const varPerKm = (p: CostProfile) => VAR_KEYS.reduce((a, k) => a + p[k], 0);
 export const hasCosts = (v: Vehicle) => v.kind === "truck" || v.kind === "van";
@@ -45,8 +46,8 @@ export function tripEcon(tr: Trip, v: Vehicle, kmMonth: number, ld: { tonnes: nu
   const p = profileOf(v), km = tr.km, loadedKm = Math.max(0, km - ld.emptyKm);
   const fuel = r2(tr.litres * tr.fuelPrice), fixedPerKm = kmMonth > 0 ? fixedMonthly(p) / kmMonth : 0;
   const adblue = r2(km * p.adblue), tyres = r2(km * p.tyres), service = r2(km * p.service), loadWear = r2((ld.tonnes ?? 0) * loadedKm * p.loadWear), fixed = r2(km * fixedPerKm);
-  const costs = r2(fuel + tr.tolls + tr.driver + adblue + tyres + service + loadWear + fixed), profit = r2(tr.revenue - costs);
-  const loadPct = ld.tonnes === null || !km ? null : (ld.tonnes / p.capacityT) * (loadedKm / km);
+  const costs = r2(fuel + tr.tolls + tr.driver + tr.other + adblue + tyres + service + loadWear + fixed), profit = r2(tr.revenue - costs);
+  const loadPct = ld.tonnes === null || !km || !p.capacityT ? null : (ld.tonnes / p.capacityT) * (loadedKm / km);
   return { tonnes: ld.tonnes, emptyKm: ld.emptyKm, loadPct, capacityT: p.capacityT, fuel, tolls: tr.tolls, driver: tr.driver, adblue, tyres, service, loadWear, fixed, fixedPerKm, costs, profit, margin: tr.revenue ? profit / tr.revenue : 0, costPerKm: km ? costs / km : 0, costPerT: ld.tonnes ? costs / ld.tonnes : null };
 }
 /** km pe lună per vehicul (din perioada acoperită de curse) — baza pentru cota de costuri fixe. */

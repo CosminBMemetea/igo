@@ -1,3 +1,4 @@
+import { driverTrip } from "@/lib/driver-access";
 import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { tenant } from "@/lib/tenant";
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
   const file = fd?.get("file"), kind = fd?.get("kind") === "pod" ? "pod" : "cmr", tripId = clip(fd?.get("tripId") ?? null, 60);
   if (!(file instanceof File) || !tripId) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const s = store();
+  if (!(await driverTrip(s, tn, tripId))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   try {
     const m = await saveFile(s, tn.firm.id, { kind, tripId, name: file.name || `${kind}.jpg`, mime: file.type, bytes: Buffer.from(await file.arrayBuffer()), userId: tn.uid });
     if (kind === "pod") await s.setPod(tn.firm.id, tripId, true);

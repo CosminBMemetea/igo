@@ -60,3 +60,48 @@ Generate the hash locally (the password is typed masked and never stored):
 ```
 npm run hash-password
 ```
+
+### Fleet reliability changes (branch `codex/fleet-reliability`)
+
+Owners manage vehicles at `/trucks` and people at `/drivers`. Adding a driver creates
+one pending identity; a truck can be assigned before the invitation is accepted.
+Invitations expire after 14 days. A truck has at most one enabled driver; assignment
+changes require the affected shifts to end. Disabling a driver closes their shift,
+releases the truck and invalidates their existing sessions.
+
+Real financial reports use the current calendar month. Completed trips retain their
+own recorded or estimated fuel consumption: a fuel purchase is not charged to every
+trip on the same day. Unconfigured vehicle costs start at zero and trip details show
+that costs are incomplete. Configure actual costs before relying on profit figures.
+Past planned trips remain planned until explicitly completed. Archived vehicles retain
+financial history. Currency selection is limited to RON until end-to-end conversion
+is implemented. Cost profile edits still recalculate historical trips; cost versioning,
+offline driver submissions and full multicurrency reporting remain follow-up work.
+
+Deployment notes:
+
+- Back up the production database before applying migration `0011`.
+- Check for conflicting assignments with the query below. Resolve each conflict with
+  the fleet owner before migration; the unique index deliberately rejects duplicates.
+- Real production accounts require `DATABASE_URL`. Set a strong `SESSION_SECRET` and
+  `CRON_SECRET`; cron requests require the bearer secret.
+- Files use Postgres unless both `BLOB_READ_WRITE_TOKEN` and `BLOB_ACCESS=private` are
+  configured for a private Vercel store. Existing public Blob URLs are not made private
+  by this code change; migrate those files and remove the public originals separately.
+- Set `APP_URL` to the canonical HTTPS origin for driver invitations.
+
+```sql
+SELECT firm_id, truck_id, count(*)
+FROM users
+WHERE role = 'driver' AND disabled_at IS NULL AND truck_id IS NOT NULL
+GROUP BY firm_id, truck_id
+HAVING count(*) > 1;
+```
+
+Validation: run `npm run build`, then the smoke suite. Set `TEST_DATABASE_URL` only
+to a disposable database: the existing tenant, fuel and documents suites DROP their
+schemas. Run these suites sequentially. `npm run smoke:reliability:pg` requires that
+variable and verifies concurrent invite acceptance, assignment conflicts, receipt
+idempotency, tenant isolation, shift state and session version changes on Postgres.
+It cleans up only its own fixtures. The same suite without `:pg` covers memory storage
+and financial/date regressions.

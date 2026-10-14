@@ -1,6 +1,8 @@
 // Querra Fleet: schema Postgres (Drizzle). Orice rând de date are firm_id; depozitul filtrează MEREU după el.
 import { customType, jsonb, boolean, date, doublePrecision, index, integer, pgTable, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
+import { sql } from "drizzle-orm";
+
 export const firms = pgTable("firms", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -23,6 +25,7 @@ export const users = pgTable("users", {
   email: text("email"),
   phone: text("phone"),
   passwordHash: text("password_hash").notNull(),
+  sessionVersion: integer("session_version").notNull().default(0),
   /** camionul curent al șoferului (ultima tură) — pentru notificările despre documentele camionului */
   truckId: text("truck_id"),
   /** limba aleasă (ro|en|pl); null = implicit română */
@@ -30,7 +33,7 @@ export const users = pgTable("users", {
   /** dezactivat de patron (șofer plecat): fără acces, sesiunile se resping */
   disabledAt: timestamp("disabled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("users_email_uq").on(t.email), uniqueIndex("users_phone_uq").on(t.phone), index("users_firm_ix").on(t.firmId)]);
+}, (t) => [uniqueIndex("users_email_uq").on(t.email), uniqueIndex("users_phone_uq").on(t.phone), index("users_firm_ix").on(t.firmId), uniqueIndex("users_active_truck_uq").on(t.firmId, t.truckId).where(sql`${t.role} = 'driver' and ${t.disabledAt} is null and ${t.truckId} is not null`)]);
 
 export const invites = pgTable("invites", {
   id: text("id").primaryKey(),

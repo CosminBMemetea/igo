@@ -1,3 +1,4 @@
+import { driverTruck } from "@/lib/driver-access";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
@@ -11,6 +12,7 @@ export async function POST(req: Request) {
   if (!ok) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const tn = await tenant();
   if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
+  if (!(await driverTruck(store(), tn, b.vehicleId as string))) return NextResponse.json({ error: "assignment" }, { status: 403 });
   if (!tn.demo && tn.firm) {
     const sh = await tn.repo.shift(b.vehicleId as string);
     if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });

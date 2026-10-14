@@ -26,9 +26,10 @@ export async function middleware(req: NextRequest) {
   headers.set("x-igo-path", path);
   const den = req.nextUrl.searchParams.get("denied");
   headers.delete("x-igo-denied"); if (den && /^\/[\w\/-]{0,60}$/.test(den)) headers.set("x-igo-denied", den);
-  for (const h of ["x-igo-role", "x-igo-email", "x-igo-firm", "x-igo-uid", "x-igo-trial"]) headers.delete(h);
+  for (const h of ["x-igo-role", "x-igo-email", "x-igo-firm", "x-igo-uid", "x-igo-trial", "x-igo-version"]) headers.delete(h);
   if (s) {
     headers.set("x-igo-role", s.role); headers.set("x-igo-email", encodeURIComponent(s.email)); headers.set("x-igo-firm", s.firm);
+    headers.set("x-igo-version", String(s.version ?? 0));
     if (s.uid) headers.set("x-igo-uid", s.uid);
     if (s.trial) headers.set("x-igo-trial", s.trial);
   }

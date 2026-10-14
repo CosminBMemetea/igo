@@ -1,5 +1,5 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
-import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
@@ -7,7 +7,7 @@ import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type Car
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
 const leadOut = (r: typeof leads.$inferSelect): LeadRow => ({ ...r, consentAt: iso(r.consentAt)!, createdAt: iso(r.createdAt)! });
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
-const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId, locale: u.locale, disabledAt: u.disabledAt ? u.disabledAt.toISOString() : null });
+const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, sessionVersion: u.sessionVersion, truckId: u.truckId, locale: u.locale, disabledAt: u.disabledAt ? u.disabledAt.toISOString() : null });
 const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt), locale: i.locale });
 const truckOut = ({ createdAt: _c, archivedAt, ...t }: typeof trucks.$inferSelect): TruckRow => ({ ...t, archivedAt: iso(archivedAt) });
 const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, scope: d.scope === "driver" ? "driver" : "vehicle", type: d.type as DocType });
@@ -36,7 +36,7 @@ export class PgStore implements Store {
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
-  async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash }).where(eq(users.id, id)); }
+  async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, id)); }
   private firmTables() {
     return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
   }
@@ -58,21 +58,64 @@ export class PgStore implements Store {
     return { counts, blobUrls };
   }
   async userById(id: string) { const [r] = await this.d.select().from(users).where(eq(users.id, id)).limit(1); return r ? userOut(r) : null; }
-  async setUserDisabled(firmId: string, userId: string, off: boolean) { const r = await this.d.update(users).set({ disabledAt: off ? new Date() : null }).where(and(eq(users.firmId, firmId), eq(users.id, userId), eq(users.role, "driver"))).returning({ id: users.id }); return r.length > 0; }
+  async setUserDisabled(firmId: string, userId: string, off: boolean) {
+    const result = await this.d.execute(sql`with old_user as (
+      select id, truck_id from users where id = ${userId} and firm_id = ${firmId} and role = 'driver' for update
+    ), ended as (
+      update shifts set "end" = now()::text, private_since = null where firm_id = ${firmId} and truck_id in (select truck_id from old_user) and "end" is null and ${off}
+    ) update users set disabled_at = case when ${off} then now() else null end,
+      truck_id = case when ${off} then null else truck_id end, session_version = session_version + 1
+      where id in (select id from old_user) returning id`);
+    return result.rows.length === 1;
+  }
   async users(firmId: string) { return (await this.d.select().from(users).where(eq(users.firmId, firmId))).map(userOut); }
   async setUserLocale(id: string, locale: string) { await this.d.update(users).set({ locale }).where(eq(users.id, id)); }
   async createInvite(firmId: string, name: string, phone: string | null, locale: string | null = null) { const [r] = await this.d.insert(invites).values({ id: newId("i"), firmId, name, phone, locale }).returning(); return invOut(r); }
   async invite(firmId: string, id: string) { const [r] = await this.d.select().from(invites).where(and(eq(invites.firmId, firmId), eq(invites.id, id))); return r ? invOut(r) : null; }
   async invites(firmId: string) { return (await this.d.select().from(invites).where(eq(invites.firmId, firmId)).orderBy(desc(invites.createdAt))).map(invOut); }
+  async createDriverInvite(firmId: string, name: string, phone: string, locale: string) {
+    const uid = newId("u"), iid = newId("i");
+    await this.d.execute(sql`with person as (
+      insert into users (id, firm_id, role, name, phone, password_hash, locale)
+      values (${uid}, ${firmId}, 'driver', ${name}, ${phone}, '', ${locale}) returning id
+    ) insert into invites (id, firm_id, name, phone, locale, user_id)
+      select ${iid}, ${firmId}, ${name}, ${phone}, ${locale}, id from person`);
+    return (await this.invite(firmId, iid))!;
+  }
+  async acceptInvite(firmId: string, id: string, phone: string, passwordHash: string) {
+    // Claim and activate/insert are a single PostgreSQL statement, also supported by Neon HTTP.
+    const uid = newId("u");
+    const result = await this.d.execute(sql`with claimed as (
+      update invites set used_at = now(), user_id = coalesce(user_id, ${uid})
+      where id = ${id} and firm_id = ${firmId} and used_at is null and revoked_at is null
+        and created_at > now() - interval '14 days' and (phone is null or phone = ${phone})
+        and (user_id is null or exists (select 1 from users u where u.id = invites.user_id and u.firm_id = invites.firm_id and u.password_hash = '' and u.disabled_at is null))
+      returning *
+    ), activated as (
+      update users u set password_hash = ${passwordHash}, phone = ${phone}, session_version = u.session_version + 1
+      from claimed c where u.id = c.user_id and u.firm_id = c.firm_id and u.role = 'driver'
+        and u.password_hash = '' and u.disabled_at is null returning u.id
+    ), created as (
+      insert into users (id, firm_id, role, name, phone, password_hash, locale)
+      select user_id, firm_id, 'driver', name, ${phone}, ${passwordHash}, locale from claimed where user_id = ${uid}
+      returning id
+    ) select id from activated union all select id from created`);
+    const rows = result.rows as { id: string }[];
+    return rows[0] ? this.userById(rows[0].id) : null;
+  }
+  async updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }) {
+    const rows = await this.d.update(trips).set(patch).where(and(eq(trips.firmId, firmId), eq(trips.id, id))).returning({ id: trips.id });
+    return rows.length === 1;
+  }
   async useInvite(firmId: string, id: string, userId: string) {
-    const r = await this.d.update(invites).set({ usedAt: new Date(), userId }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt))).returning({ id: invites.id });
+    const r = await this.d.update(invites).set({ usedAt: new Date(), userId }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt), isNull(invites.revokedAt))).returning({ id: invites.id });
     return r.length === 1;
   }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) {
     try { const [r] = await this.d.insert(trucks).values({ ...t, archivedAt: null, id: newId("t"), firmId }).returning(); return truckOut(r); }
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
-  async updateTruck(firmId: string, id: string, p: { plate: string; model: string | null; tankL: number | null; normalL100: number | null }) { const r = await this.d.update(trucks).set(p).where(and(eq(trucks.firmId, firmId), eq(trucks.id, id))).returning({ id: trucks.id }); return r.length > 0; }
+  async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }) { const r = await this.d.update(trucks).set(p).where(and(eq(trucks.firmId, firmId), eq(trucks.id, id))).returning({ id: trucks.id }); return r.length > 0; }
   async setUserEmail(id: string, email: string) { await this.d.update(users).set({ email }).where(eq(users.id, id)); }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) {
     const set: Partial<typeof trucks.$inferInsert> = {};
@@ -97,8 +140,25 @@ export class PgStore implements Store {
     return r ? docOut(r) : null;
   }
   async deleteDoc(firmId: string, id: string) { return (await this.d.delete(documents).where(and(eq(documents.firmId, firmId), eq(documents.id, id))).returning({ id: documents.id })).length === 1; }
-  async setUserTruck(firmId: string, userId: string, truckId: string | null) { await this.ownTruck(firmId, truckId); await this.d.update(users).set({ truckId }).where(and(eq(users.firmId, firmId), eq(users.id, userId))); }
-  async revokeInvite(firmId: string, id: string) { return (await this.d.update(invites).set({ revokedAt: new Date() }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt))).returning({ id: invites.id })).length === 1; }
+  async setUserTruck(firmId: string, userId: string, truckId: string | null) {
+    const result = await this.d.execute(sql`with candidate as (
+      select u.id, u.truck_id from users u where u.id = ${userId} and u.firm_id = ${firmId} and u.role = 'driver' and u.disabled_at is null
+      and (${truckId}::text is null or exists (select 1 from trucks t where t.id = ${truckId} and t.firm_id = ${firmId} and t.archived_at is null))
+      and not exists (select 1 from shifts sh where sh.firm_id = ${firmId} and (sh.truck_id = u.truck_id or sh.truck_id = ${truckId}) and sh."end" is null)
+      for update
+    ), changed as (
+      update users u set truck_id = ${truckId} from candidate c where u.id = c.id returning u.id, c.truck_id as old_truck
+    ), history as (
+      insert into truck_assignments (id, firm_id, user_id, truck_id, from_truck_id)
+      select ${newId("ta")}, ${firmId}, id, ${truckId}, old_truck from changed where ${truckId}::text is not null and old_truck is distinct from ${truckId}
+    ) select id from changed`);
+    if (!result.rows.length) throw new Error("assignment");
+  }
+  async renewInvite(firmId: string, id: string) {
+    const r = await this.d.update(invites).set({ createdAt: new Date(), revokedAt: null }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt))).returning({ id: invites.id });
+    return r.length === 1;
+  }
+  async revokeInvite(firmId: string, id: string) { return (await this.d.update(invites).set({ revokedAt: new Date() }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt), isNull(invites.revokedAt))).returning({ id: invites.id })).length === 1; }
   async setPod(firmId: string, tripId: string, received: boolean) { return (await this.d.update(trips).set({ podReceived: received }).where(and(eq(trips.firmId, firmId), eq(trips.id, tripId))).returning({ id: trips.id })).length === 1; }
   private async ownTrip(firmId: string, tripId: string | null) {
     if (!tripId) return;
@@ -176,6 +236,7 @@ export class PgStore implements Store {
     }
     return { added, dupes: rows.length - added };
   }
+  async fuelByHash(firmId: string, hash: string) { const [r] = await this.d.select().from(fuelTransactions).where(and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.hash, hash))).limit(1); return r ? txOut(r) : null; }
   async fuel(firmId: string, o: { truckId?: string; source?: string; limit?: number } = {}) {
     const w = [eq(fuelTransactions.firmId, firmId)];
     if (o.truckId) w.push(eq(fuelTransactions.truckId, o.truckId));
@@ -187,7 +248,8 @@ export class PgStore implements Store {
   async setShift(firmId: string, s: ShiftRow) {
     await this.ownTruck(firmId, s.truckId);
     const v = { start: s.start, end: s.end, checklist: JSON.stringify(s.checklist), privateSince: s.privateSince ?? null };
-    await this.d.insert(shifts).values({ firmId, truckId: s.truckId, ...v }).onConflictDoUpdate({ target: [shifts.firmId, shifts.truckId], set: v });
+    const changed = await this.d.insert(shifts).values({ firmId, truckId: s.truckId, ...v }).onConflictDoUpdate({ target: [shifts.firmId, shifts.truckId], set: v, setWhere: sql`(${shifts.end} is null and ${shifts.start} = ${s.start}) or (${shifts.end} is not null and ${shifts.start} <> ${s.start} and ${s.end}::text is null and ${s.start} > ${shifts.end})` }).returning({ truckId: shifts.truckId });
+    if (!changed.length) throw new Error("shift-conflict");
     return s;
   }
   async shift(firmId: string, truckId: string) {

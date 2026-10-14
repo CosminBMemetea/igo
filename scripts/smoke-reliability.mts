@@ -1,0 +1,108 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { MemStore } from "../src/lib/store/mem";
+import { PgStore } from "../src/lib/store/pg";
+import type { Store, TripRow } from "../src/lib/store/types";
+import { FirmRepository, tripRowToTrip, truckToVehicle } from "../src/lib/firm-repo";
+import { tripViews, monthSummary } from "../src/lib/query";
+import { tripEcon, profileOf } from "../src/lib/costs";
+import { driverTruck, driverTrip } from "../src/lib/driver-access";
+import { isDate } from "../src/lib/validate";
+import * as schema from "../src/db/schema";
+
+const base: TripRow = { id: "a", firmId: "f", truckId: "v", client: "Test", title: "A → B", date: "2026-02-20", km: 100, revenue: 1000, litres: 30, fuelPrice: 7, tolls: 10, driverCost: 20, other: 50, planned: false, litresSource: "estimate" };
+const vehicle = truckToVehicle({ id: "v", firmId: "f", plate: "BH 01 AAA", model: null, vin: null, tankL: 600, normalL100: 30 });
+const fuel = [{ truckId: "v", at: "2026-02-20T12:00", litres: 100, amount: 700, currency: null }] as Parameters<typeof tripRowToTrip>[1];
+const trip = tripRowToTrip(base, fuel);
+assert.equal(trip.litres, 30, "a purchase must not overwrite trip consumption");
+assert.equal(tripRowToTrip({ ...base, id: "b" }, fuel).litres + trip.litres, 60);
+assert.equal(tripRowToTrip({ ...base, planned: true, date: "2020-01-01" }).active, true, "past planned trips remain unrealized");
+assert.equal(profileOf(vehicle).leasing, 0);
+assert.deepEqual(profileOf(vehicle), profileOf({ ...vehicle, id: "another-id" }));
+const e = tripEcon(trip, vehicle, 100, { tonnes: null, emptyKm: 0 });
+assert.equal(e.costs, 290, "fuel + tolls + driver + other must reconcile");
+assert.equal(tripEcon({ ...trip, other: 550 }, vehicle, 100, { tonnes: null, emptyKm: 0 }).costs, e.costs + 500);
+const views = tripViews([trip, { ...trip, id: "old", date: "2025-02-20" }, { ...trip, id: "future", active: true }], [vehicle]);
+assert.equal(monthSummary(views, "2026-02").n, 1);
+const paid = { ...vehicle, costs: { leasing: 1000 } };
+const profitBefore = tripViews([trip], [paid])[0].p.profit;
+assert.equal(tripViews([trip, { ...trip, id: "next", date: "2026-03-20", active: true, km: 10000 }], [paid])[0].p.profit, profitBefore);
+assert.equal(isDate("2026-02-31"), false);
+assert.equal(isDate("2024-02-29"), true);
+assert.equal(isDate("2026-02-29"), false);
+console.log("PASS financial regressions and strict dates");
+
+async function verifyStore(s: Store) {
+  const suffix = randomUUID().slice(0, 8), firm = await s.createFirm({ name: `Audit ${suffix}`, cui: null });
+  const other = await s.createFirm({ name: `Other ${suffix}`, cui: null });
+  const phone = `+40${String(Math.floor(Math.random() * 1e9)).padStart(9, "0")}`;
+  try {
+    const t1 = await s.addTruck(firm.id, { plate: "BH 01 AAA", vin: null, model: null, tankL: 600, normalL100: 30 });
+    const t2 = await s.addTruck(firm.id, { plate: "BH 02 AAA", vin: null, model: null, tankL: 600, normalL100: 30 });
+    const foreign = await s.addTruck(other.id, { plate: "BH 03 AAA", vin: null, model: null, tankL: 600, normalL100: 30 });
+    const invite = await s.createDriverInvite(firm.id, "Ion", phone, "ro");
+    const pending = (await s.users(firm.id))[0];
+    assert.equal(pending.passwordHash, "");
+    assert.equal(invite.userId, pending.id);
+    await s.setUserTruck(firm.id, pending.id, t1.id);
+    const accepted = await Promise.all([s.acceptInvite(firm.id, invite.id, phone, "hash-a"), s.acceptInvite(firm.id, invite.id, phone, "hash-b")]);
+    assert.equal(accepted.filter(Boolean).length, 1, "single-use invite must activate exactly once");
+    assert.equal((await s.users(firm.id)).length, 1, "no orphan users from double acceptance");
+    const user = accepted.find(Boolean)!;
+    assert.equal(user.id, pending.id, "activation preserves planned assignments");
+    assert.equal(user.truckId, t1.id);
+    const tn = { role: "driver" as const, uid: user.id, firm, demo: false };
+    assert.equal(await driverTruck(s, tn, t1.id), true);
+    assert.equal(await driverTruck(s, tn, t2.id), false);
+    assert.equal(await driverTruck(s, tn, foreign.id), false);
+    await assert.rejects(s.setUserTruck(firm.id, user.id, foreign.id));
+    const second = await s.createUser({ firmId: firm.id, name: "Vasile", phone: null, email: null, role: "driver", passwordHash: "hash" });
+    await assert.rejects(s.setUserTruck(firm.id, second.id, t1.id), "two drivers cannot claim one truck");
+    const race = await Promise.allSettled([s.setUserTruck(firm.id, user.id, t2.id), s.setUserTruck(firm.id, second.id, t2.id)]);
+    assert.equal(race.filter((r) => r.status === "fulfilled").length, 1);
+    // Restore a deterministic assignment after the concurrent test.
+    for (const u of await s.users(firm.id)) await s.setUserTruck(firm.id, u.id, null);
+    await s.setUserTruck(firm.id, user.id, t1.id);
+    const start = "2026-02-20T08:00:00.000Z", end = "2026-02-20T09:00:00.000Z";
+    await s.setShift(firm.id, { truckId: t1.id, start, end: null, checklist: [] });
+    await assert.rejects(s.setUserTruck(firm.id, user.id, t2.id), "active shifts block reassignment");
+    await assert.rejects(s.setShift(firm.id, { truckId: t1.id, start: "2026-02-20T08:00:01.000Z", end: null, checklist: [] }), "concurrent starts cannot reset a shift");
+    await s.setShift(firm.id, { truckId: t1.id, start, end, checklist: [] });
+    await assert.rejects(s.setShift(firm.id, { truckId: t1.id, start, end: null, checklist: [], privateSince: start }), "stale privacy update cannot reopen a shift");
+    const saved = await s.addTrip(firm.id, { ...base, truckId: t1.id, driverId: user.id, planned: true });
+    assert.equal(await driverTrip(s, tn, saved.id), true);
+    assert.equal(await driverTrip(s, { ...tn, uid: second.id }, saved.id), false);
+    await s.updateTrip(firm.id, saved.id, { revenue: 1400, tonnes: 12, planned: false });
+    assert.equal((await s.trips(firm.id)).find((x) => x.id === saved.id)?.revenue, 1400);
+    assert.equal(await s.updateTrip(other.id, saved.id, { revenue: 0 }), false);
+    const repo = new FirmRepository(s, firm);
+    const fill = { vehicleId: t1.id, time: "2026-02-19T10:00", litres: 100, odometerKm: 1000, amount: 700, station: "Test", photo: null, aiRead: false, userId: user.id, key: randomUUID() };
+    const fills = await Promise.all([repo.addDriverFill(fill), repo.addDriverFill(fill)]);
+    assert.equal(fills[0].id, fills[1].id, "repeat request must return canonical stored ID");
+    assert.equal((await s.fuel(firm.id)).length, 1);
+    assert.equal((await s.fuel(firm.id))[0].at, "2026-02-19T10:00");
+    assert.equal((await s.fuel(firm.id))[0].userId, user.id);
+    const version = (await s.userById(user.id))!.sessionVersion ?? 0;
+    await s.setUserPassword(user.id, "new-hash");
+    assert.equal((await s.userById(user.id))!.sessionVersion, version + 1);
+    await s.setUserDisabled(firm.id, user.id, true);
+    assert.equal((await s.userById(user.id))!.truckId, null);
+    assert.equal(await driverTruck(s, tn, t1.id), false);
+    const oldInvite = await s.createInvite(firm.id, "Legacy", null);
+    const legacy = await Promise.all([s.acceptInvite(firm.id, oldInvite.id, phone + "1", "hash"), s.acceptInvite(firm.id, oldInvite.id, phone + "2", "hash")]);
+    assert.equal(legacy.filter(Boolean).length, 1);
+    const revoked = await s.createInvite(firm.id, "Revoked", null);
+    await s.revokeInvite(firm.id, revoked.id);
+    assert.equal(await s.acceptInvite(firm.id, revoked.id, phone + "3", "hash"), null);
+    assert.equal(await s.useInvite(firm.id, revoked.id, user.id), false);
+    console.log(`PASS ${s.persistent ? "Postgres" : "memory"}: concurrent invites, assignments, privacy state, tenant isolation, trip edits, receipt idempotency, session revocation`);
+  } finally { await s.deleteFirm(firm.id); await s.deleteFirm(other.id); }
+}
+await verifyStore(new MemStore());
+if (process.argv.includes("--postgres")) {
+  if (!process.env.TEST_DATABASE_URL) throw new Error("TEST_DATABASE_URL required; integration test must not silently skip");
+  const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 });
+  try { await verifyStore(new PgStore(drizzle(pool, { schema }))); } finally { await pool.end(); }
+}

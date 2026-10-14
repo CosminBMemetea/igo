@@ -1,13 +1,12 @@
-import { back } from "@/lib/auth-cookie";
 import { store } from "@/lib/store";
 import { writableFirm } from "@/lib/tenant";
 import { clip } from "@/lib/validate";
+import { formReply } from "@/lib/form-response";
 export const dynamic = "force-dynamic";
-/** Dezactivează / reactivează un șofer (șofer plecat): acces revocat imediat, istoricul rămâne. */
 export async function POST(req: Request) {
-  const f = await writableFirm(); if (!f) return back(req, "/setup?step=3&e=nofirm");
-  const fd = await req.formData(), id = clip(fd.get("uid"), 60), off = fd.get("off") === "1";
-  const ok = await store().setUserDisabled(f.id, id, off);
-  if (ok && off) { const s = store(); const u = await s.userById(id); if (u?.truckId) await s.setUserTruck(f.id, id, null).catch(() => {}); }
-  return back(req, `/setup?step=3&ok=${ok ? (off ? "off" : "on") : "0"}`);
+  const f = await writableFirm(), fd = await req.formData();
+  const dest = fd.get("ret") === "/drivers" ? "/drivers" : "/setup?step=3";
+  if (!f) return formReply(req, dest, "nofirm", 403);
+  const ok = await store().setUserDisabled(f.id, clip(fd.get("uid"), 60), fd.get("off") === "1");
+  return formReply(req, `${dest}${dest.includes("?") ? "&" : "?"}ok=1`, ok ? undefined : "missing", 404);
 }

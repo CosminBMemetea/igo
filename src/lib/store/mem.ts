@@ -13,7 +13,7 @@ export class MemStore implements Store {
     const r = { ...u, id: newId("u") }; this.U.push(r); return { ...r };
   }
   async userByLogin(login: string) { const u = this.U.find((x) => x.email === login || x.phone === login); return u ? { ...u } : null; }
-  async setUserPassword(id: string, passwordHash: string) { const u = this.U.find((x) => x.id === id); if (u) u.passwordHash = passwordHash; }
+  async setUserPassword(id: string, passwordHash: string) { const u = this.U.find((x) => x.id === id); if (u) { u.passwordHash = passwordHash; u.sessionVersion = (u.sessionVersion ?? 0) + 1; } }
   async firmCounts(firmId: string) {
     const out: Record<string, number> = {};
     for (const [k, v] of Object.entries(this)) {
@@ -32,15 +32,41 @@ export class MemStore implements Store {
     return { counts, blobUrls };
   }
   async userById(id: string) { const u = this.U.find((x) => x.id === id); return u ? { ...u } : null; }
-  async setUserDisabled(firmId: string, userId: string, off: boolean) { const u = this.U.find((x) => x.id === userId && x.firmId === firmId && x.role === "driver"); if (!u) return false; u.disabledAt = off ? new Date().toISOString() : null; return true; }
+  async setUserDisabled(firmId: string, userId: string, off: boolean) {
+    const u = this.U.find((x) => x.id === userId && x.firmId === firmId && x.role === "driver"); if (!u) return false;
+    if (off && u.truckId) { const sh = this.H.get(`${firmId}:${u.truckId}`); if (sh && !sh.end) { sh.end = new Date().toISOString(); sh.privateSince = null; } u.truckId = null; }
+    u.disabledAt = off ? new Date().toISOString() : null; u.sessionVersion = (u.sessionVersion ?? 0) + 1; return true;
+  }
   async users(firmId: string) { return this.U.filter((u) => u.firmId === firmId); }
   async setUserLocale(id: string, locale: string) { const u = this.U.find((x) => x.id === id); if (u) u.locale = locale; }
   async createInvite(firmId: string, name: string, phone: string | null, locale: string | null = null) { const r: InviteRow = { id: newId("i"), firmId, name, phone, locale, usedAt: null, userId: null, createdAt: new Date().toISOString() }; this.I.push(r); return { ...r }; }
   async invite(firmId: string, id: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId); return r ? { ...r } : null; }
   async invites(firmId: string) { return this.I.filter((x) => x.firmId === firmId); }
-  async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }
+  async createDriverInvite(firmId: string, name: string, phone: string, locale: string) {
+    if (this.U.some((u) => u.phone === phone)) throw new Error("exists");
+    const u: UserRow = { id: newId("u"), firmId, name, phone, locale, role: "driver", email: null, passwordHash: "", sessionVersion: 0 };
+    const i: InviteRow = { id: newId("i"), firmId, name, phone, locale, userId: u.id, usedAt: null, createdAt: new Date().toISOString() };
+    this.U.push(u); this.I.push(i); return { ...i };
+  }
+  async acceptInvite(firmId: string, id: string, phone: string, passwordHash: string) {
+    const i = this.I.find((x) => x.firmId === firmId && x.id === id);
+    if (!i || i.usedAt || i.revokedAt || Date.parse(i.createdAt) <= Date.now() - 14 * 86400000 || (i.phone && i.phone !== phone)) return null;
+    const existing = i.userId ? this.U.find((u) => u.id === i.userId && u.firmId === firmId) : null;
+    if (i.userId && (!existing || existing.passwordHash || existing.disabledAt)) return null;
+    if (this.U.some((u) => u.phone === phone && u.id !== existing?.id)) throw new Error("exists");
+    const u: UserRow = existing ?? { id: newId("u"), firmId, role: "driver", name: i.name, phone, email: null, passwordHash, locale: i.locale };
+    u.passwordHash = passwordHash; u.phone = phone; u.sessionVersion = (u.sessionVersion ?? 0) + 1;
+    if (!existing) this.U.push(u);
+    i.usedAt = new Date().toISOString(); i.userId = u.id;
+    return { ...u };
+  }
+  async updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }) {
+    const r = this.R.find((x) => x.firmId === firmId && x.id === id); if (!r) return false;
+    Object.assign(r, patch); return true;
+  }
+  async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt && !x.revokedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) { if (this.T.some((x) => x.firmId === firmId && x.plate === t.plate)) throw new Error("exists"); const r = { ...t, id: newId("t"), firmId }; this.T.push(r); return { ...r }; }
-  async updateTruck(firmId: string, id: string, p: { plate: string; model: string | null; tankL: number | null; normalL100: number | null }) { if (this.T.some((x) => x.firmId === firmId && x.plate === p.plate && x.id !== id)) throw new Error("dup"); const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; Object.assign(t, p); return true; }
+  async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }) { if (this.T.some((x) => x.firmId === firmId && x.plate === p.plate && x.id !== id)) throw new Error("dup"); const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; Object.assign(t, p); return true; }
   async setUserEmail(id: string, email: string) { if (this.U.some((x) => x.email === email && x.id !== id)) throw new Error("dup"); const u = this.U.find((x) => x.id === id); if (u) u.email = email; }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) { const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; if (p.costs) t.costs = p.costs; if (p.archived !== undefined) t.archivedAt = p.archived ? new Date().toISOString() : null; return true; }
   async trucks(firmId: string) { return this.T.filter((x) => x.firmId === firmId); }
@@ -51,8 +77,21 @@ export class MemStore implements Store {
   async addDoc(firmId: string, d: NewDoc) { if (!d.truckId && !d.userId) throw new Error("truck"); this.ownDoc(firmId, d); const r: DocRow = { ...d, scope: d.userId ? "driver" : "vehicle", id: newId("d"), firmId }; this.D.push(r); return { ...r }; }
   async updateDoc(firmId: string, id: string, d: Partial<NewDoc>) { this.ownDoc(firmId, d); const r = this.D.find((x) => x.id === id && x.firmId === firmId); if (!r) return null; Object.assign(r, d); return { ...r }; }
   async deleteDoc(firmId: string, id: string) { const i = this.D.findIndex((x) => x.id === id && x.firmId === firmId); if (i < 0) return false; this.D.splice(i, 1); return true; }
-  async setUserTruck(firmId: string, userId: string, truckId: string | null) { if (!this.own(firmId, truckId)) throw new Error("truck"); const u = this.U.find((x) => x.id === userId && x.firmId === firmId); if (u) u.truckId = truckId; }
-  async revokeInvite(firmId: string, id: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.revokedAt = new Date().toISOString(); return true; }
+  async setUserTruck(firmId: string, userId: string, truckId: string | null) {
+    const u = this.U.find((x) => x.id === userId && x.firmId === firmId && x.role === "driver" && !x.disabledAt);
+    if (!u || (truckId && !this.T.some((t) => t.id === truckId && t.firmId === firmId && !t.archivedAt))) throw new Error("assignment");
+    if (truckId && this.U.some((x) => x.id !== userId && x.firmId === firmId && x.truckId === truckId && !x.disabledAt)) throw new Error("assignment");
+    // No awaits before mutation: competing requests cannot both claim the same truck.
+    const from = u.truckId ?? null;
+    for (const id of [from, truckId]) { const sh = id ? this.H.get(`${firmId}:${id}`) : null; if (sh && !sh.end) throw new Error("assignment"); }
+    u.truckId = truckId;
+    if (truckId && from !== truckId) await this.addAssignment(firmId, { userId, truckId, fromTruckId: from });
+  }
+  async renewInvite(firmId: string, id: string) {
+    const i = this.I.find((x) => x.firmId === firmId && x.id === id && !x.usedAt); if (!i) return false;
+    i.createdAt = new Date().toISOString(); i.revokedAt = null; return true;
+  }
+  async revokeInvite(firmId: string, id: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt && !x.revokedAt); if (!r) return false; r.revokedAt = new Date().toISOString(); return true; }
   async setPod(firmId: string, tripId: string, received: boolean) { const r = this.R.find((x) => x.id === tripId && x.firmId === firmId); if (!r) return false; r.podReceived = received; return true; }
   private FL: (FileMeta & { data: Buffer | null })[] = []; private N: NotificationRow[] = []; private E: EmailRow[] = []; private V: TripEventRow[] = [];
   async addFile(firmId: string, f: NewFile) {
@@ -106,12 +145,15 @@ export class MemStore implements Store {
     }
     return { added, dupes };
   }
+  async fuelByHash(firmId: string, hash: string) { const r = this.X.find((x) => x.firmId === firmId && x.hash === hash); return r ? { ...r } : null; }
   async fuel(firmId: string, o: { truckId?: string; source?: string; limit?: number } = {}) {
     return this.X.filter((x) => x.firmId === firmId && (!o.truckId || x.truckId === o.truckId) && (!o.source || x.source === o.source)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, o.limit ?? 5000);
   }
   async addImport(firmId: string, i: Omit<ImportRow, "id" | "firmId" | "createdAt"> & { id?: string }) { const r = { ...i, id: i.id ?? newId("m"), firmId, createdAt: new Date().toISOString() }; this.M.push(r); return r; }
   async imports(firmId: string) { return this.M.filter((m) => m.firmId === firmId).reverse(); }
-  async setShift(firmId: string, s: ShiftRow) { if (!this.own(firmId, s.truckId)) throw new Error("truck"); this.H.set(`${firmId}:${s.truckId}`, s); return s; }
+  async setShift(firmId: string, s: ShiftRow) { if (!this.own(firmId, s.truckId)) throw new Error("truck"); const prev = this.H.get(`${firmId}:${s.truckId}`);
+    if (prev && !((!prev.end && prev.start === s.start) || (prev.end && prev.start !== s.start && !s.end && s.start > prev.end))) throw new Error("shift-conflict");
+    this.H.set(`${firmId}:${s.truckId}`, { ...s }); return s; }
   async shift(firmId: string, truckId: string) { return this.H.get(`${firmId}:${truckId}`) ?? null; }
   private MP = new Map<string, Record<string, number>>();
   private DE: (DriverEventRow & { firmId: string })[] = [];

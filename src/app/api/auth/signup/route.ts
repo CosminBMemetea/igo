@@ -1,11 +1,12 @@
 import { normRef } from "@/lib/referral";
 import { back, withSession } from "@/lib/auth-cookie";
 import { hashPassword } from "@/lib/scrypt";
-import { store } from "@/lib/store";
+import { store, dbConfigured } from "@/lib/store";
 import { PASSWORD_MIN, clip, isEmail, normEmail } from "@/lib/validate";
 export const dynamic = "force-dynamic";
 /** Înscriere proprietar: firmă goală pe proba de 30 de zile + cont owner. */
 export async function POST(req: Request) {
+  if (process.env.NODE_ENV === "production" && !dbConfigured()) return new Response("Account creation unavailable: database not configured", { status: 503 });
   if ((process.env.SESSION_SECRET?.length ?? 0) < 32) return back(req, "/signup?e=nosecret");
   const fd = await req.formData().catch(() => null);
   if (!fd) return back(req, "/signup?e=form");
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
   const firm = await s.createFirm({ name, cui, referredBy: normRef(fd.get("ref")) });
   try {
     const u = await s.createUser({ firmId: firm.id, role: "owner", name: "", email, phone: null, passwordHash: hashPassword(password) });
-    return withSession(back(req, "/setup"), { role: "owner", email, firm: firm.id, uid: u.id, trial: firm.trialStart });
+    await s.updateFirm(firm.id, { detailsDone: true });
+    return withSession(back(req, "/trucks"), { role: "owner", email, firm: firm.id, uid: u.id, trial: firm.trialStart });
   } catch { return back(req, "/signup?e=exists"); }
 }

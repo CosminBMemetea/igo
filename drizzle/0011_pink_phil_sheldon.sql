@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "session_version" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "users_active_truck_uq" ON "users" USING btree ("firm_id","truck_id") WHERE "users"."role" = 'driver' and "users"."disabled_at" is null and "users"."truck_id" is not null;

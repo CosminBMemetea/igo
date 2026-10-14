@@ -11,6 +11,8 @@ export interface Vehicle {
   lph?: number; engineHours?: number;
   /** costuri editate de patron (suprascriu valorile implicite) */
   costs?: Partial<import("../costs").CostProfile>;
+  real?: boolean;
+  costsConfigured?: boolean;
   /** scos din flotă: istoric păstrat, exclus din calcule */
   archived?: boolean;
 }
@@ -24,6 +26,7 @@ export interface Trip {
   /** tonaj transportat (t) și km goi (retur / poziționare) */
   tonnes?: number; emptyKm?: number;
   /** firmă reală: șoferul atribuit (cursă creată din „+ Cursă nouă”) */
+  litresSource?: "manual" | "estimate";
   planned?: boolean; driverName?: string; driverId?: string | null;
 }
 export interface Parcel { id: string; name: string; ha: number; crop: "wheat" | "maize" | "sunflower" | "rapeseed"; poly: LatLng[] }

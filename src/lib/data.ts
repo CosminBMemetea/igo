@@ -9,9 +9,9 @@ export async function load() {
   const r = tn.repo;
   const [v0, t0, clients, parcels, zones, alerts0] = await Promise.all([r.vehicles(), r.trips(), r.clients(), r.parcels(), r.zones(), r.alerts()]);
   const { vehicles: allVehicles, trips } = tn.demo ? applyDemoEcon(v0, t0) : { vehicles: v0, trips: t0 };
-  // camioanele scoase din flotă: istoricul rămâne (pagina camionului), dar nu intră în calcule, hartă sau alerte
+  // Archived trucks retain financial history but leave the live fleet and alerts.
   const vehicles = allVehicles.filter((v) => !v.archived), archived = allVehicles.filter((v) => v.archived);
-  const views = tripViews(trips, vehicles), archivedViews = archived.length ? tripViews(trips, allVehicles).filter((x) => x.vehicle.archived) : [];
+  const views = tripViews(trips, allVehicles), archivedViews = archived.length ? views.filter((x) => x.vehicle.archived) : [];
   const alerts = archived.length ? alerts0.filter((a) => !archived.some((v) => v.id === (a as { vehicleId?: string }).vehicleId)) : alerts0;
   // firmele reale n-au încă GPS: harta live rămâne goală până la conectarea unei surse
   return { tn, demo: tn.demo, vehicles, allVehicles, archivedViews, trips, clients, parcels, zones, alerts, views, live: async () => (tn.demo ? demoLive(vehicles, views, parcels, zones) : tn.firm ? realLive(tn.firm.id, r, vehicles) : []) };

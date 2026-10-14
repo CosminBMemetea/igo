@@ -25,7 +25,7 @@ export function optNum(v: FormDataEntryValue | null, min: number, max: number): 
   const n = Number(s);
   return Number.isFinite(n) && n >= min && n <= max ? n : undefined;
 }
-export const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
+export const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
 export const clip = (v: FormDataEntryValue | null, n: number) => String(v ?? "").trim().slice(0, n);
 export const PASSWORD_MIN = 8;
 export const isPin = (s: string) => /^\d{6}$/.test(s);

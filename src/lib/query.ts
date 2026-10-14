@@ -1,4 +1,5 @@
 // Querra Fleet: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
+import { localNow } from "./validate";
 import { tripProfit, savings, sumSavings, type ProfitBreakdown, type Savings } from "./calc";
 import { CITY_CC, CC_CUR, DEMO_LEI_PER, DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
 import { demoLoad, hasCosts, kmPerMonth, tripEcon, type Econ } from "./costs";
@@ -12,16 +13,28 @@ export function tripView(tr: Trip, vehicles: Vehicle[], kmM?: Map<string, number
   if (!hasCosts(vehicle) || !tr.km) return { ...tr, vehicle, p: tripProfit(tr), s, e: null };
   // profit real: costuri fixe + variabile pe camion + uzură din tonaj (vezi lib/costs.ts)
   const ld = DEMO_IDS.has(vehicle.id) ? demoLoad(tr, vehicle, TRUCKS.find((x) => x.id === vehicle.id)?.routeName) : { tonnes: tr.tonnes ?? null, emptyKm: tr.emptyKm ?? 0 };
-  const e = tripEcon(tr, vehicle, kmM?.get(vehicle.id) ?? 9000, ld);
-  return { ...tr, vehicle, s, e, p: { revenue: tr.revenue, fuel: e.fuel, tolls: e.tolls, driver: e.driver, other: Math.round((e.adblue + e.tyres + e.service + e.loadWear) * 100) / 100, fixed: e.fixed, costs: e.costs, profit: e.profit, margin: e.margin } };
+  const e = tripEcon(tr, vehicle, kmM?.get(vehicle.real ? `${vehicle.id}:${tr.date.slice(0, 7)}` : vehicle.id) ?? (vehicle.real ? 0 : 9000), ld);
+  return { ...tr, vehicle, s, e, p: { revenue: tr.revenue, fuel: e.fuel, tolls: e.tolls, driver: e.driver, other: Math.round((tr.other + e.adblue + e.tyres + e.service + e.loadWear) * 100) / 100, fixed: e.fixed, costs: e.costs, profit: e.profit, margin: e.margin } };
 }
-export const tripViews = (trips: Trip[], vehicles: Vehicle[]) => { const kmM = kmPerMonth(trips.filter((t) => vehicles.some((v) => v.id === t.vehicleId))); return trips.filter((t) => vehicles.some((v) => v.id === t.vehicleId)).map((t) => tripView(t, vehicles, kmM)); };
+export const tripViews = (trips: Trip[], vehicles: Vehicle[]) => {
+  const eligible = trips.filter((t) => vehicles.some((v) => v.id === t.vehicleId));
+  const kmM = kmPerMonth(eligible.filter((t) => !t.active));
+  for (const t of eligible.filter((t) => !t.active)) {
+    const key = `${t.vehicleId}:${t.date.slice(0, 7)}`;
+    kmM.set(key, (kmM.get(key) ?? 0) + t.km);
+  }
+  return eligible.map((t) => tripView(t, vehicles, kmM));
+};
 
 /** Sursa unică pentru totaluri (acasă, curse, clienți, bonuri, economii): doar cursele încheiate. */
 export interface MonthSummary { n: number; profit: number; avgProfit: number; savings: Savings; revenue: number; fuelLei: number; litres: number; tolls: number }
-/** Luna demo (octombrie 2026): curse/lucrări încheiate. */
-export function monthSummary(views: TripView[]): MonthSummary {
-  const done = views.filter((v) => !v.active);
+/** Real reports use the current calendar month; demo retains its rolling sample. */
+export function reportViews(views: TripView[], month?: string): TripView[] {
+  const period = month ?? (views.some((v) => v.vehicle.real) ? localNow().slice(0, 7) : null);
+  return period ? views.filter((v) => v.date.startsWith(period + "-")) : views;
+}
+export function monthSummary(views: TripView[], month?: string): MonthSummary {
+  const done = reportViews(views, month).filter((v) => !v.active);
   const profit = done.reduce((s, v) => s + v.p.profit, 0);
   return { n: done.length, profit, avgProfit: done.length ? profit / done.length : 0, savings: sumSavings(done.map((v) => v.s)), revenue: done.reduce((s, v) => s + v.revenue, 0), fuelLei: done.reduce((s, v) => s + v.p.fuel, 0), litres: done.reduce((s, v) => s + v.litres, 0), tolls: done.reduce((s, v) => s + v.p.tolls, 0) };
 }

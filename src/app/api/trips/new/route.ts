@@ -20,7 +20,8 @@ export async function POST(req: Request) {
   const drv = users.find((u) => u.id === b.driverId && u.role === "driver" && !u.disabledAt) ?? null;
   if (b.driverId && !drv) return NextResponse.json({ error: "driver" }, { status: 400 });
   const live = trucks.filter((t) => !t.archivedAt);
-  const truck = live.find((t) => t.id === b.truckId) ?? live.find((t) => t.id === drv?.truckId) ?? (live.length === 1 || drv ? live[0] ?? null : null); // fără camion ales: îl corectează pornirea turei (setTripTruck)
+  const truck = b.truckId ? live.find((t) => t.id === b.truckId) : live.find((t) => t.id === drv?.truckId); // Never silently assign an unrelated vehicle.
+  if (drv && truck && drv.truckId !== truck.id) return NextResponse.json({ error: "driver" }, { status: 400 });
   if (!truck) return NextResponse.json({ error: "truck" }, { status: 400 });
   const km = num(b.km, 1, 20000) ?? estimateKm(from, to);
   if (km == null) return NextResponse.json({ error: "km" }, { status: 400 });

@@ -7,7 +7,7 @@ export const isPublic = (path: string) => PUBLIC_PATHS.some((r) => r.test(path))
 /** Șoferul vede doar interfața lui (+ asistență). */
 export const DRIVER_PATHS = [/^\/driver$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/, /^\/notifications$/, /^\/api\/notifications\//, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/trips\/event$/, /^\/api\/me\/locale$/];
 /** Doar proprietar/admin. */
-export const OWNER_PATHS = [/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
+export const OWNER_PATHS = [/^\/trucks$/, /^\/drivers$/, /^\/api\/drivers\//,/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
 /** Demo („Intră ca demo”): poate încerca importul CSV — totul în memorie, nimic în baza de date. */
 export const DEMO_OK = [/^\/import$/, /^\/api\/import\/(preview|commit)$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];

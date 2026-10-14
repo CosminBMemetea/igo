@@ -24,7 +24,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
   const h = headers(), origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const secret = process.env.SESSION_SECRET ?? "";
   const links = await Promise.all(st.invites.map(async (i) => {
-    const url = `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret))}`;
+    const url = `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret, Math.floor(Date.parse(i.createdAt) / 1000)))}`;
     return { ...i, url, qr: !i.usedAt && !i.revokedAt ? await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : "" };
   }));
   const people = step === 3 ? await store().users(f.id) : [];
@@ -52,7 +52,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
             <label className="lf"><span>{t(loc, "su.firm")}</span><input name="name" required defaultValue={st.firm!.name} maxLength={120} /></label>
             <label className="lf"><span>{t(loc, "su.cui")}</span><input name="cui" defaultValue={st.firm!.cui ?? ""} maxLength={20} placeholder="RO12345678" /></label>
             <div className="lf"><span>{t(loc, "set.currency")}</span>
-              <div className="radio">{(["RON", "EUR"] as const).map((c) => <label key={c}><input type="radio" name="currency" value={c} defaultChecked={st.firm!.currency === c} /><i>{c === "RON" ? "lei (RON)" : "€ (EUR)"}</i></label>)}</div>
+              <div className="radio">{(["RON"] as const).map((c) => <label key={c}><input type="radio" name="currency" value={c} defaultChecked={st.firm!.currency === c} /><i>{c === "RON" ? "lei (RON)" : "€ (EUR)"}</i></label>)}</div>
             </div>
             <button className="btn pri">{t(loc, "set.saveNext")}</button>
           </form>

@@ -7,7 +7,7 @@ import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
-import { fmtDate, fmtNum, t, type MsgKey, plural } from "@/lib/i18n";
+import { tri, fmtDate, fmtNum, t, type MsgKey, plural } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { truckToday } from "@/lib/driver-log";
 import { DriverApp } from "@/components/DriverApp";
@@ -22,9 +22,10 @@ const PW: MsgKey[] = ["pw.today", "pw.loaded", "pw.unloaded", "pw.tap", "pw.wait
 export default async function Driver({ searchParams }: { searchParams: { v?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const tn = await tenant(), r = tn.repo;
-  const vehicles = activeFleet(tn.demo, await r.vehicles()).vehicles;
+  const me = tn.uid && tn.firm ? await store().userById(tn.uid) : null;
+  const vehicles = activeFleet(tn.demo, await r.vehicles()).vehicles.filter((v) => tn.role !== "driver" || tn.demo || v.id === me?.truckId);
+  if (!vehicles.length && tn.role === "driver" && !tn.demo) return <main><h1 className="h1">{tri(loc, "Camion nealocat|No truck assigned|Nie przypisano pojazdu")}</h1><p className="sub">{tri(loc, "Contul tău este activ. Cere patronului să îți asocieze camionul din pagina Șoferi.|Your account is active. Ask the owner to assign your truck from Drivers.|Twoje konto jest aktywne. Poproś właściciela o przypisanie pojazdu na stronie Kierowcy.")}</p></main>;
   if (!vehicles.length) return <main><EmptyState kind={tn.role === "driver" ? "driver" : "driverOwner"} loc={loc} canSetup={tn.role !== "driver"} /></main>;
-  const me = tn.uid && tn.firm ? (await store().users(tn.firm.id)).find((u) => u.id === tn.uid) : null;
   const v = vehicles.find((x) => x.id === searchParams.v) ?? vehicles.find((x) => x.id === me?.truckId) ?? vehicles[0];
   const fd = await r.fleetData();
   const last = [...(await r.driverFills(v.id))].pop();
@@ -34,7 +35,7 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const claps = tn.demo ? demoReactions().filter((x) => x.v === v.id) : [];
   const labels = Object.fromEntries(KEYS.map((k) => [k, t(loc, k)]));
   const today = todayFor(tn.demo);
-  const all = await r.trips();
+  const all = (await r.trips()).filter((x) => tn.role !== "driver" || tn.demo || x.driverId === tn.uid);
   const trips = all.filter((x) => x.vehicleId === v.id).sort((a, b) => Number(b.active) - Number(a.active) || b.date.localeCompare(a.date));
   // „Cursa de azi”: întâi cursa atribuită MIE (șoferului) azi, pe orice camion; apoi cea a camionului
   const mine = !tn.demo && tn.uid ? all.filter((x) => x.driverId === tn.uid).sort((a, b) => a.date.localeCompare(b.date)) : [];

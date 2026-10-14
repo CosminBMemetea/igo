@@ -20,7 +20,12 @@ async function tenantUncached(): Promise<Tenant> {
   const own = role === "owner" || role === "driver" ? h.get("x-igo-firm") : null;
   const firmId = role === "admin" ? cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo" : own ?? "demo";
   // sesiune fără stare: verificăm contul la fiecare cerere — șofer dezactivat / cont șters → afară imediat
-  if (own && base.uid) { const u = await store().userById(base.uid).catch(() => undefined); if (u === null || (u && (u.disabledAt || u.firmId !== own))) redirect("/api/auth/logout?e=off"); }
+  if (own) {
+    if (!base.uid) redirect("/api/auth/logout?e=off");
+    if (process.env.NODE_ENV === "production" && !base.dbOk) throw new Error("Database required for real accounts");
+    const u = await store().userById(base.uid);
+    if (!u || u.disabledAt || !u.passwordHash || u.firmId !== own || u.role !== role || (u.sessionVersion ?? 0) !== Number(h.get("x-igo-version") ?? 0)) redirect("/api/auth/logout?e=off");
+  }
   const firm = firmId === "demo" ? null : await store().firm(firmId);
   // demo dacă: utilizator demo, adminul n-a ales o firmă, firma are „Date demo” pornit (nu pentru șofer), sau firma lipsește (memorie resetată)
   const demo = !firm || (role !== "driver" && firm.demoMode);
@@ -29,7 +34,6 @@ async function tenantUncached(): Promise<Tenant> {
 
 /** Firma în care se poate scrie: proprietarul → firma lui; adminul → firma aleasă în /admin (niciodată demo). */
 export async function writableFirm(): Promise<FirmRow | null> {
-  const h = headers(), role = h.get("x-igo-role");
-  const id = role === "owner" ? h.get("x-igo-firm") : role === "admin" ? cookies().get(ADMIN_FIRM_COOKIE)?.value : null;
-  return id && id !== "demo" ? store().firm(id) : null;
+  const tn = await tenant();
+  return tn.role === "owner" || tn.role === "admin" ? tn.firm : null;
 }

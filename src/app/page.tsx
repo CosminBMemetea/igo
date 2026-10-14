@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Feed";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
-import { monthSummary } from "@/lib/query";
+import { monthSummary, reportViews } from "@/lib/query";
 import { enoughData } from "@/lib/calc";
 import { fmtMoney, fmtNum, fmtPct, t, plural } from "@/lib/i18n";
 import { FUEL_PRICE } from "@/lib/fleet/seed";
@@ -54,7 +54,7 @@ export default async function Home() {
   }
   const m = monthSummary(d.views);
   const live = (await d.live());
-  const km = d.views.filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = d.views.filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);
+  const km = reportViews(d.views).filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = reportViews(d.views).filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);
   const recent = [...d.views.filter((v) => v.active).slice(0, 2), ...d.views.filter((v) => !v.active).slice(0, 4)];
   const today = todayFor(d.demo);
   const docs = (await d.tn.repo.docs()).filter((x) => x.expires && x.scope !== "trip").map((x) => ({ ...x, st: docStatus(x.expires!, today) })).filter((x) => x.st.status !== "valid").sort((a, b) => a.st.days - b.st.days).slice(0, 4);
@@ -73,7 +73,7 @@ export default async function Home() {
   const theftV = theft ? d.vehicles.find((v) => v.id === theft.vehicleId) : null;
   const feed = d.demo ? buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers }) : null;
   const thefts = d.alerts.filter((a) => a.theft).reduce((o, a) => ({ n: o.n + 1, lei: o.lei + (Number(a.params.litres) || 0) * FUEL_PRICE }), { n: 0, lei: 0 });
-  const fe = fleetEcon(d.vehicles, d.views);
+  const fe = fleetEcon(d.allVehicles, d.views);
   const alertsToday = d.alerts.filter((a) => a.time.slice(0, 10) === today).length;
   return (
     <main>
@@ -107,7 +107,7 @@ export default async function Home() {
           <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.profitSub", { n: m.n, total: fmtMoney(loc, m.profit) }) }} />
         </div>
       </section>
-      <EconKpis vehicles={d.vehicles} views={d.views} loc={loc} />
+      <EconKpis vehicles={d.allVehicles} views={d.views} loc={loc} />
       <Gate feature="ai" prefs={prefs} inline>
         <AskBox loc={loc} labels={{ ph: t(loc, "ask.ph"), fallback: t(loc, "ask.fallback"), ai: t(loc, "ask.ai"), error: t(loc, "ask.error") }} />
       </Gate>

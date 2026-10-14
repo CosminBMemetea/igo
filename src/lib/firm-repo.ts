@@ -1,5 +1,4 @@
-import { localNow } from "./validate";
-import { leiOf } from "./fuel/lei";
+import { createHash } from "node:crypto";
 // Querra Fleet: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
 import type { FleetData } from "./fleet/rules";
 import type { Client, Doc, Trip, Vehicle } from "./fleet/seed";
@@ -19,20 +18,14 @@ export function truckBaseline(t: TruckRow, tx: FuelTxRow[], since: string): { l1
   return { l100: DEFAULT_L100, kind: "default", km: 0 };
 }
 const toR = (x: FuelTxRow) => ({ id: x.id, plate: x.source === "driver" ? x.plate : null, truckId: x.truckId, at: x.at, litres: x.litres, odometer: x.odometer, station: x.station, card: x.card, lat: x.lat, lng: x.lng });
-export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, archived: !!t.archivedAt });
+export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, real: true, costsConfigured: !!t.costs, archived: !!t.archivedAt });
 export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
-  let litres = r.litres, fuelPrice = r.fuelPrice;
-  // litri estimați → înlocuiți cu alimentările reale ale camionului din ziua cursei (CSV card / bon șofer)
-  if (r.litresSource === "estimate") {
-    const day = tx.filter((x) => x.truckId === r.truckId && x.at.slice(0, 10) === r.date);
-    const L = day.reduce((s, x) => s + x.litres, 0), lei = day.reduce((s, x) => s + (leiOf(x) ?? 0), 0);
-    // altă monedă: suma în lei convertită la import (curs BCE la data bonului); fără curs → nu ghicim prețul
-    if (L > 0) { litres = r1(L); if (lei > 0 && day.every((x) => leiOf(x) != null)) fuelPrice = Math.round((lei / L) * 100) / 100; }
-  }
+  // Fuel purchases are inventory, not measured consumption of each trip.
+  const { litres, fuelPrice } = r;
   return {
     id: r.id, vehicleId: r.truckId, clientId: slug(r.client), type: "transport", date: r.date, title: r.title, km: r.km, hours: 0, ha: 0, units: r.km,
     revenue: r.revenue, litres, fuelPrice, tolls: r.tolls, driver: r.driverCost, other: r.other,
-    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned && r.date >= localNow().slice(0, 10), driverId: r.driverId ?? null, planned: !!r.planned, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
+    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned, litresSource: r.litresSource ?? "manual", driverId: r.driverId ?? null, planned: !!r.planned, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
   };
 }
 export class FirmRepository implements IgoRepository {
@@ -49,7 +42,7 @@ export class FirmRepository implements IgoRepository {
   async vehicles() {
     const [ts, tx, us] = await Promise.all([this.trucksQ(), this.tx(), this.memo("users", () => this.s.users(this.firm.id)).catch(() => [])]);
     const nm = (u: { name: string; email: string | null }) => u.name?.trim() || (u.email ? u.email.split("@")[0] : "");
-    return ts.map((t) => { const drv = us.filter((x) => x.role === "driver"), u = drv.find((x) => x.truckId === t.id) ?? (ts.length === 1 && drv.length === 1 ? drv[0] : undefined); return { ...truckToVehicle(t, truckBaseline(t, tx, this.since()).l100), driver: u ? nm(u) : "" }; });
+    return ts.map((t) => { const drv = us.filter((x) => x.role === "driver" && !x.disabledAt), u = drv.find((x) => x.truckId === t.id); return { ...truckToVehicle(t, truckBaseline(t, tx, this.since()).l100), driver: u ? nm(u) : "" }; });
   }
   async trips() { const [rs, tx, us] = await Promise.all([this.tripsQ(), this.tx(), this.s.users(this.firm.id)]); const nm = new Map(us.map((u) => [u.id, u.name])); return rs.map((r) => { const t = tripRowToTrip(r, tx), n = r.driverId ? nm.get(r.driverId) : undefined; return n ? { ...t, driverName: n } : t; }); }
   async clients(): Promise<Client[]> {
@@ -75,10 +68,13 @@ export class FirmRepository implements IgoRepository {
     return this.memo("alerts", async () => { const [fuel, v, tr, d] = await Promise.all([this.fuelAlerts(), this.vehicles(), this.trips(), this.docs()]); return sortAlerts([...fuel, ...businessAlerts(v, tr, d, Date.now())]); });
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
-    const hash = `driver:${newId("h")}`;
-    await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: f.plate ?? null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: f.currency ?? null, amountRon: f.amountRon ?? null, fxRate: f.fxRate ?? null, fxDate: f.fxDate ?? null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: null, photoName: f.photo ? (f.photo.fileId ? `file:${f.photo.fileId}` : f.photo.name) : null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
+    const key = f.key ? `${f.userId}:${f.key}` : JSON.stringify([f.vehicleId, f.time.slice(0, 10), f.litres, f.odometerKm, f.amount, f.station]);
+    const hash = `driver:${createHash("sha256").update(key).digest("hex")}`;
+    const saved = await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: f.plate ?? null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: f.currency ?? null, amountRon: f.amountRon ?? null, fxRate: f.fxRate ?? null, fxDate: f.fxDate ?? null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: f.userId ?? null, photoName: f.photo ? (f.photo.fileId ? `file:${f.photo.fileId}` : f.photo.name) : null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
     this.txCache = undefined; this.m.delete("alerts");
-    return { ...f, id: hash };
+    const row = await this.s.fuelByHash(this.firm.id, hash);
+    if (!row) throw new Error("Fuel transaction missing after save");
+    return { ...f, id: row.id, duplicate: saved.added === 0, photo: row.photoName?.startsWith("file:") ? { name: row.photoName, size: row.photoSize ?? 0, fileId: row.photoName.slice(5) } : null };
   }
   async driverFills(vehicleId?: string): Promise<DriverFill[]> {
     const rows = await this.s.fuel(this.firm.id, { source: "driver", truckId: vehicleId, limit: 50 });

@@ -12,7 +12,7 @@ export default async function Settings({ searchParams }: { searchParams: { e?: s
   if (tn.role === "driver") redirect("/driver");
   const me = tn.uid ? await store().userById(tn.uid).catch(() => null) : null;
   const trucks = tn.firm && !tn.demo ? await store().trucks(tn.firm.id) : [], err = ERR[searchParams.e ?? ""];
-  const rows: [MsgKey, MsgKey, string][] = [["stg.drivers", "stg.driversSub", "/setup?step=3"], ["stg.docs", "stg.docsSub", "/documents"]];
+  const rows: [MsgKey, MsgKey, string][] = [["stg.drivers", "stg.driversSub", "/drivers"], ["stg.docs", "stg.docsSub", "/documents"]];
   return (
     <main className="stg">
       <div className="eyebrow fade">{t(loc, "stg.eyebrow")}</div>
@@ -25,11 +25,11 @@ export default async function Settings({ searchParams }: { searchParams: { e?: s
           <form className="sheet" action="/api/setup/firm" method="post"><input type="hidden" name="ret" value="settings" />
             <label className="lf"><span>{t(loc, "su.firm")}</span><input name="name" required maxLength={120} defaultValue={tn.firm.name} /></label>
             <label className="lf"><span>{t(loc, "su.cui")}</span><input name="cui" maxLength={20} defaultValue={tn.firm.cui ?? ""} placeholder="RO12345678" /></label>
-            <div className="radio">{(["RON", "EUR"] as const).map((c) => <label key={c}><input type="radio" name="currency" value={c} defaultChecked={tn.firm!.currency === c} /><i>{c === "RON" ? "lei (RON)" : "€ (EUR)"}</i></label>)}</div>
+            <div className="radio">{(["RON"] as const).map((c) => <label key={c}><input type="radio" name="currency" value={c} defaultChecked={tn.firm!.currency === c} /><i>{c === "RON" ? "lei (RON)" : "€ (EUR)"}</i></label>)}</div>
             <button className="btn pri">{t(loc, "stg.save")}</button>
           </form>
         </section>
-        <section className="section fade d1" id="trucks"><div className="head"><h2>{t(loc, "stg.trucks")}</h2><Link className="link" href="/setup?step=2">+ {t(loc, "stg.addTruck")}</Link></div>
+        <section className="section fade d1" id="trucks"><div className="head"><h2>{t(loc, "stg.trucks")}</h2><Link className="link" href="/trucks">+ {t(loc, "stg.addTruck")}</Link></div>
           <div className="stg-trucks">{trucks.map((x) => (
             <details key={x.id} className="stg-truck"><summary><b>{x.plate}</b><span>{[x.model, x.tankL ? `${x.tankL} L` : null, x.normalL100 ? `${x.normalL100} L/100` : null, x.archivedAt ? t(loc, "stg.archived") : null].filter(Boolean).join(" · ")}</span><i aria-hidden>✎</i></summary>
               <form className="sheet" action="/api/settings/truck" method="post"><input type="hidden" name="id" value={x.id} />

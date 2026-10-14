@@ -2,7 +2,7 @@
 /** admin = ADMIN_EMAIL (toate firmele); owner = proprietarul firmei; driver = șofer invitat; user = „Intră ca demo”. */
 export type Role = "admin" | "owner" | "driver" | "user";
 export const ROLES: Role[] = ["admin", "owner", "driver", "user"];
-export interface Session { role: Role; email: string; firm: string; exp: number; uid?: string; trial?: string }
+export interface Session { role: Role; email: string; firm: string; exp: number; uid?: string; trial?: string; version?: number }
 export const SESSION_COOKIE = "igo-session";
 export const SESSION_TTL_S = 60 * 60 * 24 * 7;
 
