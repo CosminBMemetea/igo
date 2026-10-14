@@ -1,5 +1,6 @@
 // Costuri pe camion (fixe lunare + variabile pe km), tonaj / grad de încărcare și profitul real pe cursă.
 // Fără I/O: profilurile vin din vehicul (demo: implicite + cookie; firmă reală: coloana trucks.costs).
+import { localNow } from "./validate";
 import type { Trip, Vehicle } from "./fleet/seed";
 
 export const FIXED_KEYS = ["leasing", "rca", "casco", "rovinieta", "salary", "parking"] as const;
@@ -24,7 +25,15 @@ export function defaultProfile(v: Pick<Vehicle, "id" | "kind" | "model">): CostP
   return { ...b, leasing: paidOff ? 0 : Math.round((b.leasing * (0.85 + h2 * 0.35)) / 50) * 50, casco: paidOff ? Math.round(b.casco * 0.6) : b.casco, service: r2(b.service * (paidOff ? 1.45 : 0.9 + h * 0.3)), tyres: r2(b.tyres * (0.9 + h2 * 0.25)), capacityT: v.kind === "truck" && h2 > 0.8 ? 22 : b.capacityT };
 }
 export const EMPTY_PROFILE: CostProfile = { leasing: 0, rca: 0, casco: 0, rovinieta: 0, salary: 0, parking: 0, adblue: 0, tyres: 0, service: 0, loadWear: 0, capacityT: 0 };
-export const profileOf = (v: Vehicle): CostProfile => ({ ...(v.real ? EMPTY_PROFILE : defaultProfile(v)), ...(v.costs ?? {}) });
+export interface CostVersion { month: string; costs: Record<string, number> }
+export function nextCostMonth(date = localNow()): string {
+  const [year, month] = date.slice(0, 7).split("-").map(Number);
+  return `${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, "0")}`;
+}
+export const profileOf = (v: Vehicle, date = localNow()): CostProfile => {
+  const version = v.real ? [...(v.costHistory ?? [])].filter((x) => x.month <= date.slice(0, 7)).sort((a, b) => b.month.localeCompare(a.month))[0] : undefined;
+  return { ...(v.real ? EMPTY_PROFILE : defaultProfile(v)), ...(version?.costs ?? v.costs ?? {}) };
+};
 export const fixedMonthly = (p: CostProfile) => FIXED_KEYS.reduce((a, k) => a + p[k], 0);
 export const varPerKm = (p: CostProfile) => VAR_KEYS.reduce((a, k) => a + p[k], 0);
 export const hasCosts = (v: Vehicle) => v.kind === "truck" || v.kind === "van";
@@ -43,7 +52,7 @@ export function demoLoad(tr: Trip, v: Vehicle, routeName?: string): { tonnes: nu
 export interface Econ { tonnes: number | null; emptyKm: number; loadPct: number | null; capacityT: number; fuel: number; tolls: number; driver: number; adblue: number; tyres: number; service: number; loadWear: number; fixed: number; fixedPerKm: number; costs: number; profit: number; margin: number; costPerKm: number; costPerT: number | null }
 /** Profit real = Preț cursă − motorină − taxe drum − șofer (diurnă) − AdBlue − anvelope − service − uzură din tonaj − cota de costuri fixe (pe km). */
 export function tripEcon(tr: Trip, v: Vehicle, kmMonth: number, ld: { tonnes: number | null; emptyKm: number }): Econ {
-  const p = profileOf(v), km = tr.km, loadedKm = Math.max(0, km - ld.emptyKm);
+  const p = profileOf(v, tr.date), km = tr.km, loadedKm = Math.max(0, km - ld.emptyKm);
   const fuel = r2(tr.litres * tr.fuelPrice), fixedPerKm = kmMonth > 0 ? fixedMonthly(p) / kmMonth : 0;
   const adblue = r2(km * p.adblue), tyres = r2(km * p.tyres), service = r2(km * p.service), loadWear = r2((ld.tonnes ?? 0) * loadedKm * p.loadWear), fixed = r2(km * fixedPerKm);
   const costs = r2(fuel + tr.tolls + tr.driver + tr.other + adblue + tyres + service + loadWear + fixed), profit = r2(tr.revenue - costs);

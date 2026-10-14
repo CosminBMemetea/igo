@@ -56,6 +56,7 @@ export const trucks = pgTable("trucks", {
   tankL: integer("tank_l"),
   normalL100: real("normal_l100"),
   /** costuri editate de patron (fixe lunare + variabile pe km, capacitate) — JSON parțial peste valorile implicite */
+  costHistory: jsonb("cost_history").$type<import("../lib/costs").CostVersion[]>().default([]).notNull(),
   costs: jsonb("costs").$type<Record<string, number>>(),
   /** scos din flotă: istoric păstrat, exclus din calcule */
   archivedAt: timestamp("archived_at", { withTimezone: true }),

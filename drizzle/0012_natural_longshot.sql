@@ -1,0 +1,1 @@
+ALTER TABLE "trucks" ADD COLUMN "cost_history" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -1,3 +1,4 @@
+import { nextCostMonth } from "../costs";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
@@ -112,14 +113,21 @@ export class PgStore implements Store {
     return r.length === 1;
   }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) {
-    try { const [r] = await this.d.insert(trucks).values({ ...t, archivedAt: null, id: newId("t"), firmId }).returning(); return truckOut(r); }
+    try { const [r] = await this.d.insert(trucks).values({ ...t, costHistory: t.costHistory ?? [], archivedAt: null, id: newId("t"), firmId }).returning(); return truckOut(r); }
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
   async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }) { const r = await this.d.update(trucks).set(p).where(and(eq(trucks.firmId, firmId), eq(trucks.id, id))).returning({ id: trucks.id }); return r.length > 0; }
   async setUserEmail(id: string, email: string) { await this.d.update(users).set({ email }).where(eq(users.id, id)); }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) {
     const set: Partial<typeof trucks.$inferInsert> = {};
-    if (p.costs) set.costs = p.costs;
+    if (p.costs) {
+      const month = nextCostMonth();
+      // One row update serializes concurrent edits; the legacy profile stays the baseline.
+      const result = await this.d.update(trucks).set({ costHistory: sql`(
+        select coalesce(jsonb_agg(item), '[]'::jsonb) from jsonb_array_elements(${trucks.costHistory}) item where item->>'month' <> ${month}
+      ) || ${JSON.stringify([{ month, costs: p.costs }])}::jsonb` }).where(and(eq(trucks.id, id), eq(trucks.firmId, firmId))).returning({ id: trucks.id });
+      if (p.archived === undefined || !result.length) return result.length > 0;
+    }
     if (p.archived !== undefined) set.archivedAt = p.archived ? new Date() : null;
     const r = await this.d.update(trucks).set(set).where(and(eq(trucks.id, id), eq(trucks.firmId, firmId))).returning({ id: trucks.id });
     return r.length > 0;

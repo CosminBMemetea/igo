@@ -7,7 +7,7 @@ import { PgStore } from "../src/lib/store/pg";
 import type { Store, TripRow } from "../src/lib/store/types";
 import { FirmRepository, tripRowToTrip, truckToVehicle } from "../src/lib/firm-repo";
 import { tripViews, monthSummary } from "../src/lib/query";
-import { tripEcon, profileOf } from "../src/lib/costs";
+import { tripEcon, profileOf, nextCostMonth } from "../src/lib/costs";
 import { driverTruck, driverTrip } from "../src/lib/driver-access";
 import { isDate } from "../src/lib/validate";
 import * as schema from "../src/db/schema";
@@ -32,7 +32,13 @@ assert.equal(tripViews([trip, { ...trip, id: "next", date: "2026-03-20", active:
 assert.equal(isDate("2026-02-31"), false);
 assert.equal(isDate("2024-02-29"), true);
 assert.equal(isDate("2026-02-29"), false);
-console.log("PASS financial regressions and strict dates");
+assert.equal(nextCostMonth("2026-12-31"), "2027-01");
+const versioned = { ...paid, costHistory: [{ month: "2026-03", costs: { leasing: 2500 } }, { month: "2026-04", costs: { leasing: 4000 } }] };
+assert.equal(tripViews([trip], [versioned])[0].p.profit, profitBefore, "future profiles must not change past trip profit");
+assert.equal(profileOf(versioned, "2026-03-01").leasing, 2500);
+assert.equal(profileOf(versioned, "2026-04-30").leasing, 4000);
+assert.equal(profileOf(versioned, "2026-02-28").leasing, 1000);
+console.log("PASS financial regressions, monthly cost versions and strict dates");
 
 async function verifyStore(s: Store) {
   const suffix = randomUUID().slice(0, 8), firm = await s.createFirm({ name: `Audit ${suffix}`, cui: null });
@@ -41,6 +47,21 @@ async function verifyStore(s: Store) {
   try {
     const t1 = await s.addTruck(firm.id, { plate: "BH 01 AAA", vin: null, model: null, tankL: 600, normalL100: 30 });
     const t2 = await s.addTruck(firm.id, { plate: "BH 02 AAA", vin: null, model: null, tankL: 600, normalL100: 30 });
+    assert.equal(await s.updateTruckEcon(other.id, t1.id, { costs: { leasing: 9999 } }), false);
+    await s.updateTruckEcon(firm.id, t1.id, { costs: { leasing: 2000 } });
+    await s.updateTruckEcon(firm.id, t1.id, { costs: { leasing: 3000 } });
+    const scheduled = (await s.trucks(firm.id)).find((t) => t.id === t1.id)!;
+    assert.equal(scheduled.costHistory?.length, 1, "editing next month replaces its scheduled version");
+    assert.equal(profileOf(truckToVehicle(scheduled), "2000-01-01").leasing, 0);
+    assert.equal(profileOf(truckToVehicle(scheduled), nextCostMonth()).leasing, 3000);
+    assert.equal(scheduled.costs ?? null, null, "legacy baseline must remain unchanged");
+    const legacyTruck = await s.addTruck(firm.id, { plate: "BH 04 AAA", vin: null, model: null, tankL: null, normalL100: null, costs: { leasing: 1200 } });
+    await Promise.all([s.updateTruckEcon(firm.id, legacyTruck.id, { costs: { leasing: 4000 } }), s.updateTruckEcon(firm.id, legacyTruck.id, { costs: { leasing: 5000 } })]);
+    const updatedLegacy = (await s.trucks(firm.id)).find((t) => t.id === legacyTruck.id)!;
+    assert.equal(updatedLegacy.costs?.leasing, 1200);
+    assert.equal(updatedLegacy.costHistory?.length, 1, "concurrent edits leave exactly one version per month");
+    assert.equal(profileOf(truckToVehicle(updatedLegacy), "2000-01").leasing, 1200);
+    assert.ok([4000, 5000].includes(profileOf(truckToVehicle(updatedLegacy), nextCostMonth()).leasing));
     const foreign = await s.addTruck(other.id, { plate: "BH 03 AAA", vin: null, model: null, tankL: 600, normalL100: 30 });
     const invite = await s.createDriverInvite(firm.id, "Ion", phone, "ro");
     const pending = (await s.users(firm.id))[0];

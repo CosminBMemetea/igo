@@ -10,6 +10,7 @@ export interface Vehicle {
   /** L/h pentru utilaje (informativ) */
   lph?: number; engineHours?: number;
   /** costuri editate de patron (suprascriu valorile implicite) */
+  costHistory?: import("../costs").CostVersion[];
   costs?: Partial<import("../costs").CostProfile>;
   real?: boolean;
   costsConfigured?: boolean;

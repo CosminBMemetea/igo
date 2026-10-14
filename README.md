@@ -75,8 +75,10 @@ trip on the same day. Unconfigured vehicle costs start at zero and trip details 
 that costs are incomplete. Configure actual costs before relying on profit figures.
 Past planned trips remain planned until explicitly completed. Archived vehicles retain
 financial history. Currency selection is limited to RON until end-to-end conversion
-is implemented. Cost profile edits still recalculate historical trips; cost versioning,
-offline driver submissions and full multicurrency reporting remain follow-up work.
+is implemented. Real cost profiles are versioned by calendar month. Edits take effect next month;
+repeated edits replace that scheduled version. Existing profiles remain the baseline
+for older trips. Offline driver submissions and full multicurrency reporting remain
+follow-up work. Migration `0012` adds the monthly history without altering existing costs.
 
 Deployment notes:
 

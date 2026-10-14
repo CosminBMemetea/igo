@@ -1,3 +1,4 @@
+import { localNow } from "./validate";
 import { createHash } from "node:crypto";
 // Querra Fleet: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
 import type { FleetData } from "./fleet/rules";
@@ -18,7 +19,7 @@ export function truckBaseline(t: TruckRow, tx: FuelTxRow[], since: string): { l1
   return { l100: DEFAULT_L100, kind: "default", km: 0 };
 }
 const toR = (x: FuelTxRow) => ({ id: x.id, plate: x.source === "driver" ? x.plate : null, truckId: x.truckId, at: x.at, litres: x.litres, odometer: x.odometer, station: x.station, card: x.card, lat: x.lat, lng: x.lng });
-export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, real: true, costsConfigured: !!t.costs, archived: !!t.archivedAt });
+export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, costHistory: t.costHistory ?? [], real: true, costsConfigured: !!t.costs || !!t.costHistory?.some((x) => x.month <= localNow().slice(0, 7)), archived: !!t.archivedAt });
 export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   // Fuel purchases are inventory, not measured consumption of each trip.
   const { litres, fuelPrice } = r;

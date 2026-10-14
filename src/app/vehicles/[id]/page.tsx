@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { vehicleSummary } from "@/lib/query";
-import { fmtMoney, fmtNum, t } from "@/lib/i18n";
+import { fmtMoney, fmtNum, t, tri } from "@/lib/i18n";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
 import { mapLabels } from "@/lib/labels";
 import { CountUp } from "@/components/CountUp";
@@ -15,7 +15,7 @@ import { miniRoute } from "@/lib/feed";
 import { truckById } from "@/lib/fleet/data";
 import { TripRows } from "../../TripRows";
 import { EL, ef } from "@/lib/econ-i18n";
-import { FIXED_KEYS, VAR_KEYS, fixedMonthly, hasCosts, profileOf, varPerKm, type CostKey, type FixedKey } from "@/lib/costs";
+import { FIXED_KEYS, VAR_KEYS, fixedMonthly, hasCosts, profileOf, nextCostMonth, varPerKm, type CostKey, type FixedKey } from "@/lib/costs";
 import { econOf } from "@/lib/econ";
 import { FleetCompare } from "@/components/Econ";
 import { fmtPct } from "@/lib/i18n";
@@ -77,7 +77,8 @@ export default async function VehiclePage({ params, searchParams }: { params: { 
     </main>
   );
   if (tab === "costs" && ve) {
-    const pr = profileOf(v), fm = fixedMonthly(pr), fpk = (v.archived ? d.archivedViews : d.views).find((x) => x.vehicleId === v.id && x.e)?.e?.fixedPerKm ?? 0, kmM = fpk ? fm / fpk : 0;
+    const effectiveMonth = nextCostMonth();
+    const pr = profileOf(v, d.demo ? undefined : effectiveMonth), fm = fixedMonthly(pr), fpk = (v.archived ? d.archivedViews : d.views).find((x) => x.vehicleId === v.id && x.e)?.e?.fixedPerKm ?? 0, kmM = fpk ? fm / fpk : 0;
     const fld = (k: CostKey, step: string) => <label key={k}><span>{L[k]}</span><span className="einp"><input className="input" name={k} inputMode="decimal" step={step} defaultValue={String(pr[k])} disabled={!canEdit} /><em>{FIXED_KEYS.includes(k as FixedKey) ? `${t(loc, "cur")} ${L.perMonth}` : k === "capacityT" ? "t" : k === "loadWear" ? "" : `${t(loc, "cur")} ${L.perKm}`}</em></span></label>;
     return (
       <main>
@@ -88,12 +89,13 @@ export default async function VehiclePage({ params, searchParams }: { params: { 
           {v.archived ? <div className="archnote"><span className="lbadge empty">{L.archived}</span> {L.archivedB}</div> : null}
           <nav className="vtabs"><Link href={`/vehicles/${v.id}`}>{L.tabOverview}</Link><Link href={`/vehicles/${v.id}?tab=costs`} className="on" aria-current="page">{L.tabCosts}</Link></nav>
         </div></section>
-        {searchParams.saved ? <div className="esaved fade" role="status">✓ {L.saved}</div> : null}
+        {searchParams.saved ? <div className="esaved fade" role="status">✓ {d.demo ? L.saved : tri(loc, "Costurile au fost programate pentru luna următoare.|Costs scheduled for next month.|Koszty zaplanowano na następny miesiąc.")}</div> : null}
         <section className="cards section ecards">
           <div className="card fade"><div className="k">{L.costKm}</div><div className="n">{fmtMoney(loc, ve.cpk, 2)}</div><div className="d">{fmtMoney(loc, fm / Math.max(1, kmM), 2)} {L.fixedPerKm} · {fmtMoney(loc, varPerKm(pr), 2)} {L.varTotal}</div></div>
           <div className="card fade d1"><div className="k">{L.realProfit}</div><div className={`n ${ve.profit < 0 ? "neg" : "pos"}`}>{fmtMoney(loc, ve.profit)}</div><div className="d">{ve.n} {L.trips} · {L.margin} {fmtPct(loc, ve.margin, 1)}</div></div>
           <div className="card fade d2"><div className="k">{L.load}</div><div className="n">{ve.loadPct === null ? "—" : fmtPct(loc, ve.loadPct, 0)}</div><div className="d">{L.emptyKm}: {fmtNum(loc, ve.emptyKm)} km · {fmtPct(loc, ve.km ? ve.emptyKm / ve.km : 0, 0)}</div></div>
         </section>
+        {!d.demo ? <section className="sheet"><h2>{tri(loc, "Costuri în vigoare din|Costs effective from|Koszty obowiązujące od")} {effectiveMonth}</h2><p>{tri(loc, "Salvarea înlocuiește doar valorile programate pentru această lună viitoare. Lunile anterioare rămân neschimbate.|Saving replaces only the values scheduled for this future month. Earlier months remain unchanged.|Zapis zastępuje tylko wartości zaplanowane na ten przyszły miesiąc. Wcześniejsze miesiące pozostają bez zmian.")}</p>{(v.costHistory ?? []).length ? <ul>{[...(v.costHistory ?? [])].sort((a, b) => b.month.localeCompare(a.month)).map((x) => <li key={x.month}>{x.month} · {L.fixedTotal}: {fmtMoney(loc, fixedMonthly(profileOf(v, x.month)))} · {L.varTotal}: {fmtMoney(loc, varPerKm(profileOf(v, x.month)), 2)}</li>)}</ul> : null}</section> : null}
         <form className="section ecost" action="/api/vehicles/econ" method="post">
           <input type="hidden" name="action" value="costs" /><input type="hidden" name="vid" value={v.id} />
           <div className="ecol"><div className="head"><h2>{L.fixedT}</h2><span className="link">{L.fixedTotal}: {fmtMoney(loc, fm)} {L.perMonth}</span></div><div className="egrid">{FIXED_KEYS.map((k) => fld(k, "50"))}</div><p className="hint">{ef(L.kmMonth, { n: fmtNum(loc, Math.round(kmM)) })} → {fmtMoney(loc, fm / Math.max(1, kmM), 2)} {L.fixedPerKm}</p></div>

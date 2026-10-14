@@ -53,6 +53,12 @@ try {
   ok("cursă în DB, litri estimați din consum", trip?.litres === 97, JSON.stringify(trip));
   const setup = await A.go("/setup?step=5");
   ok("setup 5/5 (fără CSV: cursa bifează pasul)", setup.text.includes("5") && /5 (din|of|z) 5/.test(setup.text));
+  const costSave = await A.go("/api/vehicles/econ", { vid: tA[0].id, action: "costs", leasing: "2500" });
+  ok("costurile se salvează cu intrare în vigoare viitoare", costSave.loc.includes("saved=1"));
+  const costTruck = (await db.query("select costs, cost_history from trucks where id=$1", [tA[0].id])).rows[0];
+  ok("salvarea păstrează profilul inițial", costTruck.costs === null && costTruck.cost_history.length === 1 && costTruck.cost_history[0].costs.leasing === 2500);
+  const costsPage = await A.go(`/vehicles/${tA[0].id}?tab=costs`);
+  ok("pagina arată luna de aplicare și istoricul", costsPage.status === 200 && costsPage.text.includes(costTruck.cost_history[0].month) && costsPage.text.includes("Lunile anterioare rămân neschimbate"));
   // 3. comutator date demo
   await A.go("/api/firm/demo", { on: "1" });
   const vd = await vehiclesOf(A);
