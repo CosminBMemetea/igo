@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 // Querra Fleet: ce firmă vede cererea curentă. Rolul/firma vin DOAR din antetele puse de middleware după verificarea sesiunii.
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
@@ -18,6 +19,8 @@ async function tenantUncached(): Promise<Tenant> {
   const base = { role, uid: h.get("x-igo-uid"), email: e ? decodeURIComponent(e) : null, dbOk: dbConfigured() };
   const own = role === "owner" || role === "driver" ? h.get("x-igo-firm") : null;
   const firmId = role === "admin" ? cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo" : own ?? "demo";
+  // sesiune fără stare: verificăm contul la fiecare cerere — șofer dezactivat / cont șters → afară imediat
+  if (own && base.uid) { const u = await store().userById(base.uid).catch(() => undefined); if (u === null || (u && (u.disabledAt || u.firmId !== own))) redirect("/api/auth/logout?e=off"); }
   const firm = firmId === "demo" ? null : await store().firm(firmId);
   // demo dacă: utilizator demo, adminul n-a ales o firmă, firma are „Date demo” pornit (nu pentru șofer), sau firma lipsește (memorie resetată)
   const demo = !firm || (role !== "driver" && firm.demoMode);

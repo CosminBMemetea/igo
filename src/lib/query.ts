@@ -56,6 +56,8 @@ export interface LiveVehicle {
   track: { min: number; at: LatLng }[]; ahead: LatLng[]; done: LatLng[]; dest: string; left: number; leftUnit: "km" | "ha"; eta: string | null;
   today: number; todayUnit: "km" | "h"; rate: number; rateUnit: "L/100km" | "L/ha"; profitToday: number | null; tripId: string | null;
   events: { time: string; kind: "entry" | "exit"; zone: string }[];
+  /** firmă reală: în tură (chiar fără GPS) */
+  onShift?: boolean;
 }
 const STEP = 10;
 function zigzag(p: Parcel, frac: number): LatLng {

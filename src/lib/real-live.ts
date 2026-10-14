@@ -18,7 +18,7 @@ export async function realLive(firmId: string, repo: Repo, vehicles: Vehicle[]):
       id: v.id, name: v.name, kind: v.kind, driver: v.driver, status, speed: status === "moving" && n > 1 ? Math.min(130, Math.round(hav2(tr[n - 2].at, tr[n - 1].at) / (Math.max(1, tr[n - 1].min - tr[n - 2].min) / 60))) : 0,
       at: priv || !d.last ? null : [d.last.lat, d.last.lng], secondsAgo: d.last ? Math.min(age, 86400) : 0,
       track: priv ? [] : tr, ahead: [], done: priv ? [] : tr.map((p) => p.at), dest: "", left: 0, leftUnit: "km", eta: null,
-      today: d.km, todayUnit: "km", rate: v.baselineRate, rateUnit: "L/100km", profitToday: null, tripId: null, events: [],
+      today: d.km, todayUnit: "km", rate: v.baselineRate, rateUnit: "L/100km", profitToday: null, tripId: null, events: [], onShift: on,
     };
   }));
 }

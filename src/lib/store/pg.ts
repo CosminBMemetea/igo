@@ -1,13 +1,13 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
 const leadOut = (r: typeof leads.$inferSelect): LeadRow => ({ ...r, consentAt: iso(r.consentAt)!, createdAt: iso(r.createdAt)! });
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
-const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId, locale: u.locale });
+const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, truckId: u.truckId, locale: u.locale, disabledAt: u.disabledAt ? u.disabledAt.toISOString() : null });
 const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt), locale: i.locale });
 const truckOut = ({ createdAt: _c, archivedAt, ...t }: typeof trucks.$inferSelect): TruckRow => ({ ...t, archivedAt: iso(archivedAt) });
 const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, scope: d.scope === "driver" ? "driver" : "vehicle", type: d.type as DocType });
@@ -31,10 +31,13 @@ export class PgStore implements Store {
   }
   async updateFirm(id: string, p: Parameters<Store["updateFirm"]>[1]) { if (Object.keys(p).length) await this.d.update(firms).set(p).where(eq(firms.id, id)); }
   async createUser(u: Omit<UserRow, "id">) {
-    try { const [r] = await this.d.insert(users).values({ ...u, id: newId("u") }).returning(); return userOut(r); }
+    try { const [r] = await this.d.insert(users).values({ ...u, disabledAt: null, id: newId("u") }).returning(); return userOut(r); }
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
+  async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash }).where(eq(users.id, id)); }
+  async userById(id: string) { const [r] = await this.d.select().from(users).where(eq(users.id, id)).limit(1); return r ? userOut(r) : null; }
+  async setUserDisabled(firmId: string, userId: string, off: boolean) { const r = await this.d.update(users).set({ disabledAt: off ? new Date() : null }).where(and(eq(users.firmId, firmId), eq(users.id, userId), eq(users.role, "driver"))).returning({ id: users.id }); return r.length > 0; }
   async users(firmId: string) { return (await this.d.select().from(users).where(eq(users.firmId, firmId))).map(userOut); }
   async setUserLocale(id: string, locale: string) { await this.d.update(users).set({ locale }).where(eq(users.id, id)); }
   async createInvite(firmId: string, name: string, phone: string | null, locale: string | null = null) { const [r] = await this.d.insert(invites).values({ id: newId("i"), firmId, name, phone, locale }).returning(); return invOut(r); }
@@ -164,6 +167,21 @@ export class PgStore implements Store {
   }
   async savedMapping(firmId: string, sig: string) { const [r] = await this.d.select().from(importMappings).where(and(eq(importMappings.firmId, firmId), eq(importMappings.sig, sig))); return r ? (JSON.parse(r.mapping) as Record<string, number>) : null; }
   async saveMapping(firmId: string, sig: string, m: Record<string, number>) { const v = { mapping: JSON.stringify(m), updatedAt: new Date() }; await this.d.insert(importMappings).values({ firmId, sig, ...v }).onConflictDoUpdate({ target: [importMappings.firmId, importMappings.sig], set: v }); }
+  async authFails(key: string) {
+    const [r] = await this.d.select().from(authThrottle).where(eq(authThrottle.key, key)).limit(1);
+    if (!r) return { fails: 0, lockedUntil: null };
+    const lock = r.lockedUntil && r.lockedUntil.getTime() > Date.now() ? r.lockedUntil.toISOString() : null;
+    if (!lock && Date.now() - r.firstAt.getTime() > 3600e3) return { fails: 0, lockedUntil: null }; // fereastra de 1 h a expirat
+    return { fails: r.fails, lockedUntil: lock };
+  }
+  async authFail(key: string, lockAfter: number, lockMin: number) {
+    const cur = await this.authFails(key), fails = cur.fails + 1;
+    const lock = fails >= lockAfter ? new Date(Date.now() + lockMin * 60e3 * 2 ** Math.min(4, fails - lockAfter)) : null;
+    const first = cur.fails ? undefined : new Date();
+    await this.d.insert(authThrottle).values({ key, fails, firstAt: first ?? new Date(), lockedUntil: lock }).onConflictDoUpdate({ target: authThrottle.key, set: { fails, lockedUntil: lock, ...(first ? { firstAt: first } : {}) } });
+    return { fails, lockedUntil: lock?.toISOString() ?? null };
+  }
+  async authClear(key: string) { await this.d.delete(authThrottle).where(eq(authThrottle.key, key)); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { await this.ownTruck(firmId, e.truckId); await this.d.insert(driverEvents).values({ ...e, kind: e.kind, at: new Date(e.at), id: newId("de"), firmId }); }
   async driverEvents(firmId: string, sinceIso: string) {
     const rs = await this.d.select().from(driverEvents).where(and(eq(driverEvents.firmId, firmId), gte(driverEvents.at, new Date(sinceIso)))).orderBy(desc(driverEvents.at)).limit(500);

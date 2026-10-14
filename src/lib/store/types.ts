@@ -7,7 +7,7 @@ export const VEHICLE_DOC_TYPES: VehicleDocType[] = ["itp", "rca", "casco", "vign
 export const DRIVER_DOC_TYPES: DriverDocType[] = ["licence", "cpc", "tachoCard", "medical"];
 export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
 export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; referredBy: string | null; createdAt: string }
-export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; truckId?: string | null; locale?: string | null }
+export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; disabledAt?: string | null; truckId?: string | null; locale?: string | null }
 export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
 export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; archivedAt?: string | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
@@ -45,6 +45,10 @@ export interface Store {
   createUser(u: Omit<UserRow, "id">): Promise<UserRow>;
   userByLogin(login: string): Promise<UserRow | null>;
   users(firmId: string): Promise<UserRow[]>;
+  userById(id: string): Promise<UserRow | null>;
+  setUserPassword(id: string, passwordHash: string): Promise<void>;
+  /** dezactivare șofer: sesiunile existente sunt respinse la următoarea cerere, nu se mai poate autentifica */
+  setUserDisabled(firmId: string, userId: string, off: boolean): Promise<boolean>;
   createInvite(firmId: string, name: string, phone: string | null, locale?: string | null): Promise<InviteRow>;
   setUserLocale(id: string, locale: string): Promise<void>;
   invite(firmId: string, id: string): Promise<InviteRow | null>;
@@ -100,6 +104,10 @@ export interface Store {
   addPosition(firmId: string, p: PosRow): Promise<void>;
   positions(firmId: string, sinceAt?: string): Promise<PosRow[]>;
   /** jurnalul șoferului (tură, pauză privată, încărcat/descărcat, alimentare) — pentru fluxul patronului și orele de azi */
+  /** anti-brute-force: încercări greșite de autentificare pe cheie (login / IP) */
+  authFails(key: string): Promise<{ fails: number; lockedUntil: string | null }>;
+  authFail(key: string, lockAfter: number, lockMin: number): Promise<{ fails: number; lockedUntil: string | null }>;
+  authClear(key: string): Promise<void>;
   addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">): Promise<void>;
   driverEvents(firmId: string, sinceIso: string): Promise<DriverEventRow[]>;
 }

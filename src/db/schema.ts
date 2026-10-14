@@ -27,6 +27,8 @@ export const users = pgTable("users", {
   truckId: text("truck_id"),
   /** limba aleasă (ro|en|pl); null = implicit română */
   locale: text("locale"),
+  /** dezactivat de patron (șofer plecat): fără acces, sesiunile se resping */
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("users_email_uq").on(t.email), uniqueIndex("users_phone_uq").on(t.phone), index("users_firm_ix").on(t.firmId)]);
 
@@ -282,3 +284,11 @@ export const driverEvents = pgTable("driver_events", {
   lng: doublePrecision("lng"),
   note: text("note"),
 }, (t) => [index("driver_events_firm_at_ix").on(t.firmId, t.at)]);
+
+/** Anti-brute-force pentru parolă / PIN: încercări greșite pe cheie (login sau IP), blocare temporară. */
+export const authThrottle = pgTable("auth_throttle", {
+  key: text("key").primaryKey(),
+  fails: integer("fails").notNull().default(0),
+  firstAt: timestamp("first_at", { withTimezone: true }).notNull().defaultNow(),
+  lockedUntil: timestamp("locked_until", { withTimezone: true }),
+});

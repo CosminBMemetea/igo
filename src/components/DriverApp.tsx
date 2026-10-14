@@ -39,7 +39,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
   useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
   useEffect(() => () => { if (watch.current != null) navigator.geolocation?.clearWatch(watch.current); }, []);
 
-  const [askEnd, setAskEnd] = useState(false);
+  const [askEnd, setAskEnd] = useState(false), [gps, setGps] = useState<"wait" | "ok" | "off">("wait");
   useEffect(() => { if (!askEnd) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAskEnd(false); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [askEnd]);
   // „Termină tura”: întâi confirmare (foaie proprie), abia apoi oprim tura
   function toggle() { if (on && !preview) { setAskEnd(true); return; } void doToggle(); }
@@ -55,9 +55,10 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     else pauseWork();
   }
   function startWatch() {
-      if (!navigator.geolocation) { setMsg({ t: L["drv.gpsOff"], k: "" }); return; }
+      if (!navigator.geolocation) { setGps("off"); setMsg({ t: L["drv.gpsOff"], k: "" }); return; }
       if (watch.current != null) return;
       watch.current = navigator.geolocation.watchPosition((p) => {
+        setGps("ok");
         const here: [number, number] = [p.coords.latitude, p.coords.longitude], t = p.timestamp || Date.now(), acc = p.coords.accuracy || 999;
         if (acc > 65) return; // fix slab (iPhone în clădire / pornire GPS) — ignorat, altfel „sare” km
         // anti-zgomot: un pas contează doar peste max(30 m, precizia) și sub 150 km/h (salturi GPS)
@@ -73,7 +74,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
         const s0 = sent.current; if (s0 && t - s0.t < 30000 && hav(s0.at, here) < 0.15) return;
         sent.current = { t, at: here };
         fetch("/api/driver/ping", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: here[0], lng: here[1], speed: p.coords.speed }) }).catch(() => null);
-      }, () => setMsg({ t: L["drv.gpsOff"], k: "" }), { enableHighAccuracy: true, maximumAge: 10000, timeout: 60000 });
+      }, (er) => { if (er.code === 1 || !lastPos.current) setGps("off"); setMsg({ t: L["drv.gpsOff"], k: "" }); }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 60000 });
   }
   // GDPR: GPS-ul e pornit DOAR în tură și în afara pauzei private; altfel watch-ul e oprit complet (nici nu se cere locația)
   useEffect(() => {
@@ -152,7 +153,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       <div className="pill fade d1" style={{ marginTop: 14 }}><span className="dot" style={{ background: on ? "var(--pos)" : "var(--fg3)", margin: 0 }} />{on ? L["drv.onShift"] : L["drv.offShift"]}</div>
       {!on || priv ? (
         <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span><small className="geo-off">⌀ {L["priv.geoOff"]}</small></div></div>
-      ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: "var(--pos)", margin: 0 }} /><div><b>{L["priv.tracking"]}</b><span>{L["priv.trackingHint"]}</span></div></div>}
+      ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: "var(--pos)", margin: 0 }} /><div><b>{L["priv.tracking" + (demo || gps === "ok" ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
       <div className="fade d1" style={{ marginTop: 40, display: "flex", gap: 40 }}>
         <div><div className="drv-big" suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }} suppressHydrationWarning>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>

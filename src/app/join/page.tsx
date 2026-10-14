@@ -5,7 +5,7 @@ import { store } from "@/lib/store";
 import { Logo } from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
-const ERR: Record<string, MsgKey> = { token: "join.e.token", used: "join.e.used", phone: "join.e.phone", pin: "join.e.pin", phoneused: "join.e.phoneused", revoked: "join.e.revoked" };
+const ERR: Record<string, MsgKey> = { token: "join.e.token", used: "join.e.used", phone: "join.e.phone", pin: "join.e.pin", phoneused: "join.e.phoneused", revoked: "join.e.revoked", weak: "join.e.weak", len: "join.e.len", mismatch: "join.e.mismatch" };
 /** Pagina deschisă de șofer pe telefon din linkul de invitație. */
 export default async function Join({ searchParams }: { searchParams: { t?: string; e?: string } }) {
   const { loc } = getPrefs();

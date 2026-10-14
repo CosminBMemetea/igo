@@ -8,8 +8,8 @@ import { LT } from "@/lib/lead-i18n";
 import { ROLE_LOOK, RoleIcon, type RoleLook } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
-const ERR: Record<string, MsgKey> = { bad: "acct.bad", disabled: "acct.disabled", nosecret: "acct.nosecret" };
-export default function Login({ searchParams }: { searchParams: { e?: string; as?: string; next?: string } }) {
+const ERR: Record<string, MsgKey> = { bad: "acct.bad", badpin: "acct.badPin", locked: "acct.locked", off: "acct.off", disabled: "acct.disabled", nosecret: "acct.nosecret" };
+export default function Login({ searchParams }: { searchParams: { e?: string; as?: string; next?: string; m?: string; ok?: string } }) {
   const { loc } = getPrefs();
   const secret = (process.env.SESSION_SECRET?.length ?? 0) >= 32, hasDemo = !!cookies().get(DEMO_SID)?.value;
   const err = searchParams.e && ERR[searchParams.e];
@@ -51,10 +51,11 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
           <div className="rtabs fade d2">{tab("owner")}{tab("driver")}</div>
         </>
       ) : <><h1 className="h1 fade">{t(loc, "rl.admin.title")}</h1><p className="sub fade d1">{t(loc, "rl.admin.sub")}</p></>}
-      {err ? <p className="msg err">{t(loc, err)}</p> : null}
+      {searchParams.ok === "reset" ? <p className="msg ok" role="status">{t(loc, "login.resetOk")}</p> : null}
+      {err ? <p className="msg err" role="alert">{t(loc, err).replace("{m}", String(Math.min(999, Number(searchParams.m) || 15)))}</p> : null}
       {secret ? (
         <form className={`sheet fade d1 rform r-${as}`} action="/api/auth/login" method="post">
-          {nx}
+          {nx}<input type="hidden" name="as" value={as} />
           {as === "driver" ? (
             <>
               <label className="lf big"><span>{t(loc, "rl.phone")}</span><input name="email" type="tel" inputMode="tel" autoComplete="tel" placeholder="07xx xxx xxx" required /></label>
@@ -67,6 +68,7 @@ export default function Login({ searchParams }: { searchParams: { e?: string; as
             </>
           )}
           <button className={`btn ${as === "admin" ? "pri" : "sec"} rbtn${as === "driver" ? " xl" : ""}`}>{t(loc, `rl.${as}.signin` as MsgKey)}</button>
+          {as === "owner" ? <p className="hint" style={{ textAlign: "center", marginTop: 10 }}><Link href="/forgot" className="lnk">{t(loc, "login.forgot")}</Link></p> : null}
           {as === "owner" ? <p className="sub" style={{ fontSize: 13, textAlign: "center", marginTop: 14 }}>{t(loc, "su.have")} <Link href="/signup" className="lnk">{t(loc, "su.cta")}</Link></p> : null}
           {as === "driver" ? <p className="hint" style={{ textAlign: "center" }}>{t(loc, "rl.driver.help")}</p> : null}
         </form>

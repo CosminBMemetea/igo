@@ -29,6 +29,15 @@ export const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.is
 export const clip = (v: FormDataEntryValue | null, n: number) => String(v ?? "").trim().slice(0, n);
 export const PASSWORD_MIN = 8;
 export const isPin = (s: string) => /^\d{6}$/.test(s);
+/** PIN slab: toate cifrele la fel, șir crescător/descrescător, 2–3 cifre repetate (121212, 123123), ani 19xx/20xx la final de tip dată. */
+export const weakPin = (s: string) => {
+  if (!isPin(s)) return true;
+  const d = [...s].map(Number), steps = d.slice(1).map((x, i) => x - d[i]);
+  if (new Set(d).size <= 2) return true;
+  if (steps.every((x) => x === 1) || steps.every((x) => x === -1)) return true;
+  if (s.slice(0, 3) === s.slice(3) || s.slice(0, 2).repeat(3) === s) return true;
+  return ["123456", "654321", "112233", "123321", "121212", "696969", "159753", "147258", "258369", "102030", "131313"].includes(s);
+};
 /** Ora locală (Europe/Bucharest) „YYYY-MM-DDTHH:MM”, ca în exporturile de card. */
 export function localNow(d = new Date(), tz = "Europe/Bucharest"): string {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));

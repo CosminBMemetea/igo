@@ -13,6 +13,9 @@ export class MemStore implements Store {
     const r = { ...u, id: newId("u") }; this.U.push(r); return { ...r };
   }
   async userByLogin(login: string) { const u = this.U.find((x) => x.email === login || x.phone === login); return u ? { ...u } : null; }
+  async setUserPassword(id: string, passwordHash: string) { const u = this.U.find((x) => x.id === id); if (u) u.passwordHash = passwordHash; }
+  async userById(id: string) { const u = this.U.find((x) => x.id === id); return u ? { ...u } : null; }
+  async setUserDisabled(firmId: string, userId: string, off: boolean) { const u = this.U.find((x) => x.id === userId && x.firmId === firmId && x.role === "driver"); if (!u) return false; u.disabledAt = off ? new Date().toISOString() : null; return true; }
   async users(firmId: string) { return this.U.filter((u) => u.firmId === firmId); }
   async setUserLocale(id: string, locale: string) { const u = this.U.find((x) => x.id === id); if (u) u.locale = locale; }
   async createInvite(firmId: string, name: string, phone: string | null, locale: string | null = null) { const r: InviteRow = { id: newId("i"), firmId, name, phone, locale, usedAt: null, userId: null, createdAt: new Date().toISOString() }; this.I.push(r); return { ...r }; }
@@ -89,6 +92,11 @@ export class MemStore implements Store {
   async shift(firmId: string, truckId: string) { return this.H.get(`${firmId}:${truckId}`) ?? null; }
   private MP = new Map<string, Record<string, number>>();
   private DE: (DriverEventRow & { firmId: string })[] = [];
+  private AT = new Map<string, { fails: number; first: number; lock: number | null }>();
+  private atGet(key: string) { const r = this.AT.get(key); if (!r) return null; if (Date.now() - r.first > 3600e3 && !(r.lock && r.lock > Date.now())) { this.AT.delete(key); return null; } return r; }
+  async authFails(key: string) { const r = this.atGet(key); return { fails: r?.fails ?? 0, lockedUntil: r?.lock && r.lock > Date.now() ? new Date(r.lock).toISOString() : null }; }
+  async authFail(key: string, lockAfter: number, lockMin: number) { const r = this.atGet(key) ?? { fails: 0, first: Date.now(), lock: null }; r.fails++; if (r.fails >= lockAfter) r.lock = Date.now() + lockMin * 60e3 * 2 ** Math.min(4, r.fails - lockAfter); this.AT.set(key, r); return this.authFails(key); }
+  async authClear(key: string) { this.AT.delete(key); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); this.DE.push({ ...e, id: newId("de"), firmId }); if (this.DE.length > 20000) this.DE.shift(); }
   async driverEvents(firmId: string, sinceIso: string) { return this.DE.filter((x) => x.firmId === firmId && x.at >= sinceIso).map(({ firmId: _f, ...x }) => x).sort((a, b) => b.at.localeCompare(a.at)); }
   async savedMapping(firmId: string, sig: string) { return this.MP.get(`${firmId}|${sig}`) ?? null; }

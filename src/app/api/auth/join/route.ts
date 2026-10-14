@@ -2,7 +2,7 @@ import { back, withSession } from "@/lib/auth-cookie";
 import { readInvite } from "@/lib/invite";
 import { hashPassword } from "@/lib/scrypt";
 import { store } from "@/lib/store";
-import { clip, isPhone, isPin, normPhone } from "@/lib/validate";
+import { clip, isPhone, isPin, weakPin, normPhone } from "@/lib/validate";
 export const dynamic = "force-dynamic";
 /** Șoferul acceptă invitația: își confirmă telefonul și își alege un PIN de 6 cifre. */
 export async function POST(req: Request) {
@@ -19,7 +19,9 @@ export async function POST(req: Request) {
   if (row.revokedAt) return back(req, "/join?e=revoked");
   const phone = normPhone(clip(fd!.get("phone"), 30)), pin = String(fd!.get("pin") ?? ""), pin2 = String(fd!.get("pin2") ?? "");
   if (!isPhone(phone)) return back(req, `${q}&e=phone`);
-  if (!isPin(pin) || pin !== pin2) return back(req, `${q}&e=pin`);
+  if (!isPin(pin)) return back(req, `${q}&e=len`);
+  if (pin !== pin2) return back(req, `${q}&e=mismatch`);
+  if (weakPin(pin)) return back(req, `${q}&e=weak`);
   let uid: string;
   try { uid = (await s.createUser({ firmId: firm.id, role: "driver", name: row.name, email: null, phone, passwordHash: hashPassword(pin), locale: row.locale ?? "ro" })).id; }
   catch { return back(req, `${q}&e=phoneused`); }

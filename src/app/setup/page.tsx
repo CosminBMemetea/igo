@@ -1,3 +1,5 @@
+import { localNow } from "@/lib/validate";
+import { docStatus } from "@/lib/docs";
 import QRCode from "qrcode";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -25,9 +27,10 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
     const url = `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret))}`;
     return { ...i, url, qr: !i.usedAt && !i.revokedAt ? await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : "" };
   }));
+  const people = step === 3 ? await store().users(f.id) : [];
   const plate = (id: string) => st.trucks.find((x) => x.id === id)?.plate ?? "—";
   const nextHref = step < 5 ? `/setup?step=${step + 1}` : "/";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localNow().slice(0, 10);
   return (
     <main className="setup">
       <div className="eyebrow fade">{t(loc, "set.eyebrow", { firm: st.firm!.name })}</div>
@@ -86,8 +89,13 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
             <div className="list">
               {links.length ? links.map((i) => (
                 <div key={i.id} className={`it${i.id === searchParams.inv ? " on" : ""}`}>
-                  <div style={{ minWidth: 0 }}><div className="t">{i.name}</div><div className="m">{[i.phone, i.usedAt ? t(loc, "set.joined") : i.revokedAt ? t(loc, "inv.revoked") : t(loc, "set.pending")].filter(Boolean).join(" · ")}</div></div>
-                  {i.usedAt ? <span className="badge ok">✓</span> : i.revokedAt ? <span className="badge bad">✕</span> : (() => {
+                  <div style={{ minWidth: 0 }}><div className="t">{i.name}</div><div className="m">{[i.phone, i.usedAt ? (people.find((x) => x.id === i.userId)?.disabledAt ? t(loc, "drv.offBadge") : t(loc, "set.joined")) : i.revokedAt ? t(loc, "inv.revoked") : t(loc, "set.pending")].filter(Boolean).join(" · ")}</div></div>
+                  {i.usedAt ? (() => {
+                    const u = people.find((x) => x.id === i.userId); if (!u) return <span className="badge ok">✓</span>;
+                    return u.disabledAt
+                      ? <div className="invrow"><span className="badge bad">{t(loc, "drv.offBadge")}</span><form action="/api/setup/driver" method="post"><input type="hidden" name="uid" value={u.id} /><button className="btn sec sm">{t(loc, "drv.reactivate")}</button></form></div>
+                      : <details className="drvoff"><summary className="btn sec sm">{t(loc, "drv.deactivate")}</summary><div className="drvoffbox"><p>{t(loc, "drv.deactivateQ", { name: u.name })}</p><form action="/api/setup/driver" method="post"><input type="hidden" name="uid" value={u.id} /><input type="hidden" name="off" value="1" /><button className="btn pri sm danger">{t(loc, "drv.deactivateYes")}</button></form></div></details>;
+                  })() : i.revokedAt ? <span className="badge bad">✕</span> : (() => {
                     const msg = t(loc, "set.waText", { firm: st.firm!.name }) + " " + i.url;
                     return (
                       <div className="invx">
@@ -118,7 +126,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
                 <button className="btn pri">{t(loc, "set.addDoc")}</button>
                 <p className="hint">{t(loc, "set.docHint")}</p>
               </form>
-              <List empty={t(loc, "set.noDocs")} items={st.docs.map((d) => ({ id: d.id, t: `${t(loc, `doc.${d.type}` as MsgKey)} · ${plate(d.truckId ?? "")}`, m: `${t(loc, "docs.expires")} ${fmtDate(loc, d.expires, true)}` }))} />
+              <List empty={t(loc, "set.noDocs")} items={st.docs.map((d) => ({ id: d.id, t: `${t(loc, `doc.${d.type}` as MsgKey)} · ${plate(d.truckId ?? "")}`, m: `${t(loc, "docs.expires")} ${fmtDate(loc, d.expires, true)}`, st: ((s) => s.status === "valid" ? undefined : { bad: s.status === "expired", l: s.days < 0 ? t(loc, "dc.expired", { n: -s.days }) : t(loc, "set.docSoon", { n: s.days }) })(docStatus(d.expires, today.slice(0, 10))) }))} />
             </>
           ) : <Empty text={t(loc, "set.needTruck")} href="/setup?step=2" cta={t(loc, "set.s2.title")} />
         ) : null}
@@ -169,9 +177,9 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
     </main>
   );
 }
-function List({ items, empty }: { items: { id: string; t: string; m: string; v?: string }[]; empty: string }) {
+function List({ items, empty }: { items: { id: string; t: string; m: string; v?: string; st?: { bad: boolean; l: string } }[]; empty: string }) {
   if (!items.length) return <Empty text={empty} />;
-  return <div className="list">{items.map((x) => <div key={x.id} className="it"><div style={{ minWidth: 0 }}><div className="t">{x.t}</div><div className="m">{x.m}</div></div>{x.v ? <b className="num">{x.v}</b> : <span className="badge ok">✓</span>}</div>)}</div>;
+  return <div className="list">{items.map((x) => <div key={x.id} className="it"><div style={{ minWidth: 0 }}><div className="t">{x.t}</div><div className="m">{x.m}</div></div>{x.v ? <b className="num">{x.v}</b> : x.st ? <span className={`badge ${x.st.bad ? "bad" : "warn"}`}>{x.st.l}</span> : <span className="badge ok">✓</span>}</div>)}</div>;
 }
 function Empty({ text, href, cta }: { text: string; href?: string; cta?: string }) {
   return <div className="empty"><p>{text}</p>{href ? <Link className="btn pri" href={href}>{cta}</Link> : null}</div>;
