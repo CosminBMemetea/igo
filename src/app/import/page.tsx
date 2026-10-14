@@ -95,7 +95,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
                 <div key={tr.id} className="it" style={{ cursor: "default" }}>
                   <div style={{ minWidth: 0 }}>
                     <div className="t">{tr.plate}</div>
-                    <div className="m">{t(loc, "imp.truckMeta", { n: mine.length, litres: fmtNum(loc, mine.reduce((a, x) => a + x.litres, 0)), lei: fmtMoney(loc, lei) })}</div>
+                    <div className="m">{t(loc, "imp.truckMeta", { fills: plural(loc, mine.length, "u.fill"), litres: fmtNum(loc, mine.reduce((a, x) => a + x.litres, 0)), lei: fmtMoney(loc, lei) })}</div>
                     <div className="m">{t(loc, `imp.base.${b.kind}` as MsgKey, { l100: fmtNum(loc, b.l100, 1), km: fmtNum(loc, b.km) })}{recent.l100 ? ` · ${t(loc, "imp.now", { l100: fmtNum(loc, recent.l100, 1) })}` : ""}</div>
                   </div>
                   {mine.length ? <span className="badge ok">✓</span> : <span className="badge">{t(loc, "imp.noData")}</span>}

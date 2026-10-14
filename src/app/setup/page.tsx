@@ -160,7 +160,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
         ) : null}
       </section>
 
-      <div className="snav">
+      <div className="setup-nav">
         {step > 1 ? <Link className="btn sec" href={`/setup?step=${step - 1}`}>{t(loc, "set.back")}</Link> : <span />}
         {step < 5 ? <Link className="btn sec" href={nextHref}>{st.done[step] ? t(loc, "set.next") : t(loc, "set.skip")}</Link>
           : <form action="/api/setup/finish" method="post"><button className="btn pri">{t(loc, "set.finish")}</button></form>}
