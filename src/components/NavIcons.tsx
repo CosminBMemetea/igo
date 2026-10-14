@@ -10,6 +10,7 @@ const ITEMS: It[] = [["feed", "/feed", false], ["home", "/", false], ["live", "/
 // demo: doar esențialul pentru o firmă de transport
 const DEMO: It[] = [["feed", "/feed", false], ["home", "/", false], ["live", "/live", false], ["trips", "/trips", false], ["alerts", "/alerts", false], ["docs", "/documents", true], ["receipts", "/receipts", true], ["upload", "/import", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["savings", "/savings", false]];
 // mobil: 4 principale (în ordinea asta) + „Mai mult”
+const OWNER: It[] = [["home", "/", false], ["trips", "/trips", false], ["truck", "/trucks", false], ["people", "/drivers", false], ["live", "/live", true], ["alerts", "/alerts", true], ["feed", "/feed", true], ["docs", "/documents", true], ["receipts", "/receipts", true], ["crm", "/crm", true], ["invoices", "/invoices", true]];
 const MAIN: IconName[] = ["feed", "live", "alerts", "trips"];
 const lk = (k: IconName) => (k === "upload" ? "import" : k);
 
@@ -20,26 +21,27 @@ function AlertBadge({ n: init }: { n: number }) {
   return n ? <b className="nbadge" aria-label={String(n)}>{n > 9 ? "9+" : n}</b> : null;
 }
 
-export function NavIcons({ labels, demo, tour, driver, alerts = 0 }: { labels: Record<string, string>; demo?: boolean; tour?: string; driver?: boolean; alerts?: number }) {
+export function NavIcons({ labels, demo, tour, driver, owner, alerts = 0 }: { labels: Record<string, string>; demo?: boolean; tour?: string; driver?: boolean; owner?: boolean; alerts?: number }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const [tourFresh, setTourFresh] = useState(false);
   useEffect(() => setOpen(false), [path]);
   useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false); addEventListener("keydown", k); document.documentElement.classList.add("msheet-open"); return () => { removeEventListener("keydown", k); document.documentElement.classList.remove("msheet-open"); }; }, [open]);
   useEffect(() => { if (!tour) return; const u = () => { try { setTourFresh(!JSON.parse(localStorage.getItem("qf-tour2") || "{}").done); } catch { setTourFresh(true); } }; u(); addEventListener("qf-tour-seen", u); addEventListener("storage", u); return () => { removeEventListener("qf-tour-seen", u); removeEventListener("storage", u); }; }, [tour]);
-  const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && (path.startsWith("/vehicles") || path.startsWith("/replay"))) || (h === "/features" && path.startsWith("/plans")));
-  const list = demo ? DEMO : ITEMS;
+  const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && path.startsWith("/replay") || h === "/trucks" && path.startsWith("/vehicles")) || (h === "/features" && path.startsWith("/plans")));
+  const list = owner ? OWNER : demo ? DEMO : ITEMS;
+  const main = owner ? ["home", "trips", "truck", "people"] : MAIN;
   if (driver) return (
     <nav className="nav">
       {list.map(([k, h, m]) => <Link key={k} href={h} className={`ico${on(h) ? " on" : ""}${m ? " mhide" : ""}`} title={labels[lk(k)]} aria-label={labels[lk(k)]}><Icon name={k} /><small>{labels[lk(k)]}</small></Link>)}
     </nav>
   );
-  const more = list.filter(([k]) => !MAIN.includes(k));
+  const more = list.filter(([k]) => !main.includes(k));
   const moreOn = more.some(([, h]) => on(h)) || path.startsWith("/notifications") || path.startsWith("/recomanda") || path.startsWith("/settings");
   return (
     <>
-      <nav className="nav nav5">
-        {list.map(([k, h]) => { const mi = MAIN.indexOf(k); return <Fragment key={k}><Link href={h} className={`ico${on(h) ? " on" : ""}${mi < 0 ? " inmore" : ` o${mi + 1}`}`} title={labels[lk(k)]} aria-label={labels[lk(k)]}><span className="nic"><Icon name={k} />{k === "alerts" ? <AlertBadge n={alerts} /> : null}</span><small>{labels[lk(k)]}</small></Link>{tour && k === "alerts" ? <span className="inmore tourwrap"><TourNav label={tour} /></span> : null}</Fragment>; })}
+      <nav className={`nav nav5${owner ? " owner-nav" : ""}`}>
+        {list.map(([k, h]) => { const mi = main.indexOf(k); return <Fragment key={k}><Link href={h} className={`ico${on(h) ? " on" : ""}${mi < 0 ? " inmore" : ` o${mi + 1}`}`} title={labels[lk(k)]} aria-label={labels[lk(k)]}><span className="nic"><Icon name={k} />{k === "alerts" ? <AlertBadge n={alerts} /> : null}</span><small>{labels[lk(k)]}</small></Link>{tour && k === "alerts" ? <span className="inmore tourwrap"><TourNav label={tour} /></span> : null}</Fragment>; })}
         <button type="button" className={`ico morebtn o5${moreOn || open ? " on" : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)} aria-label={labels.more}><span className="nic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>{tour && tourFresh ? <i className="ndot" /> : null}</span><small>{labels.more}</small></button>
       </nav>
       {open ? (

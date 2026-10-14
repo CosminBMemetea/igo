@@ -23,9 +23,17 @@ export async function POST(req: Request) {
   const truck = b.truckId ? live.find((t) => t.id === b.truckId) : live.find((t) => t.id === drv?.truckId); // Never silently assign an unrelated vehicle.
   if (drv && truck && drv.truckId !== truck.id) return NextResponse.json({ error: "driver" }, { status: 400 });
   if (!truck) return NextResponse.json({ error: "truck" }, { status: 400 });
-  const km = num(b.km, 1, 20000) ?? estimateKm(from, to);
+  const km = b.km == null || b.km === "" ? estimateKm(from, to) : num(b.km, 1, 20000);
   if (km == null) return NextResponse.json({ error: "km" }, { status: 400 });
   const tonnes = num(b.tonnes, 0, 60), revenue = num(b.revenue, 0, 10_000_000) ?? 0;
-  const r = await s.addTrip(f.id, { truckId: truck.id, client, title: `${from} → ${to}`, date, km, revenue, litres: Math.round((km * (truck.normalL100 ?? DEFAULT_L100)) / 100), fuelPrice: FUEL_PRICE, tolls: 0, driverCost: 0, other: 0, litresSource: "estimate", driverId: drv?.id ?? null, tonnes, planned: true });
+  if ((b.tonnes != null && b.tonnes !== "" && tonnes === null) || (b.revenue != null && b.revenue !== "" && num(b.revenue, 0, 10_000_000) === null)) return NextResponse.json({ error: "num" }, { status: 400 });
+  const id = str(b.id, 80), previous = id ? (await s.trips(f.id)).find((t) => t.id === id) : null;
+  if (id && (!previous || !previous.planned)) return NextResponse.json({ error: "closed" }, { status: 409 });
+  const payload = { truckId: truck.id, client, title: `${from} → ${to}`, date, km, revenue, litres: previous?.litresSource === "manual" ? previous.litres : Math.round((km * (truck.normalL100 ?? DEFAULT_L100)) / 100), fuelPrice: previous?.fuelPrice ?? FUEL_PRICE, tolls: previous?.tolls ?? 0, driverCost: previous?.driverCost ?? 0, other: previous?.other ?? 0, litresSource: previous?.litresSource ?? "estimate" as const, driverId: drv?.id ?? null, tonnes, planned: true };
+  if (id) {
+    if (!(await s.editPlannedTrip(f.id, id, payload))) return NextResponse.json({ error: "closed" }, { status: 409 });
+    return NextResponse.json({ ok: true, id });
+  }
+  const r = await s.addTrip(f.id, payload);
   return NextResponse.json({ ok: true, id: r.id, truck: truck.plate, driver: drv?.name ?? null });
 }

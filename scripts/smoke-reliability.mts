@@ -95,9 +95,12 @@ async function verifyStore(s: Store) {
     const saved = await s.addTrip(firm.id, { ...base, truckId: t1.id, driverId: user.id, planned: true });
     assert.equal(await driverTrip(s, tn, saved.id), true);
     assert.equal(await driverTrip(s, { ...tn, uid: second.id }, saved.id), false);
+    assert.equal(await s.editPlannedTrip(firm.id, saved.id, { ...saved, title: "Updated route", planned: true }), true);
+    assert.equal(await s.editPlannedTrip(other.id, saved.id, { ...saved, title: "Foreign edit" }), false);
     await s.updateTrip(firm.id, saved.id, { revenue: 1400, tonnes: 12, planned: false });
     assert.equal((await s.trips(firm.id)).find((x) => x.id === saved.id)?.revenue, 1400);
     assert.equal(await s.updateTrip(other.id, saved.id, { revenue: 0 }), false);
+    assert.equal(await s.editPlannedTrip(firm.id, saved.id, { ...saved, title: "Closed edit" }), false);
     const repo = new FirmRepository(s, firm);
     const fill = { vehicleId: t1.id, time: "2026-02-19T10:00", litres: 100, odometerKm: 1000, amount: 700, station: "Test", photo: null, aiRead: false, userId: user.id, key: randomUUID() };
     const fills = await Promise.all([repo.addDriverFill(fill), repo.addDriverFill(fill)]);

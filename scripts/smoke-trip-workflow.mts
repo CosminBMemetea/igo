@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { parseQuick, matchDriver } from "../src/lib/trip-new";
+const p = parseQuick("de la Oradea la Arad mâine cu Ion pentru Dedeman", "2026-12-31");
+assert.equal(p.from, "Oradea"); assert.equal(p.to, "Arad"); assert.equal(p.date, "2027-01-01"); assert.equal(p.driver, "Ion"); assert.equal(p.client, "Dedeman");
+assert.equal(parseQuick("Salonta–Timișoara mâine, Ion", "2026-10-14").driver, "Ion");
+assert.equal(parseQuick("From London to Paris tomorrow with John", "2026-10-14").to, "Paris");
+assert.equal(parseQuick("Oradea - Arad 31.02.2026").date, undefined);
+const ds = [{id:"1",name:"Ion Pop"},{id:"2",name:"Ion Stan"}];
+assert.equal(matchDriver("Ion", ds), null, "ambiguous names must not silently assign a driver");
+assert.equal(matchDriver("Ion Pop", ds)?.id, "1");
+assert.equal(matchDriver("Ștefan", [{id:"3",name:"Stefan Pop"}])?.id, "3");
+console.log("PASS natural trip language, dates, ambiguous driver selection");

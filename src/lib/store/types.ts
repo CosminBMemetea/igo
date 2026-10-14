@@ -58,6 +58,7 @@ export interface Store {
   invites(firmId: string): Promise<InviteRow[]>;
   acceptInvite(firmId: string, id: string, phone: string, passwordHash: string): Promise<UserRow | null>;
   createDriverInvite(firmId: string, name: string, phone: string, locale: string): Promise<InviteRow>;
+  editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">): Promise<boolean>;
   updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }): Promise<boolean>;
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;
   addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">): Promise<TruckRow>;

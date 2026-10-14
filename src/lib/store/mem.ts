@@ -61,6 +61,11 @@ export class MemStore implements Store {
     i.usedAt = new Date().toISOString(); i.userId = u.id;
     return { ...u };
   }
+  async editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">) {
+    const row = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned);
+    if (!row || !this.T.some((t) => t.id === patch.truckId && t.firmId === firmId)) return false;
+    Object.assign(row, patch); return true;
+  }
   async updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }) {
     const r = this.R.find((x) => x.firmId === firmId && x.id === id); if (!r) return false;
     Object.assign(r, patch); return true;

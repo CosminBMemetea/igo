@@ -104,6 +104,10 @@ export class PgStore implements Store {
     const rows = result.rows as { id: string }[];
     return rows[0] ? this.userById(rows[0].id) : null;
   }
+  async editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">) {
+    const rows = await this.d.update(trips).set(patch).where(and(eq(trips.firmId, firmId), eq(trips.id, id), eq(trips.planned, true), sql`exists (select 1 from trucks where id = ${patch.truckId} and firm_id = ${firmId})`)).returning({ id: trips.id });
+    return rows.length === 1;
+  }
   async updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }) {
     const rows = await this.d.update(trips).set(patch).where(and(eq(trips.firmId, firmId), eq(trips.id, id))).returning({ id: trips.id });
     return rows.length === 1;

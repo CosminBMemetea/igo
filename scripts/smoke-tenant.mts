@@ -1,6 +1,7 @@
 // smoke:tenant — capăt la capăt pe Postgres real: înscriere → firmă goală → pașii de setup → camion salvat și citit din DB;
 // comutatorul „Date demo”; invitația șoferului; izolarea între firme.
 // Cere: build făcut (npm run build) și TEST_DATABASE_URL (o bază de test care se GOLEȘTE). Pornește singur `next start`.
+import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import pg from "pg";
@@ -10,7 +11,15 @@ let fail = 0;
 const ok = (n: string, c: boolean, extra = "") => { console.log(`${c ? "PASS" : "FAIL"} ${n}${c ? "" : " " + extra}`); if (!c) fail++; };
 const db = new pg.Client({ connectionString: URL_DB }); await db.connect();
 await db.query("drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;");
-const env = { ...process.env, DATABASE_URL: URL_DB, SESSION_SECRET: randomBytes(32).toString("hex"), ADMIN_EMAIL: "", ADMIN_PASSWORD_HASH: "" };
+const speechMock = createServer(async (req, res) => {
+  const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  const input = Buffer.concat(chunks).toString();
+  if (req.url === "/audio/transcriptions" && input.includes("whisper-large-v3-turbo")) { res.setHeader("content-type", "application/json"); res.end(JSON.stringify({ text: "de la Oradea la Arad mâine cu Ioan Pop" })); }
+  else { res.statusCode = 503; res.end("unavailable"); }
+});
+await new Promise<void>((resolve) => speechMock.listen(0, "127.0.0.1", resolve));
+const speechPort = (speechMock.address() as { port: number }).port;
+const env = { ...process.env, GROQ_API_KEY: "synthetic-test-key", GROQ_BASE_URL: `http://127.0.0.1:${speechPort}`, DATABASE_URL: URL_DB, SESSION_SECRET: randomBytes(32).toString("hex"), ADMIN_EMAIL: "", ADMIN_PASSWORD_HASH: "" };
 await new Promise<void>((res, rej) => spawn(process.execPath, ["scripts/migrate.mjs"], { env, stdio: "inherit" }).on("exit", (c) => (c ? rej(new Error("migrate")) : res())));
 const tables = (await db.query("select table_name from information_schema.tables where table_schema='public'")).rows.map((r) => r.table_name);
 ok("migrații aplicate (7 tabele)", ["firms", "users", "invites", "trucks", "documents", "trips", "support_requests"].every((t) => tables.includes(t)), tables.join(","));
@@ -21,6 +30,10 @@ for (let i = 0; i < 60; i++) { try { await fetch(`${BASE}/login`); break; } catc
 
 class Agent {
   jar = new Map<string, string>();
+  async json(path: string, body: unknown) {
+    const r = await fetch(BASE + path, { method: "POST", redirect: "manual", headers: { cookie: [...this.jar].map(([k,v]) => `${k}=${v}`).join("; "), "content-type": "application/json" }, body: JSON.stringify(body) });
+    return { status: r.status, body: await r.json() };
+  }
   async go(path: string, form?: Record<string, string>) {
     const r = await fetch(BASE + path, { method: form ? "POST" : "GET", redirect: "manual", headers: { cookie: [...this.jar].map(([k, v]) => `${k}=${v}`).join("; "), ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}) }, body: form ? new URLSearchParams(form).toString() : undefined });
     for (const c of r.headers.getSetCookie()) { const [kv] = c.split(";"); const i = kv.indexOf("="); this.jar.set(kv.slice(0, i), kv.slice(i + 1)); }
@@ -85,6 +98,21 @@ try {
   ok("invitație refolosită → respinsă", (await new Agent().go("/api/auth/join", { t: decodeURIComponent(link!), phone: "0744000111", pin: "111111", pin2: "111111" })).loc.includes("e=used"));
   const DL = new Agent();
   ok("șoferul intră cu telefon + PIN", (await DL.go("/api/auth/login", { email: "0744123456", password: "493827" })).loc.endsWith("/driver"));
+  const parsed = await A.json("/api/trips/parse", { text: "de la Oradea la Arad mâine cu Ioan Pop" });
+  ok("text rostit → rută și șofer corecte", parsed.status === 200 && parsed.body.from === "Oradea" && parsed.body.to === "Arad" && parsed.body.driverId === drv[0].id);
+  const audio = new FormData(); audio.set("audio", new Blob(["synthetic fixture"], { type: "audio/webm" }), "test.webm"); audio.set("language", "ro");
+  const transcribed = await fetch(BASE + "/api/trips/transcribe", { method: "POST", headers: { cookie: [...A.jar].map(([k,v]) => `${k}=${v}`).join("; ") }, body: audio });
+  ok("audio → text prin furnizor simulat", transcribed.status === 200 && (await transcribed.json()).text.includes("Oradea"));
+  ok("șoferul nu poate folosi transcrierea patronului", (await D.json("/api/trips/transcribe", {})).status === 403);
+  const payload = { from: "Oradea", to: "Arad", date: "2026-12-01", truckId: tA[0].id, driverId: drv[0].id, km: "120", revenue: "2000" };
+  ok("numere invalide respinse", (await A.json("/api/trips/new", { ...payload, revenue: "abc" })).status === 400);
+  const created = await A.json("/api/trips/new", payload);
+  ok("cursă planificată creată", created.status === 200 && !!created.body.id);
+  ok("cursă planificată editată", (await A.json("/api/trips/new", { ...payload, id: created.body.id, to: "Timișoara" })).status === 200);
+  const filtered = await A.go("/trips?status=planned&q=Timi");
+  ok("filtrare curse planificate", filtered.text.includes("Oradea → Timișoara"));
+  await db.query("update trips set planned=false where id=$1", [created.body.id]);
+  ok("cursa încheiată nu poate fi rescrisă", (await A.json("/api/trips/new", { ...payload, id: created.body.id })).status === 409);
   // 5. izolare între firme
   const B = new Agent();
   await B.go("/api/auth/signup", { firm: "Firma B", email: "b@test.ro", password: "parola-lunga-2" });
@@ -106,6 +134,6 @@ try {
   // 6. asistență
   await A.go("/api/support", { name: "Owner A", phone: "0744999888", slot: "morning", message: "ajutor" });
   ok("cerere Asistență Querra salvată", (await db.query("select * from support_requests where firm_id=$1", [firmA.id])).rows.length === 1);
-} finally { stop(); await db.end(); }
+} finally { stop(); await db.end(); speechMock.close(); }
 console.log(fail ? `smoke:tenant: ${fail} eșec(uri)` : "smoke:tenant OK");
 process.exit(fail ? 1 : 0);

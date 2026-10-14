@@ -27,7 +27,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   ) : null;
   const seg = "/" + ((firm.path ?? "/").split("/")[1] ?? "");
   const PT: Record<string, Parameters<typeof t>[1]> = { "/": "nav.home", "/live": "nav.live", "/trips": "nav.trips", "/replay": "nav.trips", "/vehicles": "kind.truck", "/alerts": "nav.alerts", "/documents": "nav.docs", "/import": "nav.import", "/driver": "nav.driver", "/savings": "nav.savings", "/settings": "stg.title", "/ranking": "nav.ranking", "/feed": "nav.feed", "/crm": "nav.crm", "/receipts": "nav.receipts", "/invoices": "nav.invoices", "/features": "nav.features", "/notifications": "ntf.title", "/support": "sup.title", "/setup": "set.title", "/admin": "adm.title" };
-  const ptitle = <PageTitle titles={Object.fromEntries(Object.entries(PT).map(([k, v]) => [k, t(loc, v)]))} />; void seg;
+  const ptitle = <PageTitle titles={{ ...Object.fromEntries(Object.entries(PT).map(([k, v]) => [k, t(loc, v)])), "/trucks": tri(loc, "Camioane|Trucks|Pojazdy"), "/drivers": tri(loc, "Șoferi|Drivers|Kierowcy") }} />; void seg;
   const onAdmin = role === "admin" && (firm.path ?? "").startsWith("/admin");
   const notices = (
     <>
@@ -100,7 +100,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
       <header className="top">
         <Link href={role === "admin" ? "/admin" : firm.demo ? "/feed" : "/"} className="logo" aria-label="Querra Fleet"><Logo /></Link>
         {ptitle}
-        {onAdmin ? <nav className="adnav">{(["firms", "support", "emails", "test-email"] as const).map((k) => <a key={k} href={`/admin#${k}`}>{t(loc, `rl.nav.${k}`)}</a>)}<Link href="/">{t(loc, "rl.nav.app")}</Link></nav> : <NavIcons demo={firm.demo} driver={lookOf(role) === "driver"} alerts={firm.alerts ?? 0} tour={firm.demo && role === "user" ? t(loc, "tour.chip") : undefined} labels={{ more: t(loc, "nav.more"), close: t(loc, "rl.close"), notif: t(loc, "ntf.title"), settings: t(loc, "stg.title"), import: t(loc, "nav.import"), savings: t(loc, "nav.savings"), ranking: t(loc, "nav.ranking"), feed: t(loc, "nav.feed"),  home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />}
+        {onAdmin ? <nav className="adnav">{(["firms", "support", "emails", "test-email"] as const).map((k) => <a key={k} href={`/admin#${k}`}>{t(loc, `rl.nav.${k}`)}</a>)}<Link href="/">{t(loc, "rl.nav.app")}</Link></nav> : <NavIcons owner={!!firm.name && (role === "owner" || role === "admin")} demo={firm.demo} driver={lookOf(role) === "driver"} alerts={firm.alerts ?? 0} tour={firm.demo && role === "user" ? t(loc, "tour.chip") : undefined} labels={{ truck: tri(loc, "Camioane|Trucks|Pojazdy"), people: tri(loc, "Șoferi|Drivers|Kierowcy"), more: t(loc, "nav.more"), close: t(loc, "rl.close"), notif: t(loc, "ntf.title"), settings: t(loc, "stg.title"), import: t(loc, "nav.import"), savings: t(loc, "nav.savings"), ranking: t(loc, "nav.ranking"), feed: t(loc, "nav.feed"),  home: t(loc, "nav.home"), live: t(loc, "nav.live"), trips: t(loc, "nav.trips"), alerts: t(loc, "nav.alerts"), crm: t(loc, "nav.crm"), docs: t(loc, "nav.docs"), receipts: t(loc, "nav.receipts"), invoices: t(loc, "nav.invoices"), driver: t(loc, "nav.driver"), features: t(loc, "nav.features") }} />}
         {prefsBox}
       </header>
       {plan === "trial" && !adminView && !firm.demo ? (

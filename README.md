@@ -107,3 +107,20 @@ variable and verifies concurrent invite acceptance, assignment conflicts, receip
 idempotency, tenant isolation, shift state and session version changes on Postgres.
 It cleans up only its own fixtures. The same suite without `:pg` covers memory storage
 and financial/date regressions.
+
+### Owner trip workflow
+
+Owners have Home, Trips, Trucks and Drivers in the main navigation. Secondary tools
+are in More. Trips can be searched and filtered by status, truck and month; completed
+trips cannot be rewritten through the planned-trip editor.
+
+Dictation uses a short recording (up to 60 seconds / 2 MB) and Groq transcription when
+`GROQ_API_KEY` is configured. The UI explains the audio transfer before recording.
+Audio is forwarded transiently, not saved to the application's file storage. Without
+that configuration, supported browsers use their native speech recognition. Microphone
+permission, silence and service failures show actionable messages; typing remains
+available. Real microphone/device testing is still required on the target phones.
+
+`npm run smoke:trip-workflow` checks natural language parsing and ambiguous driver
+names. The tenant suite tests the transcription HTTP contract using a local synthetic
+provider, without recording a user or sending test audio to an external service.
