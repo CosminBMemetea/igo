@@ -1,6 +1,7 @@
 import { applyDemoEcon } from "./econ-store";
 import { demoLive } from "./live-sync";
 // Încărcare comună pentru pagini (server): datele firmei curente (demo sau reală).
+import { realLive } from "./real-live";
 import { tenant } from "./tenant";
 import { liveFleet, tripViews } from "./query";
 export async function load() {
@@ -13,5 +14,5 @@ export async function load() {
   const views = tripViews(trips, vehicles), archivedViews = archived.length ? tripViews(trips, allVehicles).filter((x) => x.vehicle.archived) : [];
   const alerts = archived.length ? alerts0.filter((a) => !archived.some((v) => v.id === (a as { vehicleId?: string }).vehicleId)) : alerts0;
   // firmele reale n-au încă GPS: harta live rămâne goală până la conectarea unei surse
-  return { tn, demo: tn.demo, vehicles, allVehicles, archivedViews, trips, clients, parcels, zones, alerts, views, live: () => (tn.demo ? demoLive(vehicles, views, parcels, zones) : []) };
+  return { tn, demo: tn.demo, vehicles, allVehicles, archivedViews, trips, clients, parcels, zones, alerts, views, live: async () => (tn.demo ? demoLive(vehicles, views, parcels, zones) : tn.firm ? realLive(tn.firm.id, r, vehicles) : []) };
 }

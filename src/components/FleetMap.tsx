@@ -30,7 +30,7 @@ export interface MapLabels { [k: string]: string }
 interface Props { mode: "strip" | "full"; vehicles: LiveVehicle[]; zones: Zone[]; parcels: Parcel[]; theme: "dark" | "light"; loc: Locale; labels: MapLabels; now: number; initial?: string ; fitAll?: boolean }
 
 export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, labels, now, initial, fitAll }: Props) {
-  const fitted = useRef(false);
+  const fitted = useRef(false), fitSel = useRef<string | null>(null);
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{ L: typeof Leaflet; map: Leaflet.Map; cluster: Leaflet.MarkerClusterGroup; trail?: Leaflet.LayerGroup; ghost?: Leaflet.CircleMarker } | null>(null);
   const [ready, setReady] = useState(false);
@@ -101,7 +101,9 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
     drawRoute(m.L, g, v.done, v.ahead);
     const fleet = vehicles.filter(located).map((x) => x.at);
     // prima încadrare pe /live (fără ?v=): toată flota pe ecran → „Toate · 14” = markerele vizibile + cele în privat
-    const first = fitAll && !fitted.current; fitted.current = true;
+    // la reîmprospătare (poziții noi la 20 s) nu mutăm harta peste utilizator: reîncadrăm doar la prima afișare / altă selecție
+    if (fitted.current && fitSel.current === v.id) return;
+    const first = fitAll && !fitted.current; fitted.current = true; fitSel.current = v.id;
     const all = first && fleet.length ? [...fleet, ...pts(v)] : pts(v).length > 1 ? pts(v) : v.at ? [v.at, v.at] : fleet;
     if (!all.length) return;
     const mobile = matchMedia("(max-width:760px)").matches;

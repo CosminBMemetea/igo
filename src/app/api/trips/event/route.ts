@@ -1,3 +1,4 @@
+import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { tenant } from "@/lib/tenant";
@@ -13,6 +14,8 @@ export async function POST(req: Request) {
   const tn = await tenant();
   if (tn.demo || !tn.firm) return NextResponse.json({ at, demo: true });
   const geo = typeof b.lat === "number" && typeof b.lng === "number" && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180;
+  const trip = (await tn.repo.trips().catch(() => [])).find((x) => x.id === b.tripId);
+  if (trip) await logDriver(tn, trip.vehicleId, b.kind as TripEventKind, { lat: geo ? (b.lat as number) : null, lng: geo ? (b.lng as number) : null, note: trip.title });
   try { const e = await store().addTripEvent(tn.firm.id, { tripId: b.tripId, kind: b.kind as TripEventKind, at, lat: geo ? (b.lat as number) : null, lng: geo ? (b.lng as number) : null, userId: tn.uid }); return NextResponse.json({ at: e.at }); }
   catch { return NextResponse.json({ error: "not found" }, { status: 404 }); }
 }

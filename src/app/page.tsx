@@ -12,7 +12,7 @@ import { monthSummary } from "@/lib/query";
 import { enoughData } from "@/lib/calc";
 import { fmtMoney, fmtNum, fmtPct, t, plural } from "@/lib/i18n";
 import { FUEL_PRICE } from "@/lib/fleet/seed";
-import { rankings } from "@/lib/ranking";
+import { splitRank, rankings } from "@/lib/ranking";
 import { DriverCard } from "@/components/Ranking";
 import { mapLabels } from "@/lib/labels";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
@@ -43,7 +43,7 @@ export default async function Home() {
   ) : null;
   if (!d.demo && !d.trips.length) return <main>{welcome}<EmptyState kind="home" loc={loc} canSetup={canSetup} /></main>;
   const m = monthSummary(d.views);
-  const live = d.live();
+  const live = (await d.live());
   const km = d.views.filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = d.views.filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);
   const recent = [...d.views.filter((v) => v.active).slice(0, 2), ...d.views.filter((v) => !v.active).slice(0, 4)];
   const today = todayFor(d.demo);
@@ -54,7 +54,7 @@ export default async function Home() {
   const priv = live.filter((x) => x.status === "private").length, stopped = live.length - moving - priv;
   const kmToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => a + x.today, 0));
   const saveToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => { const v = d.vehicles.find((y) => y.id === x.id); return a + (v ? Math.max(0, ((v.baselineRate - x.rate) * x.today) / 100) * FUEL_PRICE : 0); }, 0));
-  const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo), rkHelp = [...rk.drivers].reverse().find((x) => x.worst && x.score < 75) ?? null;
+  const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo), rkSplit = splitRank(rk.drivers, 2), rkHelp = rkSplit.help[0] ?? null;
   // economie pe lună: aceeași perioadă ca pe /savings (demo: 15 zile de istoric)
   const savDays = d.demo ? 15 : Math.max(1, Math.round((Date.now() - Date.parse(d.tn.firm?.createdAt ?? new Date().toISOString())) / 86400000));
   const perMonth = Math.round(m.savings.savedLei / (savDays / 30));
@@ -101,7 +101,7 @@ export default async function Home() {
       <Gate feature="ai" prefs={prefs} inline>
         <AskBox loc={loc} labels={{ ph: t(loc, "ask.ph"), fallback: t(loc, "ask.fallback"), ai: t(loc, "ask.ai"), error: t(loc, "ask.error") }} />
       </Gate>
-      {live.length ? <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
+      {live.some((x) => x.at) ? <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
         <FleetMap mode="strip" vehicles={live.map((x) => ({ ...x, track: [], done: [] }))} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         <div className="hchips" aria-label={t(loc, "home.now")}>
           <span className="hc"><i className="dot mv" /><b>{moving}</b>{t(loc, "hc.moving")}</span>
@@ -124,7 +124,7 @@ export default async function Home() {
         <section className="section rk-home">
           <div className="head"><h2>{t(loc, "nav.ranking")}</h2><Link className="link" href="/ranking">{t(loc, "rk.open")} →</Link></div>
           <div className="rk-homegrid">
-            <div><div className="eyebrow rk-h pos">★ {t(loc, "rk.top")}</div><div className="rk-cards">{rk.drivers.slice(0, 2).map((x, i) => <DriverCard key={x.id} d={x} loc={loc} rank={i + 1} />)}</div></div>
+            <div><div className="eyebrow rk-h pos">★ {t(loc, "rk.top")}</div><div className="rk-cards">{rkSplit.top.map((x, i) => <DriverCard key={x.id} d={x} loc={loc} rank={i + 1} />)}</div></div>
             {rkHelp ? <div><div className="eyebrow rk-h neg">⚑ {t(loc, "rk.help")}</div><div className="rk-cards"><DriverCard d={rkHelp} loc={loc} help /></div></div> : null}
           </div>
         </section>

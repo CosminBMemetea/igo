@@ -1,8 +1,8 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
-import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
 const leadOut = (r: typeof leads.$inferSelect): LeadRow => ({ ...r, consentAt: iso(r.consentAt)!, createdAt: iso(r.createdAt)! });
@@ -164,6 +164,11 @@ export class PgStore implements Store {
   }
   async savedMapping(firmId: string, sig: string) { const [r] = await this.d.select().from(importMappings).where(and(eq(importMappings.firmId, firmId), eq(importMappings.sig, sig))); return r ? (JSON.parse(r.mapping) as Record<string, number>) : null; }
   async saveMapping(firmId: string, sig: string, m: Record<string, number>) { const v = { mapping: JSON.stringify(m), updatedAt: new Date() }; await this.d.insert(importMappings).values({ firmId, sig, ...v }).onConflictDoUpdate({ target: [importMappings.firmId, importMappings.sig], set: v }); }
+  async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { await this.ownTruck(firmId, e.truckId); await this.d.insert(driverEvents).values({ ...e, kind: e.kind, at: new Date(e.at), id: newId("de"), firmId }); }
+  async driverEvents(firmId: string, sinceIso: string) {
+    const rs = await this.d.select().from(driverEvents).where(and(eq(driverEvents.firmId, firmId), gte(driverEvents.at, new Date(sinceIso)))).orderBy(desc(driverEvents.at)).limit(500);
+    return rs.map((r): DriverEventRow => ({ id: r.id, truckId: r.truckId, userId: r.userId, kind: r.kind as DriverEventRow["kind"], at: r.at.toISOString(), lat: r.lat, lng: r.lng, note: r.note }));
+  }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
   async positions(firmId: string, sinceAt = "") { return this.d.select({ truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng }).from(positions).where(and(eq(positions.firmId, firmId), gte(positions.at, sinceAt))).orderBy(positions.at).limit(20000); }
   async addLead(l: NewLead) { const [r] = await this.d.insert(leads).values({ ...l, id: newId("l"), consentAt: new Date(l.consentAt) }).returning(); return leadOut(r); }

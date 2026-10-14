@@ -40,7 +40,7 @@ export default async function TripDetail({ params }: { params: { id: string } })
   const canEdit = d.tn.role !== "driver" && d.demo;
   let acc = 0;
   const client = d.clients.find((c) => c.id === r.clientId)!;
-  const liveV = d.live().find((x) => x.id === r.vehicleId);
+  const liveV = (await d.live()).find((x) => x.id === r.vehicleId);
   const pw = agri ? null : await paperworkFor(d.tn, r.id);
   const canPod = !d.demo && (d.tn.role === "owner" || d.tn.role === "admin");
   const hm = (iso: string | null) => (iso ? new Intl.DateTimeFormat(loc === "ro" ? "ro-RO" : loc === "pl" ? "pl-PL" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Bucharest" }).format(new Date(iso)) : "—");

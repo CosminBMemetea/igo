@@ -1,3 +1,4 @@
+import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { localNow } from "@/lib/validate";
 import { tenant } from "@/lib/tenant";
@@ -38,5 +39,6 @@ export async function POST(req: Request) {
   const dup = (await r.driverFills(vehicleId)).find((x) => x.litres === litres && x.odometerKm === odometerKm);
   if (dup) return NextResponse.json({ ok: true, fill: dup, dup: true, overTank: litres > v.tankL });
   const row = await r.addDriverFill({ vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, ...fxCols, station: String(fd.get("station") ?? "").trim().slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
+  await logDriver(tn, vehicleId, "fill", { note: `${litres} L${row.station ? ` · ${row.station}` : ""}` });
   return NextResponse.json({ ok: true, fill: row, overTank: litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null });
 }

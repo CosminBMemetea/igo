@@ -33,7 +33,7 @@ export default async function VehiclePage({ params, searchParams }: { params: { 
   const agri = v.kind === "agri";
   const unit = agri ? t(loc, "veh.lha") : t(loc, "veh.l100");
   const myParcels = d.parcels.filter((p) => s.trips.some((x) => x.parcelId === p.id));
-  const liveV = d.live().find((x) => x.id === v.id);
+  const liveV = (await d.live()).find((x) => x.id === v.id);
   const truck = truckById(v.id), route = truck && liveV ? miniRoute(truck, liveV.today) : null;
   const body = (
     <main>

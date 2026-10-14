@@ -1,3 +1,4 @@
+import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { demoShift, saveDemoShift } from "@/lib/demo-shift";
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
   // demo: doar în cookie-ul vizitatorului (nu în memoria comună a serverului — altfel s-ar vedea la alți vizitatori)
   const next = { ...sh, privateSince: b.on ? new Date().toISOString() : null };
   const s = tn.demo ? next : await r.setShift(next);
+  if (!!sh.privateSince !== b.on) await logDriver(tn, b.vehicleId, b.on ? "private_on" : "private_off");
   const res = NextResponse.json({ ok: true, private: !!s.privateSince });
   return tn.demo ? saveDemoShift(res, s) : res;
 }

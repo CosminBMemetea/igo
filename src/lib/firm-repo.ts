@@ -44,7 +44,12 @@ export class FirmRepository implements IgoRepository {
   private trucksQ() { return this.memo("trucks", () => this.s.trucks(this.firm.id)); }
   private tripsQ() { return this.memo("trips", () => this.s.trips(this.firm.id)); }
   private since() { return this.firm.createdAt.slice(0, 16); }
-  async vehicles() { const [ts, tx] = await Promise.all([this.trucksQ(), this.tx()]); return ts.map((t) => truckToVehicle(t, truckBaseline(t, tx, this.since()).l100)); }
+  // șoferul camionului = utilizatorul (rol driver) legat de camion; fără nume → partea din fața @ a emailului
+  async vehicles() {
+    const [ts, tx, us] = await Promise.all([this.trucksQ(), this.tx(), this.memo("users", () => this.s.users(this.firm.id)).catch(() => [])]);
+    const nm = (u: { name: string; email: string | null }) => u.name?.trim() || (u.email ? u.email.split("@")[0] : "");
+    return ts.map((t) => { const drv = us.filter((x) => x.role === "driver"), u = drv.find((x) => x.truckId === t.id) ?? (ts.length === 1 && drv.length === 1 ? drv[0] : undefined); return { ...truckToVehicle(t, truckBaseline(t, tx, this.since()).l100), driver: u ? nm(u) : "" }; });
+  }
   async trips() { const [rs, tx] = await Promise.all([this.tripsQ(), this.tx()]); return rs.map((r) => tripRowToTrip(r, tx)); }
   async clients(): Promise<Client[]> {
     const seen = new Map<string, Client>();

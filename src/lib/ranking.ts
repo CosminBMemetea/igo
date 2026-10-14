@@ -44,7 +44,7 @@ export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehic
     const nAl = alerts.filter((a) => a.vehicleId === v.id).length;
     const vsBase = c != null ? (c - v.baselineRate) / v.baselineRate : null; // negativ = mai bine ca norma
     const parts: Partial<Record<Comp, number>> = {};
-    if (vsBase != null) parts.cons = clamp(0.5 - vsBase * 3); // −16% → 1, +16% → 0
+    if (vsBase != null) parts.cons = clamp(0.8 - vsBase * 4); // la normă = 80 (ok), −5% → 1, +8% → 0,48 (de ajutor), +20% → 0
     if (tele.harsh != null) parts.harsh = clamp(1 - tele.harsh / 4);
     if (tele.speeding != null) parts.speed = clamp(1 - tele.speeding / 10);
     if (tele.idle != null) parts.idle = clamp(1 - (tele.idle - 3) / 20);
@@ -53,11 +53,19 @@ export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehic
     const keys = Object.keys(parts) as Comp[], wsum = keys.reduce((a, k) => a + W[k], 0);
     const score = Math.round((keys.reduce((a, k) => a + W[k] * parts[k]!, 0) / (wsum || 1)) * 100);
     const sorted = [...keys].sort((a, b) => parts[a]! - parts[b]!), good = sorted.filter((k) => k !== "alerts");
-    return { id: v.id, driver: v.driver || "—", plate: v.name, score, l100: c, base: v.baselineRate, vsBase, harsh: tele.harsh, speeding: tele.speeding, idle: tele.idle, onTime: tele.onTime, alerts: nAl, km, parts, worst: sorted[0] && parts[sorted[0]]! < 0.75 ? sorted[0] : null, best: good[good.length - 1] ?? null };
+    return { id: v.id, driver: v.driver || v.name, plate: v.name, score, l100: c, base: v.baselineRate, vsBase, harsh: tele.harsh, speeding: tele.speeding, idle: tele.idle, onTime: tele.onTime, alerts: nAl, km, parts, worst: sorted[0] && parts[sorted[0]]! < 0.75 ? sorted[0] : null, best: good[good.length - 1] ?? null };
   }).filter((x) => x.km > 0).sort((a, b) => b.score - a.score);
   const trucksCmp: TruckCmp[] = per.filter((x) => x.l100 != null).map(({ v, l100: c, km }) => {
     const mine = done.filter((x) => x.vehicleId === v.id), a = l100(mine.filter((x) => day(x.date) <= 7)), b = l100(mine.filter((x) => day(x.date) > 7 && day(x.date) <= 14));
     return { id: v.id, plate: v.name, model: v.model, l100: c, base: v.baselineRate, vsFleet: fleetAvg && c != null ? (c - fleetAvg) / fleetAvg : null, trend: a.l100 != null && b.l100 != null ? Math.round((a.l100 - b.l100) * 10) / 10 : null, km };
   }).sort((a, b) => (b.l100 ?? 0) - (a.l100 ?? 0));
   return { drivers, trucks: trucksCmp, fleetAvg, telematics: demo };
+}
+
+/** Top / Au nevoie de ajutor fără dubluri: același șofer nu apare în ambele; cu sub 3 șoferi nu forțăm un „top”. */
+export function splitRank<T extends { id: string; score: number; worst?: unknown }>(drivers: T[], max = 3): { top: T[]; help: T[]; few: boolean } {
+  const n = drivers.length, few = n < 3;
+  const top = (few ? drivers.filter((x) => x.score >= 75) : drivers.slice(0, Math.min(max, Math.ceil(n / 2)))).slice(0, max);
+  const help = drivers.filter((x) => !top.includes(x) && x.worst && x.score < 75).slice(-max).reverse();
+  return { top, help, few };
 }

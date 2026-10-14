@@ -57,6 +57,13 @@
       "when": 1791921583440,
       "tag": "0007_truck_costs",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791948789221,
+      "tag": "0008_driver_events",
+      "breakpoints": true
     }
   ]
 }

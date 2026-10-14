@@ -9,14 +9,24 @@ import { rankings } from "@/lib/ranking";
 import { todayFor } from "@/lib/today";
 import { demoReactions, demoResolved } from "@/lib/demo-shift";
 import { fmtNum, t } from "@/lib/i18n";
+import { RealFeed } from "@/components/RealFeed";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { store } from "@/lib/store";
+import { dayStartIso } from "@/lib/driver-log";
 import { Feed } from "@/components/Feed";
 
 export const dynamic = "force-dynamic";
 export default async function FeedPage() {
   const { loc } = getPrefs(), F = FT[loc];
   const d = await load();
-  if (!d.demo) redirect("/"); // firmă reală fără date live: Acasă rămâne pagina de start
-  const today = todayFor(d.demo), live = d.live();
+  if (!d.demo) {
+    // firmă reală: jurnalul șoferilor din ultimele ~2 zile + starea live (reîmprospătat la 30 s)
+    if (!d.tn.firm) redirect("/");
+    const [ev, lv] = await Promise.all([store().driverEvents(d.tn.firm.id, new Date(Date.parse(dayStartIso()) - 86400000).toISOString()).catch(() => []), d.live()]);
+    const names = Object.fromEntries(d.allVehicles.map((v) => [v.id, { plate: v.name, driver: v.driver }]));
+    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} /><AutoRefresh ms={30000} /></>;
+  }
+  const today = todayFor(d.demo), live = (await d.live());
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo);
   const f = buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers });
   const s = f.summary, rs = demoResolved();

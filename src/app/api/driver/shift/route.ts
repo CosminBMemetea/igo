@@ -1,3 +1,4 @@
+import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   const s = tn.demo ? next : await r.setShift(next);
   // camionul curent al șoferului: primește și notificările despre documentele camionului
   if (b.action === "start" && !tn.demo && tn.firm && tn.role === "driver" && tn.uid) await store().setUserTruck(tn.firm.id, tn.uid, b.vehicleId).catch(() => null);
+  await logDriver(tn, b.vehicleId, b.action === "start" ? "shift_start" : "shift_end");
   const res = NextResponse.json({ ok: true, shift: s });
   return tn.demo ? saveDemoShift(res, s) : res;
 }

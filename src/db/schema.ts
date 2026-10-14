@@ -269,3 +269,16 @@ export const leads = pgTable("leads", {
   status: text("status").notNull().default("new"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("leads_created_ix").on(t.createdAt), index("leads_ip_ix").on(t.ipHash)]);
+
+/** Jurnalul șoferului: tură, pauză privată, încărcat/descărcat, așteptare, alimentare (fluxul patronului, orele de azi). */
+export const driverEvents = pgTable("driver_events", {
+  id: text("id").primaryKey(),
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  userId: text("user_id"),
+  kind: text("kind").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull(),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
+  note: text("note"),
+}, (t) => [index("driver_events_firm_at_ix").on(t.firmId, t.at)]);

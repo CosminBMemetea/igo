@@ -1,7 +1,7 @@
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { t, fmtNum, type MsgKey } from "@/lib/i18n";
-import { rankings, type Comp } from "@/lib/ranking";
+import { splitRank, rankings, type Comp } from "@/lib/ranking";
 import { todayFor } from "@/lib/today";
 import { EmptyState } from "@/components/EmptyState";
 import { DriverCard, ScoreRing, TruckBars } from "@/components/Ranking";
@@ -13,15 +13,16 @@ export default async function Ranking() {
   const d = await load();
   const R = rankings(d.vehicles, d.views, d.alerts, todayFor(d.demo), d.demo);
   if (!R.drivers.length) return <main><EmptyState kind="home" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
-  const top = R.drivers.slice(0, 3), help = R.drivers.filter((x) => x.worst && x.score < 75).slice(-3).reverse();
+  const { top, help, few } = splitRank(R.drivers);
   const cols = COLS.filter((c) => R.telematics || c === "cons" || c === "alerts");
   return (
     <main className="rk-page">
       <div className="eyebrow fade">{t(loc, "rk.eyebrow")}</div>
       <h1 className="h1 fade">{t(loc, "rk.title")}</h1>
       <p className="sub fade d1">{t(loc, R.telematics ? "rk.sub" : "rk.subReal")}</p>
+      {few ? <p className="rk-few fade d1">{t(loc, "rk.few")}</p> : null}
       <div className="rk-two fade d1">
-        <section><div className="eyebrow rk-h pos">★ {t(loc, "rk.top")}</div><div className="rk-cards">{top.map((x, i) => <DriverCard key={x.id} d={x} loc={loc} rank={i + 1} />)}</div></section>
+        {top.length ? <section><div className="eyebrow rk-h pos">★ {t(loc, "rk.top")}</div><div className="rk-cards">{top.map((x, i) => <DriverCard key={x.id} d={x} loc={loc} rank={i + 1} />)}</div></section> : null}
         {help.length ? <section><div className="eyebrow rk-h neg">⚑ {t(loc, "rk.help")}</div><div className="rk-cards">{help.map((x) => <DriverCard key={x.id} d={x} loc={loc} help />)}</div></section> : null}
       </div>
       <section className="section fade d2">

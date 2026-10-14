@@ -1,5 +1,5 @@
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
-import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
+import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type DriverEventRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 export class MemStore implements Store {
   readonly persistent = false;
   private F: FirmRow[] = []; private U: UserRow[] = []; private I: InviteRow[] = []; private T: TruckRow[] = [];
@@ -88,6 +88,9 @@ export class MemStore implements Store {
   async setShift(firmId: string, s: ShiftRow) { if (!this.own(firmId, s.truckId)) throw new Error("truck"); this.H.set(`${firmId}:${s.truckId}`, s); return s; }
   async shift(firmId: string, truckId: string) { return this.H.get(`${firmId}:${truckId}`) ?? null; }
   private MP = new Map<string, Record<string, number>>();
+  private DE: (DriverEventRow & { firmId: string })[] = [];
+  async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); this.DE.push({ ...e, id: newId("de"), firmId }); if (this.DE.length > 20000) this.DE.shift(); }
+  async driverEvents(firmId: string, sinceIso: string) { return this.DE.filter((x) => x.firmId === firmId && x.at >= sinceIso).map(({ firmId: _f, ...x }) => x).sort((a, b) => b.at.localeCompare(a.at)); }
   async savedMapping(firmId: string, sig: string) { return this.MP.get(`${firmId}|${sig}`) ?? null; }
   async saveMapping(firmId: string, sig: string, m: Record<string, number>) { this.MP.set(`${firmId}|${sig}`, { ...m }); }
   async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }

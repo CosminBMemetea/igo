@@ -21,13 +21,15 @@ async function compress(f: File): Promise<Blob> {
 // HH:MM ora României, identic pe server (Node ICU) și în orice browser: doar cifre, fără formatare dependentă de locale
 const RO_HM = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", hourCycle: "h23", hour: "numeric", minute: "numeric" });
 const hhmm = (iso: string | null) => { if (!iso) return "—"; const p = Object.fromEntries(RO_HM.formatToParts(new Date(iso)).map((x) => [x.type, x.value])); return `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`; };
+/** 1h 05m · în curs: 1:05:09 */
+const fmtWait = (sec: number, live = false) => { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return live ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${h}h ${String(m).padStart(2, "0")}m`; };
 export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow }: { serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
   const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(serverNow);
   const cmr = useRef<HTMLInputElement>(null), pod = useRef<HTMLInputElement>(null);
   useEffect(() => { setGeo(localStorage.getItem("qf-geo") !== "0"); const h = (e: Event) => setOnShift((e as CustomEvent<boolean>).detail); window.addEventListener("qf-shift", h); return () => window.removeEventListener("qf-shift", h); }, []);
   useEffect(() => { setNow(Date.now()); }, []);
-  useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(i); }, [st.waitSince]);
+  useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, [st.waitSince]);
   const pos = () => new Promise<{ lat?: number; lng?: number }>((res) => {
     // locația doar în tură și doar cu acordul șoferului
     if (demo || !onShift || !geo || !navigator.geolocation) return res({}); // demo: fără GPS real
@@ -59,6 +61,7 @@ export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial,
     setBusy("");
     if (added.length) { setSt((s) => ({ ...s, files: [...s.files, ...added] })); setMsg({ t: L["pw.uploaded"].replace("{n}", String(added.length)), k: "ok" }); }
   }
+  const waitSec = st.waitMin * 60 + (st.waitSince ? Math.max(0, Math.floor((now - Date.parse(st.waitSince)) / 1000)) : 0);
   const waitNow = st.waitMin + (st.waitSince ? Math.max(0, Math.round((now - Date.parse(st.waitSince)) / 60000)) : 0);
   const files = (k: "cmr" | "pod") => st.files.filter((f) => f.kind === k);
   return (
@@ -69,9 +72,13 @@ export function TripPaperwork({ tripId, title, demo, onShift: onShift0, initial,
         <button className={`pwb${st.loadedAt ? " done" : ""}`} disabled={!!busy} onClick={() => event("loaded")}><b>{L["pw.loaded"]}</b><span>{st.loadedAt ? hhmm(st.loadedAt) : L["pw.tap"]}</span></button>
         <button className={`pwb${st.unloadedAt ? " done" : ""}`} disabled={!!busy || !st.loadedAt} onClick={() => event("unloaded")}><b>{L["pw.unloaded"]}</b><span>{st.unloadedAt ? hhmm(st.unloadedAt) : L["pw.tap"]}</span></button>
       </div>
-      <button className={`pwwait${st.waitSince ? " on" : ""}`} disabled={!!busy} onClick={() => event(st.waitSince ? "wait_end" : "wait_start")}>
-        <span>{st.waitSince ? L["pw.waitStop"] : L["pw.wait"]}</span><b suppressHydrationWarning>{Math.floor(waitNow / 60)}h {String(waitNow % 60).padStart(2, "0")}m</b>
-      </button>
+      {/* card ca „Am încărcat / Am descărcat”: stare clară (nepornit / în curs), cronometru care rulează, buton explicit Pornește/Oprește */}
+      <div className={`pwwait${st.waitSince ? " on" : ""}`} role="group" aria-label={L["pw.wait"]}>
+        <i className="pwi" aria-hidden>{st.waitSince ? <span className="pwdot" /> : "⏳"}</i>
+        <div className="pwwt"><b>{L["pw.wait"]}</b><span suppressHydrationWarning>{st.waitSince ? L["pw.wSince"].replace("{t}", hhmm(st.waitSince)) : waitNow ? `${L["pw.wTotal"]} · ${fmtWait(waitNow * 60)}` : L["pw.wIdle"]}</span></div>
+        {st.waitSince || waitNow ? <time className="pwclock" suppressHydrationWarning>{fmtWait(st.waitSince ? waitSec : waitNow * 60, !!st.waitSince)}</time> : null}
+        <button className={`btn ${st.waitSince ? "pri pwstop" : "sec"} sm`} disabled={!!busy} aria-pressed={!!st.waitSince} onClick={() => event(st.waitSince ? "wait_end" : "wait_start")}>{st.waitSince ? L["pw.wStop"] : L["pw.wStart"]}</button>
+      </div>
       <p className="hint">{L["pw.waitHint"]}</p>
       {(["cmr", "pod"] as const).map((k) => (
         <div key={k} className="pwdoc">

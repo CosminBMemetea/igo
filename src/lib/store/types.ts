@@ -22,6 +22,8 @@ export type NewFuelTx = Omit<FuelTxRow, "id" | "firmId">;
 export interface CardRow { card: string; truckId: string | null }
 export interface ImportRow { id: string; firmId: string; source: string; filename: string; rows: number; added: number; dupes: number; skipped: number; createdAt: string }
 export interface ShiftRow { truckId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
+export type DriverEventKind = "shift_start" | "shift_end" | "private_on" | "private_off" | "loaded" | "unloaded" | "wait_start" | "wait_end" | "fill";
+export interface DriverEventRow { id: string; truckId: string; userId: string | null; kind: DriverEventKind; at: string; lat: number | null; lng: number | null; note: string | null }
 export interface PosRow { truckId: string; at: string; lat: number; lng: number }
 
 export type FileKind = "doc" | "cmr" | "pod";
@@ -97,6 +99,9 @@ export interface Store {
   saveMapping(firmId: string, sig: string, m: Record<string, number>): Promise<void>;
   addPosition(firmId: string, p: PosRow): Promise<void>;
   positions(firmId: string, sinceAt?: string): Promise<PosRow[]>;
+  /** jurnalul șoferului (tură, pauză privată, încărcat/descărcat, alimentare) — pentru fluxul patronului și orele de azi */
+  addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">): Promise<void>;
+  driverEvents(firmId: string, sinceIso: string): Promise<DriverEventRow[]>;
 }
 export const newId = (p: string) => `${p}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
 export const today = () => new Date().toISOString().slice(0, 10);
