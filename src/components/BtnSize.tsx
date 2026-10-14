@@ -5,7 +5,7 @@ export const BSIZE_KEY = "qf-bsize";
 type S = "n" | "l" | "xl";
 export function BtnSize({ label, opts }: { label: string; opts: [string, string, string] }) {
   const [v, setV] = useState<S>("n");
-  useEffect(() => { const s = localStorage.getItem(BSIZE_KEY); if (s === "l" || s === "xl") setV(s); }, []);
+  useEffect(() => { try { const s = localStorage.getItem(BSIZE_KEY); if (s === "l" || s === "xl") setV(s); } catch { /* Browser storage may be unavailable. */ } }, []);
   const pick = (s: S) => { setV(s); try { localStorage.setItem(BSIZE_KEY, s); } catch {} if (s === "n") delete document.documentElement.dataset.bsize; else document.documentElement.dataset.bsize = s; };
   return (
     <div className="bsize" role="group" aria-label={label}>

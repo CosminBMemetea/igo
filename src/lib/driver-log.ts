@@ -6,9 +6,9 @@ import { haversineKm, type LatLng } from "./fleet/data";
 
 type Tn = { demo: boolean; firm?: { id: string } | null; uid?: string | null };
 /** Nu blochează niciodată acțiunea șoferului: jurnalul e „best effort”. */
-export async function logDriver(tn: Tn, truckId: string, kind: DriverEventKind, o: { lat?: number | null; lng?: number | null; note?: string | null } = {}) {
+export async function logDriver(tn: Tn, truckId: string, kind: DriverEventKind, o: { at?: string; lat?: number | null; lng?: number | null; note?: string | null } = {}) {
   if (tn.demo || !tn.firm) return;
-  try { await store().addDriverEvent(tn.firm.id, { truckId, userId: tn.uid ?? null, kind, at: new Date().toISOString(), lat: o.lat ?? null, lng: o.lng ?? null, note: o.note ?? null }); } catch { /* ignorăm */ }
+  try { await store().addDriverEvent(tn.firm.id, { truckId, userId: tn.uid ?? null, kind, at: o.at ?? new Date().toISOString(), lat: o.lat ?? null, lng: o.lng ?? null, note: o.note ?? null }); } catch { /* ignorăm */ }
 }
 /** Miezul nopții (Europe/Bucharest) de azi, ca ISO UTC — granița zilei pentru „azi”. */
 export function dayStartIso(now = new Date()): string {

@@ -31,7 +31,7 @@ export default async function Trips({ searchParams }: { searchParams: { new?: st
       <div className="thead-row"><h1 className="h1 fade">{t(loc, "trips.title")}</h1>{nt}</div>
       <p className="sub fade d1" dangerouslySetInnerHTML={{ __html: t(loc, "trips.sub", { n: m.n, total: fmtMoney(loc, m.profit) }) }} />
       <EconKpis vehicles={d.allVehicles} views={d.views} loc={loc} />
-      <form className="sheet" method="get" style={{ marginTop: 24 }}>
+      <form className="sheet trip-filters" method="get" style={{ marginTop: 24 }}>
         <div className="nt2"><label className="lf"><span>{tr("Caută rută, șofer sau camion|Search route, driver or truck|Szukaj trasy, kierowcy lub pojazdu")}</span><input name="q" defaultValue={searchParams.q} /></label>
         <label className="lf"><span>{tr("Stare|Status|Status")}</span><select name="status" defaultValue={status === "done" ? "completed" : status}><option value="all">{tr("Toate|All|Wszystkie")} ({allRows.length})</option>{(Object.keys(STAGE_LABELS) as TripStage[]).map((stage) => <option key={stage} value={stage}>{tr(STAGE_LABELS[stage])} ({allRows.filter((v) => tripStage(v) === stage).length})</option>)}</select></label>
         <label className="lf"><span>{tr("Camion|Truck|Pojazd")}</span><select name="truck" defaultValue={searchParams.truck ?? ""}><option value="">{tr("Toate camioanele|All trucks|Wszystkie pojazdy")}</option>{d.allVehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>

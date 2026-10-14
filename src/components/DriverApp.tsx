@@ -31,6 +31,8 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
   const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey()), [cur, setCur] = useState("RON"), [rDate, setRDate] = useState(""), [rPlate, setRPlate] = useState("");
+  const receiptLock = useRef(false), photoVersion = useRef(0);
+  useEffect(() => { setLast(lastFill); }, [lastFill]);
   const [priv, setPriv] = useState(!!initial?.priv);
   // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
   const shownKm = demoKm != null ? (on ? demoKm : 0) : km;
@@ -100,17 +102,20 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     setPriv(next); privRef.current = next; window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
   }
   async function onPhoto(file0: File | null) {
+    const version = ++photoVersion.current;
     setPhoto(file0); setRead(""); setReadInfo(""); setAiOk(false); setCur("RON"); setRDate("");
     if (!file0) return;
-    const manual = (m: string) => { setPhoto(null); setRead(m); setF((x) => ({ ...x, litres: "", odo: "", amount: "", station: "" })); };
+    const manual = (m: string, preserve = false) => { if (version !== photoVersion.current) return; if (!preserve) setPhoto(null); setRead(m); if (!preserve) setF((x) => ({ ...x, litres: "", odo: "", amount: "", station: "" })); };
     // validare înainte de orice: mărime, apoi conținutul real (primii octeți), nu extensia
     if (file0.size > MAX_PHOTO_IN) return manual(L["drv.tooBig"]);
     const head = new Uint8Array(await file0.slice(0, 16).arrayBuffer());
+    if (version !== photoVersion.current) return;
     const kind = sniffImage(head);
     if (!kind) return manual(L["drv.notImage"]);
     setRead(L["drv.reading"]);
     const file = await shrinkImage(file0);
     const blank = await blankImage(file);
+    if (version !== photoVersion.current) return;
     if (blank === null && kind !== "heic") return manual(L["drv.notImage"]);
     if (blank) return manual(L["drv.notReceipt"]);
     setPhoto(file);
@@ -118,6 +123,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     try {
       const r = await fetch("/api/receipt/extract", { method: "POST", body: fd, cache: "no-store" });
       const j = await r.json().catch(() => ({}));
+      if (version !== photoVersion.current) return;
       if (r.ok && j.fields) {
         const x0 = j.fields as { currency?: string | null; operator?: string | null; station?: string | null; date?: string | null; plate?: string | null; litres?: number | null; amount?: number | null; odometerKm?: number | null };
         // operator și stație separate: „Petrom Oradea 3”, nu două rânduri lipite
@@ -129,15 +135,18 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
         setRPlate(x0.plate ?? ""); if (x0.currency && CURS.includes(x0.currency)) setCur(x0.currency); if (x0.date) setRDate(x0.date);
         // exemplul demo NU e etichetat ca citire AI (nici în mesaj, nici în aiRead)
         setAiOk(!j.sample); setRead(j.sample ? L["drv.sample"] : L["drv.read"]);
-      } else manual(r.status === 413 ? L["drv.tooBig"] : r.status === 415 ? L["drv.notImage"] : r.status === 422 ? L["drv.notReceipt"] : L["drv.readManual"]);
-    } catch { manual(L["drv.readManual"]); }
+      } else manual(r.status === 413 ? L["drv.tooBig"] : r.status === 415 ? L["drv.notImage"] : r.status === 422 ? L["drv.notReceipt"] : L["drv.readManual"], ![413, 415, 422].includes(r.status));
+    } catch { manual(L["drv.readManual"], true); }
   }
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return; // dublu-clic: o singură trimitere
+    if (receiptLock.current || busy || read === L["drv.reading"]) return; // lock before the first asynchronous write
     const litres = Number(f.litres.replace(",", ".")), odoS = f.odo.replace(/[\s.]/g, ""), odo = Number(odoS);
     if (!(litres >= 1 && litres <= 2000)) { setFormErr(L["drv.litresRange"]); return; }
     if (!/^\d+$/.test(odoS) || !(odo >= 1 && odo <= 5_000_000)) { setFormErr(L["drv.odoRange"]); return; }
+    const amount = f.amount.trim() ? Number(f.amount.replace(",", ".")) : null;
+    if (amount !== null && (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000)) { setFormErr(tri(loc, "Verifică suma bonului: trebuie să fie un număr pozitiv.|Check the receipt amount: enter a positive number.|Sprawdź kwotę paragonu: wpisz liczbę dodatnią.")); return; }
+    receiptLock.current = true;
     setFormErr(""); setBusy(true);
     try {
       const fd = new FormData();
@@ -146,18 +155,18 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       if (queueScope && actorId && !demo && !preview) {
         if (!rDate) fd.set("date", localNow().slice(0,10));
         await enqueue({ id: idem.current, scope: queueScope, actorId, kind: "fill", label: `${litres} L · ${vehicleName}`, payload: [...fd.entries()] });
-        idem.current = newKey(); setMsg({ t: tri(loc, "Bon salvat pe telefon. Verifică Sincronizare pentru confirmarea trimiterii.|Receipt saved on device. Check Sync for delivery confirmation.|Paragon zapisano na urządzeniu. Sprawdź synchronizację."), k: "warn" });
+        photoVersion.current++; idem.current = newKey(); setMsg({ t: tri(loc, "Bon salvat pe telefon. Verifică Sincronizare pentru confirmarea trimiterii.|Receipt saved on device. Check Sync for delivery confirmation.|Paragon zapisano na urządzeniu. Sprawdź synchronizację."), k: "warn" });
         setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); setRDate(""); setCur("RON");
         if (navigator.onLine) void flushOutbox(queueScope).catch(() => {});
         return;
       }
       const r = await fetch("/api/driver/fill", { method: "POST", body: fd }).catch(() => null);
       const j = r ? await r.json().catch(() => ({})) : {};
-      if (r?.ok) { idem.current = newKey(); const fid = (j.id ?? j.fill?.id) as string | undefined; if (photo && fid && !j.dup) void saveThumb(fid, photo); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
+      if (r?.ok) { photoVersion.current++; idem.current = newKey(); const fid = (j.id ?? j.fill?.id) as string | undefined; if (photo && fid && !j.dup) void saveThumb(fid, photo); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
         const fxT = fx ? (fx.ok && fx.amountRon != null ? " " + L["drv.fxOk"].replace("{ron}", fmtNum(loc, fx.amountRon, 2)).replace("{rate}", fmtNum(loc, fx.fxRate ?? 0, 4)).replace(/\{cur\}/g, fx.currency).replace("{date}", (fx.fxDate ?? "").split("-").reverse().join(".")) : " " + L["drv.fxNo"].replace("{cur}", fx.currency)) : "";
         setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
       else { if (r?.status === 409) setMsg({ t: "", k: "" }); setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]); }
-    } catch { setFormErr(tri(loc, "Bonul nu a putut fi păstrat pe telefon. Nu închide formularul; încearcă din nou.|Could not save the receipt on this device. Keep the form open and retry.|Nie udało się zapisać paragonu. Nie zamykaj formularza i spróbuj ponownie.")); } finally { setBusy(false); }
+    } catch { setFormErr(tri(loc, "Bonul nu a putut fi păstrat pe telefon. Nu închide formularul; încearcă din nou.|Could not save the receipt on this device. Keep the form open and retry.|Nie udało się zapisać paragonu. Nie zamykaj formularza i spróbuj ponownie.")); } finally { receiptLock.current = false; setBusy(false); }
   }
   const w = work.current, hours = demo ? (start ? (now - start) / 3600000 : 0) : (w.ms + (w.since !== null ? Math.max(0, now - w.since) : 0)) / 3600000;
   return (
@@ -201,10 +210,10 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
           <label className="field" style={{ paddingTop: 0, cursor: "pointer" }}><span>{L["drv.photo"]}<br /><small style={{ color: "var(--fg3)" }}>{photo ? photo.name : L["drv.photoHint"]}</small></span><span className="ico" style={{ background: "var(--bg3)" }}><Icon name="camera" /></span><input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onPhoto(e.target.files?.[0] ?? null)} /></label>
           {read ? <p className="msg">{read}{readInfo ? <><br /><small style={{ color: "var(--fg2)" }}>{L["drv.readMeta"]}: {readInfo}</small></> : null}</p> : null}
           {([["litres", "drv.litres", "decimal"], ["odo", "drv.odo", "numeric"], ["amount", "drv.amount", "decimal"], ["station", "drv.station", "text"]] as const).map(([k, lab, mode]) => (
-            <label key={k} className="field"><span>{L[lab]}</span>{k === "amount" ? <select className="tsel cursel" aria-label={L["drv.cur"]} value={cur} onChange={(e) => setCur(e.target.value)}>{CURS.map((c) => <option key={c} value={c}>{c === "RON" ? "lei" : c}</option>)}</select> : null}<input className="input" inputMode={mode} maxLength={k === "station" ? 80 : 12} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></label>
+            <label key={k} className="field"><span>{L[lab]}</span>{k === "amount" ? <select className="tsel cursel" aria-label={L["drv.cur"]} value={cur} onChange={(e) => setCur(e.target.value)}>{CURS.map((c) => <option key={c} value={c}>{c === "RON" ? "lei" : c}</option>)}</select> : null}<input className="input" aria-label={L[lab]} inputMode={mode} maxLength={k === "station" ? 80 : 12} value={f[k]} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} /></label>
           ))}
           {formErr ? <p className="msg err" role="alert">{formErr}</p> : null}
-          <button className="btn pri start" style={{ height: 60, marginTop: 8 }} disabled={busy || preview} aria-busy={busy} title={preview ? L["drv.previewNo"] : undefined}>{busy ? L["drv.sending"] : L["drv.send"]}</button>
+          <button className="btn pri start" style={{ height: 60, marginTop: 8 }} disabled={busy || preview || read === L["drv.reading"]} aria-busy={busy} title={preview ? L["drv.previewNo"] : undefined}>{busy ? L["drv.sending"] : L["drv.send"]}</button>
         </form>
       ) : null}
       <div className="sheet fade d3"><div className="field" style={{ padding: "4px 0" }}><span style={{ whiteSpace: "nowrap" }}>{L["drv.lastFill"]}</span><span className="ell" title={last} style={{ color: "var(--fg2)", fontSize: 14 }}>{last}</span></div></div>

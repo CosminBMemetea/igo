@@ -111,10 +111,12 @@ try {
   ok("cursă planificată editată", (await A.json("/api/trips/new", { ...payload, id: created.body.id, to: "Timișoara" })).status === 200);
   const filtered = await A.go("/trips?status=planned&q=Timi");
   ok("filtrare curse planificate", filtered.text.includes("Oradea → Timișoara"));
-  const eventBody = { tripId: created.body.id, kind: "loaded", key: "http-load-001", actorId: drv[0].id, occurredAt: new Date().toISOString() };
+  const eventBody = { tripId: created.body.id, kind: "loaded", key: "http-load-001", actorId: drv[0].id, occurredAt: new Date(Date.now() - 3600000).toISOString() };
   ok("cont schimbat respins la sincronizare", (await D.json("/api/trips/event", { ...eventBody, actorId: "another-user" })).status === 403);
   ok("descărcare înainte de încărcare respinsă", (await D.json("/api/trips/event", { ...eventBody, kind: "unloaded" })).status === 409);
   ok("încărcare confirmată", (await D.json("/api/trips/event", eventBody)).body.ok === true);
+  const feedTime = (await db.query("select at from driver_events where user_id=$1 and kind='loaded' order by at desc limit 1", [drv[0].id])).rows[0].at;
+  ok("fluxul păstrează ora evenimentului offline", new Date(feedTime).toISOString() === eventBody.occurredAt);
   ok("retransmitere fără dublare", (await D.json("/api/trips/event", eventBody)).body.duplicate === true);
   ok("editarea după încărcare respinsă", (await A.json("/api/trips/new", { ...payload, id: created.body.id })).status === 409);
   ok("anularea după încărcare respinsă", (await A.go("/api/trips/cancel", { id: created.body.id, reason: "Test cancellation" })).loc.includes("e=transition"));
@@ -126,6 +128,16 @@ try {
   ok("anulare cu motiv confirmată", (await A.go("/api/trips/cancel", { id: toCancel.body.id, reason: "Client cancelled" })).loc.endsWith(`/trips/${toCancel.body.id}`));
   ok("istoricul anulării vizibil", (await A.go(`/trips/${toCancel.body.id}`)).text.includes("Client cancelled"));
   ok("cursa încheiată nu poate fi rescrisă", (await A.json("/api/trips/new", { ...payload, id: created.body.id })).status === 409);
+  for (const path of ["/", "/trips", "/trucks", "/drivers", "/documents", "/receipts", "/invoices", "/settings", "/feed", "/notifications", "/savings", "/ranking"]) {
+    const page = await A.go(path);
+    ok(`pagina patronului ${path} se randează`, page.status === 200 && !page.text.includes("Application error"));
+  }
+  for (const patch of [{ km: "-1" }, { km: "Infinity" }, { tonnes: "61" }, { revenue: "NaN" }, { date: "2026-02-31" }, { driverId: "foreign-driver" }, { truckId: "foreign-truck" }]) {
+    ok(`date invalide respinse ${JSON.stringify(patch)}`, (await A.json("/api/trips/new", { ...payload, ...patch })).status === 400);
+  }
+  const emptyRun = await A.json("/api/trips/new", { ...payload, tonnes: "0", revenue: "0" });
+  const emptyRow = (await db.query("select tonnes,revenue from trips where id=$1", [emptyRun.body.id])).rows[0];
+  ok("tonajul și venitul zero rămân zero", emptyRun.status === 200 && emptyRow.tonnes === 0 && emptyRow.revenue === 0);
   // 5. izolare între firme
   const B = new Agent();
   await B.go("/api/auth/signup", { firm: "Firma B", email: "b@test.ro", password: "parola-lunga-2" });

@@ -37,6 +37,6 @@ export function ActionForm({ action, returnTo, loc, children, reset = false }: {
     {returnTo ? <input type="hidden" name="ret" value={returnTo} /> : null}
     {error ? <p className="msg err" role="alert">{error}</p> : null}
     <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>{children}</fieldset>
-    {busy ? <p role="status">{tri(loc, "Se salvează…|Saving…|Zapisywanie…")}</p> : null}
+    {busy ? <p className="action-status" role="status">{tri(loc, "Se salvează…|Saving…|Zapisywanie…")}</p> : null}
   </form>;
 }

@@ -1,6 +1,6 @@
 "use client";
 // „+ Cursă nouă”: de unde, unde, când, șofer — restul se completează singur (camionul șoferului, km estimați).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TripDictation } from "./TripDictation";
 import Link from "next/link";
@@ -21,17 +21,26 @@ const addDays = (iso: string, n: number) => { const d = new Date(iso + "T12:00:0
 export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, editId }: { loc: Loc; today: string; drivers: NTDriver[]; trucks: { id: string; plate: string }[]; prefill?: NTPrefill; dup?: boolean; autoOpen?: boolean; editId?: string }) {
   const T = L[loc] ?? L.ro, r = useRouter();
   const [open, setOpen] = useState(!!autoOpen), [busy, setBusy] = useState(false), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "" }>({ t: "", k: "" });
-  const [f, setF] = useState({ from: prefill?.from ?? "", to: prefill?.to ?? "", date: editId ? prefill?.date ?? today : dup ? addDays(today, 1) : today, driverId: prefill?.driverId ?? "", truckId: prefill?.truckId ?? "", km: prefill?.km ? String(prefill.km) : "", kmTouched: !!prefill?.km, client: prefill?.client && prefill.client !== "—" ? prefill.client : "", tonnes: prefill?.tonnes ? String(prefill.tonnes) : "", revenue: prefill?.revenue ? String(prefill.revenue) : "" });
+  const [f, setF] = useState({ from: prefill?.from ?? "", to: prefill?.to ?? "", date: editId ? prefill?.date ?? today : dup ? addDays(today, 1) : today, driverId: prefill?.driverId ?? "", truckId: prefill?.truckId ?? "", km: prefill?.km ? String(prefill.km) : "", kmTouched: !!prefill?.km, client: prefill?.client && prefill.client !== "—" ? prefill.client : "", tonnes: prefill?.tonnes != null ? String(prefill.tonnes) : "", revenue: prefill?.revenue != null ? String(prefill.revenue) : "" });
   const [quick, setQuick] = useState("");
   const [dictating, setDictating] = useState(false);
   const requestLock = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null), titleId = useId();
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
   // camionul: din șoferul ales, dacă nu l-a schimbat patronul
   const [truckTouched, setTruckTouched] = useState(!!prefill?.truckId);
   useEffect(() => { if (truckTouched) return; const d = drivers.find((x) => x.id === f.driverId); set({ truckId: d?.truckId ?? "" }); }, [f.driverId]); // eslint-disable-line react-hooks/exhaustive-deps
   const est = useMemo(() => (f.from && f.to ? estimateKm(f.from, f.to) : null), [f.from, f.to]);
   useEffect(() => { if (!f.kmTouched) set({ km: est ? String(est) : "" }); }, [est]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); }; addEventListener("keydown", k); document.documentElement.style.overflow = "hidden"; return () => { removeEventListener("keydown", k); document.documentElement.style.overflow = ""; }; }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.documentElement.style.overflow;
+    dialog.current?.showModal();
+    dialog.current?.querySelector<HTMLInputElement>("input")?.focus();
+    document.documentElement.style.overflow = "hidden";
+    return () => { document.documentElement.style.overflow = overflow; previous?.focus(); };
+  }, [open]);
 
 
   async function parse(text: string) {
@@ -63,10 +72,10 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, e
       <button type="button" className={`btn ${dup ? "sec sm" : "pri"} ntbtn`} onClick={() => { setMsg({ t: "", k: "" }); setOpen(true); }}>{editId ? tri(loc, "Editează cursa|Edit trip|Edytuj kurs") : dup ? T.dup : T.btn}</button>
       {msg.k === "ok" && !open ? <p className="msg ok nt-ok" role="status">{msg.t}</p> : null}
       {open ? (
-        <div className="msheet-bg any" onClick={() => setOpen(false)}>
-          <form className="msheet ntsheet" role="dialog" aria-modal="true" aria-labelledby="nt-t" onClick={(e) => e.stopPropagation()} onSubmit={save} noValidate>
+        <dialog ref={dialog} className="msheet-bg any" aria-labelledby={titleId} onCancel={(e) => { e.preventDefault(); if (!requestLock.current) setOpen(false); }} onClick={(e) => { if (e.target === e.currentTarget && !requestLock.current) setOpen(false); }}>
+          <form className="msheet ntsheet" onClick={(e) => e.stopPropagation()} onSubmit={save} noValidate>
             <div className="msheet-grab" />
-            <h3 id="nt-t">{editId ? tri(loc, "Editează cursa|Edit trip|Edytuj kurs") : dup ? T.dup : T.title}</h3>
+            <div className="nt-heading"><h3 id={titleId}>{editId ? tri(loc, "Editează cursa|Edit trip|Edytuj kurs") : dup ? T.dup : T.title}</h3><button type="button" className="ico" aria-label={T.cancel} disabled={busy} onClick={() => setOpen(false)}>✕</button></div>
             <div className="ntquick">
               <label className="lf"><span>{T.quick}</span><input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder={T.quickPh} enterKeyHint="go" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void parse(quick); } }} /></label>
               <div className="ntqbtns"><TripDictation loc={loc} disabled={busy} onActive={setDictating} onText={(text) => { setQuick(text); void parse(text); }} /><button type="button" className="btn sec sm" disabled={busy || dictating || !quick.trim()} onClick={() => parse(quick)}>✨ {T.fill}</button></div>
@@ -76,7 +85,7 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, e
               <label className="lf"><span>{T.to}</span><input value={f.to} onChange={(e) => set({ to: e.target.value, kmTouched: false })} required maxLength={60} autoComplete="off" placeholder="Timișoara" /></label>
             </div>
             <div className="lf"><span>{T.when}</span><div className="ntchips">{dateChips.map(([l, d]) => <button key={d} type="button" className={`chip${f.date === d ? " on" : ""}`} onClick={() => set({ date: d })} aria-pressed={f.date === d}>{l}</button>)}<input type="date" value={f.date} min={editId ? undefined : today} onChange={(e) => set({ date: e.target.value })} aria-label={T.when} /></div></div>
-            <div className="lf"><span>{T.driver}</span><div className="ntchips">{drivers.map((d) => <button key={d.id} type="button" className={`chip${f.driverId === d.id ? " on" : ""}`} onClick={() => { setTruckTouched(false); set({ driverId: d.id }); }} aria-pressed={f.driverId === d.id} disabled={!d.truckId}>{d.name}{!d.truckId ? " · " + tri(loc, "fără camion|no truck|bez pojazdu") : ""}</button>)}<button type="button" className={`chip${!f.driverId ? " on" : ""}`} onClick={() => { setTruckTouched(true); set({ driverId: "" }); }}>{T.noDriver}</button></div></div>
+            <div className="lf"><span>{T.driver}</span><div className="ntchips">{drivers.map((d) => <button key={d.id} type="button" className={`chip${f.driverId === d.id ? " on" : ""}`} onClick={() => { setTruckTouched(false); set({ driverId: d.id }); }} aria-pressed={f.driverId === d.id} disabled={!d.truckId}>{d.name}{!d.truckId ? " · " + tri(loc, "fără camion|no truck|bez pojazdu") : ""}</button>)}<button type="button" className={`chip${!f.driverId ? " on" : ""}`} onClick={() => { setTruckTouched(true); set({ driverId: "" }); }} aria-pressed={!f.driverId}>{T.noDriver}</button></div></div>
             <p className="hint"><Link href="/drivers">{tri(loc, "Gestionează șoferii și alocările|Manage drivers and assignments|Zarządzaj kierowcami i przydziałami")}</Link></p>
             <div className="nt2">
               <label className="lf"><span>{T.truck}{f.truckId && !truckTouched && drivers.find((x) => x.id === f.driverId)?.truckId === f.truckId ? <small> · {T.auto}</small> : null}</span><select value={f.truckId} onChange={(e) => { setTruckTouched(true); set({ truckId: e.target.value, driverId: drivers.find((d) => d.truckId === e.target.value)?.id ?? "" }); }}><option value="">—</option>{trucks.map((t) => <option key={t.id} value={t.id}>{t.plate}</option>)}</select></label>
@@ -89,9 +98,9 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, e
             </details>
             {msg.t && open ? <p className={`msg ${msg.k}`} role={msg.k === "err" ? "alert" : "status"}>{msg.t}</p> : null}
             <button className="btn pri ntsave" disabled={busy || dictating} aria-busy={busy}>{busy ? T.saving : editId ? tri(loc, "Salvează modificările|Save changes|Zapisz zmiany") : T.save}</button>
-            <button type="button" className="btn sec ntsave" onClick={() => setOpen(false)}>{T.cancel}</button>
+            <button type="button" className="btn sec ntsave" disabled={busy} onClick={() => setOpen(false)}>{T.cancel}</button>
           </form>
-        </div>
+        </dialog>
       ) : null}
     </>
   );

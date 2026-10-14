@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (!/^[\w-]{8,100}$/.test(key)) return NextResponse.json({ error: "key" }, { status: 400 });
   try {
     const result = await store().recordTripEvent(tn.firm.id, { requestKey: key, tripId: b.tripId, kind: b.kind as TripEventKind, at, lat: geo ? b.lat as number : null, lng: geo ? b.lng as number : null, userId: tn.uid });
-    if (!result.duplicate) await logDriver(tn, ownTrip.truckId, b.kind as TripEventKind, { note: ownTrip.title }).catch(() => {});
+    if (!result.duplicate) await logDriver(tn, ownTrip.truckId, b.kind as TripEventKind, { note: ownTrip.title, at: result.event.at }).catch(() => {});
     return NextResponse.json({ ok: true, at: result.event.at, duplicate: result.duplicate });
   } catch (error) {
     if ((error as Error).message === "transition") return NextResponse.json({ error: "transition" }, { status: 409 });

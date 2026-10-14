@@ -147,3 +147,20 @@ Queued trip events do not include GPS coordinates.
 `npm run smoke:outbox` exercises ordering, retained requests, conflicts and receipt
 payloads. Reliability tests exercise concurrent event retries and lifecycle guards
 in memory and Postgres; tenant tests cover the authenticated HTTP workflow.
+
+### UI hardening checks
+
+Shared controls now have explicit keyboard focus, readable completed states, larger
+touch targets and reduced-motion support. Mobile trip rows use cards instead of a
+horizontal table. New-trip dialogs use the native modal focus boundary and restore
+focus on dismissal. Zero tonnage survives the edit form. Receipt OCR failures retain
+valid photos and manual fields; stale OCR results cannot replace a newer selection.
+The latest receipt follows server refreshes, and offline events keep their original
+time in the activity feed. Outbox retry/discard storage failures show an error.
+
+Regression checks: run the full smoke suite on a disposable Postgres database, plus
+`smoke:reliability:pg`. Tenant tests cover owner page rendering, invalid numbers and
+dates, zero values, permissions, event timestamps and concurrent workflow guards.
+Browser QA covers owner/driver controls, narrow layouts, light/dark colors, dialog
+validation, Escape and focus return. Real iOS/Android microphone, camera, storage
+pressure and prolonged offline use still require device testing.
