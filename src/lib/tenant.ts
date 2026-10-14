@@ -35,5 +35,5 @@ async function tenantUncached(): Promise<Tenant> {
 /** Firma în care se poate scrie: proprietarul → firma lui; adminul → firma aleasă în /admin (niciodată demo). */
 export async function writableFirm(): Promise<FirmRow | null> {
   const tn = await tenant();
-  return tn.role === "owner" || tn.role === "admin" ? tn.firm : null;
+  return !tn.demo && (tn.role === "owner" || tn.role === "admin") ? tn.firm : null;
 }

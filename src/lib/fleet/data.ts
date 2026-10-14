@@ -7,7 +7,7 @@ export interface Waypoint { name: string; at: LatLng }
 export interface Truck {
   id: string; plate: string; model: string; driver: string;
   tankL: number; normalL100: number; routeName: string;
-  route: Waypoint[]; hasLevelSensor: boolean; depMin: number;
+  route: Waypoint[]; hasLevelSensor: boolean; depMin: number; reverseRoute?: boolean;
 }
 export interface FillUp {
   id: string; truckId: string; time: string; station: string; stationAt: LatLng;
@@ -55,22 +55,15 @@ export const CC_CUR: Record<string, string> = { HU: "HUF", AT: "EUR", DE: "EUR",
 export const DEMO_LEI_PER: Record<string, number> = { RON: 1, EUR: 5.0, HUF: 0.0127, PLN: 1.17, BGN: 2.56, TRY: 0.12, CHF: 5.35 };
 const r = (...names: string[]): Waypoint[] => names.map((name) => ({ name, at: C[name] }));
 
+// Șapte echipaje pe coridoare europene distincte. Orele sunt cele ale demo-ului (România).
 export const TRUCKS: Truck[] = [
-  { id: "bh21qrt", plate: "BH 21 QRT", model: "Volvo FH 500", driver: "Ioan Pop", tankL: 600, normalL100: 29, routeName: "Oradea → Cluj → Sibiu", route: r("Oradea", "Cluj-Napoca", "Turda", "Sibiu"), hasLevelSensor: true, depMin: 6 * 60 },
-  { id: "cj08qrt", plate: "CJ 08 QRT", model: "Scania R450", driver: "Teo Marcaru", tankL: 500, normalL100: 30, routeName: "Cluj → Dej → Baia Mare", route: r("Cluj-Napoca", "Dej", "Baia Mare"), hasLevelSensor: false, depMin: 8 * 60 + 20 },
-  { id: "tm33qrt", plate: "TM 33 QRT", model: "MAN TGX 18.470", driver: "Ogrud Dat", tankL: 580, normalL100: 30, routeName: "Timișoara → Arad → Budapesta", route: r("Timișoara", "Arad", "Nădlac", "Szeged", "Kecskemét", "Budapesta"), hasLevelSensor: false, depMin: 5 * 60 },
-  { id: "b120qrt", plate: "B 120 QRT", model: "DAF XF 480", driver: "Cristian Ene", tankL: 400, normalL100: 31, routeName: "București → Pitești → Sibiu", route: r("București", "Pitești", "Râmnicu Vâlcea", "Sibiu"), hasLevelSensor: false, depMin: 7 * 60 },
-  { id: "ar45qrt", plate: "AR 45 QRT", model: "Iveco S-Way 480", driver: "Florin Micle", tankL: 450, normalL100: 30, routeName: "Arad → Deva → Alba Iulia", route: r("Arad", "Deva", "Sebeș", "Alba Iulia"), hasLevelSensor: true, depMin: 24 * 60 },
-  { id: "bh77qrt", plate: "BH 77 QRT", model: "Mercedes Actros 1845", driver: "Gabriel Tóth", tankL: 600, normalL100: 28, routeName: "Oradea → Debrecen → Budapesta", route: r("Oradea", "Borș", "Debrecen", "Budapesta"), hasLevelSensor: false, depMin: 8 * 60 },
-  { id: "cj52qrt", plate: "CJ 52 QRT", model: "Renault T 480", driver: "Lică Brumaru", tankL: 500, normalL100: 31, routeName: "Cluj → Târgu Mureș → Brașov", route: r("Cluj-Napoca", "Târgu Mureș", "Sighișoara", "Brașov"), hasLevelSensor: false, depMin: 6 * 60 + 30 },
-  { id: "bv19qrt", plate: "BV 19 QRT", model: "Scania S500", driver: "Radu Neagu", tankL: 600, normalL100: 29, routeName: "Brașov → Ploiești → București", route: r("Brașov", "Ploiești", "București"), hasLevelSensor: false, depMin: 12 * 60 + 25 },
-  // curse internaționale (camioanele sunt pe drum la ora demo; traseul complet e cursa în desfășurare)
-  { id: "bh88qrt", plate: "BH 88 QRT", model: "Volvo FH 540", driver: "Sorin Bălaș", tankL: 900, normalL100: 29, routeName: "Oradea → Budapesta → Viena → München", route: r("Oradea", "Borș", "Budapesta", "Győr", "Hegyeshalom", "Viena", "Linz", "Passau", "München"), hasLevelSensor: true, depMin: -302 },
-  { id: "ar12qrt", plate: "AR 12 QRT", model: "DAF XG 480", driver: "Lucian Pașca", tankL: 800, normalL100: 30, routeName: "Arad → Bratislava → Katowice", route: r("Arad", "Nădlac", "Szeged", "Budapesta", "Rajka", "Bratislava", "Žilina", "Skalité", "Katowice"), hasLevelSensor: false, depMin: 5 * 60 },
-  { id: "tm61qrt", plate: "TM 61 QRT", model: "Scania R500", driver: "Dorin Lazăr", tankL: 900, normalL100: 30, routeName: "Timișoara → Ljubljana → Milano", route: r("Timișoara", "Nădlac", "Szeged", "Letenye", "Ljubljana", "Verona", "Milano"), hasLevelSensor: false, depMin: 3 * 60 + 45 },
-  { id: "cj90qrt", plate: "CJ 90 QRT", model: "Mercedes Actros 1851", driver: "Paul Crișan", tankL: 1000, normalL100: 28, routeName: "Cluj → Viena → Frankfurt → Rotterdam", route: r("Cluj-Napoca", "Oradea", "Borș", "Budapesta", "Hegyeshalom", "Viena", "Nürnberg", "Frankfurt", "Köln", "Venlo", "Rotterdam"), hasLevelSensor: true, depMin: -690 },
-  { id: "ct14qrt", plate: "CT 14 QRT", model: "MAN TGX 18.510", driver: "Ovidel Cârstoc", tankL: 800, normalL100: 31, routeName: "Constanța → Sofia → Istanbul", route: r("Constanța", "Giurgiu", "Ruse", "Sofia", "Plovdiv", "Kapitan Andreevo", "Edirne", "Istanbul"), hasLevelSensor: false, depMin: 5 * 60 + 15 },
-  { id: "bh42qrt", plate: "BH 42 QRT", model: "Renault T High 520", driver: "Nicolae Vlad", tankL: 900, normalL100: 30, routeName: "Bihor → Zürich → Lyon", route: r("Salonta", "Budapesta", "Hegyeshalom", "Viena", "München", "Zürich", "Geneva", "Lyon"), hasLevelSensor: false, depMin: 3 * 60 },
+  { id: "bh21qrt", plate: "BH 21 QRT", model: "Volvo FH 500", driver: "Ioan Pop", tankL: 600, normalL100: 29, routeName: "Viena → Linz → München", route: r("Viena", "Linz", "Passau", "München"), hasLevelSensor: true, depMin: 7 * 60 },
+  { id: "cj08qrt", plate: "CJ 08 QRT", model: "Scania R450", driver: "Andrei Mureșan", tankL: 500, normalL100: 30, routeName: "Frankfurt → Köln → Rotterdam", route: r("Frankfurt", "Köln", "Venlo", "Rotterdam"), hasLevelSensor: false, depMin: 8 * 60 + 20 },
+  { id: "tm33qrt", plate: "TM 33 QRT", model: "MAN TGX 18.470", driver: "Mihai Dobre", tankL: 580, normalL100: 30, routeName: "Timișoara → Arad → Budapesta", route: r("Timișoara", "Arad", "Nădlac", "Szeged", "Kecskemét", "Budapesta"), hasLevelSensor: false, depMin: 6 * 60 },
+  { id: "b120qrt", plate: "B 120 QRT", model: "DAF XF 480", driver: "Cristian Ene", tankL: 400, normalL100: 31, routeName: "Ljubljana → Verona → Milano", route: r("Ljubljana", "Verona", "Milano"), hasLevelSensor: false, depMin: 8 * 60 },
+  { id: "ar45qrt", plate: "AR 45 QRT", model: "Iveco S-Way 480", driver: "Florin Micle", tankL: 450, normalL100: 30, routeName: "Zürich → Geneva → Lyon", route: r("Zürich", "Geneva", "Lyon"), hasLevelSensor: true, depMin: 9 * 60 + 30 },
+  { id: "bh77qrt", plate: "BH 77 QRT", model: "Mercedes Actros 1845", driver: "Gabriel Tóth", tankL: 600, normalL100: 28, routeName: "Bratislava → Žilina → Katowice", route: r("Bratislava", "Žilina", "Skalité", "Katowice"), hasLevelSensor: false, depMin: 9 * 60 },
+  { id: "cj52qrt", plate: "CJ 52 QRT", model: "Renault T 480", driver: "Alexandru Rusu", tankL: 500, normalL100: 31, routeName: "Sofia → Plovdiv → Istanbul", route: r("Sofia", "Plovdiv", "Kapitan Andreevo", "Edirne", "Istanbul"), hasLevelSensor: false, depMin: 7 * 60 + 30 },
 ];
 
 // ---------- utilitare ----------
@@ -98,17 +91,18 @@ function dayStr(offsetFromDemoDay: number): string {
 export const minToHHMM = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(Math.floor(m % 60))}`;
 
 // ---------- traseu & poziție în ziua demo ----------
-/** Geometria pe drumuri reale (OSRM, pre-calculată în roads.json de scripts/fetch-roads.mts). Dus-întors. */
+/** Geometria pe drumuri reale (OSRM, pre-calculată în roads.json de scripts/fetch-roads.mts). Doar dus; returul este o cursă distinctă. */
 const GEOM = new Map<string, { pts: LatLng[]; cum: number[] }>();
 export function roadOf(id: string): LatLng[] | null { const r = (ROADS as unknown as Record<string, { path: LatLng[] }>)[id]; return r ? r.path : null; }
 function geom(t: Truck) {
-  let g = GEOM.get(t.id);
+  const key = `${t.id}:${t.reverseRoute ? "back" : "out"}`;
+  let g = GEOM.get(key);
   if (!g) {
-    const one = roadOf(t.id) ?? t.route.map((w) => w.at);
-    const pts = [...one, ...one.slice(0, -1).reverse()];
+    const road = roadOf(t.id);
+    const pts = road ? (t.reverseRoute ? [...road].reverse() : road) : t.route.map((w) => w.at);
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversineKm(pts[i - 1], pts[i]));
-    g = { pts, cum }; GEOM.set(t.id, g);
+    g = { pts, cum }; GEOM.set(key, g);
   }
   return g;
 }
@@ -147,9 +141,12 @@ export function dayPlan(t: Truck): Phase[] {
   let m = t.depMin, km = 0;
   phases.push({ kind: "stop", start: 0, end: Math.min(m, 1440), kmStart: 0, kmEnd: 0 });
   if (m >= 1440) return phases;
-  const legs: [number, Phase["kind"], number][] = [[0.25, "pump", 25], [0.5, "break", 75], [0.75, "break", 45], [1, "stop", 0]];
-  for (const [frac, kind, dur] of legs) {
-    const target = total * frac;
+  const legs: [number, Phase["kind"], number][] = [[total * 0.28, "pump", 25]];
+  // Pauză la cel mult 4 h 30 de condus. Alimentarea nu resetează timpul de condus.
+  for (let at = SPEED * 4.5; at < total; at += SPEED * 4.5) legs.push([at, "break", 45]);
+  legs.push([total, "stop", 0]);
+  legs.sort((a, b) => a[0] - b[0]);
+  for (const [target, kind, dur] of legs) {
     const end = m + ((target - km) / SPEED) * 60;
     phases.push({ kind: "drive", start: m, end, kmStart: km, kmEnd: target });
     m = end; km = target;
@@ -212,7 +209,7 @@ function buildFills(): FillUp[] {
     }
     // alimentarea din ziua demo, la oprirea „la pompă”
     const pump = dayPlan(t).find((p) => p.kind === "pump");
-    if (pump && pump.start < DEMO_NOW_MIN) {
+    if (pump && pump.start + 8 <= DEMO_NOW_MIN) {
       const at = pointAtKm(t, pump.kmStart);
       const prev = out.filter((f) => f.truckId === t.id).slice(-1)[0];
       const km = Math.round(pump.kmStart + 360);
@@ -242,7 +239,7 @@ export function levelSeries(t: Truck): LevelPoint[] | null {
     if (pos.status === "pump" && m >= dayPlan(t).find((p) => p.kind === "pump")!.start + 10 && level < t.tankL * 0.6) level = t.tankL * 0.95;
     // AR 45 parcat: scădere bruscă de ~80 L între 02:40 și 03:00, contact oprit (regula b)
     if (t.id === "ar45qrt" && m > 160 && m <= 180) level -= 40;
-    pts.push({ min: m, levelL: Math.round(level + (rnd() - 0.5) * 2), moving });
+    pts.push({ min: m, levelL: Math.max(0, Math.min(t.tankL, Math.round(level + (rnd() - 0.5) * 2))), moving });
   }
   return pts;
 }

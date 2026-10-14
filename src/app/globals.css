@@ -1333,3 +1333,41 @@ dialog.msheet-bg::backdrop{background:rgba(0,0,0,.40);backdrop-filter:blur(4px)}
 summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after{content:'⌃'}
 .sheet>details:not(:first-child){margin-top:12px}
 @media(max-width:760px){form.invrow>.lf{flex-basis:100%;min-width:0}form.invrow>.btn{width:100%}.driver-main .field .input{max-width:42%}.driver-main .field .cursel+.input{max-width:32%}}
+
+/* Europe demo: one fleet overview, shared with the live map. */
+.demo-fleet{margin:0 0 36px;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:var(--bg2);box-shadow:0 16px 48px #00000012}
+.demo-fleet-head{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:28px 30px;background:linear-gradient(115deg,color-mix(in srgb,var(--acc) 12%,var(--bg2)),var(--bg2))}
+.demo-fleet-head .eyebrow{font-size:10px;color:var(--acc);letter-spacing:.15em;font-weight:700}
+.demo-fleet-head h1{font-size:clamp(24px,3.6vw,38px);line-height:1.15;letter-spacing:-.035em;font-weight:600;margin:9px 0}
+.demo-fleet-head p{font-size:14px;color:var(--fg2)}
+.demo-fleet-head .btn{flex:none;gap:16px}
+.demo-fleet-body{display:grid;grid-template-columns:minmax(0,1fr) 372px;border-block:1px solid var(--line)}
+.demo-fleet-map{position:relative;min-height:535px;background:var(--map);isolation:isolate}
+.demo-fleet-map .leaflet-container{z-index:0}
+.demo-fleet-map .leaflet-control-attribution{font-size:8px;max-width:90%;white-space:normal}
+.demo-fleet-time{position:absolute;top:16px;left:16px;z-index:1;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;border-radius:10px;padding:10px 12px;background:var(--bg2);box-shadow:0 4px 18px #00000020}
+.demo-fleet-time i{width:7px;height:7px;background:var(--acc);border-radius:50%}
+.demo-fleet-time span{font-size:11px;color:var(--fg2);font-weight:400}
+.demo-fleet-legend{position:absolute;bottom:26px;left:16px;z-index:1;display:flex;gap:14px;flex-wrap:wrap;padding:9px 12px;background:var(--bg2);border-radius:10px;font-size:10px;color:var(--fg2)}
+.demo-fleet-legend span{display:flex;align-items:center;gap:6px}.demo-fleet-legend i{height:3px;width:16px;border-radius:3px;background:#3b82f6;opacity:.35}.demo-fleet-legend span:last-child i{opacity:1}
+.demo-fleet-routes{border-left:1px solid var(--line)}
+.demo-fleet-route{display:grid;grid-template-columns:22px minmax(0,1fr) 12px;align-items:center;gap:12px;padding:14px 16px;min-height:76px;transition:background .15s}
+.demo-fleet-route+.demo-fleet-route{border-top:1px solid var(--line)}
+.demo-fleet-route:hover{background:color-mix(in srgb,var(--acc) 7%,var(--bg2))}
+.demo-fleet-index{font-variant-numeric:tabular-nums;font-size:10px;letter-spacing:.04em;color:var(--fg2)}
+.demo-fleet-route-title{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.demo-fleet-route-title b{font-size:12px;letter-spacing:.04em;font-weight:650}
+.demo-fleet-status{font-size:9px;color:var(--fg2);background:var(--bg3);border-radius:999px;padding:3px 7px;white-space:nowrap}
+.demo-fleet-status.moving{color:var(--pos);background:color-mix(in srgb,var(--pos) 10%,transparent)}
+.demo-fleet-status.pump{color:#a16b05;background:#f5a52418}
+.demo-fleet-route p{font-size:12px;line-height:1.4;margin:5px 0 3px}.demo-fleet-route p span{color:var(--fg2);padding:0 2px}
+.demo-fleet-route small{display:block;font-size:10px;line-height:1.45;color:var(--fg2)}
+.demo-fleet-arrow{color:var(--fg2);font-size:12px}
+.demo-fleet-foot{display:flex;justify-content:space-between;gap:18px;padding:14px 24px;font-size:11px;line-height:1.5;color:var(--fg2)}.demo-fleet-foot a{font-weight:600;color:var(--acc);white-space:nowrap}
+@media(max-width:1000px){.demo-fleet-body{grid-template-columns:minmax(0,1fr) 330px}.demo-fleet-route{gap:8px;padding-inline:12px}}
+@media(max-width:760px){.demo-fleet{border-radius:18px;margin-bottom:24px}.demo-fleet-head{padding:20px;align-items:flex-start;flex-wrap:wrap;gap:16px}.demo-fleet-head .btn{min-height:40px;font-size:12px}.demo-fleet-body{grid-template-columns:1fr}.demo-fleet-map{min-height:300px}.demo-fleet-routes{border-left:0;border-top:1px solid var(--line)}.demo-fleet-route{padding:14px 16px}.demo-fleet-route-title b{font-size:13px}.demo-fleet-route p{font-size:13px}.demo-fleet-route small{font-size:11px}.demo-fleet-status{font-size:10px}.demo-fleet-foot{padding:16px;flex-wrap:wrap;gap:8px}}
+
+.demo-roster{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.demo-roster-card{margin:0;padding:24px;min-width:0}.demo-roster-person{display:flex;align-items:center;gap:14px}.demo-roster-person>span{width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:15px;background:color-mix(in srgb,var(--acc) 12%,var(--bg2));color:var(--acc);font-size:14px;font-weight:650}.demo-roster-person h2{font-size:18px;letter-spacing:-.02em;font-weight:600}.demo-roster-person p{font-size:12px;color:var(--fg2);margin-top:5px}.demo-roster-route{margin:22px 0;padding:16px 0;border-block:1px solid var(--line)}.demo-roster-route small{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--fg2)}.demo-roster-route p{font-size:16px;line-height:1.5;margin:7px 0}.demo-roster-route span{font-size:12px;color:var(--fg2)}
+@media(max-width:760px){.demo-roster{grid-template-columns:1fr}.demo-roster-card{padding:20px}}
+
+.vm{width:max-content}.label-left .vm{flex-direction:row-reverse;transform:translateX(calc(-100% + 14px))}.label-left .vm.sel{transform:translateX(calc(-100% + 20px))}

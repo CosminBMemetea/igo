@@ -34,7 +34,7 @@ export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[], 
   for (const tr of trips) {
     const v = vehicles.find((x) => x.id === tr.vehicleId)!;
     const p = tripProfit(tr);
-    if (!tr.active && p.profit < 0) {
+    if (!tr.cancelledAt && !tr.active && p.profit < 0) {
       const top = ([["tolls", p.tolls], ["other", p.other], ["fuel", p.fuel], ["driver", p.driver]] as const).reduce((a, b) => (b[1] > a[1] ? b : a));
       out.push({ id: `loss-${tr.id}`, rule: "loss", vehicleId: v.id, time: `${tr.date}T18:00`, severity: "high", theft: false, params: { title: tr.title, plate: v.name, date: tr.date, revenue: p.revenue, costs: p.costs, profit: p.profit, top: top[0] } });
     }
@@ -93,9 +93,7 @@ export class DemoRepository implements IgoRepository {
     for (const t of TRUCKS) levels[t.id] = levelSeries(t);
     const fuel = computeAlerts({ trucks: TRUCKS, fills: FILLS, levels }).map((a): AppAlert => ({ id: a.id, rule: a.rule, vehicleId: a.truckId, time: a.time, severity: a.severity, theft: a.theft, params: a.params }));
     const rank: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
-    // demo: BH 77 QRT alimentează în pauza privată a șoferului → fără poziție, fără alarmă falsă
-    const priv: AppAlert = { id: "gps-privat-bh77", rule: "gps-privat", vehicleId: "bh77qrt", time: "2026-10-15T12:40", severity: "low", theft: false, params: { plate: "BH 77 QRT", station: "MOL Debrecen", litres: 210, time: "2026-10-15T12:40", nogps: 1 } };
-    return [...fuel, priv, ...businessAlerts(await this.vehicles(), this.trucksOnly ? TT : TRIPS, this.trucksOnly ? TD : DOCS)].sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time));
+    return [...fuel, ...businessAlerts(await this.vehicles(), this.trucksOnly ? TT : TRIPS, this.trucksOnly ? TD : DOCS)].sort((a, b) => rank[a.severity] - rank[b.severity] || Number(b.theft) - Number(a.theft) || b.time.localeCompare(a.time));
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const row = { ...f, id: `df-${Date.now()}-${this.fills.length}` };
@@ -105,13 +103,13 @@ export class DemoRepository implements IgoRepository {
   async driverFills(vehicleId?: string) { return this.fills.filter((f) => !vehicleId || f.vehicleId === vehicleId).slice(-20); }
   async setShift(s: Shift) { this.shifts.set(s.vehicleId, s); return s; }
   // demo: șoferii cu cursă azi sunt deja în tură (pornită la 05:30), ca evenimentele cursei să fie coerente;
-  // BH 77 QRT e în pauză privată (apare „Privat” pe hartă) — fără evenimente de cursă în paralel
+  // Pauza privată poate fi încercată din interfața șoferului; starea este izolată în cookie-ul vizitatorului.
   async shift(vehicleId: string) {
     const s = this.shifts.get(vehicleId);
     if (s) return s;
     if (!TIDS.has(vehicleId)) return null;
     const day = realToday();
-    return { vehicleId, start: roIso(day, "05:30"), end: null, checklist: ["tyres", "fluids", "docs", "damage"], privateSince: vehicleId === "bh77qrt" ? roIso(day, "12:30") : null };
+    return { vehicleId, start: roIso(day, "05:30"), end: null, checklist: ["tyres", "fluids", "docs", "damage"], privateSince: null };
   }
 }
 

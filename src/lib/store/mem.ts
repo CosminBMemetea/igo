@@ -146,7 +146,12 @@ export class MemStore implements Store {
   async addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">) { if (!this.R.some((x) => x.id === e.tripId && x.firmId === firmId)) throw new Error("trip"); const r = { ...e, id: newId("v"), firmId }; this.V.push(r); return { ...r }; }
   async tripEvents(firmId: string, tripId: string) { return this.V.filter((x) => x.firmId === firmId && x.tripId === tripId).sort((a, b) => a.at.localeCompare(b.at)); }
   async docs(firmId: string) { return this.D.filter((x) => x.firmId === firmId); }
-  async addTrip(firmId: string, t: Omit<TripRow, "id" | "firmId">) { if (!this.T.some((x) => x.id === t.truckId && x.firmId === firmId)) throw new Error("truck"); const r = { ...t, id: newId("r"), firmId }; this.R.push(r); return { ...r }; }
+  async addTrip(firmId: string, t: Omit<TripRow, "id" | "firmId">) {
+    if (!this.T.some((x) => x.id === t.truckId && x.firmId === firmId)) throw new Error("truck");
+    const existing = t.requestKey ? this.R.find((r) => r.firmId === firmId && r.requestKey === t.requestKey) : null;
+    if (existing) { if (!t.requestHash || existing.requestHash !== t.requestHash) throw new Error("request_conflict"); return { ...existing }; }
+    const r = { ...t, id: newId("r"), firmId }; this.R.push(r); return { ...r };
+  }
   async trips(firmId: string) { return this.R.filter((x) => x.firmId === firmId).sort((a, b) => b.date.localeCompare(a.date)); }
   async addSupport(s: Omit<SupportRow, "id" | "status" | "createdAt">) { const r: SupportRow = { ...s, id: newId("s"), status: "new", createdAt: new Date().toISOString() }; this.S.push(r); return { ...r }; }
   async support() { return [...this.S].reverse(); }

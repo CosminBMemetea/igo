@@ -29,7 +29,7 @@ export function NavIcons({ labels, demo, tour, driver, owner, alerts = 0 }: { la
   useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false); addEventListener("keydown", k); document.documentElement.classList.add("msheet-open"); return () => { removeEventListener("keydown", k); document.documentElement.classList.remove("msheet-open"); }; }, [open]);
   useEffect(() => { if (!tour) return; const u = () => { try { setTourFresh(!JSON.parse(localStorage.getItem("qf-tour2") || "{}").done); } catch { setTourFresh(true); } }; u(); addEventListener("qf-tour-seen", u); addEventListener("storage", u); return () => { removeEventListener("qf-tour-seen", u); removeEventListener("storage", u); }; }, [tour]);
   const on = (h: string) => (h === "/" ? path === "/" : path.startsWith(h) || (h === "/trips" && path.startsWith("/replay") || h === "/trucks" && path.startsWith("/vehicles")) || (h === "/features" && path.startsWith("/plans")));
-  const list = owner ? OWNER : demo ? DEMO : ITEMS;
+  const list = owner ? (demo ? [...OWNER, ["upload", "/import", true], ["driver", "/driver", true], ["ranking", "/ranking", true], ["savings", "/savings", true]] as It[] : OWNER) : demo ? DEMO : ITEMS;
   const main = owner ? ["home", "trips", "truck", "people"] : MAIN;
   if (driver) return (
     <nav className="nav">

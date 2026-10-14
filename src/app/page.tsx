@@ -1,3 +1,4 @@
+import { DemoFleet } from "@/components/DemoFleet";
 import { EL, ef } from "@/lib/econ-i18n";
 import { fleetEcon } from "@/lib/econ";
 import { EconKpis } from "@/components/Econ";
@@ -78,6 +79,7 @@ export default async function Home() {
   return (
     <main>
       {welcome}
+      {d.demo ? <DemoFleet live={live} loc={loc} theme={prefs.theme} /> : null}
       {theft && theft.rule === "card-fara-camion" ? (
         <Link href={`/alerts#${theft.id}`} className="theft fade">
           <span className="tic" aria-hidden="true">!</span>
@@ -111,7 +113,7 @@ export default async function Home() {
       <Gate feature="ai" prefs={prefs} inline>
         <AskBox loc={loc} labels={{ ph: t(loc, "ask.ph"), fallback: t(loc, "ask.fallback"), ai: t(loc, "ask.ai"), error: t(loc, "ask.error") }} />
       </Gate>
-      {live.some((x) => x.at) ? <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
+      {!d.demo && live.some((x) => x.at) ? <Link href="/live" className="mapstrip fade d3" style={{ display: "block" }}>
         <FleetMap mode="strip" vehicles={live.map((x) => ({ ...x, track: [], done: [] }))} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={loc} labels={mapLabels(loc)} now={DEMO_NOW_MIN} />
         <div className="hchips" aria-label={t(loc, "home.now")}>
           <span className="hc"><i className="dot mv" /><b>{moving}</b>{t(loc, "hc.moving")}</span>

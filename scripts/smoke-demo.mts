@@ -1,9 +1,13 @@
 // smoke:demo: demo-ul are o singură sursă de adevăr (Acasă = Curse = Clienți = Bonuri = Economii),
 // date relative la azi (nimic din viitor), exact 3 alerte credibile și niciun „simulat” în interfață.
 import { DemoRepository } from "../src/lib/repo";
-import { clientSummaries, demoReceipts, monthSummary, tripViews } from "../src/lib/query";
+import { clientSummaries, demoReceipts, monthSummary, tripViews, liveFleet, fullPath } from "../src/lib/query";
 import { economii } from "../src/lib/economii";
 import { realToday, shiftStr, demoDelta } from "../src/lib/demo-time";
+import { TRUCKS, CITY_CC, DEMO_NOW_MIN, dayPlan, positionAt, routeTotalKm, haversineKm, levelSeries, kmAt, FILLS } from "../src/lib/fleet/data";
+import { demoReplay } from "../src/lib/replay";
+import { buildFeed } from "../src/lib/feed";
+import { rankings } from "../src/lib/ranking";
 import { CATALOGS } from "../src/lib/i18n";
 let fail = 0;
 const ok = (name: string, c: boolean, info = "") => { console.log(`${c ? "PASS" : "FAIL"} ${name}${info ? ` (${info})` : ""}`); if (!c) fail++; };
@@ -17,6 +21,35 @@ const cs = clientSummaries(clients, views);
 const rc = demoReceipts(views);
 const e = economii(views, alerts, vehicles, 15);
 const today = realToday();
+
+// Șapte echipaje reale în scenariu, cu o singură rută comună hărții și curselor.
+ok("exact 7 camioane și 7 șoferi distincți", vehicles.length === 7 && TRUCKS.length === 7 && new Set(vehicles.map((v) => v.driver)).size === 7);
+ok("fiecare cursă are camion și client valabile", trips.every((t) => vehicles.some((v) => v.id === t.vehicleId) && clients.some((c) => c.id === t.clientId)));
+ok("exact o cursă de azi per camion", vehicles.every((v) => trips.filter((t) => t.vehicleId === v.id && t.active).length === 1));
+const countries = new Set(TRUCKS.flatMap((t) => t.route.map((w) => CITY_CC[w.name] ?? "RO")));
+ok("rutele traversează cel puțin 12 țări", countries.size >= 12, [...countries].join(", "));
+const live = liveFleet(vehicles, views, [], [], DEMO_NOW_MIN, new Set());
+ok("toate cele 7 camioane au poziții distincte", live.length === 7 && live.every((v) => v.at) && new Set(live.map((v) => v.at?.join(","))).size === 7);
+ok("poziții răspândite în Europa, vest și est", Math.min(...live.map((v) => v.at![1])) < 10 && Math.max(...live.map((v) => v.at![1])) > 24);
+for (const truck of TRUCKS) {
+  const plan = dayPlan(truck), total = routeTotalKm(truck), view = views.find((v) => v.vehicleId === truck.id && v.active)!;
+  const end = plan.find((p) => p.kind === "stop" && p.kmStart > 0)!.start;
+  ok(`${truck.plate}: km cursă = km hartă, fără retur ascuns`, Math.abs(view.km - total) <= 1);
+  ok(`${truck.plate}: la final ajunge la destinație`, haversineKm(positionAt(truck, end).at, truck.route[truck.route.length - 1].at) < 1);
+  let driving = 0, longest = 0;
+  for (const p of plan) { if (p.kind === "drive") { driving += p.end - p.start; longest = Math.max(longest, driving); } if (p.kind === "break" && p.end - p.start >= 45) driving = 0; }
+  ok(`${truck.plate}: pauze și distanțe plauzibile`, truck.depMin >= 0 && longest <= 270.01 && total >= 300 && total <= 600);
+  ok(`${truck.plate}: rezervor în limite`, (levelSeries(truck) ?? []).every((p) => p.levelL >= 0 && p.levelL <= truck.tankL));
+  const replay = demoReplay(truck.id, "2026-10-15", view.id)!;
+  ok(`${truck.plate}: replay fără viitor, aceeași poziție finală`, replay.keys.every((p) => p[0] <= DEMO_NOW_MIN) && replay.events.every((e) => e.min <= DEMO_NOW_MIN && (e.end ?? 0) <= DEMO_NOW_MIN) && Math.abs(replay.km - kmAt(truck, DEMO_NOW_MIN)) < 1);
+  const back = fullPath(truck.id, truck.routeName.split(" → ").reverse().join(" → "));
+  ok(`${truck.plate}: returul începe din capătul corect`, haversineKm(back[0], truck.route[truck.route.length - 1].at) < 1);
+}
+const privateFleet = liveFleet(vehicles, views, [], [], DEMO_NOW_MIN, new Set([TRUCKS[0].id]));
+ok("pauză privată: fără poziție, istoric sau traseu", privateFleet[0].at === null && privateFleet[0].track.length === 0 && privateFleet[0].ahead.length === 0 && privateFleet[0].done.length === 0);
+ok("bonurile zilei nu vin din viitor", FILLS.filter((f) => f.time.startsWith("2026-10-15")).every((f) => f.time.slice(11, 16) <= "14:00"));
+const feed = buildFeed({ loc: "ro", vehicles, views, clients, alerts, live, drivers: rankings(vehicles, views, alerts, today, true).drivers });
+ok("flux: 7 povești și evenimente legate de flota curentă", feed.stories.length === 7 && feed.events.every((e) => vehicles.some((v) => v.id === e.vehicleId)));
 
 // 1. totaluri identice între pagini
 ok("clienți: profit = Acasă", near(cs.reduce((s, c) => s + c.profit, 0), m.profit), `${Math.round(cs.reduce((s, c) => s + c.profit, 0))} vs ${Math.round(m.profit)}`);

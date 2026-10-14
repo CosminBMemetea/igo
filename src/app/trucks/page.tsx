@@ -1,12 +1,14 @@
+import { DemoRoster } from "@/components/DemoRoster";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
-import { writableFirm } from "@/lib/tenant";
+import { writableFirm, tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
 import { t, tri } from "@/lib/i18n";
 import { ActionForm } from "@/components/ActionForm";
 export const dynamic = "force-dynamic";
 export default async function Trucks({ searchParams }: { searchParams: { q?: string; archived?: string; ok?: string } }) {
+  if ((await tenant()).demo) return <DemoRoster kind="trucks" loc={getPrefs().loc} query={searchParams.q} />;
   const firm = await writableFirm(); if (!firm) redirect("/");
   const { loc } = getPrefs(), tr = (s: string) => tri(loc, s);
   const [trucks, users] = await Promise.all([store().trucks(firm.id), store().users(firm.id)]);

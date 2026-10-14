@@ -54,6 +54,7 @@ if (fail) { console.error(`smoke:auth: ${fail} eșec(uri)`); process.exit(1); }
 ok("demo poate deschide /import", decide("/import", user).kind === "allow");
 ok("demo poate previzualiza/importa (în memorie)", decide("/api/import/preview", user).kind === "allow" && decide("/api/import/commit", user).kind === "allow");
 ok("demo NU poate asocia carduri / setup", decide("/api/import/assign", user).kind === "forbidden" && decide("/setup", user).kind === "forbidden");
+ok("demo poate explora camioanele și șoferii", decide("/trucks", user).kind === "allow" && decide("/drivers", user).kind === "allow" && decide("/api/drivers/assign", user).kind === "forbidden");
 ok("demo poate deschide /replay", decide("/replay", user).kind === "allow");
 {
   const { demoSandbox } = await import("../src/lib/fuel/demo-import");

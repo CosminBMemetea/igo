@@ -16,8 +16,8 @@ for (const [rule, truck] of need) {
   if (hit.some((a) => (["ro", "en", "pl"] as const).some((l) => whyText(l, a).length < 40 || /\{\w+\}/.test(whyText(l, a))))) { console.log(`FAIL ${rule}: explicație lipsă`); fail++; }
 }
 const clean = TRUCKS.filter((t) => !alerts.some((a) => a.truckId === t.id));
-console.log(`${clean.length >= 3 ? "PASS" : "FAIL"} camioane fără alerte: ${clean.map((t) => t.plate).join(", ")}`);
-if (clean.length < 3) fail++;
+console.log(`${["bh21qrt", "bh77qrt"].every((id) => clean.some((t) => t.id === id)) ? "PASS" : "FAIL"} camioane fără alerte: ${clean.map((t) => t.plate).join(", ")}`);
+if (!["bh21qrt", "bh77qrt"].every((id) => clean.some((t) => t.id === id))) fail++;
 const again = JSON.stringify(computeAlerts(d));
 console.log(`${again === JSON.stringify(alerts) ? "PASS" : "FAIL"} determinist`);
 if (again !== JSON.stringify(alerts)) fail++;

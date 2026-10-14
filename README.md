@@ -164,3 +164,14 @@ dates, zero values, permissions, event timestamps and concurrent workflow guards
 Browser QA covers owner/driver controls, narrow layouts, light/dark colors, dialog
 validation, Escape and focus return. Real iOS/Android microphone, camera, storage
 pressure and prolonged offline use still require device testing.
+
+
+## Demo Europa și audit de regresie — octombrie 2026
+
+- Demo-ul public are exact 7 camioane și 7 șoferi, cu 7 curse curente și 49 curse istorice. Coridoare: Viena–München, Frankfurt–Rotterdam, Timișoara–Budapesta, Ljubljana–Milano, Zürich–Lyon, Bratislava–Katowice, Sofia–Istanbul. 13 țări în punctele traseelor; date fictive, mutate relativ la ziua curentă.
+- Acasă prezintă flota pe hartă și lista echipajelor; Camioane/Șoferi sunt accesibile și în demo, cu căutare și detalii. Modificările demo ale pauzei private continuă să ascundă poziția.
+- Corecții demo: o singură direcție per cursă (fără retur ascuns în kilometri), ETA cu pauze, ore de plecare pozitive, reluare limitată la ora demo, retururi cu geometria inversată, CMR/POD și evenimente generate din cursa corespunzătoare. Etichetele hărții se orientează spre interior la marginea dreaptă.
+- Corecții reale: API-ul de curse raportează modul corect; încasările clienților exclud cursele anulate și încă neîncheiate; modul demo nu poate folosi endpointurile `writableFirm` pentru a modifica firma reală; reîncercarea creării unei curse nu o dublează.
+- Migrația `0014` adaugă o cheie de cerere unică per firmă și amprenta datelor inițiale. Aceeași cheie/date returnează cursa salvată, aceeași cheie/alte date produce 409. Interfața păstrează cheia la reîncercare, o schimbă dacă formularul se modifică și limitează așteptarea salvării la 20 de secunde. Clienții vechi fără cheie rămân compatibili, dar nu au această deduplicare.
+- Verificări: `smoke:demo` include flota 7/7, asocierile, țările, coordonatele, geometria, timpii de condus, pauzele, combustibilul, confidențialitatea și totalurile financiare. `smoke:reliability` verifică 8 creări concurente, coliziuni de cheie, izolare între firme și reîncercare după editare, în memorie și PostgreSQL. `smoke:tenant` verifică și comportamentul HTTP pentru aceste cazuri și paginile demo.
+- Limite: testele nu reprezintă certificare de tahograf/rutare pentru camioane; OSRM generează doar geometria exemplului. GPS-ul pe telefon cu ecranul blocat, dictarea cu microfon real și comportamentul rețelelor mobile necesită probe pe Android/iPhone. Înainte de comercializare: pilot cu firme reale, verificarea profitului estimat față de costurile confirmate, flux de facturare/încasare, restaurare backup verificată, monitorizare și măsurarea costului OCR/AI per client.

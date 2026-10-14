@@ -6,7 +6,7 @@ import { MemStore } from "../src/lib/store/mem";
 import { PgStore } from "../src/lib/store/pg";
 import type { Store, TripRow } from "../src/lib/store/types";
 import { FirmRepository, tripRowToTrip, truckToVehicle } from "../src/lib/firm-repo";
-import { tripViews, monthSummary } from "../src/lib/query";
+import { tripViews, monthSummary, clientSummaries } from "../src/lib/query";
 import { tripEcon, profileOf, nextCostMonth } from "../src/lib/costs";
 import { driverTruck, driverTrip } from "../src/lib/driver-access";
 import { isDate } from "../src/lib/validate";
@@ -39,6 +39,18 @@ assert.equal(profileOf(versioned, "2026-03-01").leasing, 2500);
 assert.equal(profileOf(versioned, "2026-04-30").leasing, 4000);
 assert.equal(profileOf(versioned, "2026-02-28").leasing, 1000);
 console.log("PASS financial regressions, monthly cost versions and strict dates");
+
+const invoiceViews = tripViews([
+  { ...trip, clientId: "client", payment: "due" },
+  { ...trip, id: "cancelled", clientId: "client", payment: "overdue", cancelledAt: "2026-02-20T12:00:00Z" },
+  { ...trip, id: "planned", clientId: "client", payment: "due", active: true },
+], [vehicle]);
+const client = { id: "client", name: "Test", country: "RO", vat: "", contacts: [], payDays: 30 };
+const account = clientSummaries([client], invoiceViews)[0];
+assert.equal(account.overdue, 0);
+assert.equal(account.toCollect, trip.revenue);
+assert.equal(account.worst, "due");
+console.log("PASS cancelled and planned trips cannot inflate client receivables");
 
 async function verifyStore(s: Store) {
   const suffix = randomUUID().slice(0, 8), firm = await s.createFirm({ name: `Audit ${suffix}`, cui: null });
@@ -92,6 +104,15 @@ async function verifyStore(s: Store) {
     await assert.rejects(s.setShift(firm.id, { truckId: t1.id, start: "2026-02-20T08:00:01.000Z", end: null, checklist: [] }), "concurrent starts cannot reset a shift");
     await s.setShift(firm.id, { truckId: t1.id, start, end, checklist: [] });
     await assert.rejects(s.setShift(firm.id, { truckId: t1.id, start, end: null, checklist: [], privateSince: start }), "stale privacy update cannot reopen a shift");
+    const keyed = { ...base, truckId: t1.id, planned: true, requestKey: "create-trip-test-001", requestHash: "payload-a" };
+    const creates = await Promise.all(Array.from({ length: 8 }, () => s.addTrip(firm.id, keyed)));
+    assert.equal(new Set(creates.map((t) => t.id)).size, 1, "concurrent retries must create exactly one trip");
+    await assert.rejects(s.addTrip(firm.id, { ...keyed, revenue: 2000, requestHash: "payload-b" }), /request_conflict/);
+    const foreignKey = await s.addTrip(other.id, { ...keyed, truckId: foreign.id });
+    assert.notEqual(foreignKey.id, creates[0].id, "request keys must be scoped to the firm");
+    await s.updateTrip(firm.id, creates[0].id, { revenue: 2000 });
+    assert.equal((await s.addTrip(firm.id, keyed)).revenue, 2000, "a delayed retry returns current data without overwriting edits");
+    console.log("PASS trip creation: 8 concurrent retries, payload conflict, tenant isolation and delayed retry");
     const saved = await s.addTrip(firm.id, { ...base, truckId: t1.id, driverId: user.id, planned: true });
     assert.equal(await driverTrip(s, tn, saved.id), true);
     assert.equal(await driverTrip(s, { ...tn, uid: second.id }, saved.id), false);

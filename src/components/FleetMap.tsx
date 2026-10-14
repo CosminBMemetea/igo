@@ -34,11 +34,11 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{ L: typeof Leaflet; map: Leaflet.Map; cluster: Leaflet.MarkerClusterGroup; trail?: Leaflet.LayerGroup; ghost?: Leaflet.CircleMarker } | null>(null);
   const [ready, setReady] = useState(false);
-  const [sel, setSel] = useState(initial ?? vehicles.find((v) => v.status === "moving")?.id ?? vehicles[0].id);
+  const [sel, setSel] = useState(initial ?? vehicles.find((v) => v.status === "moving")?.id ?? vehicles[0]?.id ?? "");
   const [filter, setFilter] = useState<"all" | "truck" | "agri" | "van">("all");
   const [minute, setMinute] = useState(now);
   const [playing, setPlaying] = useState(false);
-  const v = vehicles.find((x) => x.id === sel)!;
+  const v = vehicles.find((x) => x.id === sel) ?? vehicles[0];
   const shown = useMemo(() => vehicles.filter((x) => filter === "all" || x.kind === filter), [vehicles, filter]);
 
   // init
@@ -71,12 +71,17 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   useEffect(() => {
     const m = mapRef.current; if (!m || !ready) return;
     m.cluster.clearLayers();
+    const markers: { marker: Leaflet.Marker; at: LL }[] = [];
     for (const x of shown.filter(located)) {
       const icon = m.L.divIcon({ className: "", iconSize: undefined, html: `<div class="vm${x.id === sel && mode === "full" ? " sel" : ""}"><i style="background:${COL[x.status]}"></i><span>${x.name.replace(/</g, "")}</span></div>` });
       const mk = m.L.marker(x.at, { icon });
       if (mode === "full") mk.on("click", () => { setSel(x.id); setMinute(now); });
-      m.cluster.addLayer(mk);
+      m.cluster.addLayer(mk); markers.push({ marker: mk, at: x.at });
     }
+    // Etichetele de lângă marginea dreaptă se deschid spre stânga, inclusiv după zoom/redimensionare.
+    const alignLabels = () => { for (const x of markers) x.marker.getElement()?.classList.toggle("label-left", m.map.latLngToContainerPoint(x.at).x > m.map.getSize().x - 120); };
+    alignLabels(); m.map.on("moveend resize", alignLabels); m.cluster.on("animationend", alignLabels);
+    return () => { m.map.off("moveend resize", alignLabels); m.cluster.off("animationend", alignLabels); };
   }, [ready, shown, sel, mode, now]);
 
   // traseu + încadrare
@@ -97,10 +102,11 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
       }
       return;
     }
+    if (!v) return;
     for (const x of vehicles) if (x.id !== v.id && x.ahead.length > 1) g.addLayer(m.L.polyline(x.ahead, { color: ACC, weight: 2, opacity: 0.28, lineCap: "round", lineJoin: "round", interactive: false }));
     drawRoute(m.L, g, v.done, v.ahead);
     const fleet = vehicles.filter(located).map((x) => x.at);
-    // prima încadrare pe /live (fără ?v=): toată flota pe ecran → „Toate · 14” = markerele vizibile + cele în privat
+    // prima încadrare pe /live (fără ?v=): toată flota pe ecran → „Toate” = markerele vizibile + cele în privat
     // la reîmprospătare (poziții noi la 20 s) nu mutăm harta peste utilizator: reîncadrăm doar la prima afișare / altă selecție
     if (fitted.current && fitSel.current === v.id) return;
     const first = fitAll && !fitted.current; fitted.current = true; fitSel.current = v.id;
@@ -108,11 +114,11 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
     if (!all.length) return;
     const mobile = matchMedia("(max-width:760px)").matches;
     m.map.fitBounds(m.L.latLngBounds(all).pad(mobile ? 0.15 : 0.3), { paddingTopLeft: mobile ? [20, 170] : [0, 0], paddingBottomRight: mobile ? [20, innerHeight * 0.46 + 120] : [420, 120], maxZoom: 13 });
-  }, [ready, sel, mode, v, vehicles]);
+  }, [ready, sel, mode, v, vehicles, fitAll]);
 
   // reluare
   useEffect(() => {
-    const m = mapRef.current; if (!m || !ready || mode !== "full") return;
+    const m = mapRef.current; if (!m || !ready || mode !== "full" || !v) return;
     m.ghost?.remove(); m.ghost = undefined;
     if (minute >= now) return;
     const pts = v.track; let p = pts[0];
@@ -127,6 +133,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
   }, [playing, now]);
 
   if (mode === "strip") return <div ref={el} style={{ position: "absolute", inset: 0 }} />;
+  if (!v) return <div ref={el} className="livemap" />;
   const N = (n: number, d = 0) => fmtNum(loc, n, d);
   const ago = v.secondsAgo < 60 ? labels["ago.s"].replace("{n}", String(v.secondsAgo)) : labels["ago.m"].replace("{n}", String(Math.round(v.secondsAgo / 60)));
   // numărăm ce e pe hartă: vehiculele în pauză privată nu au marker (le arată chip-ul „🔒 N în privat”)

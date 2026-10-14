@@ -9,11 +9,11 @@ export const DRIVER_PATHS = [/^\/driver$/, /^\/api\/driver\//, /^\/api\/receipt\
 /** Doar proprietar/admin. */
 export const OWNER_PATHS = [/^\/trucks$/, /^\/drivers$/, /^\/api\/drivers\//,/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
 /** Demo („Intră ca demo”): poate încerca importul CSV — totul în memorie, nimic în baza de date. */
-export const DEMO_OK = [/^\/import$/, /^\/api\/import\/(preview|commit)$/];
+export const DEMO_OK = [/^\/drivers$/, /^\/trucks$/, /^\/import$/, /^\/api\/import\/(preview|commit)$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];
 /** Pagina de start a fiecărui rol după autentificare. */
 /** pagina de start: șofer → /driver, admin → /admin, patron → Fluxul flotei (/feed; firmă fără date live → /feed trimite la Acasă) */
-export const roleHome = (r: Session["role"]) => (r === "driver" ? "/driver" : r === "admin" ? "/admin" : "/feed");
+export const roleHome = (r: Session["role"]) => (r === "driver" ? "/driver" : r === "admin" ? "/admin" : r === "user" ? "/" : "/feed");
 export type Decision = { kind: "allow" } | { kind: "login" } | { kind: "unauthorized" } | { kind: "forbidden"; home: string };
 export function decide(path: string, s: Session | null): Decision {
   if (isPublic(path)) return { kind: "allow" };

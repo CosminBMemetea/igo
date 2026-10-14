@@ -29,7 +29,7 @@ const thin = (p: LatLng[], n = 70) => (p.length <= n ? p : Array.from({ length: 
 
 /** proiecție simplă (echirectangulară, corectată cu cos(lat)) într-o cutie W×H, cu margine */
 function mini(t: Truck, toKm: number, focusKm?: number): MiniMap {
-  const half = routeTotalKm(t) / 2, full = thin(pathBetween(t, 0, half)), done = thin(pathBetween(t, 0, Math.min(toKm, half)), 50);
+  const distance = routeTotalKm(t), full = thin(pathBetween(t, 0, distance)), done = thin(pathBetween(t, 0, Math.min(toKm, distance)), 50);
   const k = Math.cos((full[0][0] * Math.PI) / 180);
   const xs = full.map((p) => p[1] * k), ys = full.map((p) => p[0]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), pad = 16;
@@ -37,25 +37,25 @@ function mini(t: Truck, toKm: number, focusKm?: number): MiniMap {
   const ox = (W - (x1 - x0) * s) / 2, oy = (H - (y1 - y0) * s) / 2;
   const P = (p: LatLng): [number, number] => [Math.round((ox + (p[1] * k - x0) * s) * 10) / 10, Math.round((oy + (y1 - p[0]) * s) * 10) / 10];
   const d = (pts: LatLng[]) => pts.map((p, i) => `${i ? "L" : "M"}${P(p).join(" ")}`).join("");
-  const fk = Math.min(focusKm ?? toKm, half);
+  const fk = Math.min(focusKm ?? toKm, distance);
   return { full: d(full), done: d(done), dot: P(pointAtKm(t, fk)), w: W, h: H };
 }
-/** mini-harta traseului de azi (km parcurși → poziția pe drumul de dus/întors) */
-export function miniRoute(t: Truck, kmToday: number): MiniMap { const half = routeTotalKm(t) / 2, total = half * 2, k = Math.min(kmToday, total); return mini(t, Math.min(k, half), k > half ? total - k : k); }
+/** Mini-harta urmărește aceeași cursă într-o singură direcție. */
+export function miniRoute(t: Truck, kmToday: number): MiniMap { return mini(t, Math.min(kmToday, routeTotalKm(t))); }
 /** minutul zilei la care camionul ajunge la km-ul dat (după planul zilei) */
 function minuteAtKm(t: Truck, km: number): number | null {
   for (const p of dayPlan(t)) if (p.kind === "drive" && km >= p.kmStart && km <= p.kmEnd) { const m = p.start + ((km - p.kmStart) / (p.kmEnd - p.kmStart || 1)) * (p.end - p.start); return m < 0 ? null : m; }
   return null;
 }
-/** puncte de descărcare intermediare (demo): CJ 90 lasă marfă la Frankfurt în drum spre Rotterdam */
-const DROPS: Record<string, string[]> = { cj90qrt: ["Frankfurt"] };
+/** Puncte opționale de descărcare intermediară. */
+const DROPS: Record<string, string[]> = {};
 function dropMin(t: Truck, name: string): number | null { const i = t.route.findIndex((w) => w.name === name); return i < 0 ? null : minuteAtKm(t, waypointKm(t)[i]); }
 const WPK = new Map<string, number[]>();
 /** km-ul fiecărui punct de traseu pe drumul de dus */
 function waypointKm(t: Truck): number[] {
   let r = WPK.get(t.id); if (r) return r;
-  const half = routeTotalKm(t) / 2, samp: [number, LatLng][] = [];
-  for (let k = 0; k <= half; k += 2) samp.push([k, pointAtKm(t, k)]);
+  const distance = routeTotalKm(t), samp: [number, LatLng][] = [];
+  for (let k = 0; k <= distance; k += 2) samp.push([k, pointAtKm(t, k)]);
   r = t.route.map((w) => samp.reduce((b, s) => (haversineKm(s[1], w.at) < haversineKm(b[1], w.at) ? s : b))[0]);
   WPK.set(t.id, r); return r;
 }
@@ -70,15 +70,15 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
   for (const t of TRUCKS) {
     const v = vehicles.find((x) => x.id === t.id), lv = live.find((x) => x.id === t.id);
     if (!v || !lv) continue;
-    const priv = lv.status === "private", plan = dayPlan(t), half = routeTotalKm(t) / 2, total = half * 2;
+    const priv = lv.status === "private", plan = dayPlan(t), total = routeTotalKm(t);
     const trip = views.find((x) => x.vehicleId === t.id && x.active), client = trip ? clients.find((c) => c.id === trip.clientId)?.name ?? "" : "";
     const dest = t.route[t.route.length - 1].name, kmNow = Math.min(lv.today, total);
     // poveste
     const stops: Story["stops"] = [];
     if (t.depMin < now) stops.push({ kind: "depart", time: t.depMin < 0 ? `${F.yday} ${minToHHMM(t.depMin + 1440)}` : minToHHMM(t.depMin), place: t.route[0].name });
     // doar momentele-cheie (plecare, alimentare, descărcări, acum)
-    for (const p of plan) if (p.start < now && (p.kind === "pump" || (p.kind === "break" && Math.abs(p.kmStart - half) < 1)) && p.start > 0) {
-      const place = nearestWaypoint(t, pointAtKm(t, p.kmStart)).name, isDel = p.kind === "break" && Math.abs(p.kmStart - half) < 1;
+    for (const p of plan) if (p.start < now && (p.kind === "pump" || (p.kind === "stop" && Math.abs(p.kmStart - total) < 1)) && p.start > 0) {
+      const place = nearestWaypoint(t, pointAtKm(t, p.kmStart)).name, isDel = p.kind === "stop" && Math.abs(p.kmStart - total) < 1;
       stops.push({ kind: p.kind === "pump" ? "pump" : isDel ? "deliver" : "break", time: minToHHMM(p.start), place });
     }
     for (const d of DROPS[t.id] ?? []) { const m = dropMin(t, d); if (m != null && m < now) stops.push({ kind: "deliver", time: minToHHMM(m), place: d }); }
@@ -86,15 +86,15 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
     if (priv) { stories.push({ ...who(v), status: lv.status, km: Math.round(lv.today), rate: "—", priv: true, stops: [] }); }
     else {
       // GDPR: camionul în pauză privată nu apare în flux cu poziție (doar alertele și documentele)
-      // treceri de graniță — dus și întors
+      // treceri de graniță în direcția cursei
       const wk = waypointKm(t);
       for (let i = 1; i < t.route.length; i++) {
         const a = ccOf(t.route[i - 1].name), b = ccOf(t.route[i].name); if (a === b) continue;
         const kmB = (wk[i - 1] + wk[i]) / 2;
-        for (const [km, cc, place] of [[kmB, b, a === "RO" ? t.route[i - 1].name : t.route[i].name], [total - kmB, a, a === "RO" ? t.route[i - 1].name : t.route[i].name]] as [number, string, string][]) {
+        for (const [km, cc, place] of [[kmB, b, a === "RO" ? t.route[i - 1].name : t.route[i].name]] as [number, string, string][]) {
           const m = minuteAtKm(t, km); if (m == null || m > now + 240) continue;
-          const back = km > half, left = back ? total - km : half - km, eta = minToHHMM(m + (left / 64) * 60);
-          push({ id: `b-${t.id}-${Math.round(km)}`, kind: "border", prio: "normal", min: Math.round(m), ...who(v), flag: flagOf(cc), title: fill(F.border, { country: region.of(cc) ?? cc, flag: flagOf(cc) }), sub: fill(F.borderSub, { place, dest: back ? t.route[0].name : dest, eta }), map: mini(t, Math.min(km, half), back ? total - km : km) });
+          const eta = minToHHMM(plan.find((p) => p.kind === "stop" && p.kmStart > 0)!.start);
+          push({ id: `b-${t.id}-${Math.round(km)}`, kind: "border", prio: "normal", min: Math.round(m), ...who(v), flag: flagOf(cc), title: fill(F.border, { country: region.of(cc) ?? cc, flag: flagOf(cc) }), sub: fill(F.borderSub, { place, dest, eta }), map: mini(t, km) });
         }
       }
       // alimentarea zilei
@@ -108,10 +108,10 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
         push({ id: `f-${t.id}`, kind: "fuel", prio: "normal", min: Math.round(pump.start + 8), ...who(v), flag: cc !== "RO" ? flagOf(cc) : undefined, title: fill(F.fuel, { litres: fmtNum(loc, litres), station }), sub: fill(F.fuelSub, { price: fmtMoney(loc, pl, 2), vs: `${vs >= 0 ? "+" : "−"}${fmtNum(loc, Math.abs(vs), 1)}%` }), map: mini(t, pump.kmStart), receipt: rc });
       }
       // livrarea (descărcare la destinație)
-      const del = plan.find((p) => p.kind === "break" && Math.abs(p.kmStart - half) < 1);
+      const del = plan.find((p) => p.kind === "stop" && Math.abs(p.kmStart - total) < 1);
       if (del && del.start <= now + 240) {
         const early = 10 + (hueOf(t.id) % 35);
-        push({ id: `d-${t.id}`, kind: "delivered", prio: "trivial", min: Math.round(del.start), ...who(v), flag: ccOf(dest) !== "RO" ? flagOf(ccOf(dest)) : undefined, title: fill(F.delivered, { place: dest }), sub: `${fill(F.deliveredSub, { client: client || "—", time: minToHHMM(del.start) })} · ${fill(F.early, { n: early })}`, map: mini(t, half), clap: true, place: dest });
+        push({ id: `d-${t.id}`, kind: "delivered", prio: "trivial", min: Math.round(del.start), ...who(v), flag: ccOf(dest) !== "RO" ? flagOf(ccOf(dest)) : undefined, title: fill(F.delivered, { place: dest }), sub: `${fill(F.deliveredSub, { client: client || "—", time: minToHHMM(del.start) })} · ${fill(F.early, { n: early })}`, map: mini(t, total), clap: true, place: dest });
       }
       // descărcări intermediare (cursă cu mai multe puncte de livrare)
       for (const d of DROPS[t.id] ?? []) {
@@ -126,7 +126,7 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
         evs.push({ id: `i-${t.id}`, kind: "idle", prio: "normal", min: Math.round(cur.start + 30), ...who(v), title: fill(F.idle, { min }), sub: fill(F.idleSub, { place, idle: Math.round(min * 0.4) }), map: mini(t, cur.kmStart), cta: { href: `tel:+40000000${String(100 + (hueOf(t.id) % 900))}`, label: F.call, tel: true, note: F.demoPhone } });
       }
       const fe = [...evs, ...queue].find((e) => e.id === `f-${t.id}` && e.min != null && e.min <= now);
-      stories.push({ ...who(v), status: lv.status, km: Math.round(lv.today), rate: `${fmtNum(loc, lv.rate, 1)} L/100`, priv: false, map: t.depMin < now ? mini(t, Math.min(kmNow, half), kmNow > half ? total - kmNow : kmNow) : undefined, stops, fill: fe?.receipt });
+      stories.push({ ...who(v), status: lv.status, km: Math.round(lv.today), rate: `${fmtNum(loc, lv.rate, 1)} L/100`, priv: false, map: t.depMin < now ? mini(t, kmNow) : undefined, stops, fill: fe?.receipt });
     }
   }
   // grupare: descărcări în aceeași țară (≥2) → un singur card
@@ -140,7 +140,7 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
   }
   // momente bune
   const eco = live.filter((x) => x.status !== "private" && x.todayUnit === "km" && x.today > 120).map((x) => ({ x, v: vehicles.find((v) => v.id === x.id)! })).filter((o) => o.v).sort((a, b) => a.x.rate / a.v.baselineRate - b.x.rate / b.v.baselineRate)[0];
-  if (eco) { const t = TRUCKS.find((x) => x.id === eco.v.id)!; evs.push({ id: `e-${eco.v.id}`, kind: "eco", prio: "positive", min: now - 22, ...who(eco.v), title: fill(F.eco, { rate: fmtNum(loc, eco.x.rate, 1) }), sub: fill(F.ecoSub, { pct: `${fmtNum(loc, Math.abs((eco.x.rate / eco.v.baselineRate - 1) * 100), 0)}%`, km: fmtNum(loc, eco.x.today) }), map: t ? mini(t, Math.min(eco.x.today, routeTotalKm(t) / 2)) : undefined, clap: true }); }
+  if (eco) { const t = TRUCKS.find((x) => x.id === eco.v.id)!; evs.push({ id: `e-${eco.v.id}`, kind: "eco", prio: "positive", min: now - 22, ...who(eco.v), title: fill(F.eco, { rate: fmtNum(loc, eco.x.rate, 1) }), sub: fill(F.ecoSub, { pct: `${fmtNum(loc, Math.abs((eco.x.rate / eco.v.baselineRate - 1) * 100), 0)}%`, km: fmtNum(loc, eco.x.today) }), map: t ? mini(t, Math.min(eco.x.today, routeTotalKm(t))) : undefined, clap: true }); }
   const top = drivers[0], tv = top ? vehicles.find((v) => v.id === top.id) : null;
   if (top && tv) evs.push({ id: `r-${top.id}`, kind: "rank", prio: "positive", min: 8 * 60 + 5, ...who(tv), title: fill(F.rank1, { driver: top.driver }), sub: fill(F.rankSub, { score: top.score, why: top.best ? t(loc, `rk.c.${top.best}` as MsgKey) : "" }), clap: true });
   const ot = [...drivers].filter((d) => d.onTime != null && d.id !== top?.id).sort((a, b) => (b.onTime ?? 0) - (a.onTime ?? 0))[0], ov = ot ? vehicles.find((v) => v.id === ot.id) : null;

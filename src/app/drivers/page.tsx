@@ -1,7 +1,8 @@
+import { DemoRoster } from "@/components/DemoRoster";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { writableFirm } from "@/lib/tenant";
+import { writableFirm, tenant } from "@/lib/tenant";
 import { getPrefs } from "@/lib/prefs";
 import { store } from "@/lib/store";
 import { t, tri } from "@/lib/i18n";
@@ -10,6 +11,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { CopyLink } from "@/components/CopyLink";
 export const dynamic = "force-dynamic";
 export default async function Drivers({ searchParams }: { searchParams: { q?: string; ok?: string } }) {
+  if ((await tenant()).demo) return <DemoRoster kind="drivers" loc={getPrefs().loc} query={searchParams.q} />;
   const f = await writableFirm(); if (!f) redirect("/");
   const { loc } = getPrefs(), tr = (s: string) => tri(loc, s);
   const [people, trucks, invitations] = await Promise.all([store().users(f.id), store().trucks(f.id), store().invites(f.id)]);

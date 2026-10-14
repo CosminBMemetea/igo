@@ -75,10 +75,14 @@ try {
   // 3. comutator date demo
   await A.go("/api/firm/demo", { on: "1" });
   const vd = await vehiclesOf(A);
-  ok("Date demo PORNIT → firma demo", !!vd && vd.length > 5 && vd.some((v) => v.name === "BH 21 QRT") && !vd.some((v) => v.name.includes("Lexion")) && !vd.some((v) => v.id === tA[0].id));
+  ok("Date demo PORNIT → firma demo", !!vd && vd.length === 7 && vd.some((v) => v.name === "BH 21 QRT") && !vd.some((v) => v.name.includes("Lexion")) && !vd.some((v) => v.id === tA[0].id));
+  ok("mod demo: API-ul indică demo", JSON.parse((await A.go("/api/trips")).text).demo === true);
+  ok("mod demo: nicio scriere accidentală în firma reală", (await A.json("/api/trips/new", { from: "A", to: "B", truckId: tA[0].id, date: "2026-12-01", km: 100 })).status === 403);
+  for (const path of ["/", "/trucks", "/drivers", "/live", "/trips/bh21qrt-15", "/replay?trip=bh21qrt-15"]) ok(`demo: ${path} se randează`, (await A.go(path)).status === 200);
   await A.go("/api/firm/demo", { on: "0" });
   const vo = await vehiclesOf(A);
   ok("Date demo OPRIT → firma mea", vo?.length === 1 && vo[0].id === tA[0].id);
+  ok("mod real: API-ul nu etichetează datele drept demo", JSON.parse((await A.go("/api/trips")).text).demo === false);
   // 4. invitația șoferului
   const s3 = await A.go("/setup?step=3");
   const link = /\/join\?t=([^"&\\]+)/.exec(s3.text.replace(/&amp;/g, "&"))?.[1];
@@ -106,7 +110,12 @@ try {
   ok("șoferul nu poate folosi transcrierea patronului", (await D.json("/api/trips/transcribe", {})).status === 403);
   const payload = { from: "Oradea", to: "Arad", date: "2026-12-01", truckId: tA[0].id, driverId: drv[0].id, km: "120", revenue: "2000" };
   ok("numere invalide respinse", (await A.json("/api/trips/new", { ...payload, revenue: "abc" })).status === 400);
-  const created = await A.json("/api/trips/new", payload);
+  const retryBody = { ...payload, key: "http-new-trip-001" };
+  const retries = await Promise.all([A.json("/api/trips/new", retryBody), A.json("/api/trips/new", retryBody)]);
+  ok("creare concurentă: o singură cursă", retries.every((r) => r.status === 200) && retries[0].body.id === retries[1].body.id);
+  ok("aceeași cheie cu alte date respinsă", (await A.json("/api/trips/new", { ...retryBody, revenue: "4000" })).status === 409);
+  ok("cheie invalidă respinsă", (await A.json("/api/trips/new", { ...retryBody, key: "bad" })).status === 400);
+  const created = retries[0];
   ok("cursă planificată creată", created.status === 200 && !!created.body.id);
   ok("cursă planificată editată", (await A.json("/api/trips/new", { ...payload, id: created.body.id, to: "Timișoara" })).status === 200);
   const filtered = await A.go("/trips?status=planned&q=Timi");

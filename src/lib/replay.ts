@@ -1,6 +1,7 @@
 // Querra Fleet: datele pentru REPLAY-ul unei ture/curse. Demo: ziua camionului pe drumuri reale (roads.json/OSRM).
 // Firme reale: pozițiile salvate în tură (pingurile șoferului). Golurile (mod privat / fără semnal) NU au geometrie — doar o legătură punctată.
-import { TRUCKS, dayPlan, kmAt, nearestWaypoint, pointAtKm, haversineKm, pathBetween, routeTotalKm, type LatLng } from "./fleet/data";
+import { DEMO_DAY, DEMO_NOW_MIN, TRUCKS, dayPlan, kmAt, nearestWaypoint, pointAtKm, haversineKm, pathBetween, routeTotalKm, type LatLng } from "./fleet/data";
+import { TRIPS } from "./fleet/seed";
 import type { PosRow, FuelTxRow } from "./store/types";
 
 export type RKind = "start" | "fuel" | "pause" | "private" | "end";
@@ -16,36 +17,33 @@ export interface ReplayData {
 const near = (p: LatLng, q: LatLng) => haversineKm(p, q);
 
 export function demoReplay(vehicleId: string, date: string, tripId: string | null): ReplayData | null {
-  const t = TRUCKS.find((x) => x.id === vehicleId);
-  if (!t) return null;
-  let dep = t.depMin;
-  if (dep >= 1440) dep = 5 * 60 + 30; // AR 45 pleacă „mâine”: în replay îi arătăm o tură de dimineață
-  const total = routeTotalKm(t);
-  // plecat ieri (cursă internațională lungă): reluarea zilei începe la 00:00, din locul unde era camionul
-  const k0 = dep < 0 ? kmAt(t, 0) : 0;
-  const phases = dayPlan({ ...t, depMin: dep }).filter((p) => p.kind !== "stop" && p.end > 0).map((p) => (p.start < 0 ? { ...p, start: 0, kmStart: k0 } : p));
-  if (dep < 0) dep = 0;
-  const keys: [number, number][] = [[dep, k0]];
-  const events: ReplayEvent[] = [{ kind: "start", min: dep, km: k0, ...(k0 > 0 ? { place: nearestWaypoint(t, pointAtKm(t, k0)).name, day: true } : { place: t.route[0].name }) }];
+  const base = TRUCKS.find((x) => x.id === vehicleId);
+  if (!base) return null;
+  const trip = TRIPS.find((x) => x.id === tripId);
+  const reverseRoute = trip?.title === base.routeName.split(" → ").reverse().join(" → ");
+  const t = { ...base, reverseRoute, route: reverseRoute ? [...base.route].reverse() : base.route, routeName: trip?.title ?? base.routeName };
+  const plan = dayPlan(t), start = t.depMin;
+  const arrival = plan.find((p) => p.kind === "stop" && p.kmStart > 0)!.start;
+  const end = Math.min(arrival, date === DEMO_DAY ? DEMO_NOW_MIN : arrival), km = kmAt(t, end);
+  const phases = plan.filter((p) => p.kind !== "stop" && p.start < end);
+  const keys: [number, number][] = [[start, 0]];
+  const events: ReplayEvent[] = [{ kind: "start", min: start, km: 0, place: t.route[0].name }];
   for (const p of phases) {
-    keys.push([Math.round(p.end), Math.round(p.kmEnd * 10) / 10]);
-    if (p.kind === "pump") events.push({ kind: "fuel", min: p.start, end: p.end, km: p.kmStart, place: "OMV / Petrom", litres: Math.round(Math.min(t.tankL * 0.8, (p.kmStart * t.normalL100) / 100 + 180)) });
-    if (p.kind === "break") events.push({ kind: "pause", min: p.start, end: p.end, km: p.kmStart });
+    keys.push([Math.min(p.end, end), Math.min(p.kmEnd, km)]);
+    if (p.kind === "pump") events.push({ kind: "fuel", min: p.start, end: Math.min(p.end, end), km: p.kmStart, place: nearestWaypoint(t, pointAtKm(t, p.kmStart)).name, litres: Math.round(((p.kmStart + 360) * t.normalL100) / 100) });
+    if (p.kind === "break") events.push({ kind: "pause", min: p.start, end: Math.min(p.end, end), km: p.kmStart });
   }
-  // pauza lungă (la destinație) e trecută de șofer în modul privat; continuă ~18 min după plecare → fără poziții
-  const brk = phases.find((p) => p.kind === "break")!;
-  const after = phases[phases.indexOf(brk) + 1];
-  const pEnd = brk.end + 18, pKm = after ? after.kmStart + ((after.kmEnd - after.kmStart) * 18) / (after.end - after.start) : brk.kmEnd;
-  events.push({ kind: "private", min: brk.start + 6, end: pEnd, km: brk.kmStart });
-  const last = phases[phases.length - 1];
-  const endMin = Math.round(last.end);
-  events.push({ kind: "end", min: endMin, km: total, place: t.route[0].name });
+  // O parte din pauză este privată: nu expunem punctele din acel interval.
+  const brk = phases.find((p) => p.kind === "break" && p.start + 6 < end);
+  const privateEnd = brk ? Math.min(brk.end + 18, end) : null;
+  if (brk && privateEnd != null) events.push({ kind: "private", min: brk.start + 6, end: privateEnd, km: brk.kmStart });
+  if (arrival <= end) events.push({ kind: "end", min: end, km, place: t.route[t.route.length - 1].name });
   events.sort((a, b) => a.min - b.min);
-  // geometrie: fără porțiunea privată (nu desenăm drumul pe care l-a făcut în privat)
   const pts: [number, number, number][] = [];
   const add = (from: number, to: number) => { let k = from, prev: LatLng | null = null; for (const p of pathBetween(t, from, to)) { if (prev) k += near(prev, p); pts.push([p[0], p[1], Math.round(k * 1000) / 1000]); prev = p; } };
-  add(k0, brk.kmStart); add(pKm, total);
-  return { vehicleId, plate: t.plate, driver: t.driver, route: t.routeName, date, tripId, demo: true, path: pts, keys, events, start: dep, end: endMin, rate: t.normalL100, km: Math.round(total) };
+  if (brk && privateEnd != null) { add(0, brk.kmStart); if (privateEnd < end) add(kmAt(t, privateEnd), km); }
+  else add(0, km);
+  return { vehicleId, plate: t.plate, driver: t.driver, route: t.routeName, date, tripId, demo: true, path: pts, keys, events, start, end, rate: t.normalL100, km: Math.round(km) };
 }
 
 /** Firmă reală: pozițiile din ziua respectivă. Gol > 15 min = privat / fără semnal (nu inventăm traseu). */

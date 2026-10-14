@@ -254,7 +254,11 @@ export class PgStore implements Store {
   async addTrip(firmId: string, t: Omit<TripRow, "id" | "firmId">) {
     const [own] = await this.d.select({ id: trucks.id }).from(trucks).where(and(eq(trucks.id, t.truckId), eq(trucks.firmId, firmId)));
     if (!own) throw new Error("truck");
-    const [r] = await this.d.insert(trips).values({ ...t, id: newId("r"), firmId }).returning(); return tripOut(r);
+    const [r] = await this.d.insert(trips).values({ ...t, id: newId("r"), firmId }).onConflictDoNothing({ target: [trips.firmId, trips.requestKey] }).returning();
+    if (r) return tripOut(r);
+    const [existing] = t.requestKey ? await this.d.select().from(trips).where(and(eq(trips.firmId, firmId), eq(trips.requestKey, t.requestKey))) : [];
+    if (!existing || !t.requestHash || existing.requestHash !== t.requestHash) throw new Error("request_conflict");
+    return tripOut(existing);
   }
   async trips(firmId: string) { return (await this.d.select().from(trips).where(eq(trips.firmId, firmId)).orderBy(desc(trips.date), desc(trips.createdAt))).map(tripOut); }
   async addSupport(s: Omit<SupportRow, "id" | "status" | "createdAt">) { const [r] = await this.d.insert(supportRequests).values({ ...s, id: newId("s") }).returning(); return { ...r, createdAt: iso(r.createdAt)! }; }

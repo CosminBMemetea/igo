@@ -1,5 +1,6 @@
 // Querra Fleet: DATE DEMO (inventate, deterministe). Nu provin de la vehicule sau clienți reali.
-import { DEMO_DAY, TRUCKS, mulberry32, routeTotalKm, type LatLng } from "./data";
+import { roIso } from "../demo-time";
+import { DEMO_DAY, TRUCKS, mulberry32, routeTotalKm, dayPlan, minToHHMM, DEMO_NOW_MIN, type LatLng } from "./data";
 
 export type VehicleKind = "truck" | "agri" | "van";
 export type JobType = "transport" | "harvest" | "plough" | "seed";
@@ -56,7 +57,7 @@ export const CLIENTS: Client[] = [
   { id: "metro", name: "Metro Kft", country: "HU", vat: "HU12345678", payDays: 31, contacts: [{ name: "Zsófia Kiss", role: "dispatch", phone: "+36 1 555 0101", email: "logistics@metro.example" }] },
   { id: "dedeman", name: "Dedeman SRL", country: "RO", vat: "RO2816464", payDays: 18, contacts: [{ name: "Raluca Ionescu", role: "dispatch", phone: "+40 744 000 111", email: "transport@dedeman.example" }] },
   { id: "continental", name: "Continental Logistic SRL", country: "RO", vat: "RO11223344", payDays: 42, contacts: [{ name: "Bogdan Marin", role: "dispatch", phone: "+40 745 222 333", email: "bogdan@contlog.example" }] },
-  { id: "transitalia", name: "Trans Italia SRL", country: "IT", vat: "IT01234567890", payDays: 64, contacts: [{ name: "Marco Rossi", role: "owner", phone: "+39 02 1234 567", email: "marco@transitalia.example" }] },
+  { id: "transitalia", name: "Trans Italia SRL", country: "IT", vat: "IT01234567890", payDays: 7, contacts: [{ name: "Marco Rossi", role: "owner", phone: "+39 02 1234 567", email: "marco@transitalia.example" }] },
   { id: "agrocampia", name: "Agro Fermier Câmpia", country: "RO", vat: "RO33445566", payDays: 12, contacts: [{ name: "Ferenc Szabó", role: "owner", phone: "+40 740 333 444", email: "ferma@agrocampia.example" }] },
   { id: "slaskpol", name: "Śląsk Logistyka Sp. z o.o.", country: "PL", vat: "PL6340001234", payDays: 30, contacts: [{ name: "Agnieszka Nowak", role: "dispatch", phone: "+48 32 123 4567", email: "dyspozycja@slask.example" }] },
   { id: "rhenus", name: "Rhein Maas Cargo B.V.", country: "NL", vat: "NL812345678B01", payDays: 45, contacts: [{ name: "Joris de Vries", role: "dispatch", phone: "+31 10 555 0199", email: "planning@rmcargo.example" }] },
@@ -82,50 +83,31 @@ export const ZONES: Zone[] = [
 ];
 
 // ---------- curse și lucrări (1–15 octombrie 2026) ----------
-const CITY_TRIPS: [string, string, number, string, number][] = [
-  // titlu, client, km, tip taxe (int/ro), lei/km tarif
-  ["Oradea → Viena", "huber", 590, "int", 8.8],
-  ["Cluj → Budapesta", "metro", 470, "int", 8.7],
-  ["Oradea → Sibiu", "dedeman", 330, "ro", 7.6],
-  ["Arad → Viena", "huber", 560, "int", 8.6],
-  ["Brașov → București", "continental", 175, "ro", 9.4],
-  ["Oradea → Debrecen", "metro", 75, "int", 12.0],
-  ["Cluj → Brașov", "dedeman", 280, "ro", 7.9],
-];
-/** camioanele pe curse internaționale lungi și clientul lor principal */
-const INTL = new Set(["bh88qrt", "ar12qrt", "tm61qrt", "cj90qrt", "ct14qrt", "bh42qrt"]);
-const INTL_CLIENT: Record<string, string> = { bh88qrt: "huber", ar12qrt: "slaskpol", tm61qrt: "transitalia", cj90qrt: "rhenus", ct14qrt: "bosfor", bh42qrt: "rhonelog" };
+const CLIENT_BY_TRUCK: Record<string, string> = { bh21qrt: "huber", cj08qrt: "rhenus", tm33qrt: "metro", b120qrt: "transitalia", ar45qrt: "rhonelog", bh77qrt: "slaskpol", cj52qrt: "bosfor" };
+const RATE_BY_TRUCK = [9.2, 9.8, 9.0, 9.7, 10.4, 9.1, 9.4];
 const pad = (n: number) => String(n).padStart(2, "0");
 function buildTrips(): Trip[] {
   const out: Trip[] = [];
   const rnd = mulberry32(2026);
   let inv = 120;
   TRUCKS.forEach((t, ti) => {
-    const base = TRUCK_BASE[t.id];
-    for (let day = 1 + (ti % 2); day <= 14; day += 2) {
-      const intl = INTL.has(t.id);
-      if (intl && day % 4 !== (ti % 2) + 1) continue; // cursele lungi: una la ~4 zile
-      const back = t.routeName.split(" → ").reverse().join(" → ");
-      const [title, clientId, km0, tollKind, rate] = intl ? [day % 8 < 4 ? t.routeName : back, INTL_CLIENT[t.id], Math.round(routeTotalKm(t) / 2), "int", 7.9] as const : CITY_TRIPS[(ti + day) % CITY_TRIPS.length];
-      const km = Math.round(km0 * (0.97 + rnd() * 0.06));
-      const actualRate = r1(base * (t.id === "ct14qrt" ? 0.97 + rnd() * 0.06 : 0.85 + rnd() * 0.06)); // CT 14: consum peste normă (clasament: „are nevoie de ajutor”)
-      const litres = Math.round((km * actualRate) / 100);
-      const tolls = Math.round(km * (tollKind === "int" ? 1.78 : 0.42));
-      const days = Math.max(1, Math.ceil(km / 450));
-      const revenue = Math.round((km * rate) / 10) * 10;
-      const date = `2026-10-${pad(day)}`;
-      const ageDays = 15 - day;
-      const client = CLIENTS.find((c) => c.id === clientId)!;
-      const payment: Trip["payment"] = ageDays > client.payDays ? "overdue" : ageDays > 10 ? "paid" : "due";
-      out.push({ id: `${t.id}-${pad(day)}`, vehicleId: t.id, clientId, type: "transport", date, title, km, hours: r1(km / 64), ha: 0, units: km, revenue, litres, fuelPrice: FUEL_PRICE, tolls, driver: days * 450, other: Math.round(km * 0.55), actualRate, active: false, payment, invoiceNo: `QF-2026-${String(inv++).padStart(4, "0")}`, tariffNote: `${rate} lei/km` });
+    const base = TRUCK_BASE[t.id], km = Math.round(routeTotalKm(t)), clientId = CLIENT_BY_TRUCK[t.id];
+    // Același coridor, dus și retur în zile separate. Titlul, harta și kilometrii au aceeași origine.
+    for (let day = 1 + (ti % 2); day <= 15; day += 2) {
+      if (day === 15) continue;
+      const back = Math.floor(day / 2) % 2 === 0;
+      const title = back ? t.routeName.split(" → ").reverse().join(" → ") : t.routeName;
+      const actualRate = r1(base * (0.85 + rnd() * 0.06)), litres = Math.round(km * actualRate / 100);
+      const rate = RATE_BY_TRUCK[ti], revenue = Math.round(km * rate / 10) * 10;
+      const date = `2026-10-${pad(day)}`, client = CLIENTS.find((c) => c.id === clientId)!;
+      const payment: Trip["payment"] = day <= 4 && ti % 3 !== 0 ? "paid" : 15 - day > client.payDays ? "overdue" : "due";
+      // Un transport cu cheltuieli neprevăzute: exemplu explicabil de cursă pe pierdere.
+      const extra = t.id === "tm33qrt" && day === 13 ? 2800 : 0;
+      out.push({ id: `${t.id}-${pad(day)}`, vehicleId: t.id, clientId, type: "transport", date, title, km, hours: r1(km / 64), ha: 0, units: km, revenue, litres, fuelPrice: FUEL_PRICE, tolls: Math.round(km * 1.18), driver: 450, other: Math.round(km * 0.28) + extra, actualRate, tonnes: r1(16 + rnd() * 6), emptyKm: Math.round(km * (0.03 + rnd() * 0.04)), active: false, driverName: t.driver, payment, invoiceNo: `QF-2026-${String(inv++).padStart(4, "0")}`, tariffNote: `${rate} lei/km` });
     }
-    // cursa de azi = traseul din harta live
-    const intlT = INTL.has(t.id), kmToday = Math.round(routeTotalKm(t) / (intlT ? 2 : 1)); // internațional: doar dus
-    const ar = r1(base * 0.89);
-    out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId: intlT ? INTL_CLIENT[t.id] : CLIENTS[ti % 4].id, type: "transport", date: DEMO_DAY, title: t.routeName, km: kmToday, hours: r1(kmToday / 64), ha: 0, units: kmToday, revenue: Math.round((kmToday * 8.1) / 10) * 10, litres: Math.round((kmToday * ar) / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(kmToday * (intlT || t.id === "tm33qrt" || t.id === "bh77qrt" ? 1.78 : 0.42)), driver: Math.max(1, Math.ceil(kmToday / 450)) * 450, other: Math.round(kmToday * 0.55), actualRate: ar, active: true, payment: "due", invoiceNo: null, tariffNote: "8.1 lei/km" });
+    const ar = r1(base * 0.89), arrival = dayPlan(t).find((p) => p.kind === "stop" && p.kmStart > 0)!.start;
+    out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId, type: "transport", date: DEMO_DAY, title: t.routeName, km, hours: r1(km / 64), ha: 0, units: km, revenue: Math.round(km * RATE_BY_TRUCK[ti] / 10) * 10, litres: Math.round(km * ar / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(km * 1.18), driver: 450, other: Math.round(km * 0.28), actualRate: ar, tonnes: 18 + ti * 0.5, emptyKm: Math.round(km * 0.04), active: true, planned: true, driverName: t.driver, loadedAt: roIso(DEMO_DAY, minToHHMM(t.depMin)), deliveredAt: arrival <= DEMO_NOW_MIN ? roIso(DEMO_DAY, minToHHMM(arrival)) : null, payment: "due", invoiceNo: null, tariffNote: `${RATE_BY_TRUCK[ti]} lei/km` });
   });
-  // cursă pe pierdere: retur gol, taxe mari
-  out.push({ id: "tm33qrt-milano", vehicleId: "tm33qrt", clientId: "transitalia", type: "transport", date: "2026-10-13", title: "Timișoara → Milano", km: 1180, hours: 18.4, ha: 0, units: 1180, revenue: 8400, litres: 352, fuelPrice: FUEL_PRICE, tolls: 2140, driver: 3 * 450, other: 649 + 3510, actualRate: 29.8, active: false, payment: "overdue", invoiceNo: "QF-2026-0118", tariffNote: "8.400 lei / cursă" });
   // utilaje agricole: lucrări pe parcele
   const AG: [string, string, JobType, number, number, number, number, number][] = [
     // vehicul, parcelă, tip, L/ha real, ha/h, tarif lei/ha, uzură lei/ha, zi
@@ -163,12 +145,12 @@ export const DOCS: Doc[] = [
   { id: "d4", scope: "vehicle", ownerId: "cj08qrt", type: "tacho", expires: D(140) },
   { id: "d5", scope: "vehicle", ownerId: "lexion760", type: "casco", expires: D(258), provider: "Groupama" },
   { id: "d6", scope: "vehicle", ownerId: "bh77qrt", type: "rca", expires: D(201), provider: "Omniasig" },
-  { id: "d7", scope: "driver", ownerId: "Ogrud Dat", type: "tachoCard", expires: D(11) },
+  { id: "d7", scope: "driver", ownerId: "Mihai Dobre", type: "tachoCard", expires: D(11) },
   { id: "d8", scope: "driver", ownerId: "Ioan Pop", type: "licence", expires: D(1460) },
   { id: "d9", scope: "driver", ownerId: "Ioan Pop", type: "cpc", expires: D(690) },
   { id: "d10", scope: "driver", ownerId: "Gheorghe Nagy", type: "licence", expires: D(900) },
   { id: "d11", scope: "trip", ownerId: "bh21qrt-15", type: "cmr", expires: null },
-  { id: "d12", scope: "trip", ownerId: "bh21qrt-15", type: "pod", expires: null },
+  { id: "d12", scope: "trip", ownerId: "cj08qrt-14", type: "pod", expires: null },
   { id: "d13", scope: "trip", ownerId: "cj08qrt-14", type: "cmr", expires: null },
 ];
 export interface Service { vehicleId: string; kind: "oil" | "service500" | "tyres"; remaining: number; unit: "km" | "h" | "days"; progress: number }

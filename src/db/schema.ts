@@ -82,6 +82,8 @@ export const trips = pgTable("trips", {
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
   truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  requestKey: text("request_key"),
+  requestHash: text("request_hash"),
   client: text("client").notNull(),
   title: text("title").notNull(),
   date: date("date").notNull(),
@@ -107,7 +109,7 @@ export const trips = pgTable("trips", {
   cancelReason: text("cancel_reason"),
   planned: boolean("planned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("trips_firm_ix").on(t.firmId)]);
+}, (t) => [index("trips_firm_ix").on(t.firmId), uniqueIndex("trips_firm_request_uq").on(t.firmId, t.requestKey)]);
 
 export const supportRequests = pgTable("support_requests", {
   id: text("id").primaryKey(),

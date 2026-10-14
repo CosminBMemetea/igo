@@ -1,7 +1,7 @@
 // Querra Fleet: interogări sigure peste date (folosite de pagini, API și asistentul AI). Fără I/O direct.
 import { localNow } from "./validate";
 import { tripProfit, savings, sumSavings, type ProfitBreakdown, type Savings } from "./calc";
-import { CITY_CC, CC_CUR, DEMO_LEI_PER, DEMO_NOW_MIN, TRUCKS, haversineKm, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
+import { CITY_CC, CC_CUR, DEMO_LEI_PER, DEMO_NOW_MIN, TRUCKS, haversineKm, dayPlan, kmAt, pathBetween, roadOf, minToHHMM, positionAt, routeTotalKm, type LatLng } from "./fleet/data";
 import { demoLoad, hasCosts, kmPerMonth, tripEcon, type Econ } from "./costs";
 import { VEHICLES, FUEL_PRICE, type Client, type Parcel, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 
@@ -51,15 +51,16 @@ export function clientSummaries(clients: Client[], views: TripView[]) {
     const mine = views.filter((x) => x.clientId === c.id), done = mine.filter((x) => !x.active && !x.cancelledAt);
     // profitul și numărul de curse: doar cursele încheiate (ca pe Acasă); cele în desfășurare apar doar în listă
     const profit = done.reduce((a, x) => a + x.p.profit, 0), revenue = done.reduce((a, x) => a + x.revenue, 0);
-    const open = mine.filter((x) => !x.cancelledAt && x.payment !== "paid");
-    return { client: c, trips: mine, n: done.length, profit, revenue, margin: revenue ? profit / revenue : 0, toCollect: open.reduce((a, x) => a + x.revenue, 0), overdue: mine.filter((x) => x.payment === "overdue").reduce((a, x) => a + x.revenue, 0), worst: mine.some((x) => x.payment === "overdue") ? "overdue" : open.length ? "due" : "paid" } as const;
+    const open = done.filter((x) => x.payment !== "paid");
+    const overdue = open.filter((x) => x.payment === "overdue");
+    return { client: c, trips: mine, n: done.length, profit, revenue, margin: revenue ? profit / revenue : 0, toCollect: open.reduce((a, x) => a + x.revenue, 0), overdue: overdue.reduce((a, x) => a + x.revenue, 0), worst: overdue.length > 0 ? "overdue" : open.length ? "due" : "paid" } as const;
   }).sort((a, b) => b.profit - a.profit);
 }
 
 // ---------- hartă live ----------
 export type LiveStatus = "moving" | "stopped" | "pump" | "working" | "offline" | "private";
 /** Demo: un șofer în modul privat (pauză / în afara turei) — fără poziție. */
-export const DEMO_PRIVATE = new Set(["bh77qrt"]);
+export const DEMO_PRIVATE = new Set<string>();
 /** GDPR: în modul privat sau în afara turei nu există poziție, traseu sau evenimente — nici în API. */
 /** Demo: tura oprită de șofer → camion oprit pe hartă. */
 export const liveSyncNote = (x: LiveVehicle): LiveVehicle => ({ ...x, status: "stopped", speed: 0, eta: null, left: 0, ahead: [], secondsAgo: 300 });
@@ -111,11 +112,11 @@ function liveFleetRaw(vehicles: Vehicle[], views: TripView[], parcels: Parcel[],
     if (truck) {
       const track = [] as { min: number; at: LatLng }[];
       for (let m = 0; m <= now; m += STEP) track.push({ min: m, at: positionAt(truck, m).at });
-      const pos = positionAt(truck, now), total = routeTotalKm(truck), km = kmAt(truck, now), half = total / 2;
-      const out = km < half, left = Math.max(0, Math.round((out ? half : total) - km));
-      const dest = out ? truck.route[truck.route.length - 1].name : truck.route[0].name;
-      const ahead = left ? pathBetween(truck, km, out ? half : total) : [];
-      return { ...base, status: pos.status, speed: pos.speedKmh, at: pos.at, secondsAgo: pos.status === "moving" ? 12 : 95, track, ahead, done: pathBetween(truck, 0, km), dest, left, leftUnit: "km", eta: left ? minToHHMM(now + (left / 64) * 60) : null, today: Math.round(km - (truck.depMin < 0 ? kmAt(truck, 0) : 0)), todayUnit: "km", rate: active?.actualRate ?? v.baselineRate, rateUnit: "L/100km", events: zoneEvents(track, zones) };
+      const pos = positionAt(truck, now), total = routeTotalKm(truck), km = kmAt(truck, now);
+      const left = Math.max(0, Math.round(total - km)), dest = truck.route[truck.route.length - 1].name;
+      const ahead = left ? pathBetween(truck, km, total) : [];
+      const arrival = dayPlan(truck).find((p) => p.kind === "stop" && p.kmStart > 0)?.start;
+      return { ...base, status: pos.status, speed: pos.speedKmh, at: pos.at, secondsAgo: pos.status === "moving" ? 12 : 95, track, ahead, done: pathBetween(truck, 0, km), dest, left, leftUnit: "km", eta: left && arrival != null ? minToHHMM(arrival) : null, today: Math.round(km - (truck.depMin < 0 ? kmAt(truck, 0) : 0)), todayUnit: "km", rate: active?.actualRate ?? v.baselineRate, rateUnit: "L/100km", events: zoneEvents(track, zones) };
     }
     if (v.kind === "agri") {
       const parcel = active ? parcels.find((p) => p.id === active.parcelId) : undefined;
@@ -142,16 +143,18 @@ function liveFleetRaw(vehicles: Vehicle[], views: TripView[], parcels: Parcel[],
 }
 export const FUEL = FUEL_PRICE;
 
-/** Traseul complet (dus-întors) al unui camion demo, pe drumuri reale: pentru detaliul unei curse încheiate. */
-export function fullPath(vehicleId: string): LatLng[] {
+/** Traseul complet (o singură direcție) al unui camion demo, pe drumuri reale: pentru detaliul unei curse încheiate. */
+export function fullPath(vehicleId: string, title?: string): LatLng[] {
   const t = TRUCKS.find((x) => x.id === vehicleId);
-  return t ? pathBetween(t, 0, routeTotalKm(t)) : [];
+  if (!t) return [];
+  const reverseRoute = title === t.routeName.split(" → ").reverse().join(" → ");
+  return pathBetween({ ...t, reverseRoute }, 0, routeTotalKm(t));
 }
 
 const BRANDS = ["OMV", "MOL", "Petrom", "Rompetrol", "Lukoil", "Shell"];
 /** Demo: bonurile de motorină derivate din curse (un bon pe cursă încheiată), ca totalurile să coincidă. */
 export function demoReceipts(views: TripView[]) {
-  return views.filter((v) => !v.active && v.litres > 0).map((v, i) => {
+  return views.filter((v) => !v.active && !v.cancelledAt && v.litres > 0).map((v, i) => {
     // curse internaționale: bonul e de pe drum, în moneda țării (HUF, EUR, PLN, BGN, TRY, CHF…)
     const cities = v.title.split(" → "), abroad = cities.find((c) => CITY_CC[c] && CITY_CC[c] !== "RO"), city = abroad ?? cities[0];
     const cur = abroad ? CC_CUR[CITY_CC[abroad]] : undefined;
