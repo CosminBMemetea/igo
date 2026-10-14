@@ -1,7 +1,7 @@
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
@@ -16,6 +16,7 @@ const notOut = (n: typeof notifications.$inferSelect): NotificationRow => ({ ...
 const mailOut = (e: typeof emailOutbox.$inferSelect): EmailRow => ({ ...e, status: e.status as EmailStatus, createdAt: iso(e.createdAt)!, sentAt: iso(e.sentAt) });
 const evOut = (e: typeof tripEvents.$inferSelect): TripEventRow => ({ ...e, kind: e.kind as TripEventKind, at: iso(e.at)! });
 const tripOut = ({ createdAt: _c, litresSource: _l, ...t }: typeof trips.$inferSelect): TripRow => ({ ...t, litresSource: _l === "estimate" ? "estimate" : "manual" });
+const noDate = <T extends { at: Date }>(r: T) => ({ ...r, at: r.at.toISOString() });
 const txOut = ({ createdAt: _c, ...x }: typeof fuelTransactions.$inferSelect): FuelTxRow => x;
 
 export class PgStore implements Store {
@@ -37,7 +38,7 @@ export class PgStore implements Store {
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash }).where(eq(users.id, id)); }
   private firmTables() {
-    return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents } as const;
+    return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
   }
   async firmCounts(firmId: string) {
     const out: Record<string, number> = {};
@@ -49,7 +50,7 @@ export class PgStore implements Store {
     const counts = await this.firmCounts(firmId);
     const blobUrls = (await this.d.select({ url: files.url }).from(files).where(and(eq(files.firmId, firmId), eq(files.storage, "blob")))).map((r) => r.url).filter((u): u is string => !!u);
     // o singură tranzacție: întâi tabelele fără FK spre firms, apoi copiii, la final firma (restul cade în cascadă)
-    const T = this.firmTables(), order = [T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox];
+    const T = this.firmTables(), order = [T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
     const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<unknown>; transaction?: (f: (tx: Db) => Promise<void>) => Promise<void> };
     const build = (db: Db) => [...order.map((tb) => db.delete(tb).where(eq((tb as typeof users).firmId, firmId))), db.delete(firms).where(eq(firms.id, firmId))];
     if (typeof d.batch === "function") await d.batch(build(this.d));
@@ -134,6 +135,12 @@ export class PgStore implements Store {
   }
   async setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null) { await this.d.update(emailOutbox).set({ status, error, providerId, sentAt: status === "sent" ? new Date() : null }).where(eq(emailOutbox.id, id)); }
   async emails(limit = 100) { return (await this.d.select().from(emailOutbox).orderBy(desc(emailOutbox.createdAt)).limit(limit)).map(mailOut); }
+  async setTripTruck(firmId: string, tripId: string, truckId: string) { await this.ownTruck(firmId, truckId); await this.d.update(trips).set({ truckId }).where(and(eq(trips.firmId, firmId), eq(trips.id, tripId))); }
+  async addAssignment(firmId: string, a: { userId: string; truckId: string; fromTruckId: string | null }) { await this.ownTruck(firmId, a.truckId); await this.d.insert(truckAssignments).values({ ...a, id: newId("ta"), firmId }); }
+  async assignments(firmId: string, userId?: string) {
+    const rs = await this.d.select({ userId: truckAssignments.userId, truckId: truckAssignments.truckId, fromTruckId: truckAssignments.fromTruckId, at: truckAssignments.at }).from(truckAssignments).where(userId ? and(eq(truckAssignments.firmId, firmId), eq(truckAssignments.userId, userId)) : eq(truckAssignments.firmId, firmId)).orderBy(desc(truckAssignments.at)).limit(200);
+    return rs.map(noDate);
+  }
   async addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">) {
     await this.ownTrip(firmId, e.tripId);
     const [r] = await this.d.insert(tripEvents).values({ ...e, at: new Date(e.at), id: newId("v"), firmId }).returning(); return evOut(r);

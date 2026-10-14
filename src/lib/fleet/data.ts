@@ -256,3 +256,4 @@ export function kmAt(t: Truck, minute: number): number {
   return ph.kmStart + ((minute - ph.start) / (ph.end - ph.start)) * (ph.kmEnd - ph.kmStart);
 }
 export const routeTotalKm = (t: Truck) => routeKm(t).slice(-1)[0];
+export const CITY_COORDS = C;

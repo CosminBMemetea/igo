@@ -1,3 +1,4 @@
+import { localNow } from "./validate";
 import { leiOf } from "./fuel/lei";
 // Querra Fleet: depozitul unei firme reale (Postgres sau memorie), adaptat la IgoRepository. Totul filtrat după firmId.
 import type { FleetData } from "./fleet/rules";
@@ -31,7 +32,7 @@ export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   return {
     id: r.id, vehicleId: r.truckId, clientId: slug(r.client), type: "transport", date: r.date, title: r.title, km: r.km, hours: 0, ha: 0, units: r.km,
     revenue: r.revenue, litres, fuelPrice, tolls: r.tolls, driver: r.driverCost, other: r.other,
-    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: false, payment: "due", invoiceNo: null, tariffNote: "",
+    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned && r.date >= localNow().slice(0, 10), driverId: r.driverId ?? null, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
   };
 }
 export class FirmRepository implements IgoRepository {

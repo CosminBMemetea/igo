@@ -73,6 +73,10 @@ export class MemStore implements Store {
   async addEmail(e: Parameters<Store["addEmail"]>[0]) { if (this.E.some((x) => x.key === e.key)) return null; const r: EmailRow = { ...e, id: newId("e"), status: "queued", error: null, providerId: null, createdAt: new Date().toISOString(), sentAt: null }; this.E.push(r); return { ...r }; }
   async setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null) { const r = this.E.find((x) => x.id === id); if (r) Object.assign(r, { status, error, providerId, sentAt: status === "sent" ? new Date().toISOString() : null }); }
   async emails(limit = 100) { return [...this.E].reverse().slice(0, limit); }
+  private TA: { firmId: string; userId: string; truckId: string; fromTruckId: string | null; at: string }[] = [];
+  async setTripTruck(firmId: string, tripId: string, truckId: string) { if (!this.own(firmId, truckId)) throw new Error("truck"); const r = this.R.find((x) => x.id === tripId && x.firmId === firmId); if (r) r.truckId = truckId; }
+  async addAssignment(firmId: string, a: { userId: string; truckId: string; fromTruckId: string | null }) { if (!this.own(firmId, a.truckId)) throw new Error("truck"); this.TA.push({ ...a, firmId, at: new Date().toISOString() }); }
+  async assignments(firmId: string, userId?: string) { return this.TA.filter((x) => x.firmId === firmId && (!userId || x.userId === userId)).map(({ firmId: _f, ...x }) => x).reverse(); }
   async addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">) { if (!this.R.some((x) => x.id === e.tripId && x.firmId === firmId)) throw new Error("trip"); const r = { ...e, id: newId("v"), firmId }; this.V.push(r); return { ...r }; }
   async tripEvents(firmId: string, tripId: string) { return this.V.filter((x) => x.firmId === firmId && x.tripId === tripId).sort((a, b) => a.at.localeCompare(b.at)); }
   async docs(firmId: string) { return this.D.filter((x) => x.firmId === firmId); }

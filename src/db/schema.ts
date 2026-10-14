@@ -91,6 +91,11 @@ export const trips = pgTable("trips", {
   /** manual = litri introduși; estimate = estimați din consum (înlocuiți cu bonurile din CSV când există) */
   litresSource: text("litres_source").notNull().default("manual"),
   podReceived: boolean("pod_received").notNull().default(false),
+  /** cursă atribuită unui șofer (camionul se completează din camionul lui curent) */
+  driverId: text("driver_id"),
+  tonnes: real("tonnes"),
+  /** planificată (creată din „+ Cursă nouă”); nu intră în profitul realizat până la încheiere */
+  planned: boolean("planned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("trips_firm_ix").on(t.firmId)]);
 
@@ -292,3 +297,13 @@ export const authThrottle = pgTable("auth_throttle", {
   firstAt: timestamp("first_at", { withTimezone: true }).notNull().defaultNow(),
   lockedUntil: timestamp("locked_until", { withTimezone: true }),
 });
+
+/** Istoric șofer → camion (schimbare la începutul turei). */
+export const truckAssignments = pgTable("truck_assignments", {
+  id: text("id").primaryKey(),
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  fromTruckId: text("from_truck_id"),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("truck_assignments_firm_ix").on(t.firmId, t.at)]);

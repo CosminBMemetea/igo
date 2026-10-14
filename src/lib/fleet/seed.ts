@@ -23,6 +23,8 @@ export interface Trip {
   tariffNote: string;
   /** tonaj transportat (t) și km goi (retur / poziționare) */
   tonnes?: number; emptyKm?: number;
+  /** firmă reală: șoferul atribuit (cursă creată din „+ Cursă nouă”) */
+  driverId?: string | null;
 }
 export interface Parcel { id: string; name: string; ha: number; crop: "wheat" | "maize" | "sunflower" | "rapeseed"; poly: LatLng[] }
 export interface Zone { id: string; name: string; kind: "depot" | "client"; at: LatLng; radiusM: number }

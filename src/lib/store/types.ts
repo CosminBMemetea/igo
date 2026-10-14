@@ -12,7 +12,7 @@ export interface InviteRow { id: string; firmId: string; name: string; phone: st
 export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; archivedAt?: string | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 export type NewDoc = Omit<DocRow, "id" | "firmId">;
-export interface TripRow { id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean }
+export interface TripRow { id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean; driverId?: string | null; tonnes?: number | null; planned?: boolean }
 export interface LeadRow { id: string; firm: string; person: string; phone: string; email: string; trucks: number | null; fuelCard: string | null; gps: boolean | null; gpsProvider: string | null; locale: string | null; source: string | null; referralCode: string | null; utm: string | null; ipHash: string | null; consentAt: string; status: string; createdAt: string }
 export type NewLead = Omit<LeadRow, "id" | "status" | "createdAt">;
 export interface SupportRow { id: string; firmId: string | null; email: string | null; name: string; phone: string; slot: string | null; message: string; status: string; createdAt: string }
@@ -22,7 +22,7 @@ export type NewFuelTx = Omit<FuelTxRow, "id" | "firmId">;
 export interface CardRow { card: string; truckId: string | null }
 export interface ImportRow { id: string; firmId: string; source: string; filename: string; rows: number; added: number; dupes: number; skipped: number; createdAt: string }
 export interface ShiftRow { truckId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
-export type DriverEventKind = "shift_start" | "shift_end" | "private_on" | "private_off" | "loaded" | "unloaded" | "wait_start" | "wait_end" | "fill";
+export type DriverEventKind = "truck_switch" | "shift_start" | "shift_end" | "private_on" | "private_off" | "loaded" | "unloaded" | "wait_start" | "wait_end" | "fill";
 export interface DriverEventRow { id: string; truckId: string; userId: string | null; kind: DriverEventKind; at: string; lat: number | null; lng: number | null; note: string | null }
 export interface PosRow { truckId: string; at: string; lat: number; lng: number }
 
@@ -86,6 +86,10 @@ export interface Store {
   tripEvents(firmId: string, tripId: string): Promise<TripEventRow[]>;
   docs(firmId: string): Promise<DocRow[]>;
   addTrip(firmId: string, t: Omit<TripRow, "id" | "firmId">): Promise<TripRow>;
+  /** cursa urmează camionul folosit efectiv (șoferul a schimbat camionul la începutul turei) */
+  setTripTruck(firmId: string, tripId: string, truckId: string): Promise<void>;
+  addAssignment(firmId: string, a: { userId: string; truckId: string; fromTruckId: string | null }): Promise<void>;
+  assignments(firmId: string, userId?: string): Promise<{ userId: string; truckId: string; fromTruckId: string | null; at: string }[]>;
   trips(firmId: string): Promise<TripRow[]>;
   addSupport(s: Omit<SupportRow, "id" | "status" | "createdAt">): Promise<SupportRow>;
   support(): Promise<SupportRow[]>;

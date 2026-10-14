@@ -1,3 +1,6 @@
+import { localNow } from "@/lib/validate";
+import { store } from "@/lib/store";
+import { NewTrip } from "@/components/NewTrip";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
@@ -16,6 +19,9 @@ export default async function TripDetail({ params }: { params: { id: string } })
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
   const r = [...d.views, ...d.archivedViews].find((x) => x.id === params.id);
+  // „Duplică cursa”: aceeași rută / șofer / client, pentru mâine (firmă reală)
+  const raw = !d.demo && d.tn.firm && (d.tn.role === "owner" || d.tn.role === "admin") ? (await store().trips(d.tn.firm.id)).find((x) => x.id === params.id) : null;
+  const dupNt = raw ? <div className="tdup"><NewTrip dup loc={getPrefs().loc} today={localNow().slice(0, 10)} prefill={{ from: raw.title.split(" → ")[0], to: raw.title.split(" → ")[1] ?? "", driverId: raw.driverId ?? null, truckId: raw.truckId, client: raw.client, tonnes: raw.tonnes ?? null, km: raw.km, revenue: raw.revenue || null }} drivers={(await store().users(d.tn.firm!.id)).filter((u) => u.role === "driver" && !u.disabledAt).map((u) => ({ id: u.id, name: u.name || u.phone || "—", truckId: u.truckId ?? null }))} trucks={d.vehicles.map((v) => ({ id: v.id, plate: v.name }))} /></div> : null;
   if (!r) notFound();
   const agri = r.vehicle.kind === "agri";
   const unit = r.vehicle.per100 ? "L/100km" : "L/ha";
@@ -48,6 +54,7 @@ export default async function TripDetail({ params }: { params: { id: string } })
     <main>
       <div className="eyebrow fade">{t(loc, agri ? "job.detail" : "trip.detail")}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
       <div className="vhead fade"><h1 className="h1">{agri ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</h1>{!agri ? <Link className="rp-mini" href={`/replay?trip=${r.id}`} aria-label={t(loc, "rp.cta")}><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.cta")}</Link> : null}</div>
+      {dupNt}
       <p className="sub fade d1">{[r.vehicle.name, r.vehicle.driver, fmtDate(loc, r.date, true), agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`, client.name, (r.tariffNote && loc !== "en" ? r.tariffNote.replace(/(\d)\.(\d)/g, "$1,$2") : r.tariffNote).replace("lei", t(loc, "cur"))].filter(Boolean).join(" · ")}</p>
       <section className="hero thero" style={{ marginTop: 56 }}>
         <div className="fade d1"><div className="eyebrow">{E ? L.realProfit : t(loc, "col.profit")}</div><div className={`big ${p.profit < 0 ? "neg" : "pos"}`}><CountUp value={Math.round(p.profit)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub">{fmtPct(loc, p.margin)} {t(loc, "col.margin")}</p></div>
