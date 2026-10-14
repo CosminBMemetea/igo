@@ -10,13 +10,14 @@ import { firmByRef, refCode } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 /** Admin (ADMIN_EMAIL): toate firmele + cererile „Asistență Querra”. Middleware blochează ruta pentru alte roluri. */
-export default async function Admin({ searchParams }: { searchParams: { rem?: string; te?: string; id?: string; msg?: string } }) {
+export default async function Admin({ searchParams }: { searchParams: { rem?: string; te?: string; id?: string; msg?: string; del?: string; e?: string; deleted?: string; n?: string; left?: string } }) {
   const { loc } = getPrefs();
   const s = store();
   const [firms, reqs, mails, leads] = await Promise.all([s.firms(), s.support(), s.emails(50), s.leads()]);
   const LL = LT[loc], referred = firms.filter((f) => f.referredBy);
   const mailOn = !!emailProvider();
   const rem = searchParams.rem?.split("-").map(Number);
+  const sp = searchParams, delFirm = sp.del ? firms.find((f) => f.id === sp.del) ?? null : null, delCounts = delFirm ? await s.firmCounts(delFirm.id) : {};
   const cur = cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo";
   const name = (id: string | null) => firms.find((f) => f.id === id)?.name ?? "—";
   return (
@@ -24,6 +25,21 @@ export default async function Admin({ searchParams }: { searchParams: { rem?: st
       <div className="eyebrow fade" style={{ color: "#8b5cf6" }}>{t(loc, "rl.admin")}</div>
       <h1 className="h1 fade">{t(loc, "adm.title")}</h1>
       <p className="sub fade d1">{dbConfigured() ? t(loc, "adm.dbOk") : t(loc, "db.missing")}</p>
+      {sp.deleted ? <p className="msg ok" role="status">{t(loc, "adm.deleted", { name: sp.deleted })} {sp.n ? `(${sp.n})` : ""}{sp.left && sp.left !== "0" ? ` · ⚠ ${sp.left}` : ""}</p> : null}
+      {delFirm ? (
+        <section className="section adm-delbox" id="del">
+          <div className="eyebrow" style={{ color: "var(--neg)" }}>{t(loc, "adm.delTitle")}</div>
+          <h2 style={{ margin: "6px 0" }}>{delFirm.name}{delFirm.cui ? ` · ${delFirm.cui}` : ""}</h2>
+          <p className="sub" style={{ fontSize: 14 }}>{t(loc, "adm.delSub")}</p>
+          <ul className="adm-counts">{Object.entries(delCounts).filter(([, n]) => n).map(([k, n]) => <li key={k}><b>{n}</b> {k}</li>)}</ul>
+          {sp.e === "delname" ? <p className="msg err" role="alert">{t(loc, "adm.delName")}</p> : null}
+          <form action="/api/admin/firm/delete" method="post" className="sheet">
+            <input type="hidden" name="id" value={delFirm.id} />
+            <label className="lf"><span>{t(loc, "adm.delType", { name: delFirm.name })}</span><input name="confirm" autoComplete="off" required placeholder={delFirm.name} /></label>
+            <div className="invrow"><button className="btn pri danger">{t(loc, "adm.delYes")}</button><a className="btn sec" href="/admin#firms">{t(loc, "drv.endNo")}</a></div>
+          </form>
+        </section>
+      ) : null}
       <section className="section" id="firms">
         <div className="eyebrow">{t(loc, "adm.firms", { n: firms.length })}</div>
         <div className="list" style={{ marginTop: 16 }}>
@@ -34,7 +50,7 @@ export default async function Admin({ searchParams }: { searchParams: { rem?: st
           {firms.map((f) => (
             <div key={f.id} className={`it${cur === f.id ? " on" : ""}`}>
               <div style={{ minWidth: 0 }}><div className="t">{f.name}{f.cui ? ` · ${f.cui}` : ""} <span className="badge" title="ref">{refCode(f.id)}</span></div><div className="m">{t(loc, "adm.firmMeta", { trucks: f.trucks, users: f.users })} · {fmtDate(loc, f.createdAt.slice(0, 10), true)}{f.demoMode ? ` · ${t(loc, "firm.demoOn")}` : ""}</div></div>
-              <form action="/api/admin/firm" method="post"><input type="hidden" name="id" value={f.id} /><button className="btn sec sm">{cur === f.id ? "✓" : t(loc, "rl.viewAs")}</button></form>
+              <div className="invrow"><form action="/api/admin/firm" method="post"><input type="hidden" name="id" value={f.id} /><button className="btn sec sm">{cur === f.id ? "✓" : t(loc, "rl.viewAs")}</button></form><a className="btn sec sm adm-del" href={`/admin?del=${f.id}#del`}>{t(loc, "adm.del")}</a></div>
             </div>
           ))}
           {!firms.length ? <div className="empty"><p>{t(loc, "adm.noFirms")}</p></div> : null}

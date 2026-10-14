@@ -1,10 +1,10 @@
 // Querra Fleet: reguli anti-furt / consum pe datele firmei (CSV card + bonuri șofer + poziții GPS). Pure; testate în smoke:fuel.
 import type { Severity } from "../fleet/rules";
 
-export type FirmRule = "peste-capacitate" | "l100-mare" | "consum-peste-normal" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend" | "card-fara-camion";
-export const FIRM_RULES: FirmRule[] = ["peste-capacitate", "l100-mare", "consum-peste-normal", "odo-inapoi", "odo-salt", "dubla", "noapte", "weekend", "card-fara-camion"];
+export type FirmRule = "peste-capacitate" | "l100-mare" | "consum-peste-normal" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend" | "card-fara-camion" | "nr-diferit";
+export const FIRM_RULES: FirmRule[] = ["peste-capacitate", "l100-mare", "consum-peste-normal", "odo-inapoi", "odo-salt", "dubla", "noapte", "weekend", "card-fara-camion", "nr-diferit"];
 export interface RTruck { id: string; plate: string; tankL: number | null; normalL100: number | null; baseline: number | null }
-export interface RTx { id: string; truckId: string | null; at: string; litres: number; odometer: number | null; station: string; card: string | null; lat: number | null; lng: number | null }
+export interface RTx { id: string; truckId: string | null; at: string; litres: number; odometer: number | null; station: string; card: string | null; lat: number | null; lng: number | null; plate?: string | null }
 export interface RPos { truckId: string; at: string; lat: number; lng: number }
 export interface FirmAlert { id: string; rule: FirmRule; vehicleId: string; time: string; severity: Severity; theft: boolean; params: Record<string, string | number> }
 
@@ -54,6 +54,9 @@ export function firmFuelAlerts(trucks: RTruck[], txAll: RTx[], positions: RPos[]
       const push = (rule: FirmRule, severity: Severity, theft: boolean, params: FirmAlert["params"]) => out.push({ id: `${rule}-${f.id}`, rule, vehicleId: t.id, time: f.at, severity, theft, params: noPos ? { ...params, nogps: 1 } : params });
       if (t.tankL && f.litres > t.tankL * (1 + T.overTankTolerance))
         push("peste-capacitate", "high", true, { station: f.station, time: f.at, litres: f.litres, plate: t.plate, tank: t.tankL, excess: Math.round(f.litres - t.tankL) });
+      // bon citit de AI cu alt număr de înmatriculare decât camionul pe care s-a raportat
+      const np = (s: string) => s.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+      if (f.plate && np(f.plate).length >= 5 && np(f.plate) !== np(t.plate)) push("nr-diferit", "high", true, { plate: t.plate, receiptPlate: f.plate, time: f.at, station: f.station, litres: f.litres });
       const h = +f.at.slice(11, 13), dow = new Date(f.at.slice(0, 10) + "T12:00:00Z").getUTCDay();
       if (h >= T.nightFrom || h < T.nightTo) push("noapte", "low", false, { plate: t.plate, time: f.at, station: f.station, litres: f.litres, from: `${T.nightFrom}:00`, to: `0${T.nightTo}:00` });
       else if (dow === 0 || dow === 6) push("weekend", "low", false, { plate: t.plate, time: f.at, station: f.station, litres: f.litres });

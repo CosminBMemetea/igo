@@ -1,3 +1,5 @@
+import { store } from "@/lib/store";
+import { saveFile } from "@/lib/files";
 import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { localNow } from "@/lib/validate";
@@ -38,7 +40,11 @@ export async function POST(req: Request) {
   // idempotent: același bon (vehicul + litri + km la bord) trimis de două ori → aceeași alimentare, nu un duplicat
   const dup = (await r.driverFills(vehicleId)).find((x) => x.litres === litres && x.odometerKm === odometerKm);
   if (dup) return NextResponse.json({ ok: true, fill: dup, dup: true, overTank: litres > v.tankL });
-  const row = await r.addDriverFill({ vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, ...fxCols, station: String(fd.get("station") ?? "").trim().slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size } : null, aiRead: fd.get("aiRead") === "true" });
+  // poza bonului se păstrează pe server (patronul o vede la Bonuri); fără poză salvată → doar numele, ca înainte
+  let fileId: string | null = null;
+  if (photo instanceof File && photo.size > 0 && tn.firm) { try { fileId = (await saveFile(store(), tn.firm.id, { kind: "receipt", name: photo.name || "bon.jpg", mime: photo.type || "image/jpeg", bytes: Buffer.from(await photo.arrayBuffer()), userId: tn.uid })).id; } catch { /* tip/mărime nepermise → fără poză */ } }
+  const plate = String(fd.get("plate") ?? "").trim().slice(0, 20) || null;
+  const row = await r.addDriverFill({ plate, vehicleId, time: localNow(), litres, odometerKm, amount: amount != null && amount > 0 ? amount : null, ...fxCols, station: String(fd.get("station") ?? "").trim().slice(0, 80), photo: photo instanceof File ? { name: photo.name.slice(0, 80), size: photo.size, fileId } : null, aiRead: fd.get("aiRead") === "true" });
   await logDriver(tn, vehicleId, "fill", { note: `${litres} L${row.station ? ` · ${row.station}` : ""}` });
   return NextResponse.json({ ok: true, fill: row, overTank: litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null });
 }

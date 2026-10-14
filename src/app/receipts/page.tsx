@@ -31,7 +31,7 @@ export default async function Receipts() {
               const v = d.vehicles.find((y) => y.id === x.truckId);
               return (
                 <div key={x.id} className="row r4 rcrow" style={{ cursor: "default" }}>
-                  <div><div className="t">{x.station || "—"}</div><div className="m">{fmtDate(loc, x.at)} · {v?.name ?? x.card ?? "—"}</div></div>
+                  <div className="rcmain">{x.photoName?.startsWith("file:") ? <ReceiptThumb id={x.id} has url={`/api/files/${x.photoName.slice(5)}`} label={t(loc, "drv.photo")} /> : null}<div><div className="t">{x.station || "—"}</div><div className="m">{fmtDate(loc, x.at)} · {v?.name ?? x.card ?? "—"}{x.plate && x.source === "driver" && v && x.plate.replace(/[^A-Z0-9]/gi, "").toUpperCase() !== v.name.replace(/[^A-Z0-9]/gi, "").toUpperCase() ? <b className="rc-plate"> · ⚠ {x.plate}</b> : null}</div></div></div>
                   <div className="v">{fmtNum(loc, x.litres, 1)} L</div>
                   <div className="v">{leiOf(x) != null ? fmtMoney(loc, leiOf(x)!) : "—"}{x.amount != null && !isRon(x.currency) ? <small className="fxo" title={x.fxRate ? t(loc, "rc.fx", { rate: fmtNum(loc, x.fxRate, 4), cur: x.currency ?? "", date: fmtDate(loc, x.fxDate ?? "") }) : t(loc, "rc.fxNo")}>{fmtNum(loc, x.amount, 2)} {x.currency}{x.fxRate ? ` · ${fmtNum(loc, x.fxRate, 4)}` : " · ?"}</small> : null}</div>
                   <div style={{ textAlign: "right" }}>{v ? <span className={`badge ${x.source === "driver" ? "acc" : "ok"}`}>{x.source === "driver" ? t(loc, "rc.fromDriver") : t(loc, "rc.fromCard")}</span> : <Link href="/import" className="badge warn">{t(loc, "imp.unknown")}</Link>}</div>
@@ -44,7 +44,7 @@ export default async function Receipts() {
     );
   }
   // demo: bonurile trimise de șofer în sesiunea demo a acestui browser (cookie), primele în listă
-  const driver = [...demoFills().map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r, photo: !!x.p })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null, photo: !!x.photo }))];
+  const driver = [...demoFills().map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r, photo: !!x.p })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null, photo: !!x.photo, file: x.photo?.fileId ?? null }))];
   // aceeași sursă ca Acasă/Curse/Clienți: cursele încheiate
   const m = monthSummary(d.views);
   const fills = demoReceipts(d.views).sort((a, b) => b.time.localeCompare(a.time)).map((f) => ({ ...f, priceLei: f.amount }));
@@ -64,11 +64,11 @@ export default async function Receipts() {
           </div>
         </section>
         <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>
-          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead, drv: true, photo: f.photo, orig: f.cur && f.orig ? { amount: f.orig, cur: f.cur } : null })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
+          {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead, drv: true, photo: f.photo, file: "file" in f ? f.file : null, orig: f.cur && f.orig ? { amount: f.orig, cur: f.cur } : null })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
               <div key={f.id} className="row r4 rcrow" style={{ cursor: "default" }}>
-                <div className="rcmain">{"photo" in f ? <ReceiptThumb id={f.id} has={!!f.photo} label={t(loc, "drv.photo")} /> : null}<div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div></div>
+                <div className="rcmain">{"photo" in f ? <ReceiptThumb id={f.id} has={!!f.photo} url={(f as { file?: string | null }).file ? `/api/files/${(f as { file?: string | null }).file}` : null} label={t(loc, "drv.photo")} /> : null}<div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div></div>
                 <div className="v">{fmtNum(loc, f.litres)} L</div>
                 <div className="v">{f.amount ? fmtMoney(loc, f.amount) : "—"}{"orig" in f && f.orig ? <small className="fxo">{fmtNum(loc, (f.orig as { amount: number }).amount, 2)} {(f.orig as { cur: string }).cur}</small> : null}</div>
                 <div style={{ textAlign: "right" }}>{"drv" in f && f.drv ? <span className="badge acc">{t(loc, "rc.fromDriver")}</span> : f.ok ? <span className="badge ok">{t(loc, "rc.matched")} {v?.name}</span> : <Link href="/alerts" className="badge bad">{t(loc, "rule.card-fara-camion")}</Link>}</div>

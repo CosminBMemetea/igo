@@ -10,9 +10,11 @@ export async function saveThumb(id: string, file: File) {
     localStorage.setItem(THUMB_KEY(id), c.toDataURL("image/jpeg", 0.7));
   } catch { /* fără miniatură */ }
 }
-export function ReceiptThumb({ id, has, label }: { id: string; has?: boolean; label: string }) {
+export function ReceiptThumb({ id, has, label, url }: { id: string; has?: boolean; label: string; url?: string | null }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => { try { setSrc(localStorage.getItem(THUMB_KEY(id))); } catch {} }, [id]);
+  // firmă reală: poza e pe server → o vede și patronul (nu doar telefonul șoferului)
+  if (url) return <a className="rthumb" href={url} target="_blank" rel="noreferrer" title={label}><img src={url} alt={label} loading="lazy" /></a>; // eslint-disable-line @next/next/no-img-element
   if (src) return <a className="rthumb" href={src} target="_blank" rel="noreferrer" title={label}><img src={src} alt={label} /></a>; // eslint-disable-line @next/next/no-img-element
   return has ? <span className="rthumb ph" title={label} aria-label={label}>📷</span> : null;
 }

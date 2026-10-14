@@ -17,7 +17,7 @@ export function truckBaseline(t: TruckRow, tx: FuelTxRow[], since: string): { l1
   if (t.normalL100) return { l100: t.normalL100, kind: "normal", km: 0 };
   return { l100: DEFAULT_L100, kind: "default", km: 0 };
 }
-const toR = (x: FuelTxRow) => ({ id: x.id, truckId: x.truckId, at: x.at, litres: x.litres, odometer: x.odometer, station: x.station, card: x.card, lat: x.lat, lng: x.lng });
+const toR = (x: FuelTxRow) => ({ id: x.id, plate: x.source === "driver" ? x.plate : null, truckId: x.truckId, at: x.at, litres: x.litres, odometer: x.odometer, station: x.station, card: x.card, lat: x.lat, lng: x.lng });
 export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, archived: !!t.archivedAt });
 export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   let litres = r.litres, fuelPrice = r.fuelPrice;
@@ -75,13 +75,13 @@ export class FirmRepository implements IgoRepository {
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const hash = `driver:${newId("h")}`;
-    await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: f.currency ?? null, amountRon: f.amountRon ?? null, fxRate: f.fxRate ?? null, fxDate: f.fxDate ?? null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: null, photoName: f.photo?.name ?? null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
+    await this.s.addFuel(this.firm.id, [{ truckId: f.vehicleId, source: "driver", importId: null, hash, card: null, plate: f.plate ?? null, at: f.time.slice(0, 16), station: f.station, country: null, product: null, litres: f.litres, amount: f.amount, currency: f.currency ?? null, amountRon: f.amountRon ?? null, fxRate: f.fxRate ?? null, fxDate: f.fxDate ?? null, odometer: Math.round(f.odometerKm), lat: null, lng: null, userId: null, photoName: f.photo ? (f.photo.fileId ? `file:${f.photo.fileId}` : f.photo.name) : null, photoSize: f.photo?.size ?? null, aiRead: f.aiRead }]);
     this.txCache = undefined; this.m.delete("alerts");
     return { ...f, id: hash };
   }
   async driverFills(vehicleId?: string): Promise<DriverFill[]> {
     const rows = await this.s.fuel(this.firm.id, { source: "driver", truckId: vehicleId, limit: 50 });
-    return rows.reverse().map((x) => ({ id: x.id, vehicleId: x.truckId ?? "", time: x.at, litres: x.litres, odometerKm: x.odometer ?? 0, amount: x.amount, currency: x.currency, amountRon: x.amountRon, fxRate: x.fxRate, fxDate: x.fxDate, station: x.station, photo: x.photoName ? { name: x.photoName, size: x.photoSize ?? 0 } : null, aiRead: x.aiRead }));
+    return rows.reverse().map((x) => ({ id: x.id, vehicleId: x.truckId ?? "", time: x.at, litres: x.litres, odometerKm: x.odometer ?? 0, amount: x.amount, currency: x.currency, amountRon: x.amountRon, fxRate: x.fxRate, fxDate: x.fxDate, station: x.station, photo: x.photoName ? { name: x.photoName, size: x.photoSize ?? 0, fileId: x.photoName.startsWith("file:") ? x.photoName.slice(5) : null } : null, plate: x.plate, aiRead: x.aiRead }));
   }
   async setShift(s: Shift) { await this.s.setShift(this.firm.id, { truckId: s.vehicleId, start: s.start, end: s.end, checklist: s.checklist, privateSince: s.privateSince ?? null }); return s; }
   async shift(vehicleId: string) { const r = await this.s.shift(this.firm.id, vehicleId); return r ? { vehicleId: r.truckId, start: r.start, end: r.end, checklist: r.checklist, privateSince: r.privateSince ?? null } : null; }

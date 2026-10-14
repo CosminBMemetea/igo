@@ -30,6 +30,7 @@ import { todayFor } from "@/lib/today";
 import { fmtDate, type MsgKey } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
+const HT = { ro: { title: "Azi în firmă", shift: "în tură", km: "km azi", alerts: "alerte deschise", fills: "bonuri luna asta", docs: "documente de reînnoit" }, en: { title: "Today in your company", shift: "on shift", km: "km today", alerts: "open alerts", fills: "receipts this month", docs: "documents to renew" }, pl: { title: "Dziś w firmie", shift: "na zmianie", km: "km dziś", alerts: "otwarte alerty", fills: "paragony w tym miesiącu", docs: "dokumenty do odnowienia" } } as const;
 export default async function Home() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
@@ -41,7 +42,16 @@ export default async function Home() {
       <span className="btn pri">{t(loc, "home.setupGo")}</span>
     </Link>
   ) : null;
-  if (!d.demo && !d.trips.length) return <main>{welcome}<EmptyState kind="home" loc={loc} canSetup={canSetup} /></main>;
+  if (!d.demo && !d.trips.length) {
+    // firmă reală fără curse: tot arătăm datele reale de azi (tură, km, alerte, bonuri, documente), nu doar ecranul gol
+    const lv = await d.live(), td = todayFor(false), H = HT[loc] ?? HT.ro;
+    const fills = (await d.tn.repo.driverFills().catch(() => [])).filter((x) => x.time.slice(0, 7) === td.slice(0, 7)).length;
+    const exp = (await d.tn.repo.docs()).filter((x) => x.expires && x.scope !== "trip" && docStatus(x.expires, td).status !== "valid").length;
+    const cells: [number | string, string, string][] = [[`${lv.filter((x) => x.onShift).length}/${lv.length}`, H.shift, "/live"], [fmtNum(loc, Math.round(lv.reduce((a, x) => a + x.today, 0))), H.km, "/live"], [d.alerts.length, H.alerts, "/alerts"], [fills, H.fills, "/receipts"], [exp, H.docs, "/documents"]];
+    return <main>{welcome}
+      <section className="hreal fade"><div className="eyebrow">{H.title}</div><div className="hreal-g">{cells.map(([n, l, h]) => <Link key={l} href={h} className={typeof n === "number" && n > 0 && (h === "/alerts" || h === "/documents") ? "bad" : ""}><b>{n}</b><span>{l}</span></Link>)}</div></section>
+      <EmptyState kind="home" loc={loc} canSetup={canSetup} /></main>;
+  }
   const m = monthSummary(d.views);
   const live = (await d.live());
   const km = d.views.filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = d.views.filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);

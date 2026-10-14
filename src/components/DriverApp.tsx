@@ -27,7 +27,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
   const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(today?.km ?? 0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
-  const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey()), [cur, setCur] = useState("RON"), [rDate, setRDate] = useState("");
+  const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey()), [cur, setCur] = useState("RON"), [rDate, setRDate] = useState(""), [rPlate, setRPlate] = useState("");
   const [priv, setPriv] = useState(!!initial?.priv);
   // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
   const shownKm = demoKm != null ? (on ? demoKm : 0) : km;
@@ -119,7 +119,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
         const norm = (p: string) => p.replace(/[^A-Z0-9]/gi, "").toUpperCase();
         const meta = [x0.date ? x0.date.split("-").reverse().join(".") : null, x0.plate ? `${x0.plate}${norm(x0.plate) !== norm(vehicleName) ? ` ≠ ${vehicleName}` : ""}` : null].filter(Boolean).join(" · ");
         setReadInfo(meta);
-        if (x0.currency && CURS.includes(x0.currency)) setCur(x0.currency); if (x0.date) setRDate(x0.date);
+        setRPlate(x0.plate ?? ""); if (x0.currency && CURS.includes(x0.currency)) setCur(x0.currency); if (x0.date) setRDate(x0.date);
         // exemplul demo NU e etichetat ca citire AI (nici în mesaj, nici în aiRead)
         setAiOk(!j.sample); setRead(j.sample ? L["drv.sample"] : L["drv.read"]);
       } else manual(r.status === 413 ? L["drv.tooBig"] : r.status === 415 ? L["drv.notImage"] : r.status === 422 ? L["drv.notReceipt"] : L["drv.readManual"]);
@@ -134,7 +134,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
     setFormErr(""); setBusy(true);
     try {
       const fd = new FormData();
-      fd.append("vehicleId", vehicleId); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station.trim().slice(0, 80)); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current); fd.append("currency", cur); if (rDate) fd.append("date", rDate);
+      fd.append("vehicleId", vehicleId); if (rPlate && aiOk) fd.append("plate", rPlate.slice(0, 20)); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station.trim().slice(0, 80)); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current); fd.append("currency", cur); if (rDate) fd.append("date", rDate);
       if (photo) fd.append("photo", photo);
       const r = await fetch("/api/driver/fill", { method: "POST", body: fd }).catch(() => null);
       const j = r ? await r.json().catch(() => ({})) : {};

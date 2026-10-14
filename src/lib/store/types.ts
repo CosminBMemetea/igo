@@ -26,7 +26,7 @@ export type DriverEventKind = "shift_start" | "shift_end" | "private_on" | "priv
 export interface DriverEventRow { id: string; truckId: string; userId: string | null; kind: DriverEventKind; at: string; lat: number | null; lng: number | null; note: string | null }
 export interface PosRow { truckId: string; at: string; lat: number; lng: number }
 
-export type FileKind = "doc" | "cmr" | "pod";
+export type FileKind = "doc" | "cmr" | "pod" | "receipt";
 export interface FileMeta { id: string; firmId: string; kind: FileKind; tripId: string | null; docId: string | null; name: string; mime: string; size: number; storage: "blob" | "db"; url: string | null; userId: string | null; createdAt: string }
 export type NewFile = Omit<FileMeta, "id" | "firmId" | "createdAt"> & { data: Buffer | null };
 export interface NotificationRow { id: string; firmId: string; userId: string | null; key: string; kind: string; docId: string | null; params: Record<string, string | number>; readAt: string | null; createdAt: string }
@@ -46,6 +46,9 @@ export interface Store {
   userByLogin(login: string): Promise<UserRow | null>;
   users(firmId: string): Promise<UserRow[]>;
   userById(id: string): Promise<UserRow | null>;
+  /** admin Querra: câte rânduri are firma pe fiecare tabel / ștergere completă (tranzacție) */
+  firmCounts(firmId: string): Promise<Record<string, number>>;
+  deleteFirm(firmId: string): Promise<{ counts: Record<string, number>; blobUrls: string[] }>;
   setUserPassword(id: string, passwordHash: string): Promise<void>;
   /** dezactivare șofer: sesiunile existente sunt respinse la următoarea cerere, nu se mai poate autentifica */
   setUserDisabled(firmId: string, userId: string, off: boolean): Promise<boolean>;
@@ -56,6 +59,8 @@ export interface Store {
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;
   addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">): Promise<TruckRow>;
   trucks(firmId: string): Promise<TruckRow[]>;
+  updateTruck(firmId: string, id: string, p: { plate: string; model: string | null; tankL: number | null; normalL100: number | null }): Promise<boolean>;
+  setUserEmail(id: string, email: string): Promise<void>;
   updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }): Promise<boolean>;
   /** Documentul trebuie să aparțină unui camion SAU unui șofer al firmei. */
   addDoc(firmId: string, d: NewDoc): Promise<DocRow>;

@@ -11,7 +11,7 @@ export const KM_MISMATCH = 0.2;
 export type Severity = "high" | "medium" | "low";
 export type RuleId = "km-nepotrivit" | "card-fara-camion" | "scadere-parcat" | "peste-capacitate" | "consum-peste-medie" | "consum-peste-normal"
   // reguli pe datele firmei (src/lib/fuel/rules.ts)
-  | "l100-mare" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend";
+  | "l100-mare" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend" | "nr-diferit";
 export const RULES: RuleId[] = ["km-nepotrivit", "card-fara-camion", "scadere-parcat", "peste-capacitate", "consum-peste-medie", "consum-peste-normal"];
 /** Parametri structurați; textul „De ce” se generează pe limbă la afișare. */
 export type AlertParams = Record<string, string | number>;

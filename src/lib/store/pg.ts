@@ -36,6 +36,26 @@ export class PgStore implements Store {
   }
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash }).where(eq(users.id, id)); }
+  private firmTables() {
+    return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents } as const;
+  }
+  async firmCounts(firmId: string) {
+    const out: Record<string, number> = {};
+    const [f] = await this.d.select({ n: count() }).from(firms).where(eq(firms.id, firmId)); out.firms = Number(f?.n ?? 0);
+    for (const [k, tb] of Object.entries(this.firmTables())) { const [r] = await this.d.select({ n: count() }).from(tb).where(eq((tb as typeof users).firmId, firmId)); out[k] = Number(r?.n ?? 0); }
+    return out;
+  }
+  async deleteFirm(firmId: string) {
+    const counts = await this.firmCounts(firmId);
+    const blobUrls = (await this.d.select({ url: files.url }).from(files).where(and(eq(files.firmId, firmId), eq(files.storage, "blob")))).map((r) => r.url).filter((u): u is string => !!u);
+    // o singură tranzacție: întâi tabelele fără FK spre firms, apoi copiii, la final firma (restul cade în cascadă)
+    const T = this.firmTables(), order = [T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox];
+    const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<unknown>; transaction?: (f: (tx: Db) => Promise<void>) => Promise<void> };
+    const build = (db: Db) => [...order.map((tb) => db.delete(tb).where(eq((tb as typeof users).firmId, firmId))), db.delete(firms).where(eq(firms.id, firmId))];
+    if (typeof d.batch === "function") await d.batch(build(this.d));
+    else await d.transaction!(async (tx) => { for (const q of build(tx)) await q; });
+    return { counts, blobUrls };
+  }
   async userById(id: string) { const [r] = await this.d.select().from(users).where(eq(users.id, id)).limit(1); return r ? userOut(r) : null; }
   async setUserDisabled(firmId: string, userId: string, off: boolean) { const r = await this.d.update(users).set({ disabledAt: off ? new Date() : null }).where(and(eq(users.firmId, firmId), eq(users.id, userId), eq(users.role, "driver"))).returning({ id: users.id }); return r.length > 0; }
   async users(firmId: string) { return (await this.d.select().from(users).where(eq(users.firmId, firmId))).map(userOut); }
@@ -51,6 +71,8 @@ export class PgStore implements Store {
     try { const [r] = await this.d.insert(trucks).values({ ...t, archivedAt: null, id: newId("t"), firmId }).returning(); return truckOut(r); }
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
+  async updateTruck(firmId: string, id: string, p: { plate: string; model: string | null; tankL: number | null; normalL100: number | null }) { const r = await this.d.update(trucks).set(p).where(and(eq(trucks.firmId, firmId), eq(trucks.id, id))).returning({ id: trucks.id }); return r.length > 0; }
+  async setUserEmail(id: string, email: string) { await this.d.update(users).set({ email }).where(eq(users.id, id)); }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) {
     const set: Partial<typeof trucks.$inferInsert> = {};
     if (p.costs) set.costs = p.costs;

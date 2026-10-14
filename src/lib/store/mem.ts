@@ -14,6 +14,23 @@ export class MemStore implements Store {
   }
   async userByLogin(login: string) { const u = this.U.find((x) => x.email === login || x.phone === login); return u ? { ...u } : null; }
   async setUserPassword(id: string, passwordHash: string) { const u = this.U.find((x) => x.id === id); if (u) u.passwordHash = passwordHash; }
+  async firmCounts(firmId: string) {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(this)) {
+      if (Array.isArray(v)) { const n = v.filter((x: { firmId?: string; id?: string }) => x.firmId === firmId || (k === "F" && x.id === firmId)).length; if (n) out[k] = n; }
+      else if (v instanceof Map) { const n = [...v.keys()].filter((x) => String(x).startsWith(firmId + ":")).length; if (n) out[k] = n; }
+    }
+    return out;
+  }
+  async deleteFirm(firmId: string) {
+    const counts = await this.firmCounts(firmId), self = this as unknown as Record<string, unknown>;
+    const blobUrls = this.FL.filter((f) => f.firmId === firmId && f.url).map((f) => f.url!);
+    for (const [k, v] of Object.entries(this)) {
+      if (Array.isArray(v)) self[k] = v.filter((x: { firmId?: string; id?: string }) => !(x.firmId === firmId || (k === "F" && x.id === firmId)));
+      else if (v instanceof Map) for (const key of [...v.keys()]) if (String(key).startsWith(firmId + ":")) v.delete(key);
+    }
+    return { counts, blobUrls };
+  }
   async userById(id: string) { const u = this.U.find((x) => x.id === id); return u ? { ...u } : null; }
   async setUserDisabled(firmId: string, userId: string, off: boolean) { const u = this.U.find((x) => x.id === userId && x.firmId === firmId && x.role === "driver"); if (!u) return false; u.disabledAt = off ? new Date().toISOString() : null; return true; }
   async users(firmId: string) { return this.U.filter((u) => u.firmId === firmId); }
@@ -23,6 +40,8 @@ export class MemStore implements Store {
   async invites(firmId: string) { return this.I.filter((x) => x.firmId === firmId); }
   async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) { if (this.T.some((x) => x.firmId === firmId && x.plate === t.plate)) throw new Error("exists"); const r = { ...t, id: newId("t"), firmId }; this.T.push(r); return { ...r }; }
+  async updateTruck(firmId: string, id: string, p: { plate: string; model: string | null; tankL: number | null; normalL100: number | null }) { if (this.T.some((x) => x.firmId === firmId && x.plate === p.plate && x.id !== id)) throw new Error("dup"); const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; Object.assign(t, p); return true; }
+  async setUserEmail(id: string, email: string) { if (this.U.some((x) => x.email === email && x.id !== id)) throw new Error("dup"); const u = this.U.find((x) => x.id === id); if (u) u.email = email; }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) { const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; if (p.costs) t.costs = p.costs; if (p.archived !== undefined) t.archivedAt = p.archived ? new Date().toISOString() : null; return true; }
   async trucks(firmId: string) { return this.T.filter((x) => x.firmId === firmId); }
   private ownDoc(firmId: string, d: Partial<NewDoc>) {
