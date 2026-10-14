@@ -111,7 +111,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
             <div className="list">
               {imports.map((m) => (
                 <div key={m.id} className="it" style={{ cursor: "default" }}>
-                  <div style={{ minWidth: 0 }}><div className="t">{SOURCE_NAME[m.source as Source] ?? m.source} · {m.filename || "—"}</div><div className="m">{fmtDate(loc, m.createdAt.slice(0, 16))} · {t(loc, "imp.histMeta", { added: m.added, dupes: m.dupes, skipped: m.skipped })}</div></div>
+                  <div style={{ minWidth: 0 }}><div className="t">{SOURCE_NAME[m.source as Source] ?? m.source} · {m.filename || "—"}</div><div className="m">{new Date(m.createdAt).toLocaleString(loc === "en" ? "en-GB" : loc === "pl" ? "pl-PL" : "ro-RO", { timeZone: "Europe/Bucharest", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {t(loc, "imp.histMeta", { added: m.added, dupes: m.dupes, skipped: m.skipped })}</div></div>
                   <span className="badge acc">+{m.added}</span>
                 </div>
               ))}

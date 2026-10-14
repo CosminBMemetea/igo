@@ -24,7 +24,8 @@ export default async function FeedPage() {
     if (!d.tn.firm) redirect("/");
     const [ev, lv] = await Promise.all([store().driverEvents(d.tn.firm.id, new Date(Date.parse(dayStartIso()) - 86400000).toISOString()).catch(() => []), d.live()]);
     const names = Object.fromEntries(d.allVehicles.map((v) => [v.id, { plate: v.name, driver: v.driver }]));
-    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} /><AutoRefresh ms={30000} /></>;
+    const people = Object.fromEntries((await store().users(d.tn.firm.id).catch(() => [])).map((u) => [u.id, u.name]));
+    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} people={people} /><AutoRefresh ms={30000} /></>;
   }
   const today = todayFor(d.demo), live = (await d.live());
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo);

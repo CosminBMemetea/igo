@@ -12,7 +12,7 @@ import { inviteToken } from "@/lib/invite";
 import { CopyLink } from "@/components/CopyLink";
 
 export const dynamic = "force-dynamic";
-const ERR: Record<string, MsgKey> = { firm: "su.e.firm", cui: "su.e.cui", plate: "set.e.plate", vin: "set.e.vin", num: "set.e.num", dup: "set.e.dup", name: "set.e.name", phone: "join.e.phone", doc: "set.e.doc", trip: "set.e.trip", nofirm: "set.e.nofirm" };
+const ERR: Record<string, MsgKey> = { firm: "su.e.firm", cui: "su.e.cui", plate: "set.e.plate", vin: "set.e.vin", num: "set.e.num", dup: "set.e.dup", name: "set.e.name", phone: "join.e.phone", doc: "set.e.doc", trip: "set.e.trip", nofirm: "set.e.nofirm", dupphone: "set.e.dupphone" };
 export default async function Setup({ searchParams }: { searchParams: { step?: string; e?: string; ok?: string; inv?: string } }) {
   const { loc } = getPrefs();
   const f = await writableFirm();
@@ -103,7 +103,7 @@ export default async function Setup({ searchParams }: { searchParams: { step?: s
                         <details className="qr"><summary className="btn sec sm">{t(loc, "inv.qr")}</summary><div className="qrbox" dangerouslySetInnerHTML={{ __html: i.qr }} /><p className="hint">{t(loc, "inv.qrHint")}</p></details>
                         <div className="invrow">
                           <Link className="btn sec sm" href={`/setup?step=3&inv=${i.id}`}>{t(loc, "inv.resend")}</Link>
-                          <form action="/api/setup/invite/revoke" method="post"><input type="hidden" name="id" value={i.id} /><button className="btn sec sm">{t(loc, "inv.revoke")}</button></form>
+                          <details className="inv-rv"><summary className="btn sec sm">{t(loc, "inv.revoke")}</summary><form action="/api/setup/invite/revoke" method="post"><input type="hidden" name="id" value={i.id} /><button className="btn sm danger">{t(loc, "inv.revokeQ")}</button></form></details>
                         </div>
                       </div>
                     );

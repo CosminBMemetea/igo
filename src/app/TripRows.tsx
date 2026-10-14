@@ -14,7 +14,7 @@ export function TripRows({ rows, loc, fit }: { rows: TripView[]; loc: Locale; fi
           <div>
             <div className="t">{r.vehicle.kind === "agri" ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</div>
             {r.e ? <div className="ebadges"><span className={`pbadge ${r.p.profit < 0 ? "neg" : "pos"}`}>{r.p.profit < 0 ? "▼" : "▲"} {fmtPct(loc, r.p.margin, 0)}</span>{r.e.tonnes === 0 ? <span className="lbadge empty">↩ {EL[loc].emptyRet}</span> : r.e.loadPct !== null ? <span className={`lbadge${r.e.loadPct < 0.5 ? " low" : ""}`}>{fmtNum(loc, r.e.tonnes ?? 0, 1)} t · {fmtPct(loc, r.e.loadPct, 0)}</span> : null}{r.e.emptyKm > 0 && r.e.tonnes !== 0 ? <span className="lbadge km" title={EL[loc].emptyKm}>↩ {fmtNum(loc, r.e.emptyKm)} km</span> : null}</div> : null}
-            <div className="m">{[r.vehicle.name, r.vehicle.driver, fmtDate(loc, r.date)].filter(Boolean).join(" · ")}{r.ha ? ` · ${r.ha} ha` : ""}{r.active ? ` · ${t(loc, "trip.active")}` : ""}</div>
+            <div className="m">{[r.vehicle.name, r.driverName ?? r.vehicle.driver, fmtDate(loc, r.date)].filter(Boolean).join(" · ")}{r.ha ? ` · ${r.ha} ha` : ""}{r.active ? ` · ${t(loc, r.planned ? "trip.planned" : "trip.active")}` : ""}</div>
           </div>
           <div className="hide"><div className="v">{fmtMoney(loc, r.revenue)}</div><div className="l">{t(loc, "col.revenue")}</div></div>
           <div className="hide"><div className="v">{fmtMoney(loc, r.p.costs)}</div><div className="l">{t(loc, "col.costs")}</div></div>

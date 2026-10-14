@@ -32,7 +32,7 @@ export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   return {
     id: r.id, vehicleId: r.truckId, clientId: slug(r.client), type: "transport", date: r.date, title: r.title, km: r.km, hours: 0, ha: 0, units: r.km,
     revenue: r.revenue, litres, fuelPrice, tolls: r.tolls, driver: r.driverCost, other: r.other,
-    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned && r.date >= localNow().slice(0, 10), driverId: r.driverId ?? null, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
+    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned && r.date >= localNow().slice(0, 10), driverId: r.driverId ?? null, planned: !!r.planned, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
   };
 }
 export class FirmRepository implements IgoRepository {
@@ -51,7 +51,7 @@ export class FirmRepository implements IgoRepository {
     const nm = (u: { name: string; email: string | null }) => u.name?.trim() || (u.email ? u.email.split("@")[0] : "");
     return ts.map((t) => { const drv = us.filter((x) => x.role === "driver"), u = drv.find((x) => x.truckId === t.id) ?? (ts.length === 1 && drv.length === 1 ? drv[0] : undefined); return { ...truckToVehicle(t, truckBaseline(t, tx, this.since()).l100), driver: u ? nm(u) : "" }; });
   }
-  async trips() { const [rs, tx] = await Promise.all([this.tripsQ(), this.tx()]); return rs.map((r) => tripRowToTrip(r, tx)); }
+  async trips() { const [rs, tx, us] = await Promise.all([this.tripsQ(), this.tx(), this.s.users(this.firm.id)]); const nm = new Map(us.map((u) => [u.id, u.name])); return rs.map((r) => { const t = tripRowToTrip(r, tx), n = r.driverId ? nm.get(r.driverId) : undefined; return n ? { ...t, driverName: n } : t; }); }
   async clients(): Promise<Client[]> {
     const seen = new Map<string, Client>();
     for (const r of await this.tripsQ()) if (!seen.has(slug(r.client))) seen.set(slug(r.client), { id: slug(r.client), name: r.client, country: "RO", vat: "", contacts: [], payDays: 0 });

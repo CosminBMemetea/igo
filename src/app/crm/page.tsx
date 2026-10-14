@@ -48,7 +48,7 @@ export default async function Crm({ searchParams }: { searchParams: { c?: string
               <Link key={r.id} className="row r3" href={`/trips/${r.id}`}>
                 <div><div className="t">{r.title}</div><div className="m">{fmtDate(loc, r.date)} · {r.vehicle.name}{r.invoiceNo ? ` · ${r.invoiceNo}` : ""}</div></div>
                 <div className={`v ${r.p.profit < 0 ? "neg" : "pos"}`}>{fmtMoney(loc, r.p.profit)}</div>
-                <div style={{ textAlign: "right" }}><span className={`badge ${r.active ? "acc" : BADGE[r.payment]}`}>{r.active ? t(loc, "trip.active") : t(loc, `pay.${r.payment}`)}</span></div>
+                <div style={{ textAlign: "right" }}><span className={`badge ${r.active ? "acc" : BADGE[r.payment]}`}>{r.active ? t(loc, r.planned ? "trip.planned" : "trip.active") : t(loc, `pay.${r.payment}`)}</span></div>
               </Link>
             ))}
           </div>

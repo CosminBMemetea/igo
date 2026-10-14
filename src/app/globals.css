@@ -1208,3 +1208,4 @@ html.msheet-open,html.msheet-open body{overflow:hidden}
 .thead-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .tdup{margin:-6px 0 14px}
 .drvtruck{margin-top:16px;background:var(--bg2);border-radius:18px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.drvtruck>div{display:grid;gap:2px}.drvtruck b{font-size:20px;font-weight:500}.drvtruck details>summary{list-style:none}.drvtruck details>summary::-webkit-details-marker{display:none}.drvtruck-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.inv-rv>summary{list-style:none}.inv-rv>summary::-webkit-details-marker{display:none}.inv-rv[open]>summary{display:none}.setup,.setup *{min-width:0}.setup{overflow-x:clip}

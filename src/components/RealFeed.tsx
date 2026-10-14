@@ -15,7 +15,7 @@ const L = {
 } as const;
 const IC: Record<DriverEventRow["kind"], string> = { truck_switch: "⇄", shift_start: "▶", shift_end: "■", private_on: "☾", private_off: "☀", loaded: "⬆", unloaded: "⬇", wait_start: "⏳", wait_end: "✓", fill: "⛽" };
 
-export function RealFeed({ loc, events, live, names }: { loc: Locale; events: DriverEventRow[]; live: LiveVehicle[]; names: Record<string, { plate: string; driver: string }> }) {
+export function RealFeed({ loc, events, live, names, people = {} }: { people?: Record<string, string>; loc: Locale; events: DriverEventRow[]; live: LiveVehicle[]; names: Record<string, { plate: string; driver: string }> }) {
   const T = L[loc] ?? L.ro, today = localNow().slice(0, 10);
   const on = live.filter((x) => x.status !== "offline").length, priv = live.filter((x) => x.status === "private").length, km = live.reduce((a, x) => a + x.today, 0);
   let lastDay = "";
@@ -35,7 +35,7 @@ export function RealFeed({ loc, events, live, names }: { loc: Locale; events: Dr
           const head = day !== lastDay ? (lastDay = day, <li className="rfday" key={"d" + day}>{day === today ? T.today : T.yday}</li>) : null;
           return [head, <li key={e.id} className={`rfe k-${e.kind}`}>
             <i aria-hidden>{IC[e.kind]}</i>
-            <div><b>{n?.driver || n?.plate || "—"}</b> {T.k[e.kind]}{e.note ? (e.kind === "truck_switch" ? <b> {e.note}</b> : <span className="rfn"> · {e.note}</span>) : null}<small>{n?.plate}</small></div>
+            <div><b>{(e.userId && people[e.userId]) || n?.driver || n?.plate || "—"}</b> {T.k[e.kind]}{e.note ? (e.kind === "truck_switch" ? <b> {e.note}</b> : <span className="rfn"> · {e.note}</span>) : null}<small>{n?.plate}</small></div>
             <time>{l.slice(11, 16)}</time>
           </li>];
         })}</ol> : <p className="rfempty fade d2">{T.empty}</p>}

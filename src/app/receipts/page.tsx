@@ -25,7 +25,7 @@ export default async function Receipts() {
         <main>
           <div className="eyebrow fade">{t(loc, "rc.title")}</div>
           <h1 className="h1 fade">{fmtMoney(loc, lei)}</h1>
-          <p className="sub fade d1">{t(loc, "rc.firmSub", { n: tx.length, litres: fmtNum(loc, L) })}</p>
+          <p className="sub fade d1">{t(loc, tx.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: tx.length, litres: fmtNum(loc, L) })}</p>
           <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>
             {tx.map((x) => {
               const v = d.vehicles.find((y) => y.id === x.truckId);
@@ -56,7 +56,7 @@ export default async function Receipts() {
       <main>
         <div className="eyebrow fade">{t(loc, "rc.title")}</div>
         <h1 className="h1 fade">{t(loc, "rc.sub")}</h1>
-        <p className="sub fade d1">{t(loc, "rc.firmSub", { n: fills.length + driver.length, litres: fmtNum(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, fuel)}</p>
+        <p className="sub fade d1">{t(loc, fills.length + driver.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: fills.length + driver.length, litres: fmtNum(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, fuel)}</p>
         <section className="section">
           <div className="head"><h2>{t(loc, "rc.byCat")}</h2></div>
           <div className="wf">
