@@ -1,3 +1,4 @@
+import { tripStage, STAGE_LABELS, type TripStage } from "@/lib/trip-stage";
 import { NewTrip } from "@/components/NewTrip";
 import { store } from "@/lib/store";
 import { localNow } from "@/lib/validate";
@@ -19,10 +20,11 @@ export default async function Trips({ searchParams }: { searchParams: { new?: st
   const nt = canNew ? <NewTrip loc={loc} today={localNow().slice(0, 10)} autoOpen={searchParams.new === "1"} drivers={(await store().users(d.tn.firm!.id)).filter((u) => u.role === "driver" && !u.disabledAt).map((u) => ({ id: u.id, name: u.name || u.phone || "—", truckId: u.truckId ?? null }))} trucks={d.vehicles.map((v) => ({ id: v.id, plate: v.name }))} /> : null;
 
   const m = monthSummary(d.views);
-  const tr = (s: string) => tri(loc, s), status = ["planned", "done"].includes(searchParams.status ?? "") ? searchParams.status : "all";
+  const tr = (s: string) => tri(loc, s), status = ["planned", "loaded", "delivered", "completed", "cancelled", "done"].includes(searchParams.status ?? "") ? searchParams.status : "all";
   const q = (searchParams.q ?? "").trim().toLocaleLowerCase();
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(searchParams.month ?? "") ? searchParams.month! : "";
-  const rows = d.views.filter((v) => (status === "all" || (status === "planned" ? v.active : !v.active)) && (!searchParams.truck || v.vehicleId === searchParams.truck) && (!month || v.date.startsWith(month)) && (!q || `${v.title} ${d.clients.find((c) => c.id === v.clientId)?.name ?? ""} ${v.driverName ?? v.vehicle.driver} ${v.vehicle.name}`.toLocaleLowerCase().includes(q))).sort((a, b) => status === "planned" ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+  const allRows = [...d.views, ...d.cancelledViews];
+  const rows = allRows.filter((v) => (status === "all" || tripStage(v) === (status === "done" ? "completed" : status)) && (!searchParams.truck || v.vehicleId === searchParams.truck) && (!month || v.date.startsWith(month)) && (!q || `${v.title} ${d.clients.find((c) => c.id === v.clientId)?.name ?? ""} ${v.driverName ?? v.vehicle.driver} ${v.vehicle.name}`.toLocaleLowerCase().includes(q))).sort((a, b) => status === "planned" ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
   return (
     <main>
       <div className="eyebrow fade">{t(loc, "nav.trips")}</div>
@@ -31,7 +33,7 @@ export default async function Trips({ searchParams }: { searchParams: { new?: st
       <EconKpis vehicles={d.allVehicles} views={d.views} loc={loc} />
       <form className="sheet" method="get" style={{ marginTop: 24 }}>
         <div className="nt2"><label className="lf"><span>{tr("Caută rută, șofer sau camion|Search route, driver or truck|Szukaj trasy, kierowcy lub pojazdu")}</span><input name="q" defaultValue={searchParams.q} /></label>
-        <label className="lf"><span>{tr("Stare|Status|Status")}</span><select name="status" defaultValue={status}><option value="all">{tr("Toate|All|Wszystkie")} ({d.views.length})</option><option value="planned">{tr("Planificate / în lucru|Planned / in progress|Planowane / w toku")} ({d.views.filter((v) => v.active).length})</option><option value="done">{tr("Încheiate|Completed|Zakończone")} ({d.views.filter((v) => !v.active).length})</option></select></label>
+        <label className="lf"><span>{tr("Stare|Status|Status")}</span><select name="status" defaultValue={status === "done" ? "completed" : status}><option value="all">{tr("Toate|All|Wszystkie")} ({allRows.length})</option>{(Object.keys(STAGE_LABELS) as TripStage[]).map((stage) => <option key={stage} value={stage}>{tr(STAGE_LABELS[stage])} ({allRows.filter((v) => tripStage(v) === stage).length})</option>)}</select></label>
         <label className="lf"><span>{tr("Camion|Truck|Pojazd")}</span><select name="truck" defaultValue={searchParams.truck ?? ""}><option value="">{tr("Toate camioanele|All trucks|Wszystkie pojazdy")}</option>{d.allVehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
         <label className="lf"><span>{tr("Luna (opțional)|Month (optional)|Miesiąc (opcjonalnie)")}</span><input type="month" name="month" defaultValue={month} /></label></div>
         <div className="invrow"><button className="btn sec">{tr("Aplică filtrele|Apply filters|Zastosuj filtry")}</button><Link className="link" href="/trips">{tr("Resetează|Reset|Resetuj")}</Link></div>

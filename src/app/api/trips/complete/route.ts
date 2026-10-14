@@ -7,6 +7,6 @@ export async function POST(req: Request) {
   if (!firm) return formReply(req, "/trips", "nofirm", 403);
   const trip = (await store().trips(firm.id)).find((t) => t.id === id);
   if (!trip || trip.date > localNow().slice(0, 10)) return formReply(req, "/trips", "missing", 409);
-  await store().updateTrip(firm.id, id, { planned: false });
+  if (!(await store().completeTrip(firm.id, id))) return formReply(req, `/trips/${id}`, "transition", 409);
   return formReply(req, `/trips/${id}`);
 }

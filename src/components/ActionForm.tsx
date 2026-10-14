@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { tri, type Locale } from "@/lib/i18n";
 
 const ERR: Record<string, string> = {
+  reason: "Scrie motivul anulării.|Enter the cancellation reason.|Podaj powód anulowania.",
+  transition: "Starea cursei s-a schimbat sau operațiunea nu este permisă. Reîncarcă pagina.|Trip status changed or this action is not allowed. Reload the page.|Status kursu się zmienił lub operacja jest niedozwolona. Odśwież stronę.",
   plate: "Verifică numărul de înmatriculare.|Check the registration number.|Sprawdź numer rejestracyjny.",
   vin: "VIN-ul trebuie să aibă 17 caractere valide.|VIN must contain 17 valid characters.|VIN musi mieć 17 poprawnych znaków.",
   num: "Verifică valorile numerice.|Check the numeric values.|Sprawdź wartości liczbowe.",

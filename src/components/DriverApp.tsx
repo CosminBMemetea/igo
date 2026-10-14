@@ -1,4 +1,7 @@
 "use client";
+import { enqueue, flushOutbox } from "@/lib/outbox";
+import { localNow } from "@/lib/validate";
+import { tri } from "@/lib/i18n";
 import { saveThumb } from "./ReceiptThumb";
 import { useEffect, useRef, useState } from "react";
 import { shrinkImage } from "@/lib/shrink";
@@ -23,7 +26,7 @@ function hav(a: [number, number], b: [number, number]) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo }: { switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo }: { queueScope?: string; actorId?: string; switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
   const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(today?.km ?? 0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
@@ -140,13 +143,21 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       const fd = new FormData();
       fd.append("vehicleId", vehicleId); if (rPlate && aiOk) fd.append("plate", rPlate.slice(0, 20)); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station.trim().slice(0, 80)); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current); fd.append("currency", cur); if (rDate) fd.append("date", rDate);
       if (photo) fd.append("photo", photo);
+      if (queueScope && actorId && !demo && !preview) {
+        if (!rDate) fd.set("date", localNow().slice(0,10));
+        await enqueue({ id: idem.current, scope: queueScope, actorId, kind: "fill", label: `${litres} L · ${vehicleName}`, payload: [...fd.entries()] });
+        idem.current = newKey(); setMsg({ t: tri(loc, "Bon salvat pe telefon. Verifică Sincronizare pentru confirmarea trimiterii.|Receipt saved on device. Check Sync for delivery confirmation.|Paragon zapisano na urządzeniu. Sprawdź synchronizację."), k: "warn" });
+        setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); setRDate(""); setCur("RON");
+        if (navigator.onLine) void flushOutbox(queueScope).catch(() => {});
+        return;
+      }
       const r = await fetch("/api/driver/fill", { method: "POST", body: fd }).catch(() => null);
       const j = r ? await r.json().catch(() => ({})) : {};
       if (r?.ok) { idem.current = newKey(); const fid = (j.id ?? j.fill?.id) as string | undefined; if (photo && fid && !j.dup) void saveThumb(fid, photo); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
         const fxT = fx ? (fx.ok && fx.amountRon != null ? " " + L["drv.fxOk"].replace("{ron}", fmtNum(loc, fx.amountRon, 2)).replace("{rate}", fmtNum(loc, fx.fxRate ?? 0, 4)).replace(/\{cur\}/g, fx.currency).replace("{date}", (fx.fxDate ?? "").split("-").reverse().join(".")) : " " + L["drv.fxNo"].replace("{cur}", fx.currency)) : "";
         setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
       else { if (r?.status === 409) setMsg({ t: "", k: "" }); setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]); }
-    } finally { setBusy(false); }
+    } catch { setFormErr(tri(loc, "Bonul nu a putut fi păstrat pe telefon. Nu închide formularul; încearcă din nou.|Could not save the receipt on this device. Keep the form open and retry.|Nie udało się zapisać paragonu. Nie zamykaj formularza i spróbuj ponownie.")); } finally { setBusy(false); }
   }
   const w = work.current, hours = demo ? (start ? (now - start) / 3600000 : 0) : (w.ms + (w.since !== null ? Math.max(0, now - w.since) : 0)) / 3600000;
   return (

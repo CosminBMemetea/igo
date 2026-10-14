@@ -111,7 +111,20 @@ try {
   ok("cursă planificată editată", (await A.json("/api/trips/new", { ...payload, id: created.body.id, to: "Timișoara" })).status === 200);
   const filtered = await A.go("/trips?status=planned&q=Timi");
   ok("filtrare curse planificate", filtered.text.includes("Oradea → Timișoara"));
-  await db.query("update trips set planned=false where id=$1", [created.body.id]);
+  const eventBody = { tripId: created.body.id, kind: "loaded", key: "http-load-001", actorId: drv[0].id, occurredAt: new Date().toISOString() };
+  ok("cont schimbat respins la sincronizare", (await D.json("/api/trips/event", { ...eventBody, actorId: "another-user" })).status === 403);
+  ok("descărcare înainte de încărcare respinsă", (await D.json("/api/trips/event", { ...eventBody, kind: "unloaded" })).status === 409);
+  ok("încărcare confirmată", (await D.json("/api/trips/event", eventBody)).body.ok === true);
+  ok("retransmitere fără dublare", (await D.json("/api/trips/event", eventBody)).body.duplicate === true);
+  ok("editarea după încărcare respinsă", (await A.json("/api/trips/new", { ...payload, id: created.body.id })).status === 409);
+  ok("anularea după încărcare respinsă", (await A.go("/api/trips/cancel", { id: created.body.id, reason: "Test cancellation" })).loc.includes("e=transition"));
+  ok("livrare confirmată", (await D.json("/api/trips/event", { ...eventBody, kind: "unloaded", key: "http-unload-001", occurredAt: new Date().toISOString() })).body.ok === true);
+  await db.query("update trips set date='2026-01-01' where id=$1", [created.body.id]);
+  ok("patronul finalizează cursa livrată", (await A.go("/api/trips/complete", { id: created.body.id })).loc.endsWith(`/trips/${created.body.id}`));
+  const toCancel = await A.json("/api/trips/new", payload);
+  ok("șoferul nu anulează cursa", (await D.go("/api/trips/cancel", { id: toCancel.body.id, reason: "Test cancellation" })).status === 403);
+  ok("anulare cu motiv confirmată", (await A.go("/api/trips/cancel", { id: toCancel.body.id, reason: "Client cancelled" })).loc.endsWith(`/trips/${toCancel.body.id}`));
+  ok("istoricul anulării vizibil", (await A.go(`/trips/${toCancel.body.id}`)).text.includes("Client cancelled"));
   ok("cursa încheiată nu poate fi rescrisă", (await A.json("/api/trips/new", { ...payload, id: created.body.id })).status === 409);
   // 5. izolare între firme
   const B = new Agent();

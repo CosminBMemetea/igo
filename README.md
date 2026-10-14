@@ -124,3 +124,26 @@ available. Real microphone/device testing is still required on the target phones
 `npm run smoke:trip-workflow` checks natural language parsing and ambiguous driver
 names. The tenant suite tests the transcription HTTP contract using a local synthetic
 provider, without recording a user or sending test audio to an external service.
+
+### Trip progress and connection loss
+
+Trips progress through Planned, Loaded, Delivered and Completed. The driver confirms
+loading/delivery; the owner completes a delivered trip for financial reporting.
+Before loading, an owner can cancel with a reason; cancelled trips stay in history
+and are excluded from financial totals. Loaded trips cannot be edited or cancelled
+through these controls. Migration 0013 backfills progress from existing events.
+
+The driver page saves trip events and fuel receipts (including photos) in IndexedDB
+before sending. It retries in order while the page is open, on reconnect and every
+30 seconds. Stable request keys prevent duplicate events/receipts. A rejected action
+blocks later actions until reviewed; pending data is never presented as confirmed.
+Queues are scoped to firm and user, and replay checks the signed-in user and current
+assignment. Storage failure leaves the receipt form intact. The limit is 20 pending
+actions; event timestamps must be within 30 days. Device storage can be cleared by
+the browser/user, so it is not a server backup. Initial page loading, shifts/GPS and
+CMR/POD uploads still require internet. No background service worker is installed.
+Queued trip events do not include GPS coordinates.
+
+`npm run smoke:outbox` exercises ordering, retained requests, conflicts and receipt
+payloads. Reliability tests exercise concurrent event retries and lifecycle guards
+in memory and Postgres; tenant tests cover the authenticated HTTP workflow.

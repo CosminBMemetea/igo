@@ -61,8 +61,29 @@ export class MemStore implements Store {
     i.usedAt = new Date().toISOString(); i.userId = u.id;
     return { ...u };
   }
+  async cancelTrip(firmId: string, id: string, reason: string) {
+    const t = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned && !r.loadedAt && !r.cancelledAt);
+    if (!t || !reason.trim()) return false; t.cancelledAt = new Date().toISOString(); t.cancelReason = reason; return true;
+  }
+  async completeTrip(firmId: string, id: string) {
+    const t = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned && r.deliveredAt && !r.cancelledAt);
+    if (!t) return false; t.planned = false; return true;
+  }
+  async recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string }) {
+    const old = this.V.find((v) => v.firmId === firmId && v.requestKey === e.requestKey);
+    if (old) { if (old.tripId !== e.tripId || old.kind !== e.kind || old.userId !== e.userId) throw new Error("transition"); return { event: { ...old }, duplicate: true }; }
+    const t = this.R.find((r) => r.firmId === firmId && r.id === e.tripId);
+    if (!t || !t.planned || t.cancelledAt || t.deliveredAt || (t.lastEventAt && e.at < t.lastEventAt)) throw new Error("transition");
+    if (e.kind === "loaded" && (t.loadedAt || t.waitSince) || e.kind === "unloaded" && (!t.loadedAt || t.waitSince) || e.kind === "wait_start" && t.waitSince || e.kind === "wait_end" && !t.waitSince) throw new Error("transition");
+    if (e.kind === "loaded") t.loadedAt = e.at;
+    if (e.kind === "unloaded") t.deliveredAt = e.at;
+    if (e.kind === "wait_start") t.waitSince = e.at;
+    if (e.kind === "wait_end") t.waitSince = null;
+    t.lastEventAt = e.at;
+    const event = { ...e, id: newId("v"), firmId }; this.V.push(event); return { event: { ...event }, duplicate: false };
+  }
   async editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">) {
-    const row = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned);
+    const row = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned && !r.loadedAt && !r.cancelledAt);
     if (!row || !this.T.some((t) => t.id === patch.truckId && t.firmId === firmId)) return false;
     Object.assign(row, patch); return true;
   }

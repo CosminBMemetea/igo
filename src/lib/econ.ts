@@ -3,7 +3,7 @@ import { reportViews, type TripView } from "./query";
 import type { Vehicle } from "./fleet/seed";
 export interface VEcon { v: Vehicle; n: number; km: number; costs: number; revenue: number; profit: number; cpk: number; margin: number; loadPct: number | null; emptyKm: number; tonnes: number }
 export function econOf(v: Vehicle, views: TripView[]): VEcon {
-  const done = views.filter((x) => x.vehicleId === v.id && !x.active && x.e);
+  const done = views.filter((x) => x.vehicleId === v.id && !x.active && !x.cancelledAt && x.e);
   let km = 0, costs = 0, revenue = 0, profit = 0, used = 0, cap = 0, emptyKm = 0, tonnes = 0, known = false;
   for (const x of done) {
     const e = x.e!; km += x.km; costs += e.costs; revenue += x.revenue; profit += e.profit; emptyKm += e.emptyKm;

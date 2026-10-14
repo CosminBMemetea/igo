@@ -1,3 +1,4 @@
+import { DriverOutbox } from "@/components/DriverOutbox";
 import { activeFleet } from "@/lib/econ-store";
 import { liveFleet, tripViews } from "@/lib/query";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
@@ -22,9 +23,11 @@ const PW: MsgKey[] = ["pw.today", "pw.loaded", "pw.unloaded", "pw.tap", "pw.wait
 export default async function Driver({ searchParams }: { searchParams: { v?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const tn = await tenant(), r = tn.repo;
+  const queueScope = !tn.demo && tn.role === "driver" && tn.firm && tn.uid ? `${tn.firm.id}:${tn.uid}` : undefined;
+  const outbox = queueScope ? <DriverOutbox scope={queueScope} loc={loc} /> : null;
   const me = tn.uid && tn.firm ? await store().userById(tn.uid) : null;
   const vehicles = activeFleet(tn.demo, await r.vehicles()).vehicles.filter((v) => tn.role !== "driver" || tn.demo || v.id === me?.truckId);
-  if (!vehicles.length && tn.role === "driver" && !tn.demo) return <main><h1 className="h1">{tri(loc, "Camion nealocat|No truck assigned|Nie przypisano pojazdu")}</h1><p className="sub">{tri(loc, "Contul tău este activ. Cere patronului să îți asocieze camionul din pagina Șoferi.|Your account is active. Ask the owner to assign your truck from Drivers.|Twoje konto jest aktywne. Poproś właściciela o przypisanie pojazdu na stronie Kierowcy.")}</p></main>;
+  if (!vehicles.length && tn.role === "driver" && !tn.demo) return <main>{outbox}<h1 className="h1">{tri(loc, "Camion nealocat|No truck assigned|Nie przypisano pojazdu")}</h1><p className="sub">{tri(loc, "Contul tău este activ. Cere patronului să îți asocieze camionul din pagina Șoferi.|Your account is active. Ask the owner to assign your truck from Drivers.|Twoje konto jest aktywne. Poproś właściciela o przypisanie pojazdu na stronie Kierowcy.")}</p></main>;
   if (!vehicles.length) return <main><EmptyState kind={tn.role === "driver" ? "driver" : "driverOwner"} loc={loc} canSetup={tn.role !== "driver"} /></main>;
   const v = vehicles.find((x) => x.id === searchParams.v) ?? vehicles.find((x) => x.id === me?.truckId) ?? vehicles[0];
   const fd = await r.fleetData();
@@ -35,14 +38,14 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const claps = tn.demo ? demoReactions().filter((x) => x.v === v.id) : [];
   const labels = Object.fromEntries(KEYS.map((k) => [k, t(loc, k)]));
   const today = todayFor(tn.demo);
-  const all = (await r.trips()).filter((x) => tn.role !== "driver" || tn.demo || x.driverId === tn.uid);
+  const all = (await r.trips()).filter((x) => !x.cancelledAt).filter((x) => tn.role !== "driver" || tn.demo || x.driverId === tn.uid);
   const trips = all.filter((x) => x.vehicleId === v.id).sort((a, b) => Number(b.active) - Number(a.active) || b.date.localeCompare(a.date));
   // „Cursa de azi”: întâi cursa atribuită MIE (șoferului) azi, pe orice camion; apoi cea a camionului
   const mine = !tn.demo && tn.uid ? all.filter((x) => x.driverId === tn.uid).sort((a, b) => a.date.localeCompare(b.date)) : [];
   const upcomingSrc = tn.demo ? trips : mine;
   const cl = new Map((await r.clients().catch(() => [])).map((c) => [c.id, c.name])), vname = new Map(vehicles.map((x) => [x.id, x.name]));
-  const trip = mine.find((x) => x.date === today) ?? mine.find((x) => x.date > today && x.active) ?? trips.find((x) => x.date === today) ?? trips[0];
-  const upcoming = upcomingSrc.filter((x) => x.date > today && x.id !== trip?.id).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 10);
+  const trip = tn.demo ? trips.find((x) => x.date === today) ?? trips[0] : trips.filter((x) => x.active).sort((a,b) => Number(!!a.deliveredAt) - Number(!!b.deliveredAt) || Number(!!b.loadedAt) - Number(!!a.loadedAt) || a.date.localeCompare(b.date))[0];
+  const upcoming = upcomingSrc.filter((x) => x.active && x.date > today && x.id !== trip?.id).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 10);
   const pw = trip ? await paperworkFor(tn, trip.id) : null;
   const shift0 = (tn.demo ? demoShift(v.id) : null) ?? await r.shift(v.id);
   // demo: o tură nu durează peste 12 h și nu începe în viitor (cookie de ieri / noaptea înainte de 05:30) → tură proaspătă, realistă (~2,5 h)
@@ -58,10 +61,10 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
     .map((d) => ({ ...d, st: docStatus(d.expires!, today) })).sort((a, b) => a.st.days - b.st.days);
   return (
     <Gate feature="driverApp" prefs={prefs}>
-      <main>{!tn.demo && vehicles.length > 1 && tn.role !== "driver" ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
+      <main>{outbox}{!tn.demo && vehicles.length > 1 && tn.role !== "driver" ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
         {claps.length ? <div className="drvclap fade" role="status"><span>👏</span><div><b>{FT[loc].clapDrv.replace("{n}", String(claps.length))}</b><small>{claps[claps.length - 1].l}</small></div></div> : null}
-        <DriverApp preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
-        {trip && pw ? <TripPaperwork serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
+        <DriverApp queueScope={queueScope} actorId={tn.uid ?? undefined} preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
+        {trip && pw ? <TripPaperwork queueScope={queueScope} actorId={tn.uid ?? undefined} readOnly={!tn.demo && (tn.role !== "driver" || !trip.planned || !!trip.cancelledAt)} serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
         {upcoming.length ? (
           <section className="section" id="next">
             <div className="eyebrow">{t(loc, "drv.upcoming")}</div>

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:calc": "tsx scripts/smoke-calc.mts",
@@ -24,7 +24,8 @@
     "smoke:fx": "tsx scripts/smoke-fx.mts",
     "smoke:reliability": "tsx scripts/smoke-reliability.mts",
     "smoke:reliability:pg": "tsx scripts/smoke-reliability.mts --postgres",
-    "smoke:trip-workflow": "tsx scripts/smoke-trip-workflow.mts"
+    "smoke:trip-workflow": "tsx scripts/smoke-trip-workflow.mts",
+    "smoke:outbox": "tsx scripts/smoke-outbox.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

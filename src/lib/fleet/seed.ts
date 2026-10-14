@@ -28,6 +28,7 @@ export interface Trip {
   tonnes?: number; emptyKm?: number;
   /** firmă reală: șoferul atribuit (cursă creată din „+ Cursă nouă”) */
   litresSource?: "manual" | "estimate";
+  loadedAt?: string | null; deliveredAt?: string | null; cancelledAt?: string | null; cancelReason?: string | null;
   planned?: boolean; driverName?: string; driverId?: string | null;
 }
 export interface Parcel { id: string; name: string; ha: number; crop: "wheat" | "maize" | "sunflower" | "rapeseed"; poly: LatLng[] }

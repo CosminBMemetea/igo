@@ -26,7 +26,7 @@ export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   return {
     id: r.id, vehicleId: r.truckId, clientId: slug(r.client), type: "transport", date: r.date, title: r.title, km: r.km, hours: 0, ha: 0, units: r.km,
     revenue: r.revenue, litres, fuelPrice, tolls: r.tolls, driver: r.driverCost, other: r.other,
-    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned, litresSource: r.litresSource ?? "manual", driverId: r.driverId ?? null, planned: !!r.planned, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
+    actualRate: r.km ? r1((litres / r.km) * 100) : 0, active: !!r.planned, loadedAt: r.loadedAt, deliveredAt: r.deliveredAt, cancelledAt: r.cancelledAt, cancelReason: r.cancelReason, litresSource: r.litresSource ?? "manual", driverId: r.driverId ?? null, planned: !!r.planned, ...(r.tonnes != null ? { tonnes: r.tonnes } : {}), payment: "due", invoiceNo: null, tariffNote: "",
   };
 }
 export class FirmRepository implements IgoRepository {

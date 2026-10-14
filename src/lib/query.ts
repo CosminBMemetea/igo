@@ -18,8 +18,8 @@ export function tripView(tr: Trip, vehicles: Vehicle[], kmM?: Map<string, number
 }
 export const tripViews = (trips: Trip[], vehicles: Vehicle[]) => {
   const eligible = trips.filter((t) => vehicles.some((v) => v.id === t.vehicleId));
-  const kmM = kmPerMonth(eligible.filter((t) => !t.active));
-  for (const t of eligible.filter((t) => !t.active)) {
+  const kmM = kmPerMonth(eligible.filter((t) => !t.active && !t.cancelledAt));
+  for (const t of eligible.filter((t) => !t.active && !t.cancelledAt)) {
     const key = `${t.vehicleId}:${t.date.slice(0, 7)}`;
     kmM.set(key, (kmM.get(key) ?? 0) + t.km);
   }
@@ -31,7 +31,7 @@ export interface MonthSummary { n: number; profit: number; avgProfit: number; sa
 /** Real reports use the current calendar month; demo retains its rolling sample. */
 export function reportViews(views: TripView[], month?: string): TripView[] {
   const period = month ?? (views.some((v) => v.vehicle.real) ? localNow().slice(0, 7) : null);
-  return period ? views.filter((v) => v.date.startsWith(period + "-")) : views;
+  return period ? views.filter((v) => !v.cancelledAt && v.date.startsWith(period + "-")) : views.filter((v) => !v.cancelledAt);
 }
 export function monthSummary(views: TripView[], month?: string): MonthSummary {
   const done = reportViews(views, month).filter((v) => !v.active);
@@ -40,7 +40,7 @@ export function monthSummary(views: TripView[], month?: string): MonthSummary {
 }
 export function vehicleSummary(v: Vehicle, views: TripView[]) {
   const mine = views.filter((x) => x.vehicleId === v.id);
-  const done = mine.filter((x) => !x.active);
+  const done = mine.filter((x) => !x.active && !x.cancelledAt);
   const s = sumSavings(done.map((x) => x.s));
   const units = done.reduce((a, x) => a + x.units, 0);
   const actualRate = units ? (v.per100 ? (s.actualLitres / units) * 100 : s.actualLitres / units) : 0;
@@ -48,10 +48,10 @@ export function vehicleSummary(v: Vehicle, views: TripView[]) {
 }
 export function clientSummaries(clients: Client[], views: TripView[]) {
   return clients.map((c) => {
-    const mine = views.filter((x) => x.clientId === c.id), done = mine.filter((x) => !x.active);
+    const mine = views.filter((x) => x.clientId === c.id), done = mine.filter((x) => !x.active && !x.cancelledAt);
     // profitul și numărul de curse: doar cursele încheiate (ca pe Acasă); cele în desfășurare apar doar în listă
     const profit = done.reduce((a, x) => a + x.p.profit, 0), revenue = done.reduce((a, x) => a + x.revenue, 0);
-    const open = mine.filter((x) => x.payment !== "paid");
+    const open = mine.filter((x) => !x.cancelledAt && x.payment !== "paid");
     return { client: c, trips: mine, n: done.length, profit, revenue, margin: revenue ? profit / revenue : 0, toCollect: open.reduce((a, x) => a + x.revenue, 0), overdue: mine.filter((x) => x.payment === "overdue").reduce((a, x) => a + x.revenue, 0), worst: mine.some((x) => x.payment === "overdue") ? "overdue" : open.length ? "due" : "paid" } as const;
   }).sort((a, b) => b.profit - a.profit);
 }

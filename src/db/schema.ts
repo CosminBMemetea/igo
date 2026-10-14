@@ -99,6 +99,12 @@ export const trips = pgTable("trips", {
   driverId: text("driver_id"),
   tonnes: real("tonnes"),
   /** planificată (creată din „+ Cursă nouă”); nu intră în profitul realizat până la încheiere */
+  loadedAt: text("loaded_at"),
+  deliveredAt: text("delivered_at"),
+  waitSince: text("wait_since"),
+  lastEventAt: text("last_event_at"),
+  cancelledAt: text("cancelled_at"),
+  cancelReason: text("cancel_reason"),
   planned: boolean("planned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("trips_firm_ix").on(t.firmId)]);
@@ -238,12 +244,13 @@ export const tripEvents = pgTable("trip_events", {
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
   tripId: text("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  requestKey: text("request_key"),
   kind: text("kind").notNull(), // loaded | unloaded | wait_start | wait_end
   at: timestamp("at", { withTimezone: true }).notNull(),
   lat: doublePrecision("lat"),
   lng: doublePrecision("lng"),
   userId: text("user_id"),
-}, (t) => [index("trip_events_firm_trip_ix").on(t.firmId, t.tripId)]);
+}, (t) => [index("trip_events_firm_trip_ix").on(t.firmId, t.tripId), uniqueIndex("trip_events_request_uq").on(t.firmId, t.requestKey)]);
 
 /** Maparea coloanelor CSV salvată per firmă, pe semnătura antetului (refolosită la următorul import cu același format). */
 export const importMappings = pgTable("import_mappings", {

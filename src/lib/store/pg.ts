@@ -104,8 +104,40 @@ export class PgStore implements Store {
     const rows = result.rows as { id: string }[];
     return rows[0] ? this.userById(rows[0].id) : null;
   }
+  async cancelTrip(firmId: string, id: string, reason: string) {
+    if (!reason.trim()) return false;
+    const rows = await this.d.update(trips).set({ cancelledAt: new Date().toISOString(), cancelReason: reason }).where(and(eq(trips.firmId, firmId), eq(trips.id, id), eq(trips.planned, true), isNull(trips.loadedAt), isNull(trips.cancelledAt))).returning({ id: trips.id }); return rows.length === 1;
+  }
+  async completeTrip(firmId: string, id: string) {
+    const rows = await this.d.update(trips).set({ planned: false }).where(and(eq(trips.firmId, firmId), eq(trips.id, id), eq(trips.planned, true), isNull(trips.cancelledAt), sql`${trips.deliveredAt} is not null`)).returning({ id: trips.id }); return rows.length === 1;
+  }
+  async recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string }) {
+    const id = newId("v");
+    try {
+      await this.d.execute(sql`with changed as (
+        update trips set
+          loaded_at = case when ${e.kind} = 'loaded' then ${e.at} else loaded_at end,
+          delivered_at = case when ${e.kind} = 'unloaded' then ${e.at} else delivered_at end,
+          wait_since = case when ${e.kind} = 'wait_start' then ${e.at} when ${e.kind} = 'wait_end' then null else wait_since end,
+          last_event_at = ${e.at}
+        where id = ${e.tripId} and firm_id = ${firmId} and planned = true and cancelled_at is null and delivered_at is null
+          and (last_event_at is null or last_event_at <= ${e.at})
+          and not exists (select 1 from trip_events where firm_id = ${firmId} and request_key = ${e.requestKey})
+          and ((${e.kind} = 'loaded' and loaded_at is null and wait_since is null)
+            or (${e.kind} = 'unloaded' and loaded_at is not null and wait_since is null)
+            or (${e.kind} = 'wait_start' and wait_since is null)
+            or (${e.kind} = 'wait_end' and wait_since is not null)) returning id
+      ) insert into trip_events (id, firm_id, trip_id, kind, at, lat, lng, user_id, request_key)
+        select ${id}, ${firmId}, id, ${e.kind}, ${e.at}::timestamptz, ${e.lat}, ${e.lng}, ${e.userId}, ${e.requestKey} from changed`);
+    } catch (err) {
+      const x = err as { code?: string; cause?: { code?: string } }; if (x.code !== "23505" && x.cause?.code !== "23505") throw err;
+    }
+    const [row] = await this.d.select().from(tripEvents).where(and(eq(tripEvents.firmId, firmId), eq(tripEvents.requestKey, e.requestKey)));
+    if (!row || row.tripId !== e.tripId || row.kind !== e.kind || row.userId !== e.userId) throw new Error("transition");
+    return { event: evOut(row), duplicate: row.id !== id };
+  }
   async editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">) {
-    const rows = await this.d.update(trips).set(patch).where(and(eq(trips.firmId, firmId), eq(trips.id, id), eq(trips.planned, true), sql`exists (select 1 from trucks where id = ${patch.truckId} and firm_id = ${firmId})`)).returning({ id: trips.id });
+    const rows = await this.d.update(trips).set(patch).where(and(eq(trips.firmId, firmId), eq(trips.id, id), eq(trips.planned, true), isNull(trips.loadedAt), isNull(trips.cancelledAt), sql`exists (select 1 from trucks where id = ${patch.truckId} and firm_id = ${firmId})`)).returning({ id: trips.id });
     return rows.length === 1;
   }
   async updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }) {

@@ -14,6 +14,7 @@ export async function POST(req: Request) {
   const fd = await req.formData().catch(() => null);
   if (!fd) return NextResponse.json({ error: "form" }, { status: 400 });
   const tn = await tenant(), r = tn.repo;
+  if (fd.get("actorId") && fd.get("actorId") !== tn.uid) return NextResponse.json({ error: "account" }, { status: 403 });
   // rolul se verifică la trimitere: un tab vechi de șofer, după ce în alt tab s-a logat patronul, nu trimite bonuri în numele lui
   if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   const vehicleId = String(fd.get("vehicleId") ?? "");

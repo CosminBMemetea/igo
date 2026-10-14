@@ -12,7 +12,7 @@ export interface InviteRow { id: string; firmId: string; name: string; phone: st
 export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; costHistory?: import("../costs").CostVersion[] | null; archivedAt?: string | null }
 export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 export type NewDoc = Omit<DocRow, "id" | "firmId">;
-export interface TripRow { id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean; driverId?: string | null; tonnes?: number | null; planned?: boolean }
+export interface TripRow { loadedAt?: string | null; deliveredAt?: string | null; waitSince?: string | null; lastEventAt?: string | null; cancelledAt?: string | null; cancelReason?: string | null; id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean; driverId?: string | null; tonnes?: number | null; planned?: boolean }
 export interface LeadRow { id: string; firm: string; person: string; phone: string; email: string; trucks: number | null; fuelCard: string | null; gps: boolean | null; gpsProvider: string | null; locale: string | null; source: string | null; referralCode: string | null; utm: string | null; ipHash: string | null; consentAt: string; status: string; createdAt: string }
 export type NewLead = Omit<LeadRow, "id" | "status" | "createdAt">;
 export interface SupportRow { id: string; firmId: string | null; email: string | null; name: string; phone: string; slot: string | null; message: string; status: string; createdAt: string }
@@ -34,7 +34,7 @@ export type NewNotification = Omit<NotificationRow, "id" | "firmId" | "readAt" |
 export type EmailStatus = "sent" | "queued" | "failed";
 export interface EmailRow { id: string; firmId: string | null; key: string; to: string; subject: string; body: string; status: EmailStatus; error: string | null; providerId: string | null; createdAt: string; sentAt: string | null }
 export type TripEventKind = "loaded" | "unloaded" | "wait_start" | "wait_end";
-export interface TripEventRow { id: string; firmId: string; tripId: string; kind: TripEventKind; at: string; lat: number | null; lng: number | null; userId: string | null }
+export interface TripEventRow { requestKey?: string | null; id: string; firmId: string; tripId: string; kind: TripEventKind; at: string; lat: number | null; lng: number | null; userId: string | null }
 
 export interface Store {
   readonly persistent: boolean;
@@ -58,6 +58,9 @@ export interface Store {
   invites(firmId: string): Promise<InviteRow[]>;
   acceptInvite(firmId: string, id: string, phone: string, passwordHash: string): Promise<UserRow | null>;
   createDriverInvite(firmId: string, name: string, phone: string, locale: string): Promise<InviteRow>;
+  cancelTrip(firmId: string, id: string, reason: string): Promise<boolean>;
+  completeTrip(firmId: string, id: string): Promise<boolean>;
+  recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string }): Promise<{ event: TripEventRow; duplicate: boolean }>;
   editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">): Promise<boolean>;
   updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }): Promise<boolean>;
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;

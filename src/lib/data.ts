@@ -11,8 +11,9 @@ export async function load() {
   const { vehicles: allVehicles, trips } = tn.demo ? applyDemoEcon(v0, t0) : { vehicles: v0, trips: t0 };
   // Archived trucks retain financial history but leave the live fleet and alerts.
   const vehicles = allVehicles.filter((v) => !v.archived), archived = allVehicles.filter((v) => v.archived);
-  const views = tripViews(trips, allVehicles), archivedViews = archived.length ? views.filter((x) => x.vehicle.archived) : [];
+  const cancelledViews = tripViews(trips.filter((t) => !!t.cancelledAt), allVehicles);
+  const views = tripViews(trips.filter((t) => !t.cancelledAt), allVehicles), archivedViews = archived.length ? views.filter((x) => x.vehicle.archived) : [];
   const alerts = archived.length ? alerts0.filter((a) => !archived.some((v) => v.id === (a as { vehicleId?: string }).vehicleId)) : alerts0;
   // firmele reale n-au încă GPS: harta live rămâne goală până la conectarea unei surse
-  return { tn, demo: tn.demo, vehicles, allVehicles, archivedViews, trips, clients, parcels, zones, alerts, views, live: async () => (tn.demo ? demoLive(vehicles, views, parcels, zones) : tn.firm ? realLive(tn.firm.id, r, vehicles) : []) };
+  return { cancelledViews, tn, demo: tn.demo, vehicles, allVehicles, archivedViews, trips, clients, parcels, zones, alerts, views, live: async () => (tn.demo ? demoLive(vehicles, views, parcels, zones) : tn.firm ? realLive(tn.firm.id, r, vehicles) : []) };
 }
