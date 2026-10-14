@@ -38,7 +38,10 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const trips = all.filter((x) => x.vehicleId === v.id).sort((a, b) => Number(b.active) - Number(a.active) || b.date.localeCompare(a.date));
   // „Cursa de azi”: întâi cursa atribuită MIE (șoferului) azi, pe orice camion; apoi cea a camionului
   const mine = !tn.demo && tn.uid ? all.filter((x) => x.driverId === tn.uid).sort((a, b) => a.date.localeCompare(b.date)) : [];
+  const upcomingSrc = tn.demo ? trips : mine;
+  const cl = new Map((await r.clients().catch(() => [])).map((c) => [c.id, c.name])), vname = new Map(vehicles.map((x) => [x.id, x.name]));
   const trip = mine.find((x) => x.date === today) ?? mine.find((x) => x.date > today && x.active) ?? trips.find((x) => x.date === today) ?? trips[0];
+  const upcoming = upcomingSrc.filter((x) => x.date > today && x.id !== trip?.id).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 10);
   const pw = trip ? await paperworkFor(tn, trip.id) : null;
   const shift0 = (tn.demo ? demoShift(v.id) : null) ?? await r.shift(v.id);
   // demo: o tură nu durează peste 12 h și nu începe în viitor (cookie de ieri / noaptea înainte de 05:30) → tură proaspătă, realistă (~2,5 h)
@@ -58,6 +61,16 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
         {claps.length ? <div className="drvclap fade" role="status"><span>👏</span><div><b>{FT[loc].clapDrv.replace("{n}", String(claps.length))}</b><small>{claps[claps.length - 1].l}</small></div></div> : null}
         <DriverApp preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
         {trip && pw ? <TripPaperwork serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
+        {upcoming.length ? (
+          <section className="section" id="next">
+            <div className="eyebrow">{t(loc, "drv.upcoming")}</div>
+            <div className="list" style={{ marginTop: 12 }}>
+              {upcoming.map((x) => (
+                <div key={x.id} className="it upc"><div className="upc-d"><b>{fmtDate(loc, x.date)}</b></div><div style={{ minWidth: 0 }}><div className="t">{x.title}</div><div className="m">{[cl.get(x.clientId), vname.get(x.vehicleId)].filter((s) => s && s !== "—").join(" · ")}</div></div></div>
+              ))}
+            </div>
+          </section>
+        ) : null}
         <section className="section" id="docs">
           <div className="eyebrow">{t(loc, "pw.myDocs")}</div>
           <div className="list" style={{ marginTop: 12 }}>

@@ -160,7 +160,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       {!on || priv ? (
         <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span><small className="geo-off">⌀ {L["priv.geoOff"]}</small></div></div>
       ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: "var(--pos)", margin: 0 }} /><div><b>{L["priv.tracking" + (demo || gps === "ok" ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
-      <div className="fade d1" style={{ marginTop: 40, display: "flex", gap: 40 }}>
+      <div className="fade d1" style={{ marginTop: 40, display: "flex", gap: "clamp(18px, 7vw, 40px)", flexWrap: "wrap" }}>
         <div><div className="drv-big" suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }} suppressHydrationWarning>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>
       </div>
@@ -172,7 +172,7 @@ export function DriverApp({ vehicleId, vehicleName, hello, labels: L, lastFill, 
       ) : null}
       <div className="fade d2" style={{ marginTop: 16, display: "grid", gap: 12 }}>
         <button className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button>
-        {askEnd ? <div className="msheet-bg" onClick={() => setAskEnd(false)}><div className="msheet endsheet" role="alertdialog" aria-modal="true" aria-labelledby="endq" onClick={(e) => e.stopPropagation()}>
+        {askEnd ? <div className="msheet-bg any" onClick={() => setAskEnd(false)}><div className="msheet endsheet" role="alertdialog" aria-modal="true" aria-labelledby="endq" onClick={(e) => e.stopPropagation()}>
           <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
           <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>
           <button className="btn sec" onClick={() => setAskEnd(false)}>{L["drv.endNo"]}</button>

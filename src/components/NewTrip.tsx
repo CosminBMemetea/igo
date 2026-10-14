@@ -67,7 +67,7 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen }:
       <button type="button" className={`btn ${dup ? "sec sm" : "pri"} ntbtn`} onClick={() => { setMsg({ t: "", k: "" }); setOpen(true); }}>{dup ? T.dup : T.btn}</button>
       {msg.k === "ok" && !open ? <p className="msg ok nt-ok" role="status">{msg.t}</p> : null}
       {open ? (
-        <div className="msheet-bg" onClick={() => setOpen(false)}>
+        <div className="msheet-bg any" onClick={() => setOpen(false)}>
           <form className="msheet ntsheet" role="dialog" aria-modal="true" aria-labelledby="nt-t" onClick={(e) => e.stopPropagation()} onSubmit={save} noValidate>
             <div className="msheet-grab" />
             <h3 id="nt-t">{dup ? T.dup : T.title}</h3>
