@@ -1,4 +1,6 @@
+import { demoWorkMs } from "@/lib/demo-work";
 import { DriverOutbox } from "@/components/DriverOutbox";
+import { DemoSwitcher } from "@/components/DemoSwitcher";
 import { activeFleet } from "@/lib/econ-store";
 import { liveFleet, tripViews } from "@/lib/query";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
@@ -15,6 +17,7 @@ import { DriverApp } from "@/components/DriverApp";
 import { TripPaperwork } from "@/components/TripPaperwork";
 import { paperworkFor } from "@/lib/paperwork";
 import { docStatus, STATUS_CLASS } from "@/lib/docs";
+import { roIso } from "@/lib/demo-time";
 import { todayFor } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
@@ -61,10 +64,10 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
     .map((d) => ({ ...d, st: docStatus(d.expires!, today) })).sort((a, b) => a.st.days - b.st.days);
   return (
     <Gate feature="driverApp" prefs={prefs}>
-      <main className="driver-main">{outbox}{!tn.demo && vehicles.length > 1 && tn.role !== "driver" ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
+      <main className="driver-main">{outbox}{tn.demo && tn.role === "driver" ? <DemoSwitcher loc={loc} driver /> : null}{!tn.demo && vehicles.length > 1 && tn.role !== "driver" ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
         {claps.length ? <div className="drvclap fade" role="status"><span>👏</span><div><b>{FT[loc].clapDrv.replace("{n}", String(claps.length))}</b><small>{claps[claps.length - 1].l}</small></div></div> : null}
-        <DriverApp queueScope={queueScope} actorId={tn.uid ?? undefined} preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
-        {trip && pw ? <TripPaperwork queueScope={queueScope} actorId={tn.uid ?? undefined} readOnly={!tn.demo && (tn.role !== "driver" || !trip.planned || !!trip.cancelledAt)} serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
+        <DriverApp queueScope={queueScope} actorId={tn.uid ?? undefined} preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={tn.demo ? { km: liveKm ?? 0, hours: demoWorkMs(shift, nowMs) / 3600000 } : todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
+        {trip && pw ? <TripPaperwork clockOffset={tn.demo ? Date.parse(roIso(today, "14:00")) - nowMs : 0} queueScope={queueScope} actorId={tn.uid ?? undefined} readOnly={!tn.demo && (tn.role !== "driver" || !trip.planned || !!trip.cancelledAt)} serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={Object.fromEntries(PW.map((k) => [k, t(loc, k)]))} /> : <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p>}
         {upcoming.length ? (
           <section className="section" id="next">
             <div className="eyebrow">{t(loc, "drv.upcoming")}</div>

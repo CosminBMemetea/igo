@@ -32,6 +32,7 @@ class Agent {
   jar = new Map<string, string>();
   async json(path: string, body: unknown) {
     const r = await fetch(BASE + path, { method: "POST", redirect: "manual", headers: { cookie: [...this.jar].map(([k,v]) => `${k}=${v}`).join("; "), "content-type": "application/json" }, body: JSON.stringify(body) });
+    for (const c of r.headers.getSetCookie()) { const [kv] = c.split(";"); const i = kv.indexOf("="); this.jar.set(kv.slice(0, i), kv.slice(i + 1)); }
     return { status: r.status, body: await r.json() };
   }
   async go(path: string, form?: Record<string, string>) {
@@ -79,10 +80,33 @@ try {
   ok("mod demo: API-ul indică demo", JSON.parse((await A.go("/api/trips")).text).demo === true);
   ok("mod demo: nicio scriere accidentală în firma reală", (await A.json("/api/trips/new", { from: "A", to: "B", truckId: tA[0].id, date: "2026-12-01", km: 100 })).status === 403);
   for (const path of ["/", "/trucks", "/drivers", "/live", "/trips/bh21qrt-15", "/replay?trip=bh21qrt-15"]) ok(`demo: ${path} se randează`, (await A.go(path)).status === 200);
+  const demoDriver = new Agent();
+  await demoDriver.go("/api/auth/demo", { as: "driver" });
+  const demoDriverPage = await demoDriver.go("/driver");
+  ok("șoferul demo fără utilizator DB nu este deconectat", demoDriverPage.status === 200 && demoDriverPage.text.includes("driver-main") && !demoDriverPage.text.includes("NEXT_REDIRECT"));
+  ok("pauza privată demo se salvează", (await demoDriver.json("/api/driver/private", { vehicleId: "bh21qrt", on: true })).body.private === true);
+  await demoDriver.go("/api/auth/demo", { as: "owner" });
+  const demoLive = JSON.parse((await demoDriver.go("/api/live")).text);
+  ok("schimbarea rolului păstrează pauza privată", demoLive.vehicles.find((v: { id: string }) => v.id === "bh21qrt")?.status === "private");
+  await demoDriver.go("/api/auth/demo", { as: "driver" });
+  const demoEvent = await demoDriver.json("/api/trips/event", { tripId: "bh21qrt-15", kind: "unloaded" });
+  ok("evenimentul demo folosește ora simulată 14:00", demoEvent.status === 200 && new Intl.DateTimeFormat("en-GB", {timeZone:"Europe/Bucharest",hour:"2-digit",minute:"2-digit"}).format(new Date(demoEvent.body.at)) === "14:00");
+  ok("cursa demo inexistentă este respinsă", (await demoDriver.json("/api/trips/event", { tripId: "missing", kind: "loaded" })).status === 404);
+  await demoDriver.go("/api/auth/demo", { as: "owner", reset: "1" });
+  ok("reluarea demo-ului șterge pauza privată", JSON.parse((await demoDriver.go("/api/live")).text).vehicles.find((v: {id:string}) => v.id === "bh21qrt")?.status !== "private");
   await A.go("/api/firm/demo", { on: "0" });
   const vo = await vehiclesOf(A);
   ok("Date demo OPRIT → firma mea", vo?.length === 1 && vo[0].id === tA[0].id);
   ok("mod real: API-ul nu etichetează datele drept demo", JSON.parse((await A.go("/api/trips")).text).demo === false);
+  ok("harta reală nu este etichetată demo", JSON.parse((await A.go("/api/live")).text).demo === false);
+  ok("card asociat manual înainte de import", (await A.go("/api/import/assign", { card: "00001234", truck: tA[0].id })).loc.includes("assigned=1"));
+  ok("asocierea păstrează zerourile inițiale", (await db.query("select card from fuel_cards where firm_id=$1", [firmA.id])).rows.some((x) => x.card === "00001234"));
+  ok("card prea lung respins, fără trunchiere", (await A.go("/api/import/assign", { card: "1".repeat(41), truck: tA[0].id })).loc.includes("e=assign"));
+  ok("cardul nu poate fi legat de camion inexistent", (await A.go("/api/import/assign", { card: "TEST", truck: "missing" })).loc.includes("e=assign"));
+  const archivedTruckId = `arch_${firmA.id}`;
+  await db.query("insert into trucks (id, firm_id, plate, archived_at) values ($1,$2,'BH 98 TST',now())", [archivedTruckId, firmA.id]);
+  ok("cardul nu poate fi legat de camion arhivat", (await A.go("/api/import/assign", { card: "TEST-ARCHIVED", truck: archivedTruckId })).loc.includes("e=assign"));
+  await db.query("delete from trucks where id=$1", [archivedTruckId]);
   // 4. invitația șoferului
   const s3 = await A.go("/setup?step=3");
   const link = /\/join\?t=([^"&\\]+)/.exec(s3.text.replace(/&amp;/g, "&"))?.[1];

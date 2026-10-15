@@ -25,5 +25,5 @@ export async function POST(req: Request) {
   catch { return NextResponse.json({ error: "shift-conflict" }, { status: 409 }); }
   await logDriver(tn, b.vehicleId, b.action === "start" ? "shift_start" : "shift_end");
   const res = NextResponse.json({ ok: true, shift: s });
-  return tn.demo ? saveDemoShift(res, s) : res;
+  return tn.demo ? saveDemoShift(res, s, prev) : res;
 }

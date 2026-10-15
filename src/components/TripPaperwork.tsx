@@ -25,15 +25,15 @@ const RO_HM = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", h
 const hhmm = (iso: string | null) => { if (!iso) return "—"; const p = Object.fromEntries(RO_HM.formatToParts(new Date(iso)).map((x) => [x.type, x.value])); return `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`; };
 /** 1h 05m · în curs: 1:05:09 */
 const fmtWait = (sec: number, live = false) => { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return live ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${h}h ${String(m).padStart(2, "0")}m`; };
-export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow }: { queueScope?: string; actorId?: string; readOnly?: boolean; serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
+export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow, clockOffset = 0 }: { clockOffset?: number; queueScope?: string; actorId?: string; readOnly?: boolean; serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
-  const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(serverNow);
+  const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(serverNow + clockOffset);
   const [pending, setPending] = useState(false);
   const eventLock = useRef(false);
   const cmr = useRef<HTMLInputElement>(null), pod = useRef<HTMLInputElement>(null);
-  useEffect(() => { setGeo(localStorage.getItem("qf-geo") !== "0"); const h = (e: Event) => setOnShift((e as CustomEvent<boolean>).detail); window.addEventListener("qf-shift", h); return () => window.removeEventListener("qf-shift", h); }, []);
-  useEffect(() => { setNow(Date.now()); }, []);
-  useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, [st.waitSince]);
+  useEffect(() => { try { setGeo(localStorage.getItem("qf-geo") !== "0"); } catch { setGeo(false); } const h = (e: Event) => setOnShift((e as CustomEvent<boolean>).detail); window.addEventListener("qf-shift", h); return () => window.removeEventListener("qf-shift", h); }, []);
+  useEffect(() => { setNow(Date.now() + clockOffset); }, [clockOffset]);
+  useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now() + clockOffset), 1000); return () => clearInterval(i); }, [st.waitSince, clockOffset]);
   useEffect(() => {
     if (!queueScope) return;
     let alive = true;
@@ -73,7 +73,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
       return;
     }
     const p = await pos();
-    const r = await fetch("/api/trips/event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, kind, key: crypto.randomUUID(), ...p }) }).catch(() => null);
+    const r = await fetch("/api/trips/event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tripId, kind, key: crypto.randomUUID(), ...(demo ? { occurredAt: new Date(Date.now() + clockOffset).toISOString() } : {}), ...p }) }).catch(() => null);
     setBusy(""); eventLock.current = false;
     if (!r?.ok) { setMsg({ t: L["pw.err"], k: "err" }); return; }
     const { at } = (await r.json()) as { at: string };
@@ -125,7 +125,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
           <div className="thumbs">{files(k).length ? files(k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer"><img src={f.src} alt={`${L[`pw.${k}`]} ${i + 1}`} loading="lazy" /></a>) : <span className="hint">{L["pw.none"]}</span>}</div>
         </div>
       ))}
-      {!queueScope ? <label className="pwgeo"><input type="checkbox" checked={geo && onShift} disabled={!onShift} onChange={(e) => { setGeo(e.target.checked); localStorage.setItem("qf-geo", e.target.checked ? "1" : "0"); }} /> <span>{onShift ? L["pw.geo"] : L["pw.geoOff"]}</span></label> : null}
+      {!queueScope && !demo ? <label className="pwgeo"><input type="checkbox" checked={geo && onShift} disabled={!onShift} onChange={(e) => { setGeo(e.target.checked); try { localStorage.setItem("qf-geo", e.target.checked ? "1" : "0"); } catch { /* The preference remains valid for this page. */ } }} /> <span>{onShift ? L["pw.geo"] : L["pw.geoOff"]}</span></label> : null}
       {msg.t ? <p className={`msg ${msg.k}`}>{msg.t}</p> : null}
       {demo ? <p className="hint" style={{ marginTop: 10 }}>{L["pw.demo"]}</p> : null}
     </section>

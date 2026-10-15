@@ -6,12 +6,9 @@ import { fillToFill } from "./rules";
 import { alertTitle, alertWhy } from "../alert-text";
 import { fmtMoney, fmtNum, plural, t, type Locale, type MsgKey } from "../i18n";
 import { headers } from "next/headers";
+import { TRUCKS } from "../fleet/data";
 
-export const DEMO_TRUCKS = [
-  { plate: "BH 21 QRT", tankL: 800, normalL100: 30 }, { plate: "CJ 08 QRT", tankL: 800, normalL100: 30 },
-  { plate: "AR 45 QRT", tankL: 600, normalL100: 31 }, { plate: "TM 33 QRT", tankL: 700, normalL100: 30 },
-  { plate: "CJ 52 QRT", tankL: 700, normalL100: 31 }, { plate: "B 120 QRT", tankL: 400, normalL100: 30 },
-];
+export const DEMO_TRUCKS = TRUCKS.map(({ plate, tankL, normalL100 }) => ({ plate, tankL, normalL100 }));
 /** Demo = sesiune „Intră ca demo” sau admin fără firmă aleasă. */
 export const isDemoImporter = () => { const r = headers().get("x-igo-role"); return r === "user" || r === "admin"; };
 export async function demoSandbox() {

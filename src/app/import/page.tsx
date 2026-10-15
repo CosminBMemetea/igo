@@ -1,7 +1,7 @@
 import { SampleList } from "@/components/SampleList";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
-import { fmtDate, fmtMoney, fmtNum, plural, t, type MsgKey } from "@/lib/i18n";
+import { fmtDate, fmtMoney, fmtNum, plural, t, tri, type MsgKey } from "@/lib/i18n";
 import { store } from "@/lib/store";
 import { tenant, writableFirm } from "@/lib/tenant";
 import { truckBaseline } from "@/lib/firm-repo";
@@ -17,6 +17,7 @@ const SAMPLES = (an: string): [string, string][] => [["dkv", "DKV"], ["dkv-europ
 const LKEYS = ["drop", "eur", "eur1", "peg", "otherCur", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id", "try", "demoDone", "demoReport", "demoAlerts", "demoNoAlerts", "again"] as const;
 export default async function Import({ searchParams }: { searchParams: { e?: string; assigned?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
+  const tr = (s: string) => tri(loc, s);
   const tn = await tenant();
   const f = await writableFirm();
   const head = (
@@ -24,6 +25,12 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
       <div className="eyebrow fade">{t(loc, "imp.eyebrow")}</div>
       <h1 className="h1 fade">{t(loc, "imp.title")}</h1>
       <p className="sub fade d1">{t(loc, "imp.sub")}</p>
+      <details className="sheet fuel-help"><summary>{tr("Cum adaug cardul de carburant al camionului?|How do I add a truck's fuel card?|Jak dodać kartę paliwową pojazdu?")}</summary>
+        <ol><li>{tr("Adaugă camionul din Camioane, apoi asociază aici identificatorul cardului cu numărul de înmatriculare.|Add the truck in Trucks, then link the card identifier to its registration here.|Dodaj pojazd w Pojazdach, następnie powiąż tutaj identyfikator karty z numerem rejestracyjnym.")}</li>
+        <li>{tr("Descarcă fișierul CSV din portalul furnizorului (DKV, OMV/Routex, MOL, Shell sau E100) și încarcă-l mai jos. Verifică previzualizarea înainte de import.|Download the CSV from your provider (DKV, OMV/Routex, MOL, Shell or E100) and upload it below. Review the preview before importing.|Pobierz CSV od dostawcy (DKV, OMV/Routex, MOL, Shell lub E100) i prześlij poniżej. Sprawdź podgląd przed importem.")}</li>
+        <li>{tr("Dacă numărul de înmatriculare este recunoscut, asocierea se face automat. Pentru cardurile necunoscute, alegi camionul din listă.|Recognized registration numbers are matched automatically. For unknown cards, select the truck from the list.|Rozpoznane numery rejestracyjne są dopasowywane automatycznie. Dla nieznanych kart wybierz pojazd z listy.")}</li></ol>
+        <p className="hint">{tr("Folosește identificatorul exact din CSV, inclusiv zerourile inițiale. Nu se cer PIN, CVV sau parola furnizorului. Asocierea nu conectează automat contul furnizorului; tranzacțiile vin prin import CSV.|Use the exact identifier from the CSV, including leading zeros. No PIN, CVV or provider password is needed. Linking a card does not connect the provider account; transactions arrive through CSV import.|Użyj dokładnego identyfikatora z CSV, z zerami początkowymi. Nie podawaj PIN-u, CVV ani hasła dostawcy. Powiązanie karty nie łączy konta dostawcy; transakcje pochodzą z importu CSV.")}</p>
+      </details>
     </>
   );
   const labels: Record<string, string> = { ...Object.fromEntries(LKEYS.map((k) => [k, t(loc, `imp.${k}` as MsgKey)])), fillUnit: t(loc, "u.fill"), loc };
@@ -49,7 +56,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
   );
   if (!f || tn.demo) return <Gate feature="cardCsv" prefs={prefs}><main className="setup">{head}<div className="msg warn">{f ? t(loc, "imp.demoOn") : t(loc, "set.e.nofirm")}</div></main></Gate>;
   const s = store();
-  const [trucks, tx, imports] = await Promise.all([s.trucks(f.id), s.fuel(f.id, { limit: 50000 }), s.imports(f.id)]);
+  const [trucks, tx, imports, cards] = await Promise.all([s.trucks(f.id), s.fuel(f.id, { limit: 50000 }), s.imports(f.id), s.fuelCards(f.id)]);
   if (!trucks.length) return <Gate feature="cardCsv" prefs={prefs}><main className="setup">{head}<EmptyState kind="driverOwner" loc={loc} /></main></Gate>;
   const since = f.createdAt.slice(0, 16);
   const unassigned = new Map<string, { n: number; litres: number; plate: string | null }>();
@@ -59,13 +66,24 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
       <main className="setup">
         {head}
         {searchParams.assigned ? <p className="msg ok">{t(loc, "set.saved")}</p> : searchParams.e ? <p className="msg err">{t(loc, "imp.err")}</p> : null}
+        <section className="sheet" id="cards">
+          <h2>{tr("Carduri de carburant|Fuel cards|Karty paliwowe")}</h2>
+          <p className="hint">{tr("Poți asocia cardul înainte de primul import. Asocierea se aplică tuturor tranzacțiilor acelui card, inclusiv celor deja importate. Nu muta un card între camioane pentru perioade diferite din acest formular.|You can link a card before the first import. The mapping applies to all transactions for that card, including previous imports. Do not use this form to move a card between trucks for different periods.|Możesz powiązać kartę przed pierwszym importem. Powiązanie dotyczy wszystkich transakcji karty, także wcześniejszych importów. Nie używaj tego formularza do przenoszenia karty między pojazdami dla różnych okresów.")}</p>
+          <form action="/api/import/assign" method="post" className="invrow" style={{ marginTop: 16 }}>
+            <label className="lf"><span>{tr("Identificator card din CSV|Card identifier from CSV|Identyfikator karty z CSV")}</span><input name="card" required maxLength={40} autoComplete="off" placeholder="DKV-001234" /></label>
+            <label className="lf"><span>{tr("Camion|Truck|Pojazd")}</span><select name="truck" required defaultValue=""><option value="" disabled>{tr("Alege camionul|Choose truck|Wybierz pojazd")}</option>{trucks.filter((x) => !x.archivedAt).map((x) => <option key={x.id} value={x.id}>{x.plate}</option>)}</select></label>
+            <button className="btn pri">{tr("Salvează asocierea|Save mapping|Zapisz powiązanie")}</button>
+          </form>
+          {cards.length ? <div className="fuel-card-list">{cards.map((c) => <div key={c.card}><code>{c.card}</code><span>{trucks.find((x) => x.id === c.truckId)?.plate ?? tr("Neasociat|Unassigned|Nieprzypisane")}</span></div>)}</div> : <p className="hint">{tr("Niciun card asociat încă.|No cards linked yet.|Brak powiązanych kart.")}</p>}
+        </section>
         <section className="sgrid">
           <ImportBox labels={labels} fieldLabels={fieldLabels} samples={samples} />
           <div>
             <div className="sheet">
               <div className="eyebrow">{t(loc, "imp.samples")}</div>
               <p className="hint" style={{ margin: "6px 0 12px" }}>{t(loc, "imp.samplesHint")}</p>
-              <SampleList samples={samples} tryLabel={t(loc, "imp.tryOne")} />
+              <p className="hint">{tr("Exemplele se testează în demo. În firma ta, încarcă exportul real al furnizorului.|Try samples in demo mode. In your company, upload the actual provider export.|Przykłady testuj w demo. W swojej firmie prześlij rzeczywisty eksport dostawcy.")}</p>
+              <div className="chips">{samples.map(([key, name]) => <a key={key} className="btn sec sm" href={`/samples/${key}.csv`} download>{name} ↓</a>)}</div>
             </div>
             {unassigned.size ? (
               <div className="sheet" style={{ marginTop: 16 }}>
@@ -116,7 +134,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
                 </div>
               ))}
             </div>
-          ) : <p className="sub">{t(loc, "imp.noHistory")}</p>}
+          ) : <p className="sub">{tr("Niciun import încă. Încarcă exportul CSV al furnizorului.|No imports yet. Upload your provider's CSV export.|Brak importów. Prześlij eksport CSV dostawcy.")}</p>}
         </section>
       </main>
     </Gate>

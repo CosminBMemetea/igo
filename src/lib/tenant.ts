@@ -20,7 +20,9 @@ async function tenantUncached(): Promise<Tenant> {
   const own = role === "owner" || role === "driver" ? h.get("x-igo-firm") : null;
   const firmId = role === "admin" ? cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo" : own ?? "demo";
   // sesiune fără stare: verificăm contul la fiecare cerere — șofer dezactivat / cont șters → afară imediat
-  if (own) {
+  // The signed demo driver is synthetic and has no database user. Real drivers
+  // still pass all revocation, password and tenant checks below.
+  if (own && !(role === "driver" && own === "demo")) {
     if (!base.uid) redirect("/api/auth/logout?e=off");
     if (process.env.NODE_ENV === "production" && !base.dbOk) throw new Error("Database required for real accounts");
     const u = await store().userById(base.uid);

@@ -12,5 +12,5 @@ export async function GET(req: Request) {
   const now = Number.isFinite(m) && m > 0 && m <= DEMO_NOW_MIN ? Math.round(m) : DEMO_NOW_MIN;
   const { vehicles, trips } = activeFleet(tn.demo, await r.vehicles(), await r.trips());
   const list = tn.demo ? demoLive(vehicles, tripViews(trips, vehicles), await r.parcels(), await r.zones(), now) : liveFleet(vehicles, tripViews(trips, vehicles), await r.parcels(), await r.zones(), now);
-  return NextResponse.json({ demo: true, minute: now, vehicles: list });
+  return NextResponse.json({ demo: tn.demo, minute: now, vehicles: list });
 }

@@ -1,4 +1,5 @@
 import { DemoFleet } from "@/components/DemoFleet";
+import { DemoSwitcher } from "@/components/DemoSwitcher";
 import { EL, ef } from "@/lib/econ-i18n";
 import { fleetEcon } from "@/lib/econ";
 import { EconKpis } from "@/components/Econ";
@@ -79,6 +80,7 @@ export default async function Home() {
   return (
     <main>
       {welcome}
+      {d.demo && d.tn.role === "user" ? <DemoSwitcher loc={loc} /> : null}
       {d.demo ? <DemoFleet live={live} loc={loc} theme={prefs.theme} /> : null}
       {theft && theft.rule === "card-fara-camion" ? (
         <Link href={`/alerts#${theft.id}`} className="theft fade">

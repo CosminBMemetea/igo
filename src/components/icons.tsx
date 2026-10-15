@@ -27,5 +27,5 @@ const P: Record<string, string> = {
 };
 export type IconName = keyof typeof P;
 export function Icon({ name, size }: { name: IconName; size?: number }) {
-  return <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden dangerouslySetInnerHTML={{ __html: P[name] }} />;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" width={size} height={size} aria-hidden dangerouslySetInnerHTML={{ __html: P[name] }} />;
 }

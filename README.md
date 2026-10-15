@@ -168,6 +168,10 @@ pressure and prolonged offline use still require device testing.
 
 ## Demo Europa și audit de regresie — octombrie 2026
 
+Auditul continuu, bugurile rămase și scenariile de test sever sunt în
+[docs/QA-AUDIT.md](docs/QA-AUDIT.md). Ghidul pentru carduri, răspunsurile pentru patron
+și prioritățile produsului sunt în [docs/OWNER-GUIDE.md](docs/OWNER-GUIDE.md).
+
 - Demo-ul public are exact 7 camioane și 7 șoferi, cu 7 curse curente și 49 curse istorice. Coridoare: Viena–München, Frankfurt–Rotterdam, Timișoara–Budapesta, Ljubljana–Milano, Zürich–Lyon, Bratislava–Katowice, Sofia–Istanbul. 13 țări în punctele traseelor; date fictive, mutate relativ la ziua curentă.
 - Acasă prezintă flota pe hartă și lista echipajelor; Camioane/Șoferi sunt accesibile și în demo, cu căutare și detalii. Modificările demo ale pauzei private continuă să ascundă poziția.
 - Corecții demo: o singură direcție per cursă (fără retur ascuns în kilometri), ETA cu pauze, ore de plecare pozitive, reluare limitată la ora demo, retururi cu geometria inversată, CMR/POD și evenimente generate din cursa corespunzătoare. Etichetele hărții se orientează spre interior la marginea dreaptă.

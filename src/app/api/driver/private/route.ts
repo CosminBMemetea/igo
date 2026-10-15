@@ -23,5 +23,5 @@ export async function POST(req: Request) {
   catch { return NextResponse.json({ error: "shift-conflict" }, { status: 409 }); }
   if (!!sh.privateSince !== b.on) await logDriver(tn, b.vehicleId, b.on ? "private_on" : "private_off");
   const res = NextResponse.json({ ok: true, private: !!s.privateSince });
-  return tn.demo ? saveDemoShift(res, s) : res;
+  return tn.demo ? saveDemoShift(res, s, sh) : res;
 }

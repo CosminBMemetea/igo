@@ -3,16 +3,17 @@
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import type { Shift } from "./repo";
+import { carryDemoWork, type DemoWorkShift } from "./demo-work";
 const C = "qf-dshift";
 // valorile cookie trebuie să fie ASCII (diacriticele din note / nume de stații dau eroare 500 în antet) → JSON codat URI
 const jset = (v: unknown) => encodeURIComponent(JSON.stringify(v));
 function jget(name: string): Record<string, never> & { [k: string]: unknown } { const raw = cookies().get(name)?.value ?? "{}"; try { return JSON.parse(raw); } catch { try { return JSON.parse(decodeURIComponent(raw)); } catch { return {}; } } }
-type Map = Record<string, Shift>;
+type Map = Record<string, DemoWorkShift>;
 const read = (): Map => { try { return jget(C) as Map; } catch { return {}; } };
 export const demoShifts = (): Map => read();
-export const demoShift = (vehicleId: string): Shift | null => read()[vehicleId] ?? null;
-export function saveDemoShift(res: NextResponse, s: Shift) {
-  const m = read(); m[s.vehicleId] = s;
+export const demoShift = (vehicleId: string): DemoWorkShift | null => read()[vehicleId] ?? null;
+export function saveDemoShift(res: NextResponse, s: Shift, previous: DemoWorkShift | null) {
+  const m = read(); m[s.vehicleId] = carryDemoWork(s, previous, Date.now());
   res.cookies.set(C, jset(m), { path: "/", maxAge: 60 * 60 * 24, sameSite: "lax", httpOnly: true });
   return res;
 }

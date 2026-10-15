@@ -27,7 +27,7 @@ function hav(a: [number, number], b: [number, number]) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo }: { queueScope?: string; actorId?: string; switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
-  const [on, setOn] = useState(!!initial), [start, setStart] = useState<number | null>(initial ? Date.parse(initial.start) || Date.now() : null), [km, setKm] = useState(today?.km ?? 0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
+  const [on, setOn] = useState(!!initial), [km, setKm] = useState(today?.km ?? 0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
   const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey()), [cur, setCur] = useState("RON"), [rDate, setRDate] = useState(""), [rPlate, setRPlate] = useState("");
@@ -35,7 +35,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   useEffect(() => { setLast(lastFill); }, [lastFill]);
   const [priv, setPriv] = useState(!!initial?.priv);
   // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
-  const shownKm = demoKm != null ? (on ? demoKm : 0) : km;
+  const shownKm = demoKm != null ? demoKm : km;
   const privRef = useRef(!!initial?.priv);
   const lastPos = useRef<[number, number] | null>(null), lastT = useRef(0), sent = useRef<{ t: number; at: [number, number] } | null>(null), watch = useRef<number | null>(null);
   // ore azi: baza calculată pe server (tură ∩ azi, fără pauze) + timpul curs de atunci doar cât e în tură și nu e privat
@@ -46,7 +46,9 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
 
   const shiftBusy = useRef(false);
   const [askEnd, setAskEnd] = useState(false), [gps, setGps] = useState<"wait" | "ok" | "off">("wait");
-  useEffect(() => { if (!askEnd) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAskEnd(false); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [askEnd]);
+  const endDialog = useRef<HTMLDialogElement>(null);
+  const shiftTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!askEnd) return; const dialog = endDialog.current, trigger = shiftTrigger.current; dialog?.showModal(); document.documentElement.classList.add("msheet-open"); return () => { dialog?.close(); document.documentElement.classList.remove("msheet-open"); trigger?.focus(); }; }, [askEnd]);
   // „Termină tura”: întâi confirmare (foaie proprie), abia apoi oprim tura
   function toggle() { if (on && !preview) { setAskEnd(true); return; } void doToggle(); }
   async function doToggle() {
@@ -60,7 +62,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     if (!rs?.ok) { setMsg({ t: rs?.status === 409 || rs?.status === 403 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
     setPriv(false); privRef.current = false;
     setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
-    if (next) { setStart(Date.now()); lastPos.current = null; work.current.since = Date.now(); }
+    if (next) { lastPos.current = null; work.current.since = Date.now(); }
     else pauseWork();
   }
   function startWatch() {
@@ -168,7 +170,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       else { if (r?.status === 409) setMsg({ t: "", k: "" }); setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]); }
     } catch { setFormErr(tri(loc, "Bonul nu a putut fi păstrat pe telefon. Nu închide formularul; încearcă din nou.|Could not save the receipt on this device. Keep the form open and retry.|Nie udało się zapisać paragonu. Nie zamykaj formularza i spróbuj ponownie.")); } finally { receiptLock.current = false; setBusy(false); }
   }
-  const w = work.current, hours = demo ? (start ? (now - start) / 3600000 : 0) : (w.ms + (w.since !== null ? Math.max(0, now - w.since) : 0)) / 3600000;
+  const w = work.current, hours = (w.ms + (w.since !== null ? Math.max(0, now - w.since) : 0)) / 3600000;
   return (
     <div className="phone">
       {preview ? <div className="pvbar fade" role="note"><b>{L["drv.preview"]}</b><span>{L["drv.previewHint"]}</span></div> : null}
@@ -191,16 +193,16 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       {!on ? (
         <div className="sheet fade d2">
           <div className="eyebrow">{L["drv.check"]}</div>
-          {CHECKS.map((c) => <div key={c} className="chkrow" role="checkbox" aria-checked={checks.includes(c)} tabIndex={0} onClick={() => setChecks((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))}><span>{L[c]}</span><span className={`chkbox${checks.includes(c) ? " on" : ""}`}>{checks.includes(c) ? <Icon name="check" /> : null}</span></div>)}
+          {CHECKS.map((c) => <div key={c} className="chkrow" role="checkbox" aria-checked={checks.includes(c)} tabIndex={0} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.currentTarget.click(); } }} onClick={() => setChecks((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))}><span>{L[c]}</span><span className={`chkbox${checks.includes(c) ? " on" : ""}`}>{checks.includes(c) ? <Icon name="check" /> : null}</span></div>)}
         </div>
       ) : null}
       <div className="fade d2" style={{ marginTop: 16, display: "grid", gap: 12 }}>
-        <button className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button>
-        {askEnd ? <div className="msheet-bg any" onClick={() => setAskEnd(false)}><div className="msheet endsheet" role="alertdialog" aria-modal="true" aria-labelledby="endq" onClick={(e) => e.stopPropagation()}>
+        <button ref={shiftTrigger} className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button>
+        {askEnd ? <dialog ref={endDialog} className="msheet-bg any" aria-labelledby="endq" onCancel={() => setAskEnd(false)} onClick={(e) => { if (e.target === e.currentTarget) setAskEnd(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
           <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
           <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>
           <button className="btn sec" onClick={() => setAskEnd(false)}>{L["drv.endNo"]}</button>
-        </div></div> : null}
+        </div></dialog> : null}
         {on ? <button className={`btn sec start privbtn${priv ? " on" : ""}`} onClick={togglePriv} aria-pressed={priv}>{priv ? L["priv.resume"] : L["priv.toggle"]}</button> : null}
         <button className="btn sec start" onClick={() => setForm((x) => !x)}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span></button>
       </div>

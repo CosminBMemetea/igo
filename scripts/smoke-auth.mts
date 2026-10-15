@@ -57,7 +57,8 @@ ok("demo NU poate asocia carduri / setup", decide("/api/import/assign", user).ki
 ok("demo poate explora camioanele și șoferii", decide("/trucks", user).kind === "allow" && decide("/drivers", user).kind === "allow" && decide("/api/drivers/assign", user).kind === "forbidden");
 ok("demo poate deschide /replay", decide("/replay", user).kind === "allow");
 {
-  const { demoSandbox } = await import("../src/lib/fuel/demo-import");
+  const { demoSandbox, DEMO_TRUCKS } = await import("../src/lib/fuel/demo-import");
+  ok("importul demo folosește cele 7 camioane", DEMO_TRUCKS.length === 7 && DEMO_TRUCKS.some((x) => x.plate === "BH 77 QRT"));
   const { commit } = await import("../src/lib/fuel/import");
   const { readFileSync } = await import("node:fs");
   const a = await demoSandbox(), b2 = await demoSandbox();

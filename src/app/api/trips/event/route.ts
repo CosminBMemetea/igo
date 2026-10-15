@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { tenant } from "@/lib/tenant";
 import type { TripEventKind } from "@/lib/store/types";
+import { realToday, roIso } from "@/lib/demo-time";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const KINDS: TripEventKind[] = ["loaded", "unloaded", "wait_start", "wait_end"];
@@ -12,11 +13,18 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { tripId?: unknown; kind?: unknown; lat?: unknown; lng?: unknown; key?: unknown; actorId?: unknown; occurredAt?: unknown } | null;
   if (!b || typeof b.tripId !== "string" || !KINDS.includes(b.kind as TripEventKind)) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const ms = typeof b.occurredAt === "string" ? Date.parse(b.occurredAt) : Date.now();
-  if (!Number.isFinite(ms) || ms > Date.now() + 300000 || ms < Date.now() - 30 * 86400000) return NextResponse.json({ error: "time" }, { status: 400 });
-  const at = new Date(ms).toISOString();
   const tn = await tenant();
   if (b.actorId && b.actorId !== tn.uid) return NextResponse.json({ error: "account" }, { status: 403 });
-  if (tn.demo || !tn.firm) return NextResponse.json({ at, demo: true });
+  if (tn.demo) {
+    if (!(await tn.repo.trips()).some((t) => t.id === b.tripId)) return NextResponse.json({ error: "trip" }, { status: 404 });
+    const base = Date.parse(roIso(realToday(), "14:00"));
+    const demoMs = b.occurredAt == null ? base : ms;
+    if (!Number.isFinite(demoMs) || demoMs < base - 300000 || demoMs > base + 86400000) return NextResponse.json({ error: "time" }, { status: 400 });
+    return NextResponse.json({ at: new Date(demoMs).toISOString(), demo: true });
+  }
+  if (!tn.firm) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!Number.isFinite(ms) || ms > Date.now() + 300000 || ms < Date.now() - 30 * 86400000) return NextResponse.json({ error: "time" }, { status: 400 });
+  const at = new Date(ms).toISOString();
   if (!(await driverTrip(store(), tn, b.tripId))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const ownTrip = (await store().trips(tn.firm.id)).find((t) => t.id === b.tripId)!;
   if (tn.role === "driver" && !(await driverTruck(store(), tn, ownTrip.truckId))) return NextResponse.json({ error: "assignment" }, { status: 403 });

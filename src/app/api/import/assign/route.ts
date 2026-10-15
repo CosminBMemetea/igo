@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const f = await writableFirm(); if (!f) return back(req, "/import?e=nofirm");
   const fd = await req.formData();
-  const card = clip(fd.get("card"), 40), truckId = clip(fd.get("truck"), 60);
-  if (!card || !(await store().trucks(f.id)).some((t) => t.id === truckId)) return back(req, "/import?e=assign");
+  const card = String(fd.get("card") ?? "").trim(), truckId = clip(fd.get("truck"), 60);
+  if (!card || card.length > 40 || /[\u0000-\u001f\u007f]/.test(card) || !(await store().trucks(f.id)).some((t) => t.id === truckId && !t.archivedAt)) return back(req, "/import?e=assign");
   await store().setCard(f.id, card, truckId);
   return back(req, "/import?assigned=1");
 }

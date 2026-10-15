@@ -1,3 +1,4 @@
+import { carryDemoWork, demoWorkMs } from "../src/lib/demo-work";
 // smoke:demo: demo-ul are o singură sursă de adevăr (Acasă = Curse = Clienți = Bonuri = Economii),
 // date relative la azi (nimic din viitor), exact 3 alerte credibile și niciun „simulat” în interfață.
 import { DemoRepository } from "../src/lib/repo";
@@ -76,6 +77,17 @@ ok("un consum peste normal", alerts.filter((a) => a.rule === "consum-peste-norma
 
 // 4. fără „simulat” în texte
 for (const [loc, cat] of Object.entries(CATALOGS)) ok(`fără „simulat” (${loc})`, !Object.values(cat).some((v) => /simulat|simulated|symulowan/i.test(v)));
+
+// Retain work through stop/start/reload and exclude a private pause.
+const workNow = Date.parse("2026-10-15T12:00:00Z");
+const workSeed = { vehicleId: "test", start: new Date(workNow - 2 * 3600000).toISOString(), end: null, privateSince: null, checklist: [] };
+const stoppedWork = carryDemoWork({ ...workSeed, end: new Date(workNow).toISOString() }, workSeed, workNow);
+const restartedWork = carryDemoWork({ ...workSeed, start: new Date(workNow + 60000).toISOString() }, stoppedWork, workNow + 60000);
+ok("demo ore: stop/start/reload păstrează turele anterioare", demoWorkMs(JSON.parse(JSON.stringify(restartedWork)), workNow + 120000) === 2 * 3600000 + 60000);
+const privateWork = carryDemoWork({ ...restartedWork, privateSince: new Date(workNow + 120000).toISOString() }, restartedWork, workNow + 120000);
+ok("demo ore: pauza privată nu crește totalul la reload", demoWorkMs(privateWork, workNow + 3600000) === 2 * 3600000 + 60000);
+const resumedWork = carryDemoWork({ ...privateWork, privateSince: null }, privateWork, workNow + 3600000);
+ok("demo ore: revenirea din pauză reia totalul corect", demoWorkMs(resumedWork, workNow + 3660000) === 2 * 3600000 + 120000);
 
 if (fail) { console.error(`\n${fail} verificări eșuate`); process.exit(1); }
 console.log("\nsmoke:demo OK");

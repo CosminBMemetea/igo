@@ -19,7 +19,7 @@ export default async function Trucks({ searchParams }: { searchParams: { q?: str
     <div className="eyebrow">{firm.name}</div>
     <h1 className="h1">{tr("Camioane|Trucks|Pojazdy")}</h1>
     <p className="sub">{tr("Adaugă camionul, apoi asociază un șofer. Detaliile tehnice pot fi completate mai târziu.|Add a truck, then assign a driver. Technical details can be added later.|Dodaj pojazd, a następnie przypisz kierowcę. Szczegóły techniczne możesz uzupełnić później.")}</p>
-    <div className="invrow" style={{ margin: "20px 0" }}><Link className="btn sec" href="/drivers">{tr("Șoferi și invitații|Drivers and invitations|Kierowcy i zaproszenia")}</Link><Link className="btn sec" href="/trips">{t(loc, "nav.trips")}</Link></div>
+    <div className="invrow" style={{ margin: "20px 0" }}><Link className="btn sec" href="/drivers">{tr("Șoferi și invitații|Drivers and invitations|Kierowcy i zaproszenia")}</Link><Link className="btn sec" href="/import#cards">{tr("Carduri carburant|Fuel cards|Karty paliwowe")}</Link><Link className="btn sec" href="/trips">{t(loc, "nav.trips")}</Link></div>
     {searchParams.ok ? <p className="msg ok" role="status">{t(loc, "stg.saved")}</p> : null}
     <details className="sheet" open={!trucks.length}><summary className="btn pri">+ {t(loc, "stg.addTruck")}</summary>
       <ActionForm action="/api/setup/truck" returnTo="/trucks" loc={loc} reset>
