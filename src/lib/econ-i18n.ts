@@ -1,11 +1,11 @@
 import type { Locale } from "./i18n";
 const RO = {
-  savLess: "{p} mai puțină motorină", b1: "Motorină economisită: <b>{l} L</b> / lună", b2: "Furturi prinse la timp: <b>{n}</b> · {lei} protejați", b3: "Km goi la vedere: <b>{km} km</b> ({p}) de redus", benOpen: "Detalii economii",
+  savLess: "Diferență estimată: {p}", b1: "Diferență estimată de carburant: <b>{l} L</b> / lună", b2: "Anomalii semnalate: <b>{n}</b>", b3: "Km goi la vedere: <b>{km} km</b> ({p}) de redus", benOpen: "Detalii economii",
   tabOverview: "Prezentare", tabCosts: "Costuri", fixedT: "Costuri fixe pe lună", varT: "Costuri variabile pe km",
   leasing: "Leasing", rca: "RCA", casco: "CASCO", rovinieta: "Rovinietă", salary: "Salariu șofer", parking: "Parcare",
   adblue: "AdBlue", tyres: "Anvelope / uzură", service: "Service", loadWear: "Uzură din tonaj (lei / t·km)", capacityT: "Capacitate (tone)",
   fuel: "Motorină atribuită cursei", tolls: "Taxe drum / peaje", driver: "Șofer (diurnă)", fixedShare: "Cota din costurile fixe", wearLoad: "Uzură din tonaj",
-  costKm: "Cost real / km", fleetCmp: "Comparație flotă · cost real / km", save: "Salvează costurile", saved: "Salvat. Toate cursele camionului au fost recalculate.",
+  costKm: "Cost calculat / km", fleetCmp: "Comparație flotă · cost calculat / km", save: "Salvează costurile", saved: "Salvat. Toate cursele camionului au fost recalculate.",
   perMonth: "/ lună", perKm: "/ km", kmMonth: "{n} km / lună", fixedTotal: "Total fixe", fixedPerKm: "fixe / km", varTotal: "variabile / km",
   load: "Grad de încărcare", emptyKm: "Km goi", emptyRet: "Retur gol", tonnes: "Tonaj", loaded: "încărcat", wearKm: "Uzură / km", wearT: "Uzură / tonă", costT: "Cost / tonă",
   ofCap: "{t} t din {c} t", emptyOf: "{n} km goi din {k} km", emptyShare: "din km sunt goi",
@@ -19,12 +19,12 @@ const RO = {
 };
 type L = typeof RO;
 const EN: L = {
-  savLess: "{p} less fuel", b1: "Fuel saved: <b>{l} L</b> / month", b2: "Theft caught in time: <b>{n}</b> · {lei} protected", b3: "Empty km in view: <b>{km} km</b> ({p}) to cut", benOpen: "Savings details",
+  savLess: "Estimated difference: {p}", b1: "Estimated fuel difference: <b>{l} L</b> / month", b2: "Flagged anomalies: <b>{n}</b>", b3: "Empty km in view: <b>{km} km</b> ({p}) to cut", benOpen: "Savings details",
   tabOverview: "Overview", tabCosts: "Costs", fixedT: "Fixed costs per month", varT: "Variable costs per km",
   leasing: "Leasing", rca: "Liability insurance", casco: "Comprehensive cover", rovinieta: "Road vignette", salary: "Driver salary", parking: "Parking",
   adblue: "AdBlue", tyres: "Tyres / wear", service: "Service", loadWear: "Load wear (lei / t·km)", capacityT: "Capacity (tonnes)",
   fuel: "Fuel allocated to trip", tolls: "Road tolls", driver: "Driver (per diem)", fixedShare: "Share of fixed costs", wearLoad: "Load wear",
-  costKm: "Real cost / km", fleetCmp: "Fleet comparison · real cost / km", save: "Save costs", saved: "Saved. All of this truck's trips were recalculated.",
+  costKm: "Calculated cost / km", fleetCmp: "Fleet comparison · calculated cost / km", save: "Save costs", saved: "Saved. All of this truck's trips were recalculated.",
   perMonth: "/ month", perKm: "/ km", kmMonth: "{n} km / month", fixedTotal: "Total fixed", fixedPerKm: "fixed / km", varTotal: "variable / km",
   load: "Load factor", emptyKm: "Empty km", emptyRet: "Empty return", tonnes: "Tonnage", loaded: "loaded", wearKm: "Wear / km", wearT: "Wear / tonne", costT: "Cost / tonne",
   ofCap: "{t} t of {c} t", emptyOf: "{n} empty km of {k} km", emptyShare: "of km are empty",
@@ -37,12 +37,12 @@ const EN: L = {
   costsLink: "Costs per truck", perTrip: "per trip", loss: "loss",
 };
 const PL: L = {
-  savLess: "{p} mniej paliwa", b1: "Zaoszczędzone paliwo: <b>{l} L</b> / mies.", b2: "Kradzieże wykryte na czas: <b>{n}</b> · {lei} ochronione", b3: "Puste km na widoku: <b>{km} km</b> ({p}) do ograniczenia", benOpen: "Szczegóły oszczędności",
+  savLess: "Szacowana różnica: {p}", b1: "Szacowana różnica paliwa: <b>{l} l</b> / mies.", b2: "Wykryte anomalie: <b>{n}</b>", b3: "Puste km na widoku: <b>{km} km</b> ({p}) do ograniczenia", benOpen: "Szczegóły oszczędności",
   tabOverview: "Przegląd", tabCosts: "Koszty", fixedT: "Koszty stałe miesięcznie", varT: "Koszty zmienne na km",
   leasing: "Leasing", rca: "OC", casco: "AC", rovinieta: "Winieta", salary: "Pensja kierowcy", parking: "Parking",
   adblue: "AdBlue", tyres: "Opony / zużycie", service: "Serwis", loadWear: "Zużycie od tonażu (lei / t·km)", capacityT: "Ładowność (tony)",
   fuel: "Paliwo (paragony i karty)", tolls: "Opłaty drogowe", driver: "Kierowca (dieta)", fixedShare: "Udział kosztów stałych", wearLoad: "Zużycie od tonażu",
-  costKm: "Rzeczywisty koszt / km", fleetCmp: "Porównanie floty · rzeczywisty koszt / km", save: "Zapisz koszty", saved: "Zapisano. Wszystkie kursy tej ciężarówki zostały przeliczone.",
+  costKm: "Obliczony koszt / km", fleetCmp: "Porównanie floty · obliczony koszt / km", save: "Zapisz koszty", saved: "Zapisano. Wszystkie kursy tej ciężarówki zostały przeliczone.",
   perMonth: "/ mies.", perKm: "/ km", kmMonth: "{n} km / mies.", fixedTotal: "Razem stałe", fixedPerKm: "stałe / km", varTotal: "zmienne / km",
   load: "Stopień załadunku", emptyKm: "Puste km", emptyRet: "Pusty powrót", tonnes: "Tonaż", loaded: "załadowana", wearKm: "Zużycie / km", wearT: "Zużycie / tonę", costT: "Koszt / tonę",
   ofCap: "{t} t z {c} t", emptyOf: "{n} pustych km z {k} km", emptyShare: "km to puste przebiegi",

@@ -11,7 +11,7 @@ export const TOOLS = [
   { name: "month_totals", description: "Profit, number of trips/jobs, average profit per trip and fuel savings % vs baseline for the current month.", parameters: { type: "object", properties: {} } },
   { name: "best_trip", description: "The most (order=best) or least (order=worst) profitable trip or job this month.", parameters: { type: "object", properties: { order: { type: "string", enum: ["best", "worst"] } }, required: ["order"] } },
   { name: "vehicle_summary", description: "Profit, consumption and savings for one vehicle or machine, by plate or name.", parameters: { type: "object", properties: { plate: { type: "string" } }, required: ["plate"] } },
-  { name: "alerts_summary", description: "Count of alerts, possible fuel theft, and the most important alert.", parameters: { type: "object", properties: {} } },
+  { name: "alerts_summary", description: "Count of alerts, priority fuel anomalies requiring review, and the most important alert.", parameters: { type: "object", properties: {} } },
   { name: "top_client", description: "The most profitable client and overdue payments.", parameters: { type: "object", properties: {} } },
 ] as const;
 

@@ -31,7 +31,7 @@ export const PLANS: Record<PlanId, Plan> = {
     name: "Business", 
     who: "Pentru flote cu sondă și echipă de birou|For fleets with fuel probes and an office team|Dla flot z sondami i zespołem biurowym",
     top: [
-      "Anti-furt cu sondă în rezervor (prin partener)|Anti-theft with a tank probe (via partner)|Ochrona przed kradzieżą z sondą w zbiorniku (przez partnera)",
+      "Monitorizare nivel cu sondă (integrare planificată)|Tank-level monitoring (planned integration)|Monitorowanie poziomu zbiornika (planowana integracja)",
       "Export e-Factura, SmartBill, SAGA (planificat)|e-Factura, SmartBill, SAGA export (planned)|Eksport e-Factura, SmartBill, SAGA (planowany)",
       "Utilizatori și roluri, API, suport prioritar|Users and roles, API, priority support|Użytkownicy i role, API, priorytetowe wsparcie",
     ],
@@ -40,9 +40,9 @@ export const PLANS: Record<PlanId, Plan> = {
 // rank: 1 = cea mai mare valoare pentru client. plan = planul minim care o include.
 export const FEATURES: Feature[] = [
   { id: "profit", rank: 1, plan: "start", cat: "core", name: "Profit pe cursă|Profit per trip|Zysk na kurs", desc: "Venit minus motorină, taxe, șofer, alte costuri|Revenue minus diesel, tolls, driver, other|Przychód minus paliwo, opłaty, kierowca, inne" },
-  { id: "savings", rank: 2, plan: "start", cat: "core", name: "Economie % față de bază|Savings % vs baseline|Oszczędność % wobec bazy", desc: "L/100km, L/h, L/ha la prețul de azi|L/100km, L/h, L/ha at today's price|l/100 km, l/h, l/ha w dzisiejszej cenie" },
+  { id: "savings", rank: 2, plan: "start", cat: "core", name: "Economie % față de bază|Savings % vs baseline|Oszczędność % wobec bazy", desc: "Estimare din datele curselor și prețurile introduse|Estimate from trip data and entered prices|Szacunek z danych kursów i wpisanych cen" },
   { id: "live", rank: 3, plan: "start", cat: "track", name: "Hartă live|Live map|Mapa na żywo", desc: "Stare, viteză, șofer, ultima actualizare|Status, speed, driver, last update|Status, prędkość, kierowca, ostatnia aktualizacja" },
-  { id: "fuelAlerts", rank: 4, plan: "start", cat: "core", name: "Alerte combustibil|Fuel alerts|Alerty paliwowe", desc: "Alimentări suspecte, consum peste bază|Suspicious fill-ups, over-baseline use|Podejrzane tankowania, spalanie ponad bazę" },
+  { id: "fuelAlerts", rank: 4, plan: "start", cat: "core", name: "Alerte combustibil|Fuel alerts|Alerty paliwowe", desc: "Anomalii din alimentări și km, cu limite explicate|Anomalies from fills and distance, with explained limits|Anomalie tankowań i dystansu z wyjaśnionymi ograniczeniami" },
   { id: "receipts", rank: 5, plan: "start", cat: "money", name: "Bonuri cu AI|AI receipts|Paragony z AI", desc: "Poză → dată, stație, litri, sumă, legat de cursă|Photo → date, station, litres, amount, matched to trip|Zdjęcie → data, stacja, litry, kwota, przypisane do kursu" },
   { id: "documents", rank: 6, plan: "start", cat: "docs", name: "Documente și expirări|Documents and expiry|Dokumenty i terminy", desc: "ITP, RCA, CASCO, rovinietă, tahograf, permise|Inspection, insurance, vignette, tachograph, licences|Przegląd, OC, AC, winieta, tachograf, uprawnienia" },
   { id: "driverApp", rank: 7, plan: "start", cat: "track", name: "Aplicația șoferului + checklist|Driver app + checklist|Aplikacja kierowcy + checklista", desc: "Pornire cursă, alimentare, verificare zilnică|Start trip, fill-up, daily check|Start kursu, tankowanie, kontrola dzienna" },
@@ -57,7 +57,7 @@ export const FEATURES: Feature[] = [
   { id: "agri", rank: 16, plan: "pro", cat: "core", name: "Utilaje agricole și parcele|Farm machines and fields|Maszyny rolnicze i pola", desc: "L/h, L/ha, lucrări pe parcelă, bazin fermă|L/h, L/ha, field jobs, farm tank|l/h, l/ha, prace na polu, zbiornik" },
   { id: "reports", rank: 17, plan: "pro", cat: "money", name: "Rapoarte și export contabil|Reports and accountant export|Raporty i eksport dla księgowej", desc: "Excel/CSV lunar, raport zilnic pe email|Monthly Excel/CSV, daily email report|Miesięczny Excel/CSV, codzienny raport e-mail" },
   { id: "efactura", rank: 18, plan: "business", cat: "money", planned: true, name: "e-Factura, SmartBill, SAGA|e-Factura, SmartBill, SAGA|e-Factura, SmartBill, SAGA", desc: "Integrare planificată|Planned integration|Planowana integracja" },
-  { id: "probe", rank: 19, plan: "business", cat: "track", name: "Anti-furt cu sondă|Anti-theft with probe|Ochrona z sondą", desc: "Scădere în rezervor cu vehiculul oprit (hardware partener)|Tank drop while parked (partner hardware)|Spadek w zbiorniku na postoju (sprzęt partnera)" },
+  { id: "probe", rank: 19, plan: "business", cat: "track", planned: true, name: "Nivel rezervor prin sondă|Tank level via probe|Poziom zbiornika z sondy", desc: "Necesită hardware, calibrare și integrare; nu este disponibil în conturile reale|Requires hardware, calibration and integration; unavailable in real accounts|Wymaga sprzętu, kalibracji i integracji; niedostępne na rzeczywistych kontach" },
   { id: "roles", rank: 20, plan: "business", cat: "core", name: "Utilizatori, roluri, API|Users, roles, API|Użytkownicy, role, API", desc: "Dispecer, contabil, mai multe firme|Dispatcher, accountant, multiple companies|Dyspozytor, księgowa, wiele firm" },
 ];
 export const CATS = { core: "Esențial|Essentials|Podstawy", track: "Urmărire|Tracking|Śledzenie", money: "Bani|Money|Pieniądze", docs: "Documente și service|Documents and service|Dokumenty i serwis" } as const;

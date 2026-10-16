@@ -43,7 +43,7 @@ export class FirmRepository implements IgoRepository {
   async vehicles() {
     const [ts, tx, us] = await Promise.all([this.trucksQ(), this.tx(), this.memo("users", () => this.s.users(this.firm.id)).catch(() => [])]);
     const nm = (u: { name: string; email: string | null }) => u.name?.trim() || (u.email ? u.email.split("@")[0] : "");
-    return ts.map((t) => { const drv = us.filter((x) => x.role === "driver" && !x.disabledAt), u = drv.find((x) => x.truckId === t.id); return { ...truckToVehicle(t, truckBaseline(t, tx, this.since()).l100), driver: u ? nm(u) : "" }; });
+    return ts.map((t) => { const drv = us.filter((x) => x.role === "driver" && !x.disabledAt), u = drv.find((x) => x.truckId === t.id), b = truckBaseline(t, tx, this.since()); return { ...truckToVehicle(t, b.l100), baselineKind: b.kind, driver: u ? nm(u) : "" }; });
   }
   async trips() { const [rs, tx, us] = await Promise.all([this.tripsQ(), this.tx(), this.s.users(this.firm.id)]); const nm = new Map(us.map((u) => [u.id, u.name])); return rs.map((r) => { const t = tripRowToTrip(r, tx), n = r.driverId ? nm.get(r.driverId) : undefined; return n ? { ...t, driverName: n } : t; }); }
   async clients(): Promise<Client[]> {

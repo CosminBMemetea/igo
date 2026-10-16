@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-const RK = ["dayStart", "tank", "sumTitle", "hours", "normal", "profit", "again", "hl", "hlHint", "title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
+const RK = ["unknownTank", "fuelNote", "demoTank", "dayStart", "tank", "sumTitle", "hours", "normal", "profit", "again", "hl", "hlHint", "title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Bucharest" });
 
 export default async function Replay({ searchParams }: { searchParams: { v?: string; trip?: string; d?: string; autoplay?: string } }) {
@@ -23,6 +23,11 @@ export default async function Replay({ searchParams }: { searchParams: { v?: str
   const vid = trip?.vehicleId ?? searchParams.v ?? (tn.demo ? "bh21qrt" : vehicles[0]?.id);
   const v = vehicles.find((x) => x.id === vid);
   const L = Object.fromEntries(RK.map((k) => [k, t(loc, `rp.${k}` as MsgKey)]));
+  // Position gaps do not reveal whether the driver enabled privacy mode.
+  if (!tn.demo) {
+    for (const k of ["private", "privShort", "st_private"]) L[k] = t(loc, "rp.gap");
+    L.privNote = t(loc, "rp.gapNote");
+  }
   const back = trip ? `/trips/${trip.id}` : v ? `/vehicles/${v.id}` : "/live";
   let data = null;
   if (tn.demo) { const k = demoDelta(); data = shiftDeep(demoReplay(TRUCKS.some((x) => x.id === vid) ? vid! : "bh21qrt", trip ? shiftStr(trip.date, -k) : REF_DAY, trip && TRUCKS.some((x) => x.id === trip.vehicleId) ? trip.id : null), k); }

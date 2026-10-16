@@ -1,3 +1,4 @@
+import { localNow } from "@/lib/validate";
 import { DemoFleet } from "@/components/DemoFleet";
 import { DemoSwitcher } from "@/components/DemoSwitcher";
 import { EL, ef } from "@/lib/econ-i18n";
@@ -65,16 +66,16 @@ export default async function Home() {
   const moving = live.filter((x) => x.status === "moving" || x.status === "working").length;
   const priv = live.filter((x) => x.status === "private").length, stopped = live.length - moving - priv;
   const kmToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => a + x.today, 0));
-  const saveToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => { const v = d.vehicles.find((y) => y.id === x.id); return a + (v ? Math.max(0, ((v.baselineRate - x.rate) * x.today) / 100) * FUEL_PRICE : 0); }, 0));
+  const saveToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => { const v = d.vehicles.find((y) => y.id === x.id); return a + (v ? ((v.baselineRate - x.rate) * x.today) / 100 * FUEL_PRICE : 0); }, 0));
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo), rkSplit = splitRank(rk.drivers, 2), rkHelp = rkSplit.help[0] ?? null;
   // economie pe lună: aceeași perioadă ca pe /savings (demo: 15 zile de istoric)
-  const savDays = d.demo ? 15 : Math.max(1, Math.round((Date.now() - Date.parse(d.tn.firm?.createdAt ?? new Date().toISOString())) / 86400000));
+  const savDays = d.demo ? 15 : Number(localNow().slice(8, 10));
   const perMonth = Math.round(m.savings.savedLei / (savDays / 30));
   // alerta de furt cea mai gravă (card plătit departe de camion) — prima pe ecran, deasupra economiei
   const theft = d.alerts.find((a) => a.rule === "card-fara-camion") ?? d.alerts.find((a) => a.theft) ?? null;
   const theftV = theft ? d.vehicles.find((v) => v.id === theft.vehicleId) : null;
   const feed = d.demo ? buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers }) : null;
-  const thefts = d.alerts.filter((a) => a.theft).reduce((o, a) => ({ n: o.n + 1, lei: o.lei + (Number(a.params.litres) || 0) * FUEL_PRICE }), { n: 0, lei: 0 });
+  const anomalyCount = d.alerts.filter((a) => a.theft).length;
   const fe = fleetEcon(d.allVehicles, d.views);
   const alertsToday = d.alerts.filter((a) => a.time.slice(0, 10) === today).length;
   return (
@@ -83,9 +84,9 @@ export default async function Home() {
       {d.demo && d.tn.role === "user" ? <DemoSwitcher loc={loc} /> : null}
       {d.demo ? <DemoFleet live={live} loc={loc} theme={prefs.theme} /> : null}
       {theft && theft.rule === "card-fara-camion" ? (
-        <Link href={`/alerts#${theft.id}`} className="theft fade">
+        <Link href={`/alerts#t-${theft.id}`} className="theft fade">
           <span className="tic" aria-hidden="true">!</span>
-          <span className="tx"><span className="ey">{t(loc, "home.theftEy")}</span><b>{t(loc, "home.theft", { litres: fmtNum(loc, Number(theft.params.litres)), station: String(theft.params.station), dist: fmtNum(loc, Number(theft.params.dist)) })}</b><small>{theftV?.name} · {fmtDate(loc, String(theft.params.time ?? theft.time))} · {fmtMoney(loc, Number(theft.params.litres) * FUEL_PRICE)} {t(loc, "home.theftRisk")}</small></span>
+          <span className="tx"><span className="ey">{t(loc, "home.theftEy")}</span><b>{t(loc, "home.theft", { litres: fmtNum(loc, Number(theft.params.litres)), station: String(theft.params.station), dist: fmtNum(loc, Number(theft.params.dist)) })}</b><small>{theftV?.name} · {fmtDate(loc, String(theft.params.time ?? theft.time))} · {t(loc, "home.theftRisk")}</small></span>
           <span className="go">{t(loc, "home.theftGo")} →</span>
         </Link>
       ) : null}
@@ -98,7 +99,7 @@ export default async function Home() {
               <span className="hsav-chip">▼ {ef(EL[loc].savLess, { p: fmtPct(loc, m.savings.pct, 1) })}</span>
               <ul className="hben">
                 <li><i aria-hidden="true">⛽</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b1, { l: fmtNum(loc, Math.round(m.savings.savedLitres / (savDays / 30))) }) }} /></li>
-                {thefts.n ? <li><i aria-hidden="true">🛡</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b2, { n: thefts.n, lei: fmtMoney(loc, thefts.lei) }) }} /></li> : null}
+                {anomalyCount ? <li><i aria-hidden="true">🛡</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b2, { n: anomalyCount }) }} /></li> : null}
                 {fe.km ? <li><i aria-hidden="true">↩</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b3, { km: fmtNum(loc, fe.emptyKm), p: fmtPct(loc, fe.emptyKm / fe.km, 0) }) }} /></li> : null}
               </ul>
             </>

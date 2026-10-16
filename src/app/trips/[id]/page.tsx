@@ -67,6 +67,8 @@ export default async function TripDetail({ params }: { params: { id: string } })
         <div className="fade d2"><div className="eyebrow">{t(loc, "home.savings")}</div><div className="big"><CountUp value={r.s.pct * 100} d={1} loc={loc} /><small>%</small></div>
           <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "trip.vsBase", { actual: fmtNum(loc, r.actualRate, 1), unit, base: fmtNum(loc, r.vehicle.baselineRate, 1), litres: fmtNum(loc, r.s.savedLitres), lei: fmtMoney(loc, r.s.savedLei) }) }} /></div>
       </section>
+      <p className="hint fuel-source">{t(loc, d.demo ? "fuel.demo" : r.litresSource === "estimate" ? "fuel.estimate" : "fuel.manual")}</p>
+      <p className="hint fuel-source">{t(loc, `fuel.base.${d.demo ? "demo" : r.vehicle.baselineKind ?? "default"}`)}</p>
       <section className="wf section">
         <div className="r"><span>{t(loc, "col.revenue")}</span><div className="bar"><i style={{ left: 0, width: `${(p.revenue / max) * 100}%`, background: "var(--fg)" }} /></div><span className="v">{fmtMoney(loc, p.revenue)}</span></div>
         {segs.map(([name, val, note], i) => {

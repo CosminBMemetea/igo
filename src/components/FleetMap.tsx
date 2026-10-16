@@ -4,7 +4,7 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
-import { fmtMoney, fmtNum, type Locale } from "@/lib/i18n";
+import { fmtMoney, fmtNum, t, type Locale } from "@/lib/i18n";
 import type { LiveVehicle } from "@/lib/query";
 import type { Parcel, Zone } from "@/lib/fleet/seed";
 import { Icon } from "./icons";
@@ -167,7 +167,7 @@ export default function FleetMap({ mode, vehicles, zones, parcels, theme, loc, l
         <div className="stat">
           <div><div className="k">{labels.driver}</div><div className="v" style={{ fontSize: 17 }}>{v.driver}</div></div>
           <div><div className="k">{labels.today}</div><div className="v">{N(v.today, v.todayUnit === "h" ? 1 : 0)} {v.todayUnit}</div></div>
-          <div><div className="k">{v.rateUnit}</div><div className="v">{N(v.rate, 1)}</div></div>
+          <div><div className="k">{v.rateUnit} · {t(loc, "sav.est")}</div><div className="v">{N(v.rate, 1)}</div></div>
           <div><div className="k">{labels.profitToday}</div><div className={`v ${v.profitToday != null && v.profitToday < 0 ? "neg" : "pos"}`}>{v.profitToday != null ? fmtMoney(loc, v.profitToday) : "—"}</div></div>
         </div>
         <div className="eyebrow" style={{ marginTop: 26 }}>{labels.zones}</div>

@@ -29,7 +29,7 @@ Local Postgres test: `TEST_DATABASE_URL=postgres://… npm run build && npm run 
 | Path | What |
 |---|---|
 | `src/lib/calc.ts` | Profit per trip and savings % formulas |
-| `src/lib/fleet/rules.ts` | Fuel-theft rules (ported from qerradoc `/flota`) |
+| `src/lib/fleet/rules.ts` | Fuel-anomaly rules (ported from qerradoc `/flota`) |
 | `src/lib/features.ts` | Plans × features matrix: single source of truth for gating |
 | `src/lib/query.ts` | Safe read functions (summaries, live positions) |
 | `src/lib/ask.ts` | Assistant: tools, rule fallback, rendering with real numbers only |

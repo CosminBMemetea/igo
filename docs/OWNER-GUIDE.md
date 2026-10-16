@@ -45,7 +45,11 @@ ale exportului, fără conversie automată în ora României.
 | Pot muta cardul pe alt camion? | Da: adaugi o perioadă cu data/ora mutării. Istoricul anterior rămâne la camionul vechi; contradicțiile cu plăcuțele sunt oprite. |
 | Se sincronizează automat cu DKV/OMV? | În prezent, CSV. Introducerea identificatorului nu conectează portalul furnizorului. |
 | Ce fac dacă import același fișier de două ori? | Tranzacțiile identice sunt deduplicate. Un export corectat trebuie revizuit: modificările datelor pot schimba cheia de deduplicare. |
-| Detectează sigur furtul? | Afișează suspiciuni pe reguli și date disponibile. Verifici bonul, GPS-ul, rezervorul și contextul; nu este o probă automată de furt. |
+| Detectează sigur furtul? | Nu. Afișează anomalii de verificat din datele disponibile. Verifici bonul, asocierea cardului, ora/fusul, coordonatele stației și contextul. O alertă sau confirmarea „verificată” nu dovedește furt ori vinovăția șoferului. |
+| GPS-ul îmi dă consumul real? | Nu. GPS oferă poziție și distanță. Litri estimați = distanță × rată / 100. Cardul/bonul arată litri alimentați, nu automat consumați. Pentru reconciliere trebuie alimentări complete și niveluri comparabile sau CAN/FMS/senzori validați. |
+| De unde vine referința de consum? | Istoricul alimentărilor anterior contului, dacă are intervale utilizabile de minimum 500 km; altfel norma declarată, apoi valoarea implicită 30 L/100km. Pagina camionului indică sursa. Alimentările parțiale pot distorsiona referința; nu există încă marcaj verificat plin-la-plin. |
+| Ce înseamnă diferența estimată în lei? | Comparația dintre rata cursei și referință, la prețul introdus pe cursă. Nu dovedește că aplicația a produs economii. În cont real, totalul este al lunii curente, fără curse anulate; proiecția lunară extrapolează zilele scurse la un interval de 30 de zile. Anomaliile nu sunt convertite în bani recuperați. |
+| Văd câți litri sunt în rezervor? | În cont real, nivelul este necunoscut fără sursă validată. Replay arată consum estimat. Nivelul din demo pornește dintr-o ipoteză explicată; integrarea sondelor/CAN/FMS este planificată, nu livrată. |
 | Profitul este exact? | Depinde de completitudinea veniturilor/costurilor. Explică datele estimate și confirmate; nu-l prezenta drept contabilitate fiscală. |
 | Pot lucra în EUR și alte valute? | Bonurile păstrează valuta și conversia disponibilă. Raportarea financiară completă în mai multe valute rămâne de consolidat. |
 | Ce se întâmplă fără internet? | Bonurile și evenimentele pot sta în coada telefonului și se retrimit cât pagina este deschisă. Turele/GPS/CMR/POD și prima încărcare a paginii necesită internet. |
@@ -61,7 +65,7 @@ ale exportului, fără conversie automată în ora României.
 
 ## Ordinea recomandată a funcțiilor viitoare
 
-1. **Încredere înainte de extindere:** închidere OPEN-01/03/04, monitorizare, backup restaurat,
+1. **Încredere înainte de extindere:** închidere OPEN-01/03/04/10, monitorizare, backup restaurat,
    pilot cu 2–3 firme, costuri estimate versus confirmate și verificarea cardurilor pe datele pilotului.
 2. **Planificare simplă:** disponibilitate camion/șofer pe calendar, avertizare suprapuneri,
    indisponibilități/revizii și duplicare rapidă de curse. Acceptare: nicio dublă alocare

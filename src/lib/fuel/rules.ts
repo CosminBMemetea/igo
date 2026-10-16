@@ -1,4 +1,4 @@
-// Querra Fleet: reguli anti-furt / consum pe datele firmei (CSV card + bonuri șofer + poziții GPS). Pure; testate în smoke:fuel.
+// Fuel anomalies, not proof of theft. The legacy `theft` flag means priority review.
 import type { Severity } from "../fleet/rules";
 
 export type FirmRule = "peste-capacitate" | "l100-mare" | "consum-peste-normal" | "odo-inapoi" | "odo-salt" | "dubla" | "noapte" | "weekend" | "card-fara-camion" | "nr-diferit";
@@ -10,7 +10,7 @@ export interface FirmAlert { id: string; rule: FirmRule; vehicleId: string; time
 
 export const T = {
   overTankTolerance: 0.02, // 2% toleranță la pompă
-  l100High: 0.25,          // +25% peste referință → suspect de furt
+  l100High: 0.25,          // +25% over reference → priority anomaly
   l100Over: 0.15,          // +15% → consum peste normal
   minKm: 50, maxKm: 3000,
   maxKmh: 90,              // km între alimentări / ore > 90 km/h → salt de kilometraj
@@ -28,13 +28,16 @@ export function haversine(a: [number, number], b: [number, number]) {
 /** Referința de consum: normalul declarat al camionului, altfel baza din istoricul cardului. */
 export const refL100 = (t: RTruck) => t.normalL100 ?? t.baseline;
 
-/** Media L/100km plin-la-plin pe un set de alimentări (pentru baza din istoric). */
+/** Purchased litres / odometer distance. Tank levels are unknown: this is a proxy,
+ * not a full-to-full measurement. Do not bridge missing readings and silently lose fuel. */
 export function fillToFill(tx: RTx[]): { km: number; litres: number; l100: number | null; n: number } {
-  const s = tx.filter((x) => x.odometer != null).sort((a, b) => a.at.localeCompare(b.at));
+  const s = [...tx].sort((a, b) => a.at.localeCompare(b.at));
   let km = 0, litres = 0, n = 0;
   for (let i = 1; i < s.length; i++) {
+    if (s[i].odometer == null || s[i - 1].odometer == null || s[i].truckId !== s[i - 1].truckId) continue;
     const d = s[i].odometer! - s[i - 1].odometer!;
-    if (d < T.minKm || d > T.maxKm) continue;
+    const hours = mins(s[i - 1].at, s[i].at) / 60;
+    if (!Number.isFinite(d) || d < T.minKm || d > T.maxKm || !(hours > 0) || d / hours > T.maxKmh || !Number.isFinite(s[i].litres) || s[i].litres <= 0) continue;
     km += d; litres += s[i].litres; n++;
   }
   return { km, litres, l100: km >= 500 ? r1((litres / km) * 100) : null, n };
@@ -48,7 +51,7 @@ export function firmFuelAlerts(trucks: RTruck[], txAll: RTx[], positions: RPos[]
     const pos = positions.filter((p) => p.truckId === t.id);
     tx.forEach((f, i) => {
       const prev = i > 0 ? tx[i - 1] : null;
-      // GDPR: fără poziții în jurul alimentării (mod privat / în afara turei) → regula GPS nu se aplică, iar alertele acestei alimentări poartă „fără poziție (privat)”
+      // Missing GPS has many causes. It is not evidence of wrongdoing or privacy mode.
       const near = f.lat != null && f.lng != null ? pos.filter((p) => Math.abs(mins(p.at.slice(0, 16), f.at)) <= T.posWindowMin) : [];
       const noPos = f.lat != null && f.lng != null && !near.length;
       const push = (rule: FirmRule, severity: Severity, theft: boolean, params: FirmAlert["params"]) => out.push({ id: `${rule}-${f.id}`, rule, vehicleId: t.id, time: f.at, severity, theft, params: noPos ? { ...params, nogps: 1 } : params });
@@ -80,8 +83,8 @@ export function firmFuelAlerts(trucks: RTruck[], txAll: RTx[], positions: RPos[]
       }
       if (f.lat != null && f.lng != null && pos.length) {
         if (near.length) {
-          const dist = Math.min(...near.map((p) => haversine([p.lat, p.lng], [f.lat!, f.lng!])));
-          if (dist > T.posMaxKm) push("card-fara-camion", "high", true, { card: f.card ?? "—", litres: f.litres, station: f.station, time: f.at, plate: t.plate, dist: Math.round(dist), threshold: T.posMaxKm });
+          const nearest = near.map((p) => ({ p, dist: haversine([p.lat, p.lng], [f.lat!, f.lng!]) })).sort((a, b) => a.dist - b.dist)[0];
+          if (nearest.dist > T.posMaxKm) push("card-fara-camion", "high", true, { card: f.card ?? "—", litres: f.litres, station: f.station, time: f.at, plate: t.plate, dist: Math.round(nearest.dist), threshold: T.posMaxKm, gpsAt: nearest.p.at, gpsWindowMin: T.posWindowMin });
         }
       }
     });

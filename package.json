@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:calc": "tsx scripts/smoke-calc.mts",
@@ -26,7 +26,8 @@
     "smoke:reliability:pg": "tsx scripts/smoke-reliability.mts --postgres",
     "smoke:trip-workflow": "tsx scripts/smoke-trip-workflow.mts",
     "smoke:outbox": "tsx scripts/smoke-outbox.mts",
-    "smoke:card-periods": "tsx scripts/smoke-card-periods.mts"
+    "smoke:card-periods": "tsx scripts/smoke-card-periods.mts",
+    "smoke:fuel-evidence": "tsx scripts/smoke-fuel-evidence.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

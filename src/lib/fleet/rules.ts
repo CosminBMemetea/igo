@@ -22,7 +22,7 @@ export const fillsFor = (d: FleetData, truckId: string) => d.fills.filter((f) =>
 const atPump = (f: FillUp) => haversineKm(f.gpsAt, f.stationAt) <= STATION_MAX_KM;
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-/** Consum pe interval (plin-la-plin): litrii puși la alimentarea curentă / km de la cea anterioară. */
+/** Estimated ratio: litres purchased / distance. Full tanks are not verified. */
 export function intervals(d: FleetData, t: Truck): Interval[] {
   const fs = fillsFor(d, t.id).filter(atPump);
   const out: Interval[] = [];
@@ -81,7 +81,7 @@ export function computeAlerts(d: FleetData): Alert[] {
         out.push({ id: `n-${iv.to.id}`, rule: "consum-peste-normal", truckId: t.id, time: iv.to.time, severity: "medium", theft: false, params: { fromTime: iv.from.time, time: iv.to.time, l100: iv.l100, pct: Math.round((iv.l100 / t.normalL100 - 1) * 100), normal: t.normalL100, threshold: CONSUMPTION_THRESHOLD * 100 } });
     }
     const lv = d.levels[t.id];
-    if (lv) {
+    if (t.hasLevelSensor && lv) {
       for (let i = 0; i < lv.length; i++) {
         const j = lv.findIndex((p) => p.min > lv[i].min + 30) - 1;
         let end = j >= 0 ? lv[j] : lv[lv.length - 1];
@@ -109,6 +109,9 @@ export function whyText(loc: Locale, a: Pick<Alert, "rule" | "params">): string 
     else if (typeof v === "number" && !PLAIN.has(k)) vars[k] = fmtNum(loc, v, DECIMALS[k] ?? 0);
     else vars[k] = String(v);
   }
-  return t(loc, `why.${a.rule}` as MsgKey, vars);
+  const why = t(loc, `why.${a.rule}` as MsgKey, vars);
+  return a.rule === "card-fara-camion" && a.params.gpsAt
+    ? `${why} ${t(loc, "fuel.gpsSample", { gpsAt: fmtDate(loc, String(a.params.gpsAt)), window: a.params.gpsWindowMin })}`
+    : why;
 }
 export const ruleTitle = (loc: Locale, r: RuleId) => t(loc, `rule.${r}` as MsgKey);

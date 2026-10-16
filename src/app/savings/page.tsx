@@ -1,3 +1,5 @@
+import { localNow } from "@/lib/validate";
+import { FuelDataNote } from "@/components/FuelDataNote";
 import { HScroll } from "@/components/HScroll";
 import { Roadmap } from "@/components/Roadmap";
 import Link from "next/link";
@@ -13,13 +15,12 @@ export default async function Savings() {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
   if (!d.demo && !d.trips.length) return <main><EmptyState kind="trips" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
-  const days = d.demo ? 15 : Math.max(1, Math.round((Date.now() - Date.parse(d.tn.firm?.createdAt ?? new Date().toISOString())) / 86400000));
+  const days = d.demo ? 15 : Number(localNow().slice(8, 10));
   const e = economii(d.views, d.alerts, d.vehicles, days);
-  const keys = ["fuel", "theft", "docs", "time", "cash"] as const;
+  const keys = ["fuel", "docs", "time", "cash"] as const;
   const max = Math.max(...keys.map((k) => Math.abs(e.lines[k])), 1);
   const how: Record<(typeof keys)[number], string> = {
     fuel: t(loc, "sav.how.fuel", { l: fmtNum(loc, Math.round(e.fuel.savedLitres)), pct: fmtPct(loc, e.fuel.pct) }),
-    theft: t(loc, "sav.how.theft", { l: fmtNum(loc, e.theftL), price: fmtNum(loc, e.price, 2) }),
     docs: t(loc, "sav.how.docs", { n: e.docsN, fine: fmtMoney(loc, ASSUME.fineLei) }),
     time: t(loc, "sav.how.time", { h: e.hours, rate: ASSUME.hourLei, n: d.vehicles.length }),
     cash: t(loc, "sav.how.cash", { n: d.vehicles.length }),
@@ -28,11 +29,12 @@ export default async function Savings() {
     <Gate feature="savings" prefs={prefs}>
       <main>
         <div className="eyebrow fade">{t(loc, "sav.measured")}</div>
-        <div className="big fade pos" style={{ marginTop: 8 }}>{fmtMoney(loc, Math.round(e.lines.fuel / e.months))}<small className="pm"> {t(loc, "sav.perMonth")}</small></div>
+        <div className={`big fade ${e.lines.fuel < 0 ? "neg" : "pos"}`} style={{ marginTop: 8 }}>{fmtMoney(loc, Math.round(e.fuel.savedLei / e.months))}<small className="pm"> {t(loc, "sav.perMonth")}</small></div>
         <p className="sub fade d1">{t(loc, "sav.measuredIn", { lei: fmtMoney(loc, e.lines.fuel), days })} {how.fuel}</p>
         <p className="hint fade d1">{t(loc, "sav.baseline", { days })}</p>
+        <FuelDataNote loc={loc} demo={d.demo} />
         <section className="section grid2">
-          <div className="card risk"><div className="k">{t(loc, "sav.risk")}</div><div className="n warnc">{fmtMoney(loc, e.lines.theft)}</div><div className="d">{t(loc, "sav.riskSub", { n: d.alerts.filter((a) => a.theft).length, l: fmtNum(loc, e.theftL), price: fmtNum(loc, e.price, 2) })}</div><Link className="link" href="/alerts" style={{ display: "inline-block", marginTop: 10 }}>{t(loc, "home.allAlerts")} →</Link></div>
+          <div className="card risk"><div className="k">{t(loc, "sav.risk")}</div><div className="n warnc">{e.anomalyCount}</div><div className="d">{t(loc, "sav.riskSub", { n: e.anomalyCount })}</div><Link className="link" href="/alerts" style={{ display: "inline-block", marginTop: 10 }}>{t(loc, "home.allAlerts")} →</Link></div>
           <div className="card"><div className="k">{t(loc, "sav.hours")} · {t(loc, "sav.est")}</div><div className="n">{e.hours} h</div><div className="d">{how.time}</div></div>
         </section>
         <section className="section">

@@ -266,7 +266,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
         <div className="rp-hudcol">
           <div className={`rp-status s-${status}`}><i />{t[`st_${status}`]}</div>
           <div className="rp-hudrow"><div><span>{t.time}</span><b>{hhmm(min)}</b></div><div><span>{t.km}</span><b>{N(km, km < 100 ? 1 : 0)}</b></div></div>
-          <div className="rp-fuel"><span>{t.tank}</span><div className="fb"><i style={{ width: `${tankPct}%`, background: tankPct < 20 ? "#ef4444" : tankPct < 40 ? "#eab308" : "#22c55e" }} /></div><small>{N(tankPct)}%</small></div>
+          {d.demo ? <div className="rp-fuel" title={t.demoTank}><span>{t.tank}</span><div className="fb"><i style={{ width: `${tankPct}%`, background: tankPct < 20 ? "#ef4444" : tankPct < 40 ? "#eab308" : "#22c55e" }} /></div><small>≈{N(tankPct)}%</small></div> : <p className="hint">{t.unknownTank}</p>}
         </div>
       </div>
       <div className="rp-toasts">{toasts.map((x) => <div key={x.id} className={`rp-toast k-${x.kind}`}><i>{x.kind === "fuel" ? "⛽" : x.kind === "pause" ? "☕" : x.kind === "private" ? "🔒" : x.kind === "start" ? "🚚" : "🏁"}</i><div><b>{x.text}</b>{x.place ? <small>{x.place}</small> : null}</div></div>)}</div>
@@ -280,7 +280,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
           <div className="rp-sumgrid">
             <div><span>{t.km}</span><b>{N(d.km)}</b></div>
             <div><span>{t.hours}</span><b>{N(Math.floor((d.end - d.start) / 60))} h {String(Math.round((d.end - d.start) % 60)).padStart(2, "0")}</b></div>
-            <div><span>L/100km</span><b>{N(d.rate, 1)}</b>{extra?.normal ? <small className={d.rate > extra.normal * 1.05 ? "neg" : "pos"}>{t.normal} {N(extra.normal, 1)}</small> : null}</div>
+            <div><span>{t.normal} · L/100km</span><b>{N(d.rate, 1)}</b>{extra?.normal ? <small className={d.rate > extra.normal * 1.05 ? "neg" : "pos"}>{t.normal} {N(extra.normal, 1)}</small> : null}</div>
             <div><span>{t.profit}</span><b className={extra?.profit != null && extra.profit < 0 ? "neg" : ""}>{extra?.profit != null ? `${N(Math.round(extra.profit))} lei` : "—"}</b></div>
             <div><span>{t.events}</span><b>{d.events.filter((e) => e.kind !== "start" && e.kind !== "end").length}</b></div>
           </div>
@@ -293,6 +293,7 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
       <aside className="rp-panel">
         {pv ? <p className="rp-privnote">{t.privNote}</p> : null}
         <div className="rp-mini"><span>{t.litres} <b>{N(usedL, 0)} L</b></span><span>{t.fueled} <b>{N(fueled)} L</b></span><span>{t.stops} <b>{fuels.length}</b></span></div>
+        <p className="hint fuel-source">{t.fuelNote}{d.demo ? ` ${t.demoTank}` : ""}</p>
         <div className="eyebrow" style={{ marginTop: 22 }}>{t.events}</div>
         <div className="rp-evlist">
           {d.events.map((e, i) => (

@@ -46,6 +46,24 @@ migrare verifică inclusiv normalizarea, ambiguitatea și reaplicarea fără efe
 OPEN-02 este închis pentru mutarea cardului cu dată efectivă. Corectarea/ștergerea unei
 limite deja existente rămâne o operațiune de suport (OPEN-09); nu se suprascrie implicit.
 
+## Runda 16 octombrie — sursa datelor de carburant
+
+| ID | Prioritate | Problemă | Remediere / verificare |
+|---|---|---|---|
+| QA-25 | P1 | GPS și alimentări prezentate drept consum real/furt confirmat | Texte RO/EN/PL în login, alerte, import, asistent, flux și tur; butonul devine „Marchează verificată”. Alerta nu stabilește vinovăție. |
+| QA-26 | P1 | Replay calcula nivel de rezervor pornind arbitrar de la 55%, inclusiv în firme reale | Nivel necunoscut în cont real; procentul rămâne doar în demo, cu ipoteza explicită. Litrii din GPS × rată sunt etichetați estimați. |
+| QA-27 | P1 | Sume asociate alertelor intrau în totalul economiilor și puteau fi dublate | Eliminată conversia alertelor în litri pierduți/bani protejați. Afișăm numărul alertelor; scenariile nu intră în total. |
+| QA-28 | P2 | Referința istorică omitea alimentările fără kilometraj și putea lega citiri imposibile | Nu se construiește interval peste o citire lipsă, între camioane sau cu viteză imposibilă. Referința rămâne estimativă, fără plin-la-plin verificat. |
+| QA-29 | P2 | O poziție GPS la ±30 min era descrisă ca fiind exact la ora plății | Explicația arată ora punctului folosit și fereastra. Lipsa GPS nu este etichetată automat „privat”. |
+| QA-30 | P2 | Regula de nivel putea folosi o serie de date fără camion marcat cu sondă | Regula cere explicit sondă; integrarea în conturi reale este marcată planificată. |
+| QA-31 | P2 | Economii includea curse anulate/alte luni, iar Acasă folosea luna curentă | Aceeași selecție reportViews, fără anulate; proiecția reală folosește zilele lunii curente, nu vechimea contului. |
+| QA-32 | P2 | Litrii manuali/estimați și referințele implicite nu erau identificabile | Proveniență pe cursă și camion; istoric estimat/normă declarată/implicit, plus etichetă pentru datele fictive. |
+| QA-33 | P2 | Replay atribuia golurile GPS modului privat fără dovadă | În cont real, golurile sunt „Lipsă date GPS”; cauza nu este dedusă automat. |
+
+Regresii dedicate: `npm run smoke:fuel-evidence` (incluse în `npm run smoke`).
+Acoperă lipsa tranzacțiilor, GPS absent/vechi/alt camion, punct apropiat, sursa temporală,
+kilometraj lipsă/imposibil, sondă absentă și totaluri fără anomalii/anulări/luni anterioare.
+
 ## Restanțe și limite explicite
 
 | ID | Prioritate | Stare | Criteriu de închidere |
@@ -58,6 +76,8 @@ limite deja existente rămâne o operațiune de suport (OPEN-09); nu se suprascr
 | OPEN-07 | P2 | Îmbunătățire de produs | Profitul nu este încă un registru contabil: separare clară estimat/confirmat și verificare cu contabilul a costurilor, TVA, valute și încasări. |
 | OPEN-08 | P3 | Datorie tehnică | Trei avertismente existente pentru optimizarea imaginilor. CSS are multe straturi istorice; separați pe componente după stabilizarea aspectului, cu aceeași matrice vizuală. |
 | OPEN-09 | P2 | Flux de corecție controlată | Editarea/ștergerea unei perioade greșite la aceeași dată necesită suport. Adăugați previzualizarea impactului, confirmare explicită, jurnal cu autor și teste pentru refacerea intervalelor; nu ocoliți conflictul introducând o oră falsă. |
+| OPEN-10 | P1 | Calitatea reconcilierii carburant | Importul păstrează orele locale fără fus explicit; GPS telefon folosește ora București. Pentru comparații internaționale: fus per sursă, UTC normalizat, precizia punctului, alimentări complete/plin-la-plin, corecții și jurnal. Până atunci, diferențele GPS cer verificarea orelor; nu sunt dovezi de furt. |
+| OPEN-11 | P2 | Integrare planificată | CAN/FMS și sonde reale: contract/provider, calibrare, nivel inițial/final, alimentări și consum pe același interval, validare pe vehicule pilot. Demo-ul nu dovedește funcționarea hardware. |
 
 P1 = înainte de lansare comercială largă / promisiunea asociată; P2 = următoarea etapă;
 P3 = mentenanță. O limitare nu este marcată ca funcționalitate livrată.
@@ -140,3 +160,19 @@ rămân versionate în Git. Statusul publicării se verifică separat în integr
 - Retestare HTTP după normalizare: trecută. Deploymentul se verifică separat în Vercel.
 
 Loguri locale: `/tmp/igo-card-build.log`, `/tmp/igo-card-smoke.log`.
+
+## Rezultat runda carburant — 16 octombrie
+
+- 381 verificări PASS în suita completă, reliability PostgreSQL și card-periods,
+  inclusiv cele 11 regresii noi de proveniență și calcul. Fără FAIL în runda completă.
+- Build de producție și TypeScript trecute; cele trei avertismente img existente rămân.
+  i18n, fuel-evidence și demo reluate după ajustările finale de text/proiecție.
+- Browser: Alerte, Economii, Import și Replay la 320/390/768/1280 px, RO/EN/PL,
+  16 combinații fără controale ieșite lateral. Nu înlocuiește testarea pe telefoane reale.
+- Cont fictiv pe PostgreSQL local: cursă cu sursă „estimare”, referință declarată,
+  replay cu nivel necunoscut și gol GPS fără cauză presupusă. Nu s-au folosit date de client.
+- Demo: „Marchează verificată” → „Anomalie verificată”, atenția scade; fără constatare
+  de furt. Proiecția Acasă/Economii este identică, inclusiv rotunjirea (12.359 lei în fixture).
+- Captură: `qfleet-fuel-evidence.png`. Loguri temporare: `/tmp/igo-fuel-smoke.log`,
+  `/tmp/igo-fuel-build.log`, `/tmp/igo-fuel-demo-final.log`.
+- OPEN-10/11 documentează explicit ce mai trebuie pentru reconciliere și integrare hardware.

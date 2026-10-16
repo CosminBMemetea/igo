@@ -1,3 +1,4 @@
+import { FuelDataNote } from "@/components/FuelDataNote";
 import { localNow } from "@/lib/validate";
 import { LEGACY_CARD_FROM } from "@/lib/fuel/cards";
 import { SampleList } from "@/components/SampleList";
@@ -42,6 +43,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
     <Gate feature="cardCsv" prefs={prefs}>
       <main className="setup">
         {head}
+        <FuelDataNote loc={loc} demo />
         <p className="msg demobox">{t(loc, "imp.demoSandbox")}</p>
         <section className="sgrid">
           <ImportBox labels={labels} fieldLabels={fieldLabels} demo samples={samples} />
@@ -66,6 +68,7 @@ export default async function Import({ searchParams }: { searchParams: { e?: str
   return (
     <Gate feature="cardCsv" prefs={prefs}>
       <main className="setup">
+        <FuelDataNote loc={loc} />
         {head}
         {searchParams.assigned ? <p className="msg ok">{t(loc, "set.saved")}</p> : searchParams.e ? <p className="msg err" role="alert">{searchParams.e === "boundary" ? tr("Există deja alt camion la această dată și oră. Verifică istoricul; perioada existentă nu a fost suprascrisă.|Another truck already starts at this date and time. Check the history; the existing period was not overwritten.|Inny pojazd jest już przypisany od tej daty i godziny. Sprawdź historię; okres nie został nadpisany.") : searchParams.e === "plate" ? tr("Perioada contrazice plăcuța unor alimentări deja importate. Verifică data mutării și CSV-ul; nu am modificat tranzacțiile.|This period conflicts with registrations in existing imports. Check the transfer time and CSV; transactions were not changed.|Okres jest sprzeczny z rejestracją w istniejących importach. Sprawdź datę zmiany i CSV; transakcje nie zostały zmienione.") : tr("Asocierea nu a fost salvată. Verifică identificatorul, camionul activ și data/ora de început.|Mapping was not saved. Check the identifier, active truck and start date/time.|Powiązanie nie zostało zapisane. Sprawdź identyfikator, aktywny pojazd oraz datę i godzinę początku.")}</p> : null}
         <section className="sheet" id="cards">

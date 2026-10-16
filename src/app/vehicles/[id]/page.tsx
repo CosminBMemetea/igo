@@ -52,6 +52,8 @@ export default async function VehiclePage({ params, searchParams }: { params: { 
         </div>
         {route ? <div className="vroute fade d1"><Mini m={route} live={liveV?.status === "moving"} draw={1.8} /><span>{truck!.routeName}</span></div> : <VehicleArt kind={v.kind} />}
       </section>
+      <p className="hint fuel-source">{t(loc, d.demo ? "fuel.demo" : "fuel.aggregate")}</p>
+      <p className="hint fuel-source">{t(loc, `fuel.base.${d.demo ? "demo" : v.baselineKind ?? "default"}`)}</p>
       <section className="cards section">
         {agri ? (
           <>

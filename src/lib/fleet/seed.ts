@@ -8,6 +8,7 @@ export interface Vehicle {
   id: string; name: string; kind: VehicleKind; model: string; driver: string;
   /** km → L/100km (per100); agri → L/ha */
   baselineRate: number; per100: boolean; tankL: number;
+  baselineKind?: "history" | "normal" | "default";
   /** L/h pentru utilaje (informativ) */
   lph?: number; engineHours?: number;
   /** costuri editate de patron (suprascriu valorile implicite) */
