@@ -356,3 +356,23 @@ Comenzi reproductibile: `TEST_DATABASE_URL=<bază de test> npm run smoke:harsh`
 și `npm run smoke:receipt-draft`; nu rula scenariul PostgreSQL pe producție.
 SYNC-04/05 (demo comun între dispozitive), restul SYNC-09 și testarea GPS în
 fundal pe Android/iOS rămân deschise. Nu declarăm testare end-to-end în producție.
+
+## Audit layout — 16 octombrie 2026
+
+- Confirmat: la 320 px, widgeturile demo afișau trunchiat profitul „47.779 lei”
+  (117 px text în 98 px disponibili) și „1.060 km”. Remediat: valori complete,
+  wrap în loc de ellipsis, o coloană la <=360 px. Retest la 320/360/390/768/1280:
+  zero valori KPI sau butoane cu overflow orizontal în pagina Curse.
+- Confirmat: formularul Alimentare avea câmpuri de ~102 px și suma de ~77 px la
+  320 px. Remediat sub 480 px: etichetă deasupra, input lat; moneda lângă sumă.
+  Retest: litri/km/stație 242 px, suma 152 px; pagina rămâne la 320 px, fără
+  butoane tăiate. Draftul existent este păstrat.
+- Statisticile șoferului folosesc două coloane stabile și font adaptat pe mobil;
+  numele, fișierele de bon și textele outbox lungi pot rupe linia în container.
+- Scanate Curse, Camioane, Șoferi, Flux, Clasament la 320/390/768/1280 px.
+  Flux și Clasament au conținut derulabil orizontal intenționat; nu extind pagina.
+  Dialogul Cursă nouă a fost deschis și verificat la fiecare lățime, cu mărimea
+  butoanelor XXL: fără overflow orizontal sau text de buton tăiat.
+- Build producție trecut; cele trei avertismente img preexistente rămân.
+  Acesta este un audit în browser local, nu certificare pentru orice combinație
+  de browser, zoom, limbă, date sau tastatură mobilă.

@@ -1426,3 +1426,21 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .fuel-evidence summary{cursor:pointer;font-weight:500;min-height:28px}
 .fuel-evidence p{margin:10px 0 0;color:var(--fg2);max-width:85ch}
 .fuel-source{line-height:1.65;overflow-wrap:anywhere}
+
+
+/* Narrow-screen audit: keep financial values complete and receipt inputs usable. */
+.ekpi b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.25}
+.ekpi .k,.ekpi small{overflow-wrap:anywhere}
+.driver-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px;margin-top:40px}
+.driver-stats>div{min-width:0}.driver-stats .drv-big{overflow-wrap:anywhere;line-height:1.15}
+.driver-main h1,.receipt-photo small,.outbox .it b,.outbox details p{overflow-wrap:anywhere}
+.receipt-photo .ico{flex-shrink:0}
+@media(max-width:480px){
+ .driver-main .receipt-field{display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px 10px;padding:14px 0}
+ .driver-main .receipt-field>span:first-child{grid-column:1/-1;line-height:1.4}
+ .driver-main .receipt-field .input{grid-column:1/-1;grid-row:2;width:100%;max-width:100%;text-align:left}
+ .driver-main .receipt-field .cursel{grid-column:1;grid-row:2;min-width:0;width:100%;margin:0}
+ .driver-main .receipt-field .cursel+.input{grid-column:2;max-width:100%}
+ .driver-stats .drv-big{font-size:clamp(32px,10vw,48px)}
+}
+@media(max-width:360px){.ekpis,.ekpis.compact{grid-template-columns:minmax(0,1fr)}}
