@@ -260,3 +260,99 @@ promisiuni de sincronizare garantată.
 Loguri temporare: `/tmp/igo-sync-tests.log`, `/tmp/igo-sync-build.log`,
 `/tmp/igo-sync-retest.log`. Acest registru păstrează constatările și limitele;
 logurile locale temporare nu sunt necesare aplicației.
+
+
+## Review sever — 16 octombrie 2026, HEAD de8a51d
+
+Patru defecte confirmate local; toate DESCHISE. Review-ul nu modifică aplicația.
+Testele folosesc exclusiv conturi fictive, PostgreSQL local și build-ul de producție
+servit local. Deploymentul Vercel este protejat de SSO; rezultatele de mai jos nu
+reprezintă validare end-to-end în producție.
+
+### HARSH-01 — P1 — Eroarea citirii turei dezactivează filtrul de confidențialitate
+
+Loc: `src/lib/real-live.ts:12`, `:19–20`.
+O eroare `repo.shift()` este convertită în `null`, deci `priv` devine fals.
+Cu o tură privată salvată în PostgreSQL, răspunsul normal avea `at:null`;
+cu eroare injectată numai la citirea turei, răspunsul avea `status:offline`,
+`at:[47,21]` și un punct de traseu. Sunt coordonate istorice, nu poziții colectate
+în timpul pauzei private. Statusul offline nu elimină coordonatele din payload.
+Defect existent în helper, relevant acum și pentru API-ul live real.
+Remediere: starea necunoscută a confidențialității trebuie să ascundă poziția și
+traseul sau să producă o eroare explicită. Retest: tură privată + eșec citire tură
+nu returnează coordonate în niciuna dintre suprafețele live.
+
+### HARSH-02 — P1 — Retragerea camionului pierde bonul netrimis
+
+Loc: `src/app/driver/page.tsx:33`; câmpurile sunt stare locală în `DriverApp`.
+Reprodus în browser: formular Alimentare cu 123 L și stația „Receipt must survive”;
+patronul retrage camionul, refresh-ul automat afișează „Camion nealocat”. După
+realocare, redeschiderea formularului arată câmpurile goale. Nu s-a apăsat Trimite;
+este pierdut un draft, nu un bon deja salvat. Protecția schimbării directe A→B
+nu acoperă A→niciun camion: componenta este demontată. Refresh-ul nou face ca
+pierderea să apară fără navigare manuală.
+Remediere: draft persistent separat pe utilizator și camion, inclusiv fotografia,
+sau editor păstrat în afara ramurii de alocare. Retest: A→nimic→A/B, cu draft și
+fotografie; fără pierdere și fără trimitere accidentală pe alt camion.
+Aceasta restrânge afirmația anterioară SYNC-07/08 despre păstrarea formularului.
+
+### HARSH-03 — P2 — Limita GPS păstrează cele mai vechi 20.000 de puncte
+
+Loc: `src/lib/store/pg.ts:333`; `truckToday` filtrează camionul după citirea firmei.
+Reprodus cu 20.001 poziții fictive în aceeași zi: ultima poziție din DB era
+[48.85,2.35], dar GET /api/live returna [47,21], poziția de dimineață. Limita este
+pe firmă, nu pe camion. Punctele noi sunt salvate, însă sunt excluse din citire;
+harta și distanțele pot rămâne în urmă. Defect preexistent.
+Remediere: interogare separată pentru ultima poziție a fiecărui camion și
+paginare/agregare pentru distanțele zilnice. Inversarea sortării singură ar tăia
+începutul zilei și nu rezolvă calculul distanței. Retest: peste limită, mai multe
+camioane, puncte recente pentru fiecare și totaluri zilnice complete.
+
+### HARSH-04 — P2 — Cursa livrată dispare înainte de atașarea POD
+
+Loc: `src/app/driver/page.tsx:50`.
+Reprodus prin HTTP și PostgreSQL: cursă A azi și B mâine; încărcarea și descărcarea
+lui A răspund 200. După descărcare, pagina șoferului selectează B sub „Cursa de azi”,
+iar A nu mai apare în pagină. Șoferul nu are aici acces la documentele lui A pentru
+a atașa dovada livrării după descărcare. Nu s-a demonstrat blocarea API-ului de
+upload; defectul este accesul din interfață. Defect de flux preexistent.
+Remediere: acces explicit la curse finalizate/documente de completat și separarea
+cursei de azi de cele viitoare. Retest: descărcare A → fotografie POD pentru A,
+cu B planificată mâine, inclusiv după refresh/reautentificare.
+
+Dovezi temporare: `/tmp/igo-review-privacy.mjs`, `/tmp/igo-review-gps.mjs`,
+`/tmp/igo-review-pod.mjs`; browser local pentru HARSH-02. Suitele trecute anterior
+nu acopereau aceste scenarii. SYNC-04/05 și partea restantă SYNC-09 rămân deschise.
+
+
+## Remedieri HARSH-01–04 — 16 octombrie 2026
+
+- HARSH-01: remediat. Eroarea citirii turei se propagă; nu se construiește un
+  payload live cu coordonate pe baza unei stări private necunoscute. Regresie
+  automată cu eroare injectată în citirea turei.
+- HARSH-02: remediat pentru draft. Câmpurile, fotografia, moneda, data și cheia
+  de idempotentă sunt păstrate în IndexedDB separat pe firmă/utilizator, împreună
+  cu camionul original. Eroarea stocării este vizibilă, cu fallback în memorie.
+  Browser: 123 L și stația păstrate după A→nealocat→A și după reload complet.
+  Test automat: fotografia/câmpurile și camionul original supraviețuiesc erorii
+  IndexedDB în memorie; un alt utilizator nu primește draftul. Persistența foto
+  prin pickerul browserului nu a fost verificată: automatizarea pickerului a
+  expirat. Rămâne retestare pe telefon cu cameră, inclusiv quota/storage eviction.
+- HARSH-03: remediat. Citire paginată stabil după (at,id), fără trunchiere la
+  20.000; filtrare camion și interval în DB pentru ziua curentă/replay. Regresie
+  PostgreSQL cu 20.000 de timestampuri identice + puncte recente, alt camion,
+  altă zi și altă firmă. Distanța nu pierde începutul intervalului.
+- HARSH-04: remediat. Secțiune Curse livrate și pagină de documente accesibilă
+  numai șoferului atribuit; disponibilă și fără camion alocat. Curse viitoare
+  neîncepute nu mai apar drept cursa de azi. Test HTTP: acces după dezalocare,
+  upload POD salvat, podReceived actualizat; altă cursă/ID absent respinse fără
+  date (Next poate livra pagina not-found într-un răspuns streamed HTTP 200).
+  Browser: pagina livrată afișează atașamentele POD și butoanele de adăugare.
+
+Validare: build producție, TypeScript, smoke auth/outbox/trip-workflow,
+reliability memorie + PostgreSQL (inclusiv rollback atomic), smoke-harsh și
+smoke-receipt-draft. Cele trei avertismente img preexistente rămân.
+Comenzi reproductibile: `TEST_DATABASE_URL=<bază de test> npm run smoke:harsh`
+și `npm run smoke:receipt-draft`; nu rula scenariul PostgreSQL pe producție.
+SYNC-04/05 (demo comun între dispozitive), restul SYNC-09 și testarea GPS în
+fundal pe Android/iOS rămân deschise. Nu declarăm testare end-to-end în producție.

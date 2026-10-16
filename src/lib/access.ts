@@ -5,7 +5,7 @@ import type { PlanState } from "./features";
 export const PUBLIC_PATHS = [/^\/login$/, /^\/privacy$/, /^\/visibility$/, /^\/terms$/, /^\/robots\.txt$/, /^\/sw\.js$/, /^\/signup$/, /^\/incearca$/, /^\/api\/leads$/, /^\/join$/, /^\/forgot$/, /^\/reset$/, /^\/api\/auth\/forgot$/, /^\/api\/auth\/reset$/, /^\/api\/auth\//, /^\/api\/cron\//];
 export const isPublic = (path: string) => PUBLIC_PATHS.some((r) => r.test(path));
 /** Șoferul vede doar interfața lui (+ asistență). */
-export const DRIVER_PATHS = [/^\/driver$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/, /^\/notifications$/, /^\/api\/notifications\//, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/trips\/event$/, /^\/api\/me\/locale$/];
+export const DRIVER_PATHS = [/^\/driver$/, /^\/driver\/trips\/[\w-]+$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/, /^\/notifications$/, /^\/api\/notifications\//, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/trips\/event$/, /^\/api\/me\/locale$/];
 /** Doar proprietar/admin. */
 export const OWNER_PATHS = [/^\/trucks$/, /^\/drivers$/, /^\/api\/drivers\//,/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
 /** Demo („Intră ca demo”): poate încerca importul CSV — totul în memorie, nimic în baza de date. */

@@ -217,5 +217,5 @@ export class MemStore implements Store {
   async savedMapping(firmId: string, sig: string) { return this.MP.get(`${firmId}|${sig}`) ?? null; }
   async saveMapping(firmId: string, sig: string, m: Record<string, number>) { this.MP.set(`${firmId}|${sig}`, { ...m }); }
   async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }
-  async positions(firmId: string, sinceAt = "") { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt).map(({ firmId: _f, ...p }) => p); }
+  async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string) { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt && (!truckId || p.truckId === truckId) && (!untilAt || p.at < untilAt)).map(({ firmId: _f, ...p }) => p); }
 }

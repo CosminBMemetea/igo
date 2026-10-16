@@ -52,7 +52,7 @@ export function hoursToday(shift: { start: string; end: string | null; privateSi
 /** Azi pentru un camion: km (GPS filtrat), ore, ultima poziție. */
 export async function truckToday(firmId: string, truckId: string, shift: Parameters<typeof hoursToday>[0]) {
   const s = store(), d0 = dayStartIso();
-  const [pos, ev] = await Promise.all([s.positions(firmId, localNow(new Date(d0)).slice(0, 10) + "T00:00").catch(() => []), s.driverEvents(firmId, d0).catch(() => [])]);
+  const [pos, ev] = await Promise.all([s.positions(firmId, localNow(new Date(d0)).slice(0, 10) + "T00:00", truckId).catch(() => []), s.driverEvents(firmId, d0).catch(() => [])]);
   const mine = pos.filter((p) => p.truckId === truckId), tr = cleanTrack(mine);
   return { km: Math.round(tr.km * 10) / 10, hours: hoursToday(shift, ev.filter((e) => e.truckId === truckId)), track: tr.pts, last: mine.length ? mine.reduce((x, y) => (y.at > x.at ? y : x)) : null, events: ev.filter((e) => e.truckId === truckId) };
 }

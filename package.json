@@ -27,7 +27,9 @@
     "smoke:trip-workflow": "tsx scripts/smoke-trip-workflow.mts",
     "smoke:outbox": "tsx scripts/smoke-outbox.mts",
     "smoke:card-periods": "tsx scripts/smoke-card-periods.mts",
-    "smoke:fuel-evidence": "tsx scripts/smoke-fuel-evidence.mts"
+    "smoke:fuel-evidence": "tsx scripts/smoke-fuel-evidence.mts",
+    "smoke:harsh": "tsx scripts/smoke-harsh.mts",
+    "smoke:receipt-draft": "tsx scripts/smoke-receipt-draft.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

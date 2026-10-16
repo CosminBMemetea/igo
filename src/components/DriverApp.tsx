@@ -1,4 +1,5 @@
 "use client";
+import { loadReceiptDraft, saveReceiptDraft } from "@/lib/receipt-draft";
 import { enqueue, flushOutbox } from "@/lib/outbox";
 import { localNow } from "@/lib/validate";
 import { tri } from "@/lib/i18n";
@@ -37,6 +38,22 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   useEffect(() => {
     if (!f.litres && !f.odo && !f.amount && !f.station && !photo) receiptVehicle.current = vehicleId;
   }, [vehicleId, f.litres, f.odo, f.amount, f.station, photo]);
+  const draftScope = !demo && !preview ? queueScope : undefined;
+  const [draftReady, setDraftReady] = useState(!draftScope), [draftError, setDraftError] = useState(false);
+  useEffect(() => {
+    if (!draftScope) return;
+    let active = true;
+    void loadReceiptDraft(draftScope).then(d => {
+      if (!active || !d) return;
+      receiptVehicle.current = d.vehicleId; idem.current = d.key;
+      setF(d.fields); setPhoto(d.photo); setCur(d.currency); setRDate(d.date); setRPlate(d.plate); setAiOk(d.aiOk); setForm(d.form);
+    }).catch(() => { if (active) setDraftError(true); }).finally(() => { if (active) setDraftReady(true); });
+    return () => { active = false; };
+  }, [draftScope]);
+  useEffect(() => {
+    if (!draftScope || !draftReady) return;
+    void saveReceiptDraft(draftScope, { vehicleId: receiptVehicle.current, key: idem.current, form, fields: f, photo, currency: cur, date: rDate, plate: rPlate, aiOk }).catch(() => setDraftError(true));
+  }, [draftScope, draftReady, form, f, photo, cur, rDate, rPlate, aiOk]);
   const [priv, setPriv] = useState(!!initial?.priv);
   // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
   const shownKm = demoKm != null ? demoKm : km;
@@ -164,7 +181,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   }
   async function send(e: React.FormEvent) {
     e.preventDefault();
-    if (receiptLock.current || busy || read === L["drv.reading"]) return; // lock before the first asynchronous write
+    if (!draftReady || receiptLock.current || busy || read === L["drv.reading"]) return; // lock before the first asynchronous write
     if (receiptVehicle.current !== vehicleId) { setFormErr(tri(loc, "Camionul atribuit s-a schimbat. Bonul este păstrat în formular; verifică alocarea înainte de trimitere.|Assigned truck changed. Your receipt stays in the form; check the assignment before sending.|Przypisany pojazd zmienił się. Paragon pozostaje w formularzu; sprawdź przypisanie przed wysłaniem.")); return; }
     const litres = Number(f.litres.replace(",", ".")), odoS = f.odo.replace(/[\s.]/g, ""), odo = Number(odoS);
     if (!(litres >= 1 && litres <= 2000)) { setFormErr(L["drv.litresRange"]); return; }
@@ -228,10 +245,11 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
           <button className="btn sec" onClick={() => setAskEnd(false)}>{L["drv.endNo"]}</button>
         </div></dialog> : null}
         {on ? <button className={`btn sec start privbtn${priv ? " on" : ""}`} onClick={togglePriv} aria-pressed={priv}>{priv ? L["priv.resume"] : L["priv.toggle"]}</button> : null}
-        <button className="btn sec start" onClick={() => setForm((x) => !x)}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span></button>
+        <button className="btn sec start" disabled={!draftReady} onClick={() => setForm((x) => !x)}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span></button>
       </div>
       {msg.t ? <p className={`msg ${msg.k}`}>{msg.t}</p> : null}
-      {form ? (
+      {draftError ? <p className="msg warn" role="alert">{tri(loc, "Salvarea automată pe telefon nu este disponibilă. Păstrează pagina deschisă până trimiți bonul.|Autosave is unavailable. Keep this page open until you send the receipt.|Automatyczny zapis jest niedostępny. Nie zamykaj strony przed wysłaniem paragonu.")}</p> : null}
+      {form && draftReady ? (
         <form className="sheet fade" onSubmit={send}>
           <label className="field" style={{ paddingTop: 0, cursor: "pointer" }}><span>{L["drv.photo"]}<br /><small style={{ color: "var(--fg3)" }}>{photo ? photo.name : L["drv.photoHint"]}</small></span><span className="ico" style={{ background: "var(--bg3)" }}><Icon name="camera" /></span><input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onPhoto(e.target.files?.[0] ?? null)} /></label>
           {read ? <p className="msg">{read}{readInfo ? <><br /><small style={{ color: "var(--fg2)" }}>{L["drv.readMeta"]}: {readInfo}</small></> : null}</p> : null}

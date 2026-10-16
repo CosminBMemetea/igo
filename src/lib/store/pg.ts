@@ -1,7 +1,7 @@
 import { validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
-import { and, count, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, lt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
@@ -330,7 +330,21 @@ export class PgStore implements Store {
     return rs.map((r): DriverEventRow => ({ id: r.id, truckId: r.truckId, userId: r.userId, kind: r.kind as DriverEventRow["kind"], at: r.at.toISOString(), lat: r.lat, lng: r.lng, note: r.note }));
   }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
-  async positions(firmId: string, sinceAt = "") { return this.d.select({ truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng }).from(positions).where(and(eq(positions.firmId, firmId), gte(positions.at, sinceAt))).orderBy(positions.at).limit(20000); }
+  async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string): Promise<PosRow[]> {
+    const result: PosRow[] = [];
+    let cursor: { at: string; id: string } | undefined;
+    // A stable keyset includes every row, including timestamps shared by many trucks.
+    for (;;) {
+      const page = await this.d.select({ id: positions.id, truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng }).from(positions)
+        .where(and(eq(positions.firmId, firmId), gte(positions.at, sinceAt), truckId ? eq(positions.truckId, truckId) : undefined,
+          untilAt ? lt(positions.at, untilAt) : undefined,
+          cursor ? or(gt(positions.at, cursor.at), and(eq(positions.at, cursor.at), gt(positions.id, cursor.id))) : undefined))
+        .orderBy(positions.at, positions.id).limit(2000);
+      result.push(...page.map(({ id: _id, ...p }) => p));
+      if (page.length < 2000) return result;
+      cursor = page[page.length - 1];
+    }
+  }
   async addLead(l: NewLead) { const [r] = await this.d.insert(leads).values({ ...l, id: newId("l"), consentAt: new Date(l.consentAt) }).returning(); return leadOut(r); }
   async leads() { return (await this.d.select().from(leads).orderBy(desc(leads.createdAt)).limit(300)).map(leadOut); }
   async leadsFromIp(ipHash: string, sinceIso: string) { const [r] = await this.d.select({ n: count() }).from(leads).where(and(eq(leads.ipHash, ipHash), gte(leads.createdAt, new Date(sinceIso)))); return r?.n ?? 0; }

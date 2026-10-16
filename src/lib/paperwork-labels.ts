@@ -1,0 +1,2 @@
+import type { MsgKey } from "./i18n";
+export const PW: MsgKey[] = ["pw.today", "pw.loaded", "pw.unloaded", "pw.tap", "pw.wait", "pw.waitStop", "pw.waitHint", "pw.wStart", "pw.wStop", "pw.wIdle", "pw.wSince", "pw.wTotal", "pw.cmr", "pw.pod", "pw.photo", "pw.none", "pw.geo", "pw.geoOff", "pw.err", "pw.tooBig", "pw.uploaded", "pw.demo", "pw.ev.loaded", "pw.ev.unloaded", "pw.ev.wait_start", "pw.ev.wait_end"];

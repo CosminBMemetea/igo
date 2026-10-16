@@ -9,7 +9,7 @@ const ageS = (at: string) => Math.max(0, Math.round((Date.parse(localNow() + ":0
 export const nowMin = () => { const l = localNow(); return Number(l.slice(11, 13)) * 60 + Number(l.slice(14, 16)); };
 export async function realLive(firmId: string, repo: Repo, vehicles: Vehicle[]): Promise<LiveVehicle[]> {
   return Promise.all(vehicles.map(async (v): Promise<LiveVehicle> => {
-    const sh = await repo.shift(v.id).catch(() => null), on = !!sh && !sh.end, priv = on && !!sh?.privateSince;
+    const sh = await repo.shift(v.id), on = !!sh && !sh.end, priv = on && !!sh?.privateSince;
     const d = await truckToday(firmId, v.id, sh);
     const age = d.last ? ageS(d.last.at) : 1e9, tr = d.track, n = tr.length;
     const recentMove = n > 1 && nowMin() - tr[n - 1].min <= 5 && tr[n - 1].min - tr[n - 2].min <= 5;

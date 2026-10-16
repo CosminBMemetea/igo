@@ -34,7 +34,7 @@ export default async function Replay({ searchParams }: { searchParams: { v?: str
   else if (v && tn.firm) {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.d ?? "") ? searchParams.d! : trip?.date ?? today();
     const s = store();
-    const [pos, fuel] = await Promise.all([s.positions(tn.firm.id, `${date}T00:00`), s.fuel(tn.firm.id, { truckId: v.id, limit: 500 })]);
+    const [pos, fuel] = await Promise.all([s.positions(tn.firm.id, `${date}T00:00`, v.id, `${date}T24:00`), s.fuel(tn.firm.id, { truckId: v.id, limit: 500 })]);
     data = firmReplay({ vehicleId: v.id, plate: v.name, driver: v.driver, date, tripId: trip?.id ?? null, rate: v.baselineRate || 30, pos, fuel });
   }
   const rv = vehicles.find((x) => x.id === data?.vehicleId) ?? null;

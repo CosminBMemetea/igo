@@ -120,7 +120,7 @@ export interface Store {
   savedMapping(firmId: string, sig: string): Promise<Record<string, number> | null>;
   saveMapping(firmId: string, sig: string, m: Record<string, number>): Promise<void>;
   addPosition(firmId: string, p: PosRow): Promise<void>;
-  positions(firmId: string, sinceAt?: string): Promise<PosRow[]>;
+  positions(firmId: string, sinceAt?: string, truckId?: string, untilAt?: string): Promise<PosRow[]>;
   /** jurnalul șoferului (tură, pauză privată, încărcat/descărcat, alimentare) — pentru fluxul patronului și orele de azi */
   /** anti-brute-force: încercări greșite de autentificare pe cheie (login / IP) */
   authFails(key: string): Promise<{ fails: number; lockedUntil: string | null }>;

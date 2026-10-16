@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { PgStore } from "../src/lib/store/pg";
+import { realLive } from "../src/lib/real-live";
+import { truckToVehicle } from "../src/lib/firm-repo";
+import { decide } from "../src/lib/access";
+import * as schema from "../src/db/schema";
+if (!process.env.TEST_DATABASE_URL) throw new Error("Disposable TEST_DATABASE_URL required");
+const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL });
+const s = new PgStore(drizzle(pool, { schema }));
+const firm = await s.createFirm({ name: "Harsh regression", cui: null });
+try {
+  const a = await s.addTruck(firm.id, { plate: "AUDIT A", vin: null, model: null, tankL: null, normalL100: null });
+  const b = await s.addTruck(firm.id, { plate: "AUDIT B", vin: null, model: null, tankL: null, normalL100: null });
+  await pool.query(`insert into positions (id,firm_id,truck_id,at,lat,lng) select $1 || i::text,$1,$2,'2026-10-16T06:00',47,21 from generate_series(1,20000) i`, [firm.id, a.id]);
+  await s.addPosition(firm.id, { truckId: a.id, at: "2026-10-16T22:00", lat: 48.85, lng: 2.35 });
+  await s.addPosition(firm.id, { truckId: b.id, at: "2026-10-16T22:01", lat: 50, lng: 3 });
+  await s.addPosition(firm.id, { truckId: a.id, at: "2026-10-17T01:00", lat: 51, lng: 4 });
+  const all = await s.positions(firm.id, "2026-10-16T00:00", undefined, "2026-10-17T00:00");
+  assert.equal(all.length, 20002);
+  assert.equal(new Set(all.map(x => x.truckId)).size, 2);
+  const mine = await s.positions(firm.id, "2026-10-16T00:00", a.id, "2026-10-17T00:00");
+  assert.equal(mine.length, 20001);
+  assert.equal(mine.at(-1)?.lat, 48.85);
+  assert.equal((await s.positions("other-firm", "")).length, 0);
+  console.log("PASS GPS pagination: 20,000 equal timestamps, latest position, truck/tenant/date isolation");
+  await assert.rejects(realLive(firm.id, { shift: async () => { throw new Error("shift unavailable"); } }, [truckToVehicle(a)]), /shift unavailable/);
+  console.log("PASS privacy: unreadable shift cannot produce a live location payload");
+  const session = { role: "driver", firm: firm.id, uid: "driver", email: "test@example.test" } as Parameters<typeof decide>[1];
+  assert.equal(decide("/driver/trips/trip-1", session).kind, "allow");
+  assert.equal(decide("/trips/trip-1", session).kind, "forbidden");
+  console.log("PASS driver document route access boundary");
+} finally { await s.deleteFirm(firm.id); await pool.end(); }
