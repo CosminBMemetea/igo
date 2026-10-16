@@ -1444,3 +1444,28 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
  .driver-stats .drv-big{font-size:clamp(32px,10vw,48px)}
 }
 @media(max-width:360px){.ekpis,.ekpis.compact{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Trip composer: a single control language and actions outside the scroll area. */
+.msheet-bg.any .ntsheet{overflow:hidden;gap:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.ntsheet .ntbody{display:flex;flex-direction:column;gap:16px;min-height:0;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:3px 4px 8px;scrollbar-gutter:stable}
+.ntbody .lf{margin:0}.ntbody .hint{margin:0;line-height:1.5}
+.ntsheet .ntquick{padding:14px;gap:12px;background:var(--bg3)}
+.ntsheet .ntqbtns{gap:10px;align-items:stretch}
+.ntsheet .ntqbtns .btn{height:auto;min-height:48px;padding:10px 8px;border-radius:12px;gap:7px;font-size:13px;line-height:1.35}
+.ntsheet .ntqbtns .btn span{min-width:0;overflow-wrap:normal}
+.ntsheet .ntqbtns .btn[aria-pressed=true]{border-color:var(--neg);color:var(--neg)}
+.ntsheet .ntchips{display:grid;gap:8px;align-items:stretch}
+.ntsheet .nt-dates{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ntsheet .nt-drivers{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ntsheet .ntchips .chip{display:flex;align-items:center;justify-content:center;min-width:0;min-height:46px;height:auto;border-radius:12px;padding:10px 8px;font-size:14px;font-weight:500;line-height:1.35;text-align:center;background:var(--bg);border:1px solid var(--line)}
+.ntsheet .ntchips .chip.on{background:color-mix(in srgb,var(--acc) 14%,var(--bg));border-color:var(--acc);color:var(--fg);box-shadow:inset 0 0 0 1px var(--acc)}
+.ntsheet .ntchips .chip:disabled{opacity:.45;cursor:not-allowed}
+.ntsheet .nt-dates input[type=date]{grid-column:1/-1;border-radius:12px;border:1px solid var(--line);background:var(--bg);padding:12px;min-height:48px}
+.ntsheet .ntactions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:10px;border-top:1px solid var(--line);padding-top:14px;flex:none}
+.ntsheet .ntactions .ntsave{height:auto;min-height:52px;padding:12px 10px;border-radius:12px;font-size:15px;line-height:1.35}
+.ntsheet .ntactions .sec{background:transparent}
+.ntsheet .nt-heading{padding-inline:4px}.ntsheet .nt-heading .ico{border-radius:12px}
+@media(max-width:360px){.ntsheet .ntqbtns{grid-template-columns:minmax(0,1fr)}.ntsheet .ntqbtns>div>.btn{grid-column:1;grid-row:1}.ntsheet .ntqbtns>.btn{grid-column:1;grid-row:2}.ntsheet .ntqbtns>div>p{grid-row:auto}.ntsheet .nt-drivers{grid-template-columns:minmax(0,1fr)}}
+
+.ntsheet>.msg{margin:0;max-height:20dvh;overflow-y:auto;overflow-wrap:anywhere}

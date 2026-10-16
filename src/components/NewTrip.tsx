@@ -2,6 +2,7 @@
 // „+ Cursă nouă”: de unde, unde, când, șofer — restul se completează singur (camionul șoferului, km estimați).
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Icon } from "./icons";
 import { TripDictation } from "./TripDictation";
 import Link from "next/link";
 import { tri } from "@/lib/i18n";
@@ -80,16 +81,17 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, e
           <form className="msheet ntsheet" onClick={(e) => e.stopPropagation()} onSubmit={save} noValidate>
             <div className="msheet-grab" />
             <div className="nt-heading"><h3 id={titleId}>{editId ? tri(loc, "Editează cursa|Edit trip|Edytuj kurs") : dup ? T.dup : T.title}</h3><button type="button" className="ico" aria-label={T.cancel} disabled={busy} onClick={() => setOpen(false)}>✕</button></div>
+            <div className="ntbody">
             <div className="ntquick">
               <label className="lf"><span>{T.quick}</span><input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder={T.quickPh} enterKeyHint="go" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void parse(quick); } }} /></label>
-              <div className="ntqbtns"><TripDictation loc={loc} disabled={busy} onActive={setDictating} onText={(text) => { setQuick(text); void parse(text); }} /><button type="button" className="btn sec sm" disabled={busy || dictating || !quick.trim()} onClick={() => parse(quick)}>✨ {T.fill}</button></div>
+              <div className="ntqbtns"><TripDictation loc={loc} disabled={busy} onActive={setDictating} onText={(text) => { setQuick(text); void parse(text); }} /><button type="button" className="btn sec sm" disabled={busy || dictating || !quick.trim()} onClick={() => parse(quick)}><Icon name="sparkles" size={18} /><span>{T.fill}</span></button></div>
             </div>
             <div className="nt2">
               <label className="lf"><span>{T.from}</span><input value={f.from} onChange={(e) => set({ from: e.target.value, kmTouched: false })} required maxLength={60} autoComplete="off" placeholder="Salonta" /></label>
               <label className="lf"><span>{T.to}</span><input value={f.to} onChange={(e) => set({ to: e.target.value, kmTouched: false })} required maxLength={60} autoComplete="off" placeholder="Timișoara" /></label>
             </div>
-            <div className="lf"><span>{T.when}</span><div className="ntchips">{dateChips.map(([l, d]) => <button key={d} type="button" className={`chip${f.date === d ? " on" : ""}`} onClick={() => set({ date: d })} aria-pressed={f.date === d}>{l}</button>)}<input type="date" value={f.date} min={editId ? undefined : today} onChange={(e) => set({ date: e.target.value })} aria-label={T.when} /></div></div>
-            <div className="lf"><span>{T.driver}</span><div className="ntchips">{drivers.map((d) => <button key={d.id} type="button" className={`chip${f.driverId === d.id ? " on" : ""}`} onClick={() => { setTruckTouched(false); set({ driverId: d.id }); }} aria-pressed={f.driverId === d.id} disabled={!d.truckId}>{d.name}{!d.truckId ? " · " + tri(loc, "fără camion|no truck|bez pojazdu") : ""}</button>)}<button type="button" className={`chip${!f.driverId ? " on" : ""}`} onClick={() => { setTruckTouched(true); set({ driverId: "" }); }} aria-pressed={!f.driverId}>{T.noDriver}</button></div></div>
+            <div className="lf"><span>{T.when}</span><div className="ntchips nt-dates">{dateChips.map(([l, d]) => <button key={d} type="button" className={`chip${f.date === d ? " on" : ""}`} onClick={() => set({ date: d })} aria-pressed={f.date === d}>{l}</button>)}<input type="date" value={f.date} min={editId ? undefined : today} onChange={(e) => set({ date: e.target.value })} aria-label={T.when} /></div></div>
+            <div className="lf"><span>{T.driver}</span><div className="ntchips nt-drivers">{drivers.map((d) => <button key={d.id} type="button" className={`chip${f.driverId === d.id ? " on" : ""}`} onClick={() => { setTruckTouched(false); set({ driverId: d.id }); }} aria-pressed={f.driverId === d.id} disabled={!d.truckId}>{d.name}{!d.truckId ? " · " + tri(loc, "fără camion|no truck|bez pojazdu") : ""}</button>)}<button type="button" className={`chip${!f.driverId ? " on" : ""}`} onClick={() => { setTruckTouched(true); set({ driverId: "" }); }} aria-pressed={!f.driverId}>{T.noDriver}</button></div></div>
             <p className="hint"><Link href="/drivers">{tri(loc, "Gestionează șoferii și alocările|Manage drivers and assignments|Zarządzaj kierowcami i przydziałami")}</Link></p>
             <div className="nt2">
               <label className="lf"><span>{T.truck}{f.truckId && !truckTouched && drivers.find((x) => x.id === f.driverId)?.truckId === f.truckId ? <small> · {T.auto}</small> : null}</span><select value={f.truckId} onChange={(e) => { setTruckTouched(true); set({ truckId: e.target.value, driverId: drivers.find((d) => d.truckId === e.target.value)?.id ?? "" }); }}><option value="">—</option>{trucks.map((t) => <option key={t.id} value={t.id}>{t.plate}</option>)}</select></label>
@@ -100,9 +102,12 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, e
               <label className="lf"><span>{T.client}</span><input value={f.client} onChange={(e) => set({ client: e.target.value })} maxLength={120} /></label>
               <div className="nt2"><label className="lf"><span>{T.tonnes}</span><input inputMode="decimal" value={f.tonnes} onChange={(e) => set({ tonnes: e.target.value })} /></label><label className="lf"><span>{T.revenue}</span><input inputMode="decimal" value={f.revenue} onChange={(e) => set({ revenue: e.target.value })} /></label></div>
             </details>
+            </div>
             {msg.t && open ? <p className={`msg ${msg.k}`} role={msg.k === "err" ? "alert" : "status"}>{msg.t}</p> : null}
-            <button className="btn pri ntsave" disabled={busy || dictating} aria-busy={busy}>{busy ? T.saving : editId ? tri(loc, "Salvează modificările|Save changes|Zapisz zmiany") : T.save}</button>
-            <button type="button" className="btn sec ntsave" disabled={busy} onClick={() => setOpen(false)}>{T.cancel}</button>
+            <div className="ntactions">
+              <button type="button" className="btn sec ntsave" disabled={busy} onClick={() => setOpen(false)}>{T.cancel}</button>
+              <button className="btn pri ntsave" disabled={busy || dictating} aria-busy={busy}>{busy ? T.saving : editId ? tri(loc, "Salvează modificările|Save changes|Zapisz zmiany") : T.save}</button>
+            </div>
           </form>
         </dialog>
       ) : null}

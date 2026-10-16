@@ -376,3 +376,15 @@ fundal pe Android/iOS rămân deschise. Nu declarăm testare end-to-end în prod
 - Build producție trecut; cele trei avertismente img preexistente rămân.
   Acesta este un audit în browser local, nu certificare pentru orice combinație
   de browser, zoom, limbă, date sau tastatură mobilă.
+
+## Cursă nouă — finisare butoane, 16 octombrie 2026
+
+Feedbackul vizual a arătat că simpla lipsă a overflow-ului nu era suficientă.
+Butoanele datei au acum trei coloane egale, selecțiile șoferilor au grilă și
+aceleași colțuri/înălțimi; starea selectată are contur clar. Dictează și Completează
+folosesc iconuri vectoriale și dimensiuni egale (stivuite sub 360 px).
+Formularul se derulează în interior; Anulează/Creează cursa rămân într-o bară
+separată, vizibilă la bază. Mesajele de validare sunt în afara zonei derulabile.
+Verificare vizuală și măsurare: 320×740, 390×500, 768×800, 1280×800; ambele
+acțiuni finale în viewport, fără text de buton tăiat. Creare efectivă a unei curse
+fictive Viena–München cu șofer/camion autoasociat: confirmare de salvare.

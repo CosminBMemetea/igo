@@ -1,4 +1,5 @@
 "use client";
+import { Icon } from "./icons";
 import { useEffect, useRef, useState } from "react";
 import { tri, type Locale } from "@/lib/i18n";
 type Speech = { lang: string; interimResults: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: ((e: { error: string }) => void) | null; onend: (() => void) | null; start(): void; stop(): void; abort(): void };
@@ -61,7 +62,7 @@ export function TripDictation({ loc, disabled, onText, onActive }: { loc: Locale
     }
   }
   const available = native || (server && recordable);
-  return <div><button type="button" className="btn sec sm" disabled={(!available || disabled || state === "starting" || state === "sending") && state !== "listening"} aria-pressed={state === "listening"} onClick={start}>{state === "listening" ? tr("■ Oprește dictarea|■ Stop dictation|■ Zatrzymaj dyktowanie") : state === "sending" ? tr("Se transcrie…|Transcribing…|Transkrypcja…") : tr("Dictează|Dictate|Dyktuj")}</button>
+  return <div><button type="button" className="btn sec sm" disabled={(!available || disabled || state === "starting" || state === "sending") && state !== "listening"} aria-pressed={state === "listening"} onClick={start}><Icon name="mic" size={18} /><span>{state === "listening" ? tr("■ Oprește dictarea|■ Stop dictation|■ Zatrzymaj dyktowanie") : state === "sending" ? tr("Se transcrie…|Transcribing…|Transkrypcja…") : tr("Dictează|Dictate|Dyktuj")}</span></button>
     <p className="hint" role="status">{state === "listening" ? tr("Te ascult. Oprește când ai terminat (maximum 60 secunde).|Listening. Stop when done (maximum 60 seconds).|Słucham. Zatrzymaj po zakończeniu (maks. 60 sekund).") : !available ? tr("Folosește microfonul tastaturii telefonului sau scrie textul.|Use your phone keyboard microphone or type your text.|Użyj mikrofonu klawiatury telefonu lub wpisz tekst.") : server && recordable ? tr("La dictare, audio-ul este trimis la Groq pentru transcriere. Verifici textul înainte de salvare.|Dictation sends audio to Groq for transcription. Review the text before saving.|Dźwięk jest wysyłany do Groq do transkrypcji. Sprawdź tekst przed zapisaniem.") : tr("Dictare prin browser. Verifică textul înainte de salvare.|Browser dictation. Review the text before saving.|Dyktowanie przez przeglądarkę. Sprawdź tekst przed zapisaniem.")}</p>
     {error ? <p className="msg err" role="alert">{error}</p> : null}</div>;
 }
