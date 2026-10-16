@@ -1413,3 +1413,10 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .demo-switcher>p{flex:1 1 260px;color:var(--fg2);font-size:12px;line-height:1.6}
 .demo-switcher-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;max-width:100%}.demo-switcher-actions>details{max-width:240px}.demo-switcher-actions summary{cursor:pointer;font-size:12px;padding:12px 0;color:var(--fg2)}.demo-switcher-actions .hint{margin-bottom:8px}
 .imp .it{flex-wrap:wrap;gap:12px}.imp .tsel{max-width:100%;min-width:0}.imp .it .t{overflow-wrap:anywhere}
+
+/* Fuel-card periods: readable history and controls on small screens. */
+.fuel-card-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px;align-items:end;margin-top:18px}
+.fuel-card-form .lf{margin:0;min-width:0}.fuel-card-form input,.fuel-card-form select{max-width:100%;min-width:0}
+.fuel-card-list>div{align-items:center;flex-wrap:wrap}.fuel-card-list>div>div{min-width:0;max-width:100%}
+.fuel-card-list strong{display:block;margin-top:5px;font-weight:500}.fuel-card-list .hint{margin-top:6px}
+.fuel-card-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.fuel-card-list code{overflow-wrap:anywhere}

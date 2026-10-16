@@ -28,18 +28,36 @@ nu sunt înlocuite de redimensionarea browserului. Nu folosi date sau conturi de
 | QA-18 | P2 | Demo: stop → tură nouă → reload pierdea orele anterioare; pauza era inclusă din nou la reload | Totalul de lucru se păstrează în cookie între ture și exclude pauzele; trei regresii automate și retestare stop → start → reload în browser. |
 | QA-17 | P2 | Firma reală era încurajată să importe exemple fictive | Exemplele se execută direct doar în sandbox demo; în contul real rămân descărcabile, cu explicație. |
 
+## Runda 16 octombrie — carduri pe perioade
+
+| ID | Prioritate | Problemă | Remediere / verificare |
+|---|---|---|---|
+| QA-20 | P1 | Mutarea unui card rescria toate alimentările istorice | Perioade [început, următorul început); păstrate intervalele anterioare și ulterioare. |
+| QA-21 | P1 | CSV învăța o asociere globală, inclusiv când un card apărea pe două camioane | Potrivire pe data fiecărui rând; alegerile din preview sunt limitate la fișier, fără schimbarea istoricului cardului. |
+| QA-22 | P1 | Schimbare simultană de asociere/import putea salva camionul greșit | Blocare tranzacțională per firmă, verificare la insert, rollback pentru întregul lot (test 401 rânduri). |
+| QA-23 | P2 | Formularul păstra cratime/spații, parserul le elimina; ID-uri lungi erau trunchiate | Normalizare comună, zerouri păstrate, identificatori prea lungi respinși în CSV și formular. |
+| QA-24 | P1 | CSV și istoric puteau indica vehicule diferite fără avertizare | Conflict explicit în preview; import blocat; schimbarea unei perioade incompatibile cu plăcuțele existente este respinsă. |
+
+Migrațiile 0015/0016 sunt aditive. Asocierile vechi sunt păstrate ca bază; tranzacțiile
+existente nu sunt rescrise la migrare. Dacă formate diferite ale aceluiași identificator
+vechi indică camioane diferite, baza rămâne neasociată și UI cere verificare. Testul de
+migrare verifică inclusiv normalizarea, ambiguitatea și reaplicarea fără efecte.
+
+OPEN-02 este închis pentru mutarea cardului cu dată efectivă. Corectarea/ștergerea unei
+limite deja existente rămâne o operațiune de suport (OPEN-09); nu se suprascrie implicit.
+
 ## Restanțe și limite explicite
 
 | ID | Prioritate | Stare | Criteriu de închidere |
 |---|---|---|---|
 | OPEN-01 | P1 | De verificat pe dispozitive | Android Chrome + iPhone Safari: dictare, permisiune refuzată/reacordată, ecran blocat 30 min, GPS în fundal, baterie, cameră și HEIC. Înregistrați modelul/OS și rezultat; fără acestea nu se promite GPS continuu. |
-| OPEN-02 | P1 | Limitare de produs | Cardul are asociere globală, nu istoric cu dată de intrare în vigoare. Schimbarea camionului reasociază și tranzacțiile vechi. Pentru carduri mutate între camioane: proiectați și testați asociere pe perioade, fără rescrierea costurilor istorice. Avertismentul este vizibil în formular. |
 | OPEN-03 | P1 | De verificat operațional | Restaurare backup într-o bază separată, alerte erori/cron, verificarea livrării emailurilor, retenția și accesul la fișiere. Nu există dovadă de restaurare a producției în această rundă. |
 | OPEN-04 | P1 | Test manual extins | Pierdere rețea 30 min, tab închis/redeschis, memorie dispozitiv plină, sesiune expirată și schimbare cont cu coadă offline. Evenimentele/bonurile au coadă; turele, GPS și CMR/POD necesită internet. |
 | OPEN-05 | P2 | Limitare demo, explicată în UI | Confirmările încărcat/descărcat/așteptare și pozele CMR/POD se resetează la reload; tura, privat și bonurile se păstrează în cookie-ul demo. Pentru demo persistent complet: unificare stare per sesiune și teste între roluri/fără amestecarea vizitatorilor. |
 | OPEN-06 | P2 | Limitare demo | Fișierele CSV de exemplu au date fixe, independente de data mutată a hărții. Nu reprezintă alimentări reale de azi. Introduceți exemple generate relativ la azi, păstrând fixture-urile de regresie stabile. |
 | OPEN-07 | P2 | Îmbunătățire de produs | Profitul nu este încă un registru contabil: separare clară estimat/confirmat și verificare cu contabilul a costurilor, TVA, valute și încasări. |
 | OPEN-08 | P3 | Datorie tehnică | Trei avertismente existente pentru optimizarea imaginilor. CSS are multe straturi istorice; separați pe componente după stabilizarea aspectului, cu aceeași matrice vizuală. |
+| OPEN-09 | P2 | Flux de corecție controlată | Editarea/ștergerea unei perioade greșite la aceeași dată necesită suport. Adăugați previzualizarea impactului, confirmare explicită, jurnal cu autor și teste pentru refacerea intervalelor; nu ocoliți conflictul introducând o oră falsă. |
 
 P1 = înainte de lansare comercială largă / promisiunea asociată; P2 = următoarea etapă;
 P3 = mentenanță. O limitare nu este marcată ca funcționalitate livrată.
@@ -77,6 +95,7 @@ npm run build
 npm run typecheck
 TEST_DATABASE_URL=postgres://.../disposable_test npm run smoke
 TEST_DATABASE_URL=postgres://.../disposable_test npm run smoke:reliability:pg
+TEST_DATABASE_URL=postgres://.../disposable_test npm run smoke:card-periods
 ```
 
 **Atenție:** suitele tenant/fuel/docs șterg schemele bazei indicate. Rulați-le secvențial,
@@ -104,3 +123,20 @@ Runda locală: 15 octombrie 2026, pe modificările livrate împreună cu acest r
 Loguri locale: `/tmp/igo-layout-smoke.log`, `/tmp/igo-layout-targeted-final.log`,
 `/tmp/igo-layout-build-final.log`. Acestea sunt temporare; rezultatele rezumate aici
 rămân versionate în Git. Statusul publicării se verifică separat în integrarea Vercel a commitului.
+
+## Rezultat runda carduri — 16 octombrie
+
+- Suita de perioade verifică MemStore și PostgreSQL: limite exacte, mutări viitoare/
+  retroactive, reimport întârziat, identificatori, conflicte de plăcuțe, izolare firme,
+  inserări concurente și rollback după 400 rânduri valide + un rând invalid.
+- Migrare de la schema anterioară cu date de test, fără modificarea tranzacțiilor.
+- Suita completă și reliability PostgreSQL: trecute; parser/fuel/demo reluate după
+  corecția normalizării. Build și TypeScript: trecute, aceleași trei avertismente img.
+- Browser: card 000123 mutat BH 01 AAA → BH 02 BBB de la 08:00. CSV cu 07:59/08:00
+  a produs 100 L / 700 lei la primul camion și 120 L / 840 lei la al doilea.
+  CSV contradictoriu la 08:01 a afișat explicația și a dezactivat importul.
+- UI la 320, 390, 768 și 1280 px: fără controale ieșite lateral; fără erori în consola
+  browserului de test. Captură salvată: `qfleet-card-periods.png`.
+- Retestare HTTP după normalizare: trecută. Deploymentul se verifică separat în Vercel.
+
+Loguri locale: `/tmp/igo-card-build.log`, `/tmp/igo-card-smoke.log`.

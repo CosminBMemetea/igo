@@ -81,18 +81,18 @@ else {
   const c1 = await commit(s, A.id, dkv, "dkv.csv");
   ok("import DKV în Postgres: 39 noi", c1.ok && c1.added === 39 && c1.dupes === 0, JSON.stringify({ ok: c1.ok, a: c1.ok && c1.added }));
   ok("potrivire pe plăcuță: 38 legate, 1 card necunoscut", (await s.fuel(A.id)).filter((x) => x.truckId).length === 38 && c1.summary.unknown.length === 1);
-  ok("cardul învățat din plăcuță e reținut", (await s.fuelCards(A.id)).filter((c) => c.truckId).length === 2);
+  ok("plăcuțele CSV nu creează asocieri globale de card", (await s.fuelCards(A.id)).length === 0);
   const c2 = await commit(s, A.id, dkv, "dkv.csv");
   ok("reimport identic → 0 noi, 39 duplicate", c2.ok && c2.added === 0 && c2.dupes === 39);
   const pre = await analyze(s, A.id, dkv);
   ok("previzualizarea vede duplicatele", pre.summary.dupes === 39 && pre.summary.newRows === 0);
   const unk = c1.summary.unknown[0].card!;
-  ok("card necunoscut → camion (mută tranzacțiile)", (await s.setCard(A.id, unk, a1.id)) === 1 && (await s.fuel(A.id)).every((x) => x.truckId));
+  ok("card necunoscut → camion (mută tranzacțiile)", (await s.setCard(A.id, unk, a1.id, "2026-01-01T00:00")) === 1 && (await s.fuel(A.id)).every((x) => x.truckId));
   const omv = await commit(s, A.id, fs.readFileSync("public/samples/omv-routex.csv", "utf8"), "omv.csv");
   ok("al doilea card (OMV) se adaugă separat", omv.ok && omv.added === 39);
   // izolare
   ok("B nu vede tranzacțiile lui A", (await s.fuel(B.id)).length === 0 && (await s.fuelCards(B.id)).length === 0 && (await s.imports(B.id)).length === 0);
-  let threw = false; try { await s.setCard(B.id, "X", a1.id); } catch { threw = true; }
+  let threw = false; try { await s.setCard(B.id, "X", a1.id, "2026-01-01T00:00"); } catch { threw = true; }
   ok("B nu poate lega un card de camionul lui A", threw);
   threw = false; try { await s.addFuel(B.id, [{ truckId: a1.id, source: "generic", importId: null, hash: "h", card: null, plate: null, at: "2026-10-01T10:00", station: "", country: null, product: null, litres: 1, amount: null, currency: null, amountRon: null, fxRate: null, fxDate: null, odometer: null, lat: null, lng: null, userId: null, photoName: null, photoSize: null, aiRead: false }]); } catch { threw = true; }
   ok("B nu poate scrie tranzacții pe camionul lui A", threw);

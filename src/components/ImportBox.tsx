@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { tri, type Locale } from "@/lib/i18n";
 import { pluralForm } from "@/lib/i18n/plural";
 import type { Summary } from "@/lib/fuel/import";
 import { FIELDS, REQUIRED, headerSig, type Field, type Mapping } from "@/lib/fuel/parse";
@@ -62,7 +63,10 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
     const r = await post("/api/import/commit", { text: file.text, filename: file.name, mapping, assign });
     setBusy(false);
     const j = r ? await r.json().catch(() => null) : null;
-    if (!r || !r.ok || !j?.ok) { setMsg({ ok: false, text: l.err }); return; }
+    if (!r || !r.ok || !j?.ok) {
+      if (j?.summary) setSum(j.summary);
+      setMsg({ ok: false, text: j?.error === "card-mapping-changed" ? tri(l.loc as Locale, "Asocierea cardului s-a schimbat. Reîncarcă fișierul pentru o previzualizare nouă.|The card mapping changed. Reload the file for a fresh preview.|Przypisanie karty się zmieniło. Wczytaj plik ponownie, aby odświeżyć podgląd.") : l.err }); return;
+    }
     setMsg({ ok: true, text: fmt(demo ? l.demoDone : l.done, { added: j.added, dupes: j.dupes }) });
     if (demo && j.demo) { setRes(j.demo); try { if (sum) localStorage.setItem(LS + headerSig(sum.headers), JSON.stringify(mapping ?? {})); } catch {} }
     setFile(null); setSum(null); if (input.current) input.current.value = "";
@@ -141,6 +145,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
               </div>
             </div>
           ) : null}
+          {sum.conflicts.length ? <div className="msg err" role="alert"><p>{tri(l.loc as Locale, "Import oprit: plăcuța din CSV contrazice istoricul cardului. Verifică perioada cardului sau corectează fișierul, apoi reîncarcă-l.|Import blocked: the CSV registration conflicts with the card history. Check the card period or correct the file, then reload it.|Import zablokowany: rejestracja w CSV jest sprzeczna z historią karty. Sprawdź okres karty lub popraw plik i wczytaj go ponownie.")}</p><ul>{sum.conflicts.slice(0, 8).map((x, i) => <li key={i}>{x.card} · {x.at.replace("T", " ")} · {x.plate} ≠ {x.expected}</li>)}</ul></div> : null}
           {sum.unknown.length ? (
             <div style={{ marginTop: 20 }}>
               <div className="eyebrow">{l.unknown}</div>
@@ -166,7 +171,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
               {x.missing ? <>{x.n > x.missing ? <br /> : null}{fmt(l.otherCur, { cur: x.cur })}</> : null}
             </p>
           ))}
-          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length} onClick={go}>{busy ? l.reading : fmt(l.go, { fills: `${sum.newRows} ${pluralForm(l.loc, sum.newRows, l.fillUnit)}` })}</button>
+          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length || !!sum.conflicts.length} onClick={go}>{busy ? l.reading : fmt(l.go, { fills: `${sum.newRows} ${pluralForm(l.loc, sum.newRows, l.fillUnit)}` })}</button>
         </div>
       ) : null}
     </div>

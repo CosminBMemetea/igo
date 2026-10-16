@@ -1,8 +1,9 @@
+import { validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
@@ -39,7 +40,7 @@ export class PgStore implements Store {
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, id)); }
   private firmTables() {
-    return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
+    return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
   }
   async firmCounts(firmId: string) {
     const out: Record<string, number> = {};
@@ -51,7 +52,7 @@ export class PgStore implements Store {
     const counts = await this.firmCounts(firmId);
     const blobUrls = (await this.d.select({ url: files.url }).from(files).where(and(eq(files.firmId, firmId), eq(files.storage, "blob")))).map((r) => r.url).filter((u): u is string => !!u);
     // o singură tranzacție: întâi tabelele fără FK spre firms, apoi copiii, la final firma (restul cade în cascadă)
-    const T = this.firmTables(), order = [T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
+    const T = this.firmTables(), order = [T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
     const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<unknown>; transaction?: (f: (tx: Db) => Promise<void>) => Promise<void> };
     const build = (db: Db) => [...order.map((tb) => db.delete(tb).where(eq((tb as typeof users).firmId, firmId))), db.delete(firms).where(eq(firms.id, firmId))];
     if (typeof d.batch === "function") await d.batch(build(this.d));
@@ -267,21 +268,20 @@ export class PgStore implements Store {
     const [own] = await this.d.select({ id: trucks.id }).from(trucks).where(and(eq(trucks.id, truckId), eq(trucks.firmId, firmId)));
     if (!own) throw new Error("truck");
   }
-  async fuelCards(firmId: string): Promise<CardRow[]> { return this.d.select({ card: fuelCards.card, truckId: fuelCards.truckId }).from(fuelCards).where(eq(fuelCards.firmId, firmId)); }
-  async setCard(firmId: string, card: string, truckId: string | null) {
-    await this.ownTruck(firmId, truckId);
-    await this.d.insert(fuelCards).values({ firmId, card, truckId }).onConflictDoUpdate({ target: [fuelCards.firmId, fuelCards.card], set: { truckId, updatedAt: new Date() } });
-    const r = await this.d.update(fuelTransactions).set({ truckId }).where(and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.card, card))).returning({ id: fuelTransactions.id });
-    return r.length;
+  async fuelCards(firmId: string): Promise<CardRow[]> { return this.d.select({ card: fuelCardPeriods.card, truckId: fuelCardPeriods.truckId, validFrom: fuelCardPeriods.validFrom }).from(fuelCardPeriods).where(eq(fuelCardPeriods.firmId, firmId)).orderBy(fuelCardPeriods.card, fuelCardPeriods.validFrom); }
+  async setCard(firmId: string, card: string, truckId: string, validFrom: string) {
+    if (!validCardId(card) || !validCardTime(validFrom)) throw new Error("card-input");
+    const r = await this.d.execute(sql`select qf_set_fuel_card(${firmId}, ${card}, ${truckId}, ${validFrom}) as changed`);
+    return Number(r.rows[0].changed);
   }
   async addFuel(firmId: string, rows: NewFuelTx[]) {
+    if (!rows.length) return { added: 0, dupes: 0 };
     for (const id of new Set(rows.map((r) => r.truckId).filter((x): x is string => !!x))) await this.ownTruck(firmId, id);
-    let added = 0;
-    for (let i = 0; i < rows.length; i += 400) {
-      const chunk = rows.slice(i, i + 400).map((r) => ({ ...r, id: newId("x"), firmId }));
-      const r = await this.d.insert(fuelTransactions).values(chunk).onConflictDoNothing({ target: [fuelTransactions.firmId, fuelTransactions.hash] }).returning({ id: fuelTransactions.id });
-      added += r.length;
-    }
+    // One transaction on both Neon HTTP and node-postgres; a late conflict cannot leave a partial import.
+    const build = (db: Db) => Array.from({ length: Math.ceil(rows.length / 400) }, (_, i) => db.insert(fuelTransactions).values(rows.slice(i * 400, (i + 1) * 400).map((r) => ({ ...r, id: newId("x"), firmId }))).onConflictDoNothing({ target: [fuelTransactions.firmId, fuelTransactions.hash] }).returning({ id: fuelTransactions.id }));
+    const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<{ id: string }[][]> };
+    const results = d.batch ? await d.batch(build(this.d)) : await this.d.transaction(async (tx) => { const result = []; for (const q of build(tx as unknown as Db)) result.push(await q); return result; });
+    const added = results.reduce((n, r) => n + r.length, 0);
     return { added, dupes: rows.length - added };
   }
   async fuelByHash(firmId: string, hash: string) { const [r] = await this.d.select().from(fuelTransactions).where(and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.hash, hash))).limit(1); return r ? txOut(r) : null; }

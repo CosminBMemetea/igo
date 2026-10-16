@@ -1,26 +1,38 @@
 # Ghid patron, întrebări de vânzare și priorități
 
-Stare: 15 octombrie 2026. Răspunsurile descriu codul actual; nu sunt promisiuni despre
+Stare: 16 octombrie 2026. Răspunsurile descriu codul actual; nu sunt promisiuni despre
 integrări, certificări sau servicii încă nelivrate. Registrul tehnic: [QA-AUDIT.md](QA-AUDIT.md).
 
 ## Cardul de carburant, pas cu pas
 
 1. În **Camioane**, adaugă camionul și numărul corect de înmatriculare.
 2. Apasă **Carduri carburant**. Introdu identificatorul exact al cardului din exportul
-   furnizorului, păstrând zerourile inițiale; selectează camionul; salvează asocierea.
+   furnizorului, păstrând zerourile inițiale. Spațiile și cratimele sunt ignorate, ca la CSV.
+   Selectează camionul și **Valabil din**: data și ora locală folosite de exportul CSV.
+   Salvează perioada; verifică intervalul afișat în istoric.
 3. Descarcă CSV-ul din portalul DKV, OMV/Routex, MOL, Shell sau E100.
 4. Încarcă CSV-ul în pagina Import, verifică datele, litrii, suma, moneda și camionul.
    Dacă formatul nu este recunoscut, mapează coloanele în previzualizare.
-5. Asociază cardurile necunoscute, apoi confirmă importul. Revizuiește rândurile respinse
+5. Alege camionul pentru rândurile necunoscute din fișier, apoi confirmă importul. Revizuiește rândurile respinse
    și alertele. Importurile repetate identice sunt deduplicate.
 
 Alternativ, poți începe direct cu CSV: numerele de înmatriculare recunoscute se potrivesc
-automat și se învață asocierea cardului. Nu se cer PIN/CVV/parola furnizorului. Este un
+automat pe fiecare rând. Alegerile din previzualizare se aplică doar acelui fișier;
+pentru viitoarele importuri, salvează explicit perioada cardului. Nu se cer PIN/CVV/parola furnizorului. Este un
 identificator pentru import, nu un card bancar de abonament și nici o integrare API.
 
-**Limită:** asocierea unui card se aplică și tranzacțiilor deja importate. Nu folosi
-reasocierea pentru un card care a fost folosit pe camioane diferite în perioade diferite;
-istoricul cu dată efectivă este prioritate OPEN-02.
+**Mutarea cardului:** apasă „Adaugă perioadă” lângă card, alege noul camion și data/ora
+mutării. Exemplu: BH 01 AAA până la 16 octombrie 2026, 08:00; BH 02 BBB de la 08:00.
+Alimentarea de la 07:59 rămâne la primul camion, cea de la 08:00 aparține celui de-al doilea.
+Data este inclusivă; sfârșitul perioadei este următorul început, exclusiv.
+
+O perioadă introdusă retroactiv poate reasocia alimentările deja importate din acel
+interval, dar nu le schimbă pe cele anterioare sau dintr-o perioadă ulterioară. Dacă o
+plăcuță recunoscută contrazice perioada, salvarea/importul se oprește cu explicație.
+Aceeași dată/oră nu poate fi suprascrisă de alt camion. Corectarea sau ștergerea unei
+perioade greșite la exact aceeași limită necesită momentan suport; nu introduce ore
+false ca să ocolești verificarea. Datele din CSV fără fus orar sunt tratate ca ore locale
+ale exportului, fără conversie automată în ora României.
 
 ## Întrebările pe care le va pune patronul
 
@@ -30,7 +42,7 @@ istoricul cu dată efectivă este prioritate OPEN-02.
 | Trebuie să instalez GPS? | Demo-ul este simulat. Pentru cont real există localizare prin telefon în tură; un conector pentru GPS-ul existent trebuie verificat separat. Nu promite compatibilitate universală. |
 | Merge cu ecranul blocat? | Comportamentul browserului depinde de telefon și OS. Necesită probe reale; nu promite urmărire continuă în fundal. |
 | Pot avea mai multe carduri pe un camion? | Da, identificatori diferiți pot fi asociați aceluiași camion. |
-| Pot muta cardul pe alt camion? | Asocierea actuală este globală și afectează istoricul. Asocierea pe perioade trebuie livrată înainte de a susține acest flux. |
+| Pot muta cardul pe alt camion? | Da: adaugi o perioadă cu data/ora mutării. Istoricul anterior rămâne la camionul vechi; contradicțiile cu plăcuțele sunt oprite. |
 | Se sincronizează automat cu DKV/OMV? | În prezent, CSV. Introducerea identificatorului nu conectează portalul furnizorului. |
 | Ce fac dacă import același fișier de două ori? | Tranzacțiile identice sunt deduplicate. Un export corectat trebuie revizuit: modificările datelor pot schimba cheia de deduplicare. |
 | Detectează sigur furtul? | Afișează suspiciuni pe reguli și date disponibile. Verifici bonul, GPS-ul, rezervorul și contextul; nu este o probă automată de furt. |
@@ -49,8 +61,8 @@ istoricul cu dată efectivă este prioritate OPEN-02.
 
 ## Ordinea recomandată a funcțiilor viitoare
 
-1. **Încredere înainte de extindere:** închidere OPEN-01…04, monitorizare, backup restaurat,
-   pilot cu 2–3 firme, costuri estimate versus confirmate și asociere card pe perioade.
+1. **Încredere înainte de extindere:** închidere OPEN-01/03/04, monitorizare, backup restaurat,
+   pilot cu 2–3 firme, costuri estimate versus confirmate și verificarea cardurilor pe datele pilotului.
 2. **Planificare simplă:** disponibilitate camion/șofer pe calendar, avertizare suprapuneri,
    indisponibilități/revizii și duplicare rapidă de curse. Acceptare: nicio dublă alocare
    neavertizată, inclusiv două persoane care lucrează simultan.

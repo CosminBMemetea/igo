@@ -1,3 +1,4 @@
+import { cardAt, plateKey, validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
 import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type DriverEventRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
@@ -160,18 +161,33 @@ export class MemStore implements Store {
   async leadsFromIp(ipHash: string, sinceIso: string) { return this.LD.filter((x) => x.ipHash === ipHash && x.createdAt >= sinceIso).length; }
   private C: (CardRow & { firmId: string })[] = []; private X: FuelTxRow[] = []; private M: ImportRow[] = []; private H = new Map<string, ShiftRow>(); private P: (PosRow & { firmId: string })[] = [];
   private own = (firmId: string, truckId: string | null) => truckId == null || this.T.some((x) => x.id === truckId && x.firmId === firmId);
-  async fuelCards(firmId: string) { return this.C.filter((c) => c.firmId === firmId).map(({ card, truckId }) => ({ card, truckId })); }
-  async setCard(firmId: string, card: string, truckId: string | null) {
-    if (!this.own(firmId, truckId)) throw new Error("truck");
-    const c = this.C.find((x) => x.firmId === firmId && x.card === card);
-    if (c) c.truckId = truckId; else this.C.push({ firmId, card, truckId });
-    let n = 0; for (const x of this.X) if (x.firmId === firmId && x.card === card) { x.truckId = truckId; n++; }
+  async fuelCards(firmId: string) { return this.C.filter((c) => c.firmId === firmId).map(({ card, truckId, validFrom }) => ({ card, truckId, validFrom })).sort((a, b) => a.card.localeCompare(b.card) || a.validFrom.localeCompare(b.validFrom)); }
+  async setCard(firmId: string, card: string, truckId: string, validFrom: string) {
+    if (!validCardId(card) || !validCardTime(validFrom)) throw new Error("card-input");
+    if (!this.T.some((t) => t.firmId === firmId && t.id === truckId && !t.archivedAt)) throw new Error("truck");
+    const history = this.C.filter((c) => c.firmId === firmId && c.card === card);
+    const same = history.find((c) => c.validFrom === validFrom);
+    if (same) { if (same.truckId !== truckId) throw new Error("card-boundary-conflict"); return 0; }
+    const end = history.filter((c) => c.validFrom > validFrom).map((c) => c.validFrom).sort()[0];
+    const affected = this.X.filter((x) => x.firmId === firmId && x.card === card && x.at >= validFrom && (!end || x.at < end));
+    if (affected.some((x) => x.plate && this.T.some((t) => t.firmId === firmId && t.id !== truckId && plateKey(t.plate) === plateKey(x.plate)))) throw new Error("card-plate-conflict");
+    this.C.push({ firmId, card, truckId, validFrom });
+    let n = 0; for (const x of affected) if (x.truckId !== truckId) { x.truckId = truckId; n++; }
     return n;
   }
   async addFuel(firmId: string, rows: NewFuelTx[]) {
-    let added = 0, dupes = 0;
-    for (const r of rows) {
+    const cards = this.C.filter((c) => c.firmId === firmId);
+    // Validate the complete batch before mutating, including a mapping changed after preview.
+    const resolved = rows.map((r) => {
       if (!this.own(firmId, r.truckId)) throw new Error("truck");
+      if (this.X.some((x) => x.firmId === firmId && x.hash === r.hash)) return r;
+      const mapped = r.card ? cardAt(cards, r.card, r.at)?.truckId : null;
+      if (mapped && r.truckId && mapped !== r.truckId) throw new Error("card-mapping-changed");
+      if (mapped && r.plate && this.T.some((t) => t.firmId === firmId && t.id !== mapped && plateKey(t.plate) === plateKey(r.plate))) throw new Error("card-mapping-changed");
+      return { ...r, truckId: mapped ?? r.truckId };
+    });
+    let added = 0, dupes = 0;
+    for (const r of resolved) {
       if (this.X.some((x) => x.firmId === firmId && x.hash === r.hash)) { dupes++; continue; }
       this.X.push({ ...r, id: newId("x"), firmId }); added++;
     }

@@ -131,6 +131,15 @@ export const fuelCards = pgTable("fuel_cards", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.firmId, t.card] })]);
 
+/** Effective card history. Legacy fuel_cards is retained for deployment compatibility. */
+export const fuelCardPeriods = pgTable("fuel_card_periods", {
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  card: text("card").notNull(),
+  validFrom: text("valid_from").notNull(),
+  truckId: text("truck_id").references(() => trucks.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.firmId, t.card, t.validFrom] })]);
+
 export const fuelImports = pgTable("fuel_imports", {
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
@@ -173,7 +182,7 @@ export const fuelTransactions = pgTable("fuel_transactions", {
   photoSize: integer("photo_size"),
   aiRead: boolean("ai_read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [uniqueIndex("fuel_tx_firm_hash_uq").on(t.firmId, t.hash), index("fuel_tx_firm_truck_at_ix").on(t.firmId, t.truckId, t.at)]);
+}, (t) => [uniqueIndex("fuel_tx_firm_hash_uq").on(t.firmId, t.hash), index("fuel_tx_firm_truck_at_ix").on(t.firmId, t.truckId, t.at), index("fuel_tx_firm_card_at_ix").on(t.firmId, t.card, t.at)]);
 
 export const shifts = pgTable("shifts", {
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),

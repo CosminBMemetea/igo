@@ -22,6 +22,11 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json(r, { status: 422 });
     return NextResponse.json({ ...r, demo: await demoResult(sb.s, sb.f, getPrefs().loc) });
   }
-  const r = await commit(store(), f.id, b.text, filename, b.mapping ?? undefined, b.assign ?? {});
-  return NextResponse.json(r, { status: r.ok ? 200 : 422 });
+  try {
+    const r = await commit(store(), f.id, b.text, filename, b.mapping ?? undefined, b.assign ?? {});
+    return NextResponse.json(r, { status: r.ok ? 200 : 422 });
+  } catch (e) {
+    const message = String((e as Error).message) + String((e as { cause?: Error }).cause?.message ?? "");
+    return NextResponse.json({ error: message.includes("card-mapping-changed") ? "card-mapping-changed" : "server" }, { status: message.includes("card-mapping-changed") ? 409 : 503 });
+  }
 }

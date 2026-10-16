@@ -99,13 +99,16 @@ try {
   ok("Date demo OPRIT → firma mea", vo?.length === 1 && vo[0].id === tA[0].id);
   ok("mod real: API-ul nu etichetează datele drept demo", JSON.parse((await A.go("/api/trips")).text).demo === false);
   ok("harta reală nu este etichetată demo", JSON.parse((await A.go("/api/live")).text).demo === false);
-  ok("card asociat manual înainte de import", (await A.go("/api/import/assign", { card: "00001234", truck: tA[0].id })).loc.includes("assigned=1"));
-  ok("asocierea păstrează zerourile inițiale", (await db.query("select card from fuel_cards where firm_id=$1", [firmA.id])).rows.some((x) => x.card === "00001234"));
-  ok("card prea lung respins, fără trunchiere", (await A.go("/api/import/assign", { card: "1".repeat(41), truck: tA[0].id })).loc.includes("e=assign"));
-  ok("cardul nu poate fi legat de camion inexistent", (await A.go("/api/import/assign", { card: "TEST", truck: "missing" })).loc.includes("e=assign"));
+  ok("card asociat manual înainte de import", (await A.go("/api/import/assign", { card: "0000-1234", truck: tA[0].id, from: "2026-10-01T08:00" })).loc.includes("assigned=1"));
+  ok("asocierea păstrează zerourile inițiale", (await db.query("select card from fuel_card_periods where firm_id=$1", [firmA.id])).rows.some((x) => x.card === "00001234"));
+  ok("asocierea cere explicit data de început", (await A.go("/api/import/assign", { card: "NO-DATE", truck: tA[0].id })).loc.includes("e=assign"));
+  ok("asocierea respinge data calendaristică invalidă", (await A.go("/api/import/assign", { card: "BAD-DATE", truck: tA[0].id, from: "2026-02-31T08:00" })).loc.includes("e=assign"));
+  ok("istoricul și începutul perioadei apar în UI", (await A.go("/import")).text.includes("2026-10-01 08:00"));
+  ok("card prea lung respins, fără trunchiere", (await A.go("/api/import/assign", { card: "1".repeat(41), truck: tA[0].id, from: "2026-10-01T08:00" })).loc.includes("e=assign"));
+  ok("cardul nu poate fi legat de camion inexistent", (await A.go("/api/import/assign", { card: "TEST", truck: "missing", from: "2026-10-01T08:00" })).loc.includes("e=assign"));
   const archivedTruckId = `arch_${firmA.id}`;
   await db.query("insert into trucks (id, firm_id, plate, archived_at) values ($1,$2,'BH 98 TST',now())", [archivedTruckId, firmA.id]);
-  ok("cardul nu poate fi legat de camion arhivat", (await A.go("/api/import/assign", { card: "TEST-ARCHIVED", truck: archivedTruckId })).loc.includes("e=assign"));
+  ok("cardul nu poate fi legat de camion arhivat", (await A.go("/api/import/assign", { card: "TEST-ARCHIVED", truck: archivedTruckId, from: "2026-10-01T08:00" })).loc.includes("e=assign"));
   await db.query("delete from trucks where id=$1", [archivedTruckId]);
   // 4. invitația șoferului
   const s3 = await A.go("/setup?step=3");

@@ -1,3 +1,4 @@
+import { normalizeCard, validCardId } from "./cards";
 // Querra Fleet: import CSV card carburant. Pur (fără I/O), testat în smoke:fuel.
 // Detectează separatorul, formatul (DKV, OMV/Routex, MOL, Shell, E100, generic) și coloanele; numere și date RO/PL/EN.
 
@@ -154,7 +155,7 @@ export interface ParseResult { source: Source; delimiter: string; headers: strin
 export interface RowError { line: number; reason: SkipReason; value: string }
 /** Semnătura antetului (pentru maparea salvată per firmă). */
 export const headerSig = (h: string[]) => h.map((x) => norm(x)).join("|").slice(0, 400);
-export const cleanCard = (s: string | undefined) => { const c = (s ?? "").replace(/[\s-]/g, "").replace(/^'/, ""); return c ? c.slice(0, 40) : null; };
+export const cleanCard = (s: string | undefined) => normalizeCard(s ?? "") || null;
 
 export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
   const { delimiter, headers, rows } = parseCsv(text);
@@ -182,6 +183,7 @@ export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
     const litres = num(r, "litres");
     if (litres == null || litres <= 0 || litres > 5000) { bad(i, "litres", get(r, "litres")); continue; }
     const card = cleanCard(get(r, "card")), plate = get(r, "plate")?.trim().toUpperCase() || null;
+    if (card && !validCardId(card)) { bad(i, "id", get(r, "card")); continue; }
     if (!card && !plate) { bad(i, "id", ""); continue; }
     const odo = num(r, "odometer");
     out.push({ at, card, plate, station: roFix((get(r, "station") ?? "").trim()).slice(0, 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });

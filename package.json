@@ -25,7 +25,8 @@
     "smoke:reliability": "tsx scripts/smoke-reliability.mts",
     "smoke:reliability:pg": "tsx scripts/smoke-reliability.mts --postgres",
     "smoke:trip-workflow": "tsx scripts/smoke-trip-workflow.mts",
-    "smoke:outbox": "tsx scripts/smoke-outbox.mts"
+    "smoke:outbox": "tsx scripts/smoke-outbox.mts",
+    "smoke:card-periods": "tsx scripts/smoke-card-periods.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

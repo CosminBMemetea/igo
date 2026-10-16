@@ -19,7 +19,7 @@ export interface SupportRow { id: string; firmId: string | null; email: string |
 
 export interface FuelTxRow { id: string; firmId: string; truckId: string | null; source: string; importId: string | null; hash: string; card: string | null; plate: string | null; at: string; station: string; country: string | null; product: string | null; litres: number; amount: number | null; currency: string | null; amountRon: number | null; fxRate: number | null; fxDate: string | null; odometer: number | null; lat: number | null; lng: number | null; userId: string | null; photoName: string | null; photoSize: number | null; aiRead: boolean }
 export type NewFuelTx = Omit<FuelTxRow, "id" | "firmId">;
-export interface CardRow { card: string; truckId: string | null }
+export interface CardRow { card: string; truckId: string | null; validFrom: string }
 export interface ImportRow { id: string; firmId: string; source: string; filename: string; rows: number; added: number; dupes: number; skipped: number; createdAt: string }
 export interface ShiftRow { truckId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
 export type DriverEventKind = "truck_switch" | "shift_start" | "shift_end" | "private_on" | "private_off" | "loaded" | "unloaded" | "wait_start" | "wait_end" | "fill";
@@ -107,8 +107,8 @@ export interface Store {
   leadsFromIp(ipHash: string, sinceIso: string): Promise<number>;
   // carburant
   fuelCards(firmId: string): Promise<CardRow[]>;
-  /** Reține cardul → camion și atribuie tranzacțiile acelui card. Camionul trebuie să fie al firmei. Întoarce câte tranzacții s-au mutat. */
-  setCard(firmId: string, card: string, truckId: string | null): Promise<number>;
+  /** Adds an effective boundary [validFrom, next boundary), preserving earlier/later periods. Conflicting boundaries/plates are rejected. */
+  setCard(firmId: string, card: string, truckId: string, validFrom: string): Promise<number>;
   /** Inserează cu deduplicare pe (firm_id, hash). */
   addFuel(firmId: string, rows: NewFuelTx[]): Promise<{ added: number; dupes: number }>;
   fuelByHash(firmId: string, hash: string): Promise<FuelTxRow | null>;

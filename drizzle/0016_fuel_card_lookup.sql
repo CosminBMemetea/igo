@@ -1,0 +1,1 @@
+CREATE INDEX "fuel_tx_firm_card_at_ix" ON "fuel_transactions" USING btree ("firm_id","card","at");
