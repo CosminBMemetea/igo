@@ -31,13 +31,17 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
   const [aiOk, setAiOk] = useState(false), [busy, setBusy] = useState(false), [formErr, setFormErr] = useState(""), idem = useRef(newKey()), [cur, setCur] = useState("RON"), [rDate, setRDate] = useState(""), [rPlate, setRPlate] = useState("");
+  const receiptVehicle = useRef(vehicleId), mutationAt = useRef(0), generation = useRef(0);
   const receiptLock = useRef(false), photoVersion = useRef(0);
   useEffect(() => { setLast(lastFill); }, [lastFill]);
+  useEffect(() => {
+    if (!f.litres && !f.odo && !f.amount && !f.station && !photo) receiptVehicle.current = vehicleId;
+  }, [vehicleId, f.litres, f.odo, f.amount, f.station, photo]);
   const [priv, setPriv] = useState(!!initial?.priv);
   // demo: km azi = exact valoarea de pe harta live (aceeași sursă: liveFleet), nu crește în pauza privată
   const shownKm = demoKm != null ? demoKm : km;
   const privRef = useRef(!!initial?.priv);
-  const lastPos = useRef<[number, number] | null>(null), lastT = useRef(0), sent = useRef<{ t: number; at: [number, number] } | null>(null), watch = useRef<number | null>(null);
+  const lastPos = useRef<[number, number] | null>(null), sent = useRef<{ t: number; at: [number, number] } | null>(null), watch = useRef<number | null>(null);
   // ore azi: baza calculată pe server (tură ∩ azi, fără pauze) + timpul curs de atunci doar cât e în tură și nu e privat
   const work = useRef<{ ms: number; since: number | null }>({ ms: (today?.hours ?? 0) * 3600000, since: initial && !initial.priv ? serverNow : null });
   const pauseWork = (t = Date.now()) => { const w = work.current; if (w.since !== null) { w.ms += Math.max(0, t - w.since); w.since = null; } };
@@ -45,7 +49,16 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   useEffect(() => () => { if (watch.current != null) navigator.geolocation?.clearWatch(watch.current); }, []);
 
   const shiftBusy = useRef(false);
-  const [askEnd, setAskEnd] = useState(false), [gps, setGps] = useState<"wait" | "ok" | "off">("wait");
+  const [askEnd, setAskEnd] = useState(false), [gps, setGps] = useState<"wait" | "ok" | "off" | "error">("wait");
+  const [lastAck, setLastAck] = useState<number | null>(null);
+  // Ignore snapshots racing a local action briefly; do not compare phone and server clocks.
+  useEffect(() => {
+    if (shiftBusy.current || Date.now() - mutationAt.current < 5000) return;
+    setOn(!!initial); setPriv(!!initial?.priv); privRef.current = !!initial?.priv;
+    setKm(today?.km ?? 0);
+    work.current = { ms: (today?.hours ?? 0) * 3600000, since: initial && !initial.priv ? serverNow : null };
+    window.dispatchEvent(new CustomEvent("qf-shift", { detail: !!initial && !initial.priv }));
+  }, [serverNow, initial?.start, initial?.priv, today?.km, today?.hours, vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
   const endDialog = useRef<HTMLDialogElement>(null);
   const shiftTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (!askEnd) return; const dialog = endDialog.current, trigger = shiftTrigger.current; dialog?.showModal(); document.documentElement.classList.add("msheet-open"); return () => { dialog?.close(); document.documentElement.classList.remove("msheet-open"); trigger?.focus(); }; }, [askEnd]);
@@ -60,48 +73,57 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     const rs = await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
     shiftBusy.current = false;
     if (!rs?.ok) { setMsg({ t: rs?.status === 409 || rs?.status === 403 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
+    mutationAt.current = Date.now();
     setPriv(false); privRef.current = false;
     setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
     if (next) { lastPos.current = null; work.current.since = Date.now(); }
     else pauseWork();
+    window.dispatchEvent(new Event("qf-refresh"));
   }
-  function startWatch() {
-      if (!navigator.geolocation) { setGps("off"); setMsg({ t: L["drv.gpsOff"], k: "" }); return; }
-      if (watch.current != null) return;
-      watch.current = navigator.geolocation.watchPosition((p) => {
-        setGps("ok");
-        const here: [number, number] = [p.coords.latitude, p.coords.longitude], t = p.timestamp || Date.now(), acc = p.coords.accuracy || 999;
-        if (acc > 65) return; // fix slab (iPhone în clădire / pornire GPS) — ignorat, altfel „sare” km
-        // anti-zgomot: un pas contează doar peste max(30 m, precizia) și sub 150 km/h (salturi GPS)
-        if (lastPos.current) {
-          const d = hav(lastPos.current, here), dt = Math.max(1, (t - lastT.current) / 1000);
-          if (d * 1000 < Math.max(30, acc)) return;
-          if (d / (dt / 3600) > 150 && d > 0.5) return;
-          setKm((k) => k + d);
-        }
-        lastPos.current = here; lastT.current = t;
-        if (privRef.current) return; // modul privat: nu se trimite nimic
-        // trimitem cel mult la 30 s sau la 150 m (baterie / date mobile), dar mereu primul punct
-        const s0 = sent.current; if (s0 && t - s0.t < 30000 && hav(s0.at, here) < 0.15) return;
-        sent.current = { t, at: here };
-        fetch("/api/driver/ping", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: here[0], lng: here[1], speed: p.coords.speed }) }).catch(() => null);
-      }, (er) => { if (er.code === 1 || !lastPos.current) setGps("off"); setMsg({ t: L["drv.gpsOff"], k: "" }); }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 60000 });
-  }
-  // GDPR: GPS-ul e pornit DOAR în tură și în afara pauzei private; altfel watch-ul e oprit complet (nici nu se cere locația)
+  // A generation prevents late GPS/network callbacks from updating a different truck or private shift.
   useEffect(() => {
-    // demo: fără GPS real deloc (km vin din aceeași sursă ca harta live) — nicio cerere de permisiune în prezentări
-    if (on && !priv && !demo) { startWatch(); return; }
-    setMsg((x) => (x.t === L["drv.gpsOff"] ? { t: "", k: "" } : x)); // mesajul GPS vechi nu rămâne pe ecran în privat / după tură
-    if (watch.current != null) { navigator.geolocation?.clearWatch(watch.current); watch.current = null; }
-    lastPos.current = null;
-  }, [on, priv]); // eslint-disable-line react-hooks/exhaustive-deps
+    const gen = ++generation.current;
+    sent.current = null; lastPos.current = null; setLastAck(null); setGps("wait");
+    if (!on || priv || demo || preview) return;
+    if (!navigator.geolocation) { setGps("off"); return; }
+    let request: AbortController | null = null;
+    let inFlight = false;
+    const id = navigator.geolocation.watchPosition((p) => {
+      if (generation.current !== gen || privRef.current) return;
+      const here: [number, number] = [p.coords.latitude, p.coords.longitude], t = Date.now();
+      if (!Number.isFinite(p.coords.accuracy) || p.coords.accuracy > 65) { setGps("wait"); return; }
+      const previous = sent.current;
+      if (inFlight || (previous && t - previous.t < 30000 && hav(previous.at, here) < 0.15)) return;
+      inFlight = true;
+      const controller = new AbortController(); request = controller;
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      void fetch("/api/driver/ping", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: here[0], lng: here[1], speed: p.coords.speed }) })
+        .then((r) => {
+          if (generation.current !== gen) return;
+          if (r.status !== 204) {
+            setGps("error");
+            if (r.redirected || [401, 403, 409].includes(r.status)) window.dispatchEvent(new Event("qf-refresh"));
+            return;
+          }
+          sent.current = { t, at: here }; setLastAck(Date.now()); setGps("ok");
+        }).catch(() => { if (generation.current === gen) setGps("error"); })
+        .finally(() => { clearTimeout(timeout); inFlight = false; });
+    }, () => { if (generation.current === gen) setGps("off"); }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 60000 });
+    watch.current = id;
+    return () => { generation.current = gen + 1; request?.abort(); navigator.geolocation.clearWatch(id); watch.current = null; };
+  }, [on, priv, demo, preview, vehicleId]);
   async function togglePriv() {
     if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
+    if (shiftBusy.current) return;
+    shiftBusy.current = true;
     const next = !priv;
     const r = await fetch("/api/driver/private", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, on: next }) }).catch(() => null);
+    shiftBusy.current = false;
     if (!r?.ok) { setMsg({ t: r?.status === 409 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
+    mutationAt.current = Date.now();
     if (next) pauseWork(); else if (on) work.current.since = Date.now();
     setPriv(next); privRef.current = next; window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
+    window.dispatchEvent(new Event("qf-refresh"));
   }
   async function onPhoto(file0: File | null) {
     const version = ++photoVersion.current;
@@ -143,6 +165,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (receiptLock.current || busy || read === L["drv.reading"]) return; // lock before the first asynchronous write
+    if (receiptVehicle.current !== vehicleId) { setFormErr(tri(loc, "Camionul atribuit s-a schimbat. Bonul este păstrat în formular; verifică alocarea înainte de trimitere.|Assigned truck changed. Your receipt stays in the form; check the assignment before sending.|Przypisany pojazd zmienił się. Paragon pozostaje w formularzu; sprawdź przypisanie przed wysłaniem.")); return; }
     const litres = Number(f.litres.replace(",", ".")), odoS = f.odo.replace(/[\s.]/g, ""), odo = Number(odoS);
     if (!(litres >= 1 && litres <= 2000)) { setFormErr(L["drv.litresRange"]); return; }
     if (!/^\d+$/.test(odoS) || !(odo >= 1 && odo <= 5_000_000)) { setFormErr(L["drv.odoRange"]); return; }
@@ -170,6 +193,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       else { if (r?.status === 409) setMsg({ t: "", k: "" }); setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]); }
     } catch { setFormErr(tri(loc, "Bonul nu a putut fi păstrat pe telefon. Nu închide formularul; încearcă din nou.|Could not save the receipt on this device. Keep the form open and retry.|Nie udało się zapisać paragonu. Nie zamykaj formularza i spróbuj ponownie.")); } finally { receiptLock.current = false; setBusy(false); }
   }
+  const trackingOk = gps === "ok" && lastAck !== null && now - lastAck < 90000;
   const w = work.current, hours = (w.ms + (w.since !== null ? Math.max(0, now - w.since) : 0)) / 3600000;
   return (
     <div className="phone">
@@ -185,7 +209,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       ) : null}
       {!on || priv ? (
         <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span><small className="geo-off">⌀ {L["priv.geoOff"]}</small></div></div>
-      ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: "var(--pos)", margin: 0 }} /><div><b>{L["priv.tracking" + (demo || gps === "ok" ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
+      ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: demo || trackingOk ? "var(--pos)" : "var(--fg3)", margin: 0 }} /><div><b>{gps === "error" && !demo ? tri(loc, "Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : L["priv.tracking" + (demo || trackingOk ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
       <div className="fade d1" style={{ marginTop: 40, display: "flex", gap: "clamp(18px, 7vw, 40px)", flexWrap: "wrap" }}>
         <div><div className="drv-big" suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }} suppressHydrationWarning>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>

@@ -33,6 +33,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
   const cmr = useRef<HTMLInputElement>(null), pod = useRef<HTMLInputElement>(null);
   useEffect(() => { try { setGeo(localStorage.getItem("qf-geo") !== "0"); } catch { setGeo(false); } const h = (e: Event) => setOnShift((e as CustomEvent<boolean>).detail); window.addEventListener("qf-shift", h); return () => window.removeEventListener("qf-shift", h); }, []);
   useEffect(() => { setNow(Date.now() + clockOffset); }, [clockOffset]);
+  useEffect(() => { setOnShift(onShift0); }, [onShift0]);
   useEffect(() => { if (!st.waitSince) return; const i = setInterval(() => setNow(Date.now() + clockOffset), 1000); return () => clearInterval(i); }, [st.waitSince, clockOffset]);
   useEffect(() => {
     if (!queueScope) return;

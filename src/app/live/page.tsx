@@ -6,7 +6,6 @@ import { mapLabels } from "@/lib/labels";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
 import FleetMap from "@/components/FleetMap";
 import { nowMin } from "@/lib/real-live";
-import { AutoRefresh } from "@/components/AutoRefresh";
 import { Gate } from "@/components/Gate";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +20,6 @@ export default async function Live({ searchParams }: { searchParams: { v?: strin
     <main className="live-page" style={{ padding: 0 }}>
       <Gate feature="live" prefs={prefs}>
         <FleetMap mode="full" vehicles={live} zones={d.zones} parcels={d.parcels} theme={prefs.theme} loc={prefs.loc} labels={mapLabels(prefs.loc)} now={d.demo ? DEMO_NOW_MIN : nowMin()} initial={initial} fitAll={!searchParams.v} />
-        {!d.demo && <AutoRefresh ms={20000} />}
         {!d.demo && live.some((x) => !x.at || x.status === "offline") ? <ul className="lv-off" aria-label={L.title}>{live.filter((x) => !x.at || x.status === "offline").map((x) => (
           <li key={x.id} className={x.status === "private" ? "p" : x.onShift ? "w" : ""}><b>{x.name}</b><span>{x.driver ? `${x.driver} · ` : ""}{x.status === "private" ? L.priv : x.onShift ? (x.at ? L.stale : L.noGps) : L.off}</span></li>))}</ul> : null}
       </Gate>

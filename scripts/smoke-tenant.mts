@@ -33,7 +33,7 @@ class Agent {
   async json(path: string, body: unknown) {
     const r = await fetch(BASE + path, { method: "POST", redirect: "manual", headers: { cookie: [...this.jar].map(([k,v]) => `${k}=${v}`).join("; "), "content-type": "application/json" }, body: JSON.stringify(body) });
     for (const c of r.headers.getSetCookie()) { const [kv] = c.split(";"); const i = kv.indexOf("="); this.jar.set(kv.slice(0, i), kv.slice(i + 1)); }
-    return { status: r.status, body: await r.json() };
+    return { status: r.status, body: r.status === 204 ? {} : await r.json() };
   }
   async go(path: string, form?: Record<string, string>) {
     const r = await fetch(BASE + path, { method: form ? "POST" : "GET", redirect: "manual", headers: { cookie: [...this.jar].map(([k, v]) => `${k}=${v}`).join("; "), ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}) }, body: form ? new URLSearchParams(form).toString() : undefined });
@@ -99,6 +99,9 @@ try {
   ok("Date demo OPRIT → firma mea", vo?.length === 1 && vo[0].id === tA[0].id);
   ok("mod real: API-ul nu etichetează datele drept demo", JSON.parse((await A.go("/api/trips")).text).demo === false);
   ok("harta reală nu este etichetată demo", JSON.parse((await A.go("/api/live")).text).demo === false);
+  const emptyLive = JSON.parse((await A.go("/api/live")).text).vehicles[0];
+  ok("live fără GPS nu inventează coordonate, viteză sau km", emptyLive.at === null && emptyLive.speed === 0 && emptyLive.today === 0 && emptyLive.status === "offline" && emptyLive.onShift === false);
+
   ok("card asociat manual înainte de import", (await A.go("/api/import/assign", { card: "0000-1234", truck: tA[0].id, from: "2026-10-01T08:00" })).loc.includes("assigned=1"));
   ok("asocierea păstrează zerourile inițiale", (await db.query("select card from fuel_card_periods where firm_id=$1", [firmA.id])).rows.some((x) => x.card === "00001234"));
   ok("asocierea cere explicit data de început", (await A.go("/api/import/assign", { card: "NO-DATE", truck: tA[0].id })).loc.includes("e=assign"));
@@ -129,6 +132,19 @@ try {
   ok("invitație refolosită → respinsă", (await new Agent().go("/api/auth/join", { t: decodeURIComponent(link!), phone: "0744000111", pin: "111111", pin2: "111111" })).loc.includes("e=used"));
   const DL = new Agent();
   ok("șoferul intră cu telefon + PIN", (await DL.go("/api/auth/login", { email: "0744123456", password: "493827" })).loc.endsWith("/driver"));
+  ok("pornire tură reală", (await D.json("/api/driver/shift", { vehicleId: tA[0].id, action: "start" })).body.ok === true);
+  const shiftLive = JSON.parse((await A.go("/api/live")).text).vehicles[0];
+  ok("în tură fără GPS este distinct de oprit din lucru", shiftLive.onShift === true && shiftLive.at === null && shiftLive.status === "offline");
+  ok("fluxul numără tura fără GPS", /class="rfsum[^]*?<b>1<small>/.test((await A.go("/feed")).text));
+  ok("ping real acceptat", (await D.json("/api/driver/ping", { vehicleId: tA[0].id, lat: 48.85, lng: 2.35 })).status === 204);
+  const located = JSON.parse((await A.go("/api/live")).text).vehicles[0];
+  ok("live folosește poziția trimisă de șofer", located.at?.[0] === 48.85 && located.at?.[1] === 2.35);
+  await D.json("/api/driver/private", { vehicleId: tA[0].id, on: true });
+  const hidden = JSON.parse((await A.go("/api/live")).text).vehicles[0];
+  ok("privat ascunde poziția și traseul, păstrează tura", hidden.status === "private" && hidden.at === null && hidden.track.length === 0 && hidden.onShift === true);
+  ok("ping în privat respins", (await D.json("/api/driver/ping", { vehicleId: tA[0].id, lat: 49, lng: 3 })).status === 409);
+  await D.json("/api/driver/private", { vehicleId: tA[0].id, on: false });
+  await D.json("/api/driver/shift", { vehicleId: tA[0].id, action: "stop" });
   const parsed = await A.json("/api/trips/parse", { text: "de la Oradea la Arad mâine cu Ioan Pop" });
   ok("text rostit → rută și șofer corecte", parsed.status === 200 && parsed.body.from === "Oradea" && parsed.body.to === "Arad" && parsed.body.driverId === drv[0].id);
   const audio = new FormData(); audio.set("audio", new Blob(["synthetic fixture"], { type: "audio/webm" }), "test.webm"); audio.set("language", "ro");

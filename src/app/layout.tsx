@@ -1,3 +1,4 @@
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { demoResolved } from "@/lib/demo-shift";
 import { BSIZE_BOOT } from "@/components/BtnSize";
 import { Footer } from "@/components/Footer";
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Header prefs={prefs} firm={ctx} />
         <WheelX />
         {children}
+        {tn?.role ? <AutoRefresh /> : null}
         {/^\/(live|replay)(\/|$)/.test(ctx.path) ? null : <Footer loc={prefs.loc} />}
         {tn?.demo && prefs.role === "user" ? <DemoTour steps={tourSteps(prefs.loc)} L={tourLabels(prefs.loc)} /> : null}
       </body>

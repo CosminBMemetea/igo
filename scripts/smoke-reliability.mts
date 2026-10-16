@@ -131,6 +131,9 @@ async function verifyStore(s: Store) {
     const loaded = await Promise.all([s.recordTripEvent(firm.id, load), s.recordTripEvent(firm.id, load)]);
     assert.equal(loaded[0].event.id, loaded[1].event.id);
     assert.equal(loaded.filter(x => !x.duplicate).length, 1);
+    const journal = (await s.driverEvents(firm.id, start)).filter(x => x.kind === "loaded" && x.note === active.title);
+    assert.equal(journal.length, 1, "concurrent retries write exactly one journal event");
+    assert.equal(journal[0].id, loaded[0].event.id, "journal and trip share an atomic event id");
     assert.equal(await s.cancelTrip(firm.id, active.id, "Too late"), false);
     assert.equal(await s.editPlannedTrip(firm.id, active.id, { ...active, title: "Changed" }), false);
     await assert.rejects(s.recordTripEvent(firm.id, event("loaded", end)));
@@ -178,5 +181,23 @@ await verifyStore(new MemStore());
 if (process.argv.includes("--postgres")) {
   if (!process.env.TEST_DATABASE_URL) throw new Error("TEST_DATABASE_URL required; integration test must not silently skip");
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 });
-  try { await verifyStore(new PgStore(drizzle(pool, { schema }))); } finally { await pool.end(); }
+  try {
+    const s = new PgStore(drizzle(pool, { schema }));
+    await verifyStore(s);
+    const f = await s.createFirm({ name: "Atomic journal rollback", cui: null });
+    try {
+      const truck = await s.addTruck(f.id, { plate: "ROLLBACK", vin: null, model: null, tankL: null, normalL100: null });
+      const trip = await s.addTrip(f.id, { ...base, truckId: truck.id, title: "Atomic rollback regression", planned: true });
+      await pool.query("alter table driver_events add constraint sync_test_reject check (note is distinct from 'Atomic rollback regression')");
+      const event = { tripId: trip.id, kind: "loaded" as const, at: new Date().toISOString(), requestKey: randomUUID(), userId: null, lat: null, lng: null };
+      try {
+        await assert.rejects(s.recordTripEvent(f.id, event));
+        assert.equal((await s.trips(f.id))[0].loadedAt, null);
+        assert.equal((await s.tripEvents(f.id, trip.id)).length, 0);
+      } finally { await pool.query("alter table driver_events drop constraint sync_test_reject"); }
+      assert.equal((await s.recordTripEvent(f.id, event)).duplicate, false);
+      assert.equal((await s.driverEvents(f.id, "2000-01-01T00:00:00Z")).length, 1);
+      console.log("PASS Postgres: journal failure rolls back trip status and event; retry recovers atomically");
+    } finally { await s.deleteFirm(f.id); }
+  } finally { await pool.end(); }
 }

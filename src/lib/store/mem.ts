@@ -81,7 +81,9 @@ export class MemStore implements Store {
     if (e.kind === "wait_start") t.waitSince = e.at;
     if (e.kind === "wait_end") t.waitSince = null;
     t.lastEventAt = e.at;
-    const event = { ...e, id: newId("v"), firmId }; this.V.push(event); return { event: { ...event }, duplicate: false };
+    const event = { ...e, id: newId("v"), firmId }; this.V.push(event);
+    this.DE.push({ firmId, id: event.id, truckId: t.truckId, userId: e.userId, kind: e.kind, at: e.at, lat: e.lat, lng: e.lng, note: t.title });
+    return { event: { ...event }, duplicate: false };
   }
   async editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">) {
     const row = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned && !r.loadedAt && !r.cancelledAt);

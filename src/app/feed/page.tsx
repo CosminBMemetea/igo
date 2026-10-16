@@ -10,7 +10,6 @@ import { todayFor } from "@/lib/today";
 import { demoReactions, demoResolved } from "@/lib/demo-shift";
 import { fmtNum, t } from "@/lib/i18n";
 import { RealFeed } from "@/components/RealFeed";
-import { AutoRefresh } from "@/components/AutoRefresh";
 import { store } from "@/lib/store";
 import { dayStartIso } from "@/lib/driver-log";
 import { Feed } from "@/components/Feed";
@@ -25,7 +24,7 @@ export default async function FeedPage() {
     const [ev, lv] = await Promise.all([store().driverEvents(d.tn.firm.id, new Date(Date.parse(dayStartIso()) - 86400000).toISOString()).catch(() => []), d.live()]);
     const names = Object.fromEntries(d.allVehicles.map((v) => [v.id, { plate: v.name, driver: v.driver }]));
     const people = Object.fromEntries((await store().users(d.tn.firm.id).catch(() => [])).map((u) => [u.id, u.name]));
-    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} people={people} /><AutoRefresh ms={30000} /></>;
+    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} people={people} /></>;
   }
   const today = todayFor(d.demo), live = (await d.live());
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo);

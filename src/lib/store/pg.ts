@@ -127,9 +127,12 @@ export class PgStore implements Store {
           and ((${e.kind} = 'loaded' and loaded_at is null and wait_since is null)
             or (${e.kind} = 'unloaded' and loaded_at is not null and wait_since is null)
             or (${e.kind} = 'wait_start' and wait_since is null)
-            or (${e.kind} = 'wait_end' and wait_since is not null)) returning id
-      ) insert into trip_events (id, firm_id, trip_id, kind, at, lat, lng, user_id, request_key)
-        select ${id}, ${firmId}, id, ${e.kind}, ${e.at}::timestamptz, ${e.lat}, ${e.lng}, ${e.userId}, ${e.requestKey} from changed`);
+            or (${e.kind} = 'wait_end' and wait_since is not null)) returning id, truck_id, title
+      ), inserted as (insert into trip_events (id, firm_id, trip_id, kind, at, lat, lng, user_id, request_key)
+        select ${id}, ${firmId}, id, ${e.kind}, ${e.at}::timestamptz, ${e.lat}, ${e.lng}, ${e.userId}, ${e.requestKey} from changed returning id
+      ) insert into driver_events (id, firm_id, truck_id, user_id, kind, at, lat, lng, note)
+        select inserted.id, ${firmId}, changed.truck_id, ${e.userId}, ${e.kind}, ${e.at}::timestamptz, ${e.lat}, ${e.lng}, changed.title
+        from inserted cross join changed`);
     } catch (err) {
       const x = err as { code?: string; cause?: { code?: string } }; if (x.code !== "23505" && x.cause?.code !== "23505") throw err;
     }

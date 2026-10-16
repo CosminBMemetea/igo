@@ -17,7 +17,7 @@ const IC: Record<DriverEventRow["kind"], string> = { truck_switch: "⇄", shift_
 
 export function RealFeed({ loc, events, live, names, people = {} }: { people?: Record<string, string>; loc: Locale; events: DriverEventRow[]; live: LiveVehicle[]; names: Record<string, { plate: string; driver: string }> }) {
   const T = L[loc] ?? L.ro, today = localNow().slice(0, 10);
-  const on = live.filter((x) => x.status !== "offline").length, priv = live.filter((x) => x.status === "private").length, km = live.reduce((a, x) => a + x.today, 0);
+  const on = live.filter((x) => x.onShift).length, priv = live.filter((x) => x.status === "private").length, km = live.reduce((a, x) => a + x.today, 0);
   let lastDay = "";
   return (
     <main className="fpage">

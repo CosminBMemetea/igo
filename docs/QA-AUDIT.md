@@ -176,3 +176,87 @@ Loguri locale: `/tmp/igo-card-build.log`, `/tmp/igo-card-smoke.log`.
 - Captură: `qfleet-fuel-evidence.png`. Loguri temporare: `/tmp/igo-fuel-smoke.log`,
   `/tmp/igo-fuel-build.log`, `/tmp/igo-fuel-demo-final.log`.
 - OPEN-10/11 documentează explicit ce mai trebuie pentru reconciliere și integrare hardware.
+
+## Audit sincronizare patron–șofer — 16 octombrie 2026 (deschis)
+
+Scope: audit înaintea implementării, pe commit `cfeb62b`; fără modificări ale aplicației
+sau publicare. PostgreSQL local separat și două identități fictive, fără date de client.
+Priorități: P1 = afectează încrederea în starea operațională; P2 = consistență/reziliență.
+
+| ID | Prioritate | Problemă și dovadă | Remediere propusă |
+| --- | --- | --- | --- |
+| SYNC-01 | P1 | `/api/live` folosește `liveFleet` și pentru firme reale. Reprodus HTTP: camion nou, zero poziții, zero ture → `demo:false`, `moving`, 38 km/h, 64 km, coordonate Oradea. Aceeași ieșire după activarea modului privat. Pagina `/live` folosește separat `realLive`; nu am identificat un consumator UI al endpointului defect. Nu este dovadă de divulgare a poziției reale: coordonatele sunt inventate. | Un singur serviciu real pentru pagină și API; fără GPS → locație necunoscută; privat → fără coordonate/traseu. Teste pe conținut, nu doar `demo:false`. |
+| SYNC-02 | P1 | Pagina șoferului nu verifică modificările primite de la patron. `DriverOutbox` reîncarcă numai dacă a expediat operațiuni locale. Reprodus în browser: cursă nouă atribuită în DB la 18:21:02 UTC nu apare în pagina deschisă la 18:21:56 UTC (54 s, peste intervalul outbox de 30 s); reîncărcarea manuală o aduce imediat. | Actualizare periodică și la revenirea în aplicație, cu păstrarea formularelor nesalvate; ulterior notificări server dacă volumul justifică. |
+| SYNC-03 | P1 | Curse/listă, detaliu cursă, bonuri și Acasă nu au actualizare periodică. Numai harta reală (20 s) și fluxul real (30 s) folosesc `AutoRefresh`. Confirmat în cod; evenimentele reale încărcat/descărcat au răspuns 200 și ambele au fost găsite în PostgreSQL. | Actualizare consecventă a ecranelor operaționale; afișarea ultimei sincronizări și stare de eroare. Test simultan patron/șofer. |
+| SYNC-04 | P1 | Demo: descărcarea răspunde 200, dar nu persistă. Reprodus POST `bh21qrt-15` → GET `/driver`: `unloadedAt:null` înainte și după. Butonul revine la „Apasă când e gata”. Uploadul demo răspunde și el 200 fără salvarea fișierului (confirmat în cod). Extinde OPEN-05. | Stare demo izolată și persistentă pe sesiune, comună celor două roluri; evenimente și atașamente cu aceeași semantică de confirmare ca în conturile reale. |
+| SYNC-05 | P1 | Demo pe două browsere/dispozitive nu partajează tura/privat/bonurile. Sunt cookie-uri locale. Reprodus: aceeași autentificare demo, cu cookie-ul de pauză → `private`; fără cookie-ul de pauză → `moving`. | Cameră demo partajabilă prin link, expirabilă, cu reset explicit. Fiecare demonstrație izolată de celelalte. |
+| SYNC-06 | P2 | Fluxul patronului numără stările GPS diferite de `offline`, nu `onShift`. Reprodus: șoferul pornește tura fără GPS; jurnalul arată „a început tura”, sumarul arată `0/1 în tură`. | Separarea „în tură”, „GPS recent”, „privat” și „oprit”; contor bazat pe tura salvată. |
+| SYNC-07 | P1 | `DriverApp` marchează GPS `ok` înainte de filtrarea preciziei și nu verifică răspunsul HTTP la ping. Km cresc local înaintea confirmării serverului. Confirmat în cod; HTTP în privat returnează corect 409. Nu am simulat GPS pe telefon în această rundă. | Indicatori separați pentru semnal și transmitere, ultimul punct acceptat de server, gestionare 401/403/409/5xx și reconcilierea kilometrilor. |
+| SYNC-08 | P1 | `DriverApp` inițializează tura/privat/km din props, dar nu le reconciliază ulterior. Watcherul GPS depinde doar de `on,priv`, nu de camion; componenta nu are cheie per camion. La schimbarea alocării prin refresh poate păstra starea/closure-ul camionului vechi. Confirmat în cod, scenariu complet pe telefon netestat. | Reconciliere explicită cu starea serverului, oprire/repornire watcher la schimbarea camionului și curățare la demontare; protejarea operațiunilor offline existente. |
+| SYNC-09 | P2 | Salvarea evenimentului cursei și jurnalul patronului sunt separate. `logDriver` ignoră erorile; retrimiterea unui eveniment duplicat nu repară jurnalul. Confirmat în cod, fără injecție de eroare DB în această rundă. | Scriere atomică sau outbox tranzacțional, jurnal recuperabil și monitorizarea eșecurilor. |
+
+### Ordine recomandată pentru implementare
+
+1. SYNC-01/06: adevărul datelor și indicatorilor. Aceeași stare pentru API și pagini.
+2. SYNC-02/03/08: primirea actualizărilor și reconcilierea componentelor. Nu ajunge
+   doar adăugarea unui timer dacă starea locală rămâne blocată la valorile inițiale.
+3. SYNC-07/09: confirmări server, retry și jurnal consistent.
+4. SYNC-04/05: demo complet, partajabil între patron și șofer.
+
+### Criterii pentru retestarea severă după remedieri
+
+- Două sesiuni: atribuire, editare, anulare, încărcare, așteptare, descărcare și POD;
+  celălalt rol vede starea în intervalul promis, fără reload manual.
+- Rețea întreruptă/restabilită, cerere acceptată cu răspuns pierdut, retrimitere:
+  zero duplicate, zero confirmări false, stările pending/blocked vizibile.
+- Schimbare camion, sesiune expirată, cont dezactivat: watcherul nu continuă să
+  trimită pentru camionul vechi; operațiunile locale nu sunt pierdute tacit.
+- GPS absent/vechi/imprecis, privat, tură încheiată: indicatori consecvenți și nicio
+  coordonată inventată. GPS în fundal se validează separat pe Android/iOS reale.
+- Demo pe două browsere: aceleași evenimente/bonuri/atașamente după reload, fără
+  amestecarea datelor între demonstrații.
+
+Dovezi locale temporare: `/tmp/igo-sync-results.log`,
+`/tmp/igo-sync-demo-before.html`, `/tmp/igo-sync-demo-after.html`.
+Scenariile de mai sus nu echivalează cu testarea completă pe dispozitive reale.
+
+## Remedieri sincronizare — etapa conturi reale, 16 octombrie 2026
+
+- SYNC-01: corectat. API-ul folosește `realLive`, ca pagina hărții; răspuns privat,
+  fără cache. Fără poziții: `at:null`, viteză/km zero; în privat: fără traseu.
+- SYNC-02/03: corectate. Un singur refresh la 15 s pe ecranele operaționale ale
+  ambelor roluri, inclusiv pagina șoferului fără camion. Actualizare și la revenirea
+  tabului/conexiunii; fără polling în tab ascuns sau offline. Intervalul este un
+  obiectiv de actualizare în prim-plan, nu o garanție de timp real în fundal.
+- SYNC-06: corectat. Numărul de șoferi în tură folosește `onShift`, independent de GPS.
+- SYNC-07/08: remediate în cod. Datele serverului reconciliază tura, pauza și km;
+  kilometrul local nu mai crește înaintea salvării pe server. GPS este confirmat
+  numai la HTTP 204, cu expirarea indicatorului după 90 s fără confirmare. Eșecurile,
+  precizia slabă și cererile blocate nu mai produc indicator verde. Timeout 15 s;
+  cleanup la schimbarea camionului/pauză/demontare, callbackuri vechi ignorate.
+  Formularul de bon rămâne asociat camionului pe care a fost început; schimbarea
+  alocării blochează trimiterea accidentală pe alt camion, păstrând câmpurile.
+- SYNC-09: rezolvat pentru evenimentele curselor: stare + eveniment + jurnal scrise
+  atomic într-un singur statement PostgreSQL, inclusiv pe driverul Neon HTTP.
+  Retrimiterile concurente produc un singur eveniment de jurnal. Turele, schimbările
+  de camion și alimentările încă folosesc jurnal best-effort: această parte rămâne
+  deschisă și nu este declarată rezolvată de testele pentru curse.
+- SYNC-04/05: rămân DESCHISE. Nu s-a introdus încă stocarea demo comună pe server,
+  nici persistența evenimentelor/fotografiilor demo. Pollingul singur nu rezolvă
+  izolarea cookie-urilor între dispozitive. OPEN-05 rămâne valabil.
+
+Validare: 215 PASS în tenant HTTP/PostgreSQL, reliability memorie/PostgreSQL,
+outbox, demo, trip-workflow și i18n, plus regresia PostgreSQL de rollback al
+jurnalului. La eroare forțată în `driver_events`, nici starea cursei, nici evenimentul
+nu rămân salvate; după eliminarea erorii, aceeași cerere reușește. Build trecut cu
+cele trei avertismente img existente; TypeScript și diff-check trecute.
+
+Browser local: alocare nouă observată fără reload în 13 s; formularul deschis cu
+123 L păstrat la schimbarea cursei. Pauza privată activată din altă sesiune apare
+pe pagina deschisă, cu formularul păstrat. Verificarea pe Android/iOS reale, GPS în
+fundal și comportamentul în rețele mobile lente rămân necesare înaintea unei
+promisiuni de sincronizare garantată.
+
+Loguri temporare: `/tmp/igo-sync-tests.log`, `/tmp/igo-sync-build.log`,
+`/tmp/igo-sync-retest.log`. Acest registru păstrează constatările și limitele;
+logurile locale temporare nu sunt necesare aplicației.
