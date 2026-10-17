@@ -1,3 +1,4 @@
+import { SearchField } from "@/components/SearchField";
 import Link from "next/link";
 import { load } from "@/lib/data";
 import { fmtNum, tri, type Locale } from "@/lib/i18n";
@@ -11,7 +12,7 @@ export async function DemoRoster({ kind, loc, query = "" }: { kind: "drivers" | 
   return <main>
     <div className="eyebrow">QUERRA FLEET · DEMO</div><h1 className="h1">{drivers ? tri(loc, "Șoferi|Drivers|Kierowcy") : tri(loc, "Camioane|Trucks|Pojazdy")} <span className="acc">{d.vehicles.length}</span></h1>
     <p className="sub">{tri(loc, "Fiecare șofer are camionul și cursa lui. Explorează echipajele din demo.|Every driver has an assigned truck and trip. Explore the demo crew.|Każdy kierowca ma swój pojazd i kurs. Poznaj zespół demonstracyjny.")}</p>
-    <form method="get" className="invrow" style={{ margin: "24px 0" }}><label className="lf"><span>{tri(loc, "Caută șofer sau camion|Search driver or truck|Szukaj kierowcy lub pojazdu")}</span><input name="q" defaultValue={query} /></label><button className="btn sec">{tri(loc, "Caută|Search|Szukaj")}</button></form>
+    <form method="get" className="roster-search"><SearchField id="roster-query" label={tri(loc, "Caută șofer sau camion|Search driver or truck|Szukaj kierowcy lub pojazdu")} value={query} button={tri(loc, "Caută|Search|Szukaj")} /></form>
     <div className="demo-roster">{visible.map((v) => {
       const tr = d.views.find((t) => t.vehicleId === v.id && t.active), lv = live.find((t) => t.id === v.id);
       return <section className="sheet demo-roster-card" key={v.id}>

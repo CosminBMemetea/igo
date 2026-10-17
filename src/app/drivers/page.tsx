@@ -1,3 +1,4 @@
+import { SearchField } from "@/components/SearchField";
 import { DemoRoster } from "@/components/DemoRoster";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -35,7 +36,7 @@ export default async function Drivers(props: { searchParams: Promise<{ q?: strin
         <p className="hint">{tr("Invitația nu se trimite automat. După salvare o poți trimite prin WhatsApp sau SMS.|The invitation is not sent automatically. After saving, share it via WhatsApp or SMS.|Zaproszenie nie jest wysyłane automatycznie. Po zapisaniu wyślij je przez WhatsApp lub SMS.")}</p>
       </ActionForm>
     </details>
-    <form method="get" className="invrow" style={{ margin: "24px 0" }}><label className="lf"><span>{tr("Caută nume sau telefon|Search name or phone|Szukaj imienia lub telefonu")}</span><input name="q" defaultValue={searchParams.q} /></label><button className="btn sec">{tr("Caută|Search|Szukaj")}</button></form>
+    <form method="get" className="roster-search"><SearchField id="roster-query" label={tr("Caută nume sau telefon|Search name or phone|Szukaj imienia lub telefonu")} value={searchParams.q} button={tr("Caută|Search|Szukaj")} /></form>
     <div className="list">{drivers.map((u) => <section className="sheet" key={u.id}>
       <div className="head"><h2>{u.name}</h2><span className={`badge ${u.disabledAt ? "bad" : u.passwordHash ? "ok" : "warn"}`}>{u.disabledAt ? t(loc, "drv.offBadge") : u.passwordHash ? tr("Acces activ|Access active|Dostęp aktywny") : tr("Acces neactivat|Access not activated|Dostęp nieaktywny")}</span></div>
       <p className="sub">{u.phone}</p>

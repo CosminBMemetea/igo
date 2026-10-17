@@ -925,3 +925,17 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
   skeleton inclusiv la navigarea directă `?q=Milano`. Nu există încă diagnostic
   care să separe sesiunea, setările browserului și încărcarea aplicației.
   Nu marca acceptarea Safari drept PASS; acesta este următorul blocaj de verificat.
+
+## Runda 24 — buton integrat în căutare (17 octombrie 2026)
+
+- Control comun SearchField pentru Șoferi, Curse și lista demo: lupă în stânga,
+  buton Caută în interior în dreapta, etichetă asociată explicit câmpului.
+- Pe desktop, căutarea curselor ocupă un rând, cu cele trei filtre dedesubt.
+  Pe telefon, câmpul și butonul rămân împreună; țintă tactilă de 44 px.
+- PASS: TypeScript, diff check; ESLint fără erori. Avertismentul existent
+  react-hooks/purity pentru Date.now în invitații rămâne separat.
+- PASS în browserul integrat: 1440, 390 și 320 px fără overflow orizontal;
+  Rotterdam prin buton → 10 curse; Ioan prin Enter → Ioan Pop în demo.
+- Pagina reală de șoferi folosește același control, dar nu a fost verificată
+  cu un cont real. Testele responsive nu înlocuiesc proba fizică iPhone.
+  APPLE-SAFARI-01 rămâne deschis; această schimbare nu îi confirmă rezolvarea.
