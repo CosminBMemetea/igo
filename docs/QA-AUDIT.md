@@ -1005,3 +1005,8 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
   probele offline/GPS și criteriile de oprire. Nu s-au creat conturi reale și nu
   s-au trimis invitații. iPhone semnat/dispozitiv, două dispozitive simultane și
   livrarea reală de invitații rămân de validat înaintea acceptării pilotului.
+- Verificare după publicarea fe04014: **Safari macOS HTTPS PASS pentru cazul
+  reprodus** — /trips?q=Milano afișează 10 rezultate; trimiterea formularului
+  cu Rotterdam afișează cele 10 curse corecte. APPLE-SAFARI-01 este mitigat
+  pentru acest caz, fără a pretinde identificarea cauzei interne a browserului
+  sau acceptare iPhone. Captură: /tmp/qfleet-safari-pilot.png (locală).
