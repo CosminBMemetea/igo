@@ -25,9 +25,9 @@ export function cleanTrack(ps: PosRow[]): { pts: { min: number; at: LatLng; time
     const at: LatLng = [p.lat, p.lng], last = out[out.length - 1];
     if (!last) { out.push({ min: toMin(p.at), at, timestamp }); continue; }
     const d = haversineKm(last.at, at), dtMin = Math.max(1 / 60, (timestamp - last.timestamp) / 60000);
-    if (d < 0.04) continue; // staționare / zgomot
-    if ((d / dtMin) * 60 > 150 && d > 0.5) continue; // salt GPS imposibil
     if (timestamp <= last.timestamp) continue;
+    if (d < 0.04) { last.timestamp = timestamp; last.min = toMin(p.at); continue; } // refresh stationary evidence
+    if ((d / dtMin) * 60 > 150) continue; // salt GPS imposibil
     if (dtMin <= 15) km += d; out.push({ min: toMin(p.at), at, timestamp });
   }
   return { pts: out.map(({ min, at, timestamp }) => ({ min, at, timestamp })), km };

@@ -8,14 +8,19 @@ export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 /** „Privat” în pauză (doar în tură): oprește salvarea pozițiilor până la revenire. */
 export async function POST(req: Request) {
-  const b = (await req.json().catch(() => null)) as { vehicleId?: unknown; on?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { vehicleId?: unknown; on?: unknown; expectedShiftStart?: unknown } | null;
   if (!b || typeof b.vehicleId !== "string" || typeof b.on !== "boolean") return NextResponse.json({ error: "bad request" }, { status: 400 });
   const tn = await tenant(), r = tn.repo;
   if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   if (!(await r.vehicles()).some((v) => v.id === b.vehicleId)) return NextResponse.json({ error: "bad request" }, { status: 400 });
   if (!(await driverTruck(store(), tn, b.vehicleId))) return NextResponse.json({ error: "assignment" }, { status: 403 });
   const sh = (tn.demo ? (await demoShift(b.vehicleId)) : null) ?? await r.shift(b.vehicleId);
-  if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });
+  const mobile = req.headers.get("authorization")?.startsWith("Bearer ");
+  if ((mobile || b.expectedShiftStart !== undefined)) {
+    if (typeof b.expectedShiftStart !== "string" || !b.expectedShiftStart) return NextResponse.json({ error: "shift-required" }, { status: 400 });
+    if (sh?.start !== b.expectedShiftStart) return NextResponse.json({ error: "stale-shift" }, { status: 409 });
+  }
+  if (!sh || sh.end) return NextResponse.json({ error: "no-shift" }, { status: 409 });
   // demo: doar în cookie-ul vizitatorului (nu în memoria comună a serverului — altfel s-ar vedea la alți vizitatori)
   const next = { ...sh, privateSince: b.on ? new Date().toISOString() : null };
   let s;

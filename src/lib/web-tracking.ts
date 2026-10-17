@@ -1,4 +1,4 @@
-export type TrackingStatus = { gps: "wait" | "ok" | "off" | "error"; lastAck: number | null };
+export type TrackingStatus = { gps: "wait" | "ok" | "off" | "error"; lastAck: number | null; held?: boolean };
 export function distanceKm(a: [number, number], b: [number, number]) {
   const r = Math.PI / 180;
   return 12742 * Math.asin(Math.sqrt(Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2));

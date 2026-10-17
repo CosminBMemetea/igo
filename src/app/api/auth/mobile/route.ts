@@ -26,6 +26,6 @@ export async function POST(req: Request) {
     await s.authClear(ku);
     const exp = Math.floor(Date.now() / 1000) + MOBILE_TTL_S;
     const session: MobileSession = { purpose: "driver-mobile", role: "driver", uid: u.id, firm: u.firmId, email: u.email ?? u.phone ?? u.name, version: u.sessionVersion ?? 0, exp };
-    return reply({ token: await signToken(session, process.env.SESSION_SECRET), expiresAt: new Date(exp * 1000).toISOString() });
+    return reply({ uid: u.id, firm: u.firmId, token: await signToken(session, process.env.SESSION_SECRET), expiresAt: new Date(exp * 1000).toISOString() });
   } catch (e) { return reply({ error: "unavailable", reference: reportOperationFailure("mobile-login", e) }, 503); }
 }

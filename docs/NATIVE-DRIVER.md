@@ -16,7 +16,9 @@ pentru utilizare operațională și nu are APK/IPA semnat.
   12 ore. Schimbarea PIN-ului/dezactivarea contului invalidează sesiunea pe server.
 - Privat și încheiere tură opresc întâi colectarea locală; la lipsa rețelei,
   comanda pentru server se păstrează și se reîncearcă, inclusiv după reautentificare. GPS nu repornește înainte
-  de confirmarea acesteia și de un acord nou.
+  de confirmarea acesteia și de un acord nou. Coada este separată după backend,
+  firmă și șofer, iar comanda identifică exact tura; nu se aplică unei ture noi.
+  Încheierea de tură are prioritate față de o comandă Privat ulterioară offline.
 - Punctele au capturedAt UTC și receivedAt UTC. Sunt respinse punctele mai vechi
   de 30 secunde, din viitor >5 secunde sau cu precizie >65 metri.
 
@@ -61,8 +63,13 @@ un cont și traseu de test, nu datele unui angajat fără informare.
    și confirmarea patronului. Măsoară golurile și consumul bateriei; nu inventa SLA.
 4. Privat: nicio poziție nouă după confirmarea opririi; repetă fără internet,
    închide/redeschide aplicația, reconectează și verifică reîncercarea comenzii.
+   Repetă după schimbarea contului și revenirea în contul inițial; după începerea
+   unei ture noi pe alt telefon; cu o confirmare întârziată și o comandă nouă.
+   Comanda veche nu trebuie să afecteze alt cont sau altă tură.
 5. Încheiere tură și Oprește GPS: verifică dispariția colectării și a indicatorului
    sistemului. Reluarea necesită acțiune explicită.
+   Repetă în timpul unei cereri blocate și al dialogului de permisiuni. Verifică
+   mesajul de reîncercare pe server dacă altă operație era deja în curs.
 6. Mod avion, semnal GPS slab, conexiune schimbată Wi-Fi/date, economisire baterie,
    revocare permisiune, restart telefon și închidere forțată a aplicației.
    Nu există garanție de relansare după force-quit; UI trebuie să indice lipsa ACK.

@@ -689,3 +689,59 @@ pentru punctele noi și miezul nopții calculat cu offsetul de la începutul zil
 nu offsetul de la prânz. `smoke:gps-time` confirmă ambele tranziții DST, intervalul
 de 30 secunde, ordinea punctelor și excluderea distanței necunoscute peste goluri
 de peste 15 minute.
+
+## Runda 20 — comenzi offline, confidențialitate și curse de execuție — 17 octombrie 2026
+
+Audit de cod, defecte reproduse prin teste ale modulelor reale, HTTP cu PostgreSQL
+de unică folosință și browser cu șofer fictiv. Nu s-au folosit date de producție.
+
+| ID | Prioritate | Problemă și remediere |
+| --- | --- | --- |
+| CONTROL-ACCOUNT-01 | P1 rezolvat | Comanda offline nu identifica utilizatorul/backendul. Coada și autorizarea GPS sunt acum separate după origin + firmă + utilizator; tokenul nu este trimis altui backend. Revenirea în contul inițial reia doar comenzile lui. |
+| CONTROL-SHIFT-01 | P1 rezolvat | O încheiere/privatizare întârziată putea afecta tura următoare a camionului. Comanda identifică începutul turei; API-ul nativ îl cere obligatoriu, iar web îl transmite. Comenzile obsolete sunt respinse și retrase din coada nativă. |
+| CONTROL-RACE-01 | P1 rezolvat | Confirmarea unei cereri vechi putea șterge o comandă mai nouă. Un singur expeditor per cont și ștergere după ID exact; o comandă Privat nu mai înlocuiește o încheiere de tură offline pentru aceeași tură. Oprirea GPS anulează numai cererile GPS, nu comenzile de control. |
+| GPS-STOP-01 | P1 rezolvat | Un rezultat întârziat al dialogului de permisiuni putea reactiva GPS după oprire. Invalidare imediată a operațiilor în curs, inclusiv înaintea așteptării unui refresh; callbackurile vechi nu trimit și nu afișează confirmări noi. |
+| GPS-STORAGE-01 | P1 rezolvat | Eroarea scrierii stării locale putea împiedica oprirea serviciului nativ. Oprirea sistemului se execută și la eroare de stocare; datele locale corupte nu sunt interpretate ca lipsă de restricții. Ecranul de autentificare nu mai rămâne blocat la citirea SecureStore. |
+| WEB-PRIVACY-01 | P1 rezolvat | După eșecul cererii Privat/stop, pollingul putea reporni GPS. Oprirea locală persistă separat per cont, între navigări, reîncărcări și taburi; reluarea este explicită. Eroarea stocării locale menține oprirea. |
+| CONTROL-UX-01 | P2 rezolvat | Cererile fără termen-limită blocau comenzile; un răspuns HTML de autentificare putea fi confundat cu succesul. Timeout 12 secunde, verificare JSON/ok și mesaje corecte. Eșecul Privat nu mai afișează eroarea despre litri/km. |
+| GPS-DISTANCE-01 | P2 rezolvat | Staționarea cu puncte GPS proaspete era confundată cu un gol de semnal >15 minute; salturile imposibile sub 500 m puteau crește kilometrii. Punctele staționare păstrează continuitatea temporală, iar filtrul de viteză se aplică și salturilor scurte. Golurile reale nu primesc distanță inventată. |
+| DRIVER-STATE-01 | P2 rezolvat | Checklistul nativ putea rămâne bifat după schimbarea camionului/turei; starea locală nu se actualiza la eroare de rețea. Checklistul se resetează la schimbarea contextului, ultima confirmare GPS include data și avertizează după 90 secunde. În web, mesajul de căutare GPS nu mai contrazice oprirea locală; butonul de reluare are rând separat. |
+
+### Validare și reproducere
+
+- 21 suite de regresie existente: **394 linii PASS, fără FAIL/SKIP**. Bază PostgreSQL
+  separată; suitele care refac schema nu se rulează niciodată pe producție.
+- `smoke:mobile:http`: autentificare, identitatea contului, separarea bearer/cookie,
+  protejarea datelor financiare, UTC, Privat/stop, ture obsolete și revocare.
+- `smoke:native-tracking`: platformă simulată, dar modulele aplicației executate;
+  offline, cont schimbat/revenire, ACK întârziat, prioritate stop, eroare de stocare,
+  oprire în timpul permisiunilor, puncte vechi/inexacte și atribuire schimbată.
+- `smoke:native-api`: anulare selectivă GPS, origine/cont, expirare invalidă,
+  JSON local corupt și coduri de eroare. `smoke:driver-control`: persistența
+  opririi, izolare per cont, stocare indisponibilă, timeout și redirect HTML.
+- `smoke:gps-time`: DST, UTC, staționare cu semnal, goluri reale și salt scurt
+  imposibil. Build Next, typecheck nativ și export Hermes iOS/Android reușite.
+- Browser: șofer real în firma fictivă; server local oprit în timpul cererii
+  Privat, revenire conexiune, pagină nouă cu oprirea păstrată și reluare explicită;
+  layout la 320/390 px fără depășirea lățimii paginii. Istoric camion HTTP: 2 grupuri PASS.
+  GPS indisponibil în browserul de test; nu este o probă de poziționare fizică.
+- Lint: 0 erori, aceleași 45 avertismente cunoscute din runda 19.
+
+### Restanțe păstrate explicit
+
+MOBILE-DEVICE-01 rămâne P1: Xcode este acum instalat, dar configurarea/licența
+Apple nu este finalizată de utilizator; ADB funcționează, fără telefon conectat
+la verificare. Exportul JavaScript/Hermes nu este APK/IPA și nu validează GPS
+cu ecranul blocat. Pilotul rămâne dezactivat implicit.
+
+MOBILE-DEP-01, MOBILE-OFFLINE-01, MOBILE-FLOW-01, MOBILE-SESSION-01,
+GPS-LEGACY-01, REACT-19-01 și probele Blob/demo comun din rundele anterioare
+rămân deschise. Nu s-au schimbat dependențele în această rundă.
+
+Coada veche de pilot, fără identitatea contului, nu este retransmisă automat:
+nu poate fi atribuită sigur unui utilizator. Un pilot instalat din versiunea
+anterioară necesită reautentificare și verificarea turei; nu există încă
+distribuție publică. În timpul unei alte operații native, un buton de oprire
+oprește GPS local imediat; dacă operația este deja blocată de alta, UI cere
+reîncercarea comenzii server după finalizarea ei. Acest caz trebuie inclus în
+probele pe telefon, împreună cu limitele de baterie/permisiuni ale sistemului.

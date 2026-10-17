@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import { trackingHold } from "../src/lib/tracking-hold";
+import { postDriverControl } from "../src/lib/driver-control";
+const values = new Map<string,string>();
+const storage = {getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v);},removeItem:(k:string)=>{values.delete(k);}};
+const first=trackingHold(storage,"firm:driver-a");first.pause();
+assert.equal(trackingHold(storage,"firm:driver-a").held(),true,"reload must retain privacy intent");
+assert.equal(trackingHold(storage,"firm:driver-b").held(),false,"another account has its own state");
+const otherTab=trackingHold(storage,"firm:driver-a");first.resume();assert.equal(otherTab.read(),false,"explicit resume reaches other tabs");
+const broken=trackingHold({getItem:()=>{throw Error();},setItem:()=>{throw Error();},removeItem:()=>{throw Error();}},"x");broken.resume();assert.equal(broken.held(),true);
+const result=await postDriverControl("/api/driver/private",{},(async(_u,o)=>new Promise((_r,reject)=>o?.signal?.addEventListener("abort",()=>reject(Error("timeout"))))) as typeof fetch,5);
+assert.equal(result.ok,false);assert.equal(result.status,0);
+assert.equal((await postDriverControl("/api/driver/shift",{},async()=>new Response("<html>login</html>"))).ok,false);
+assert.equal((await postDriverControl("/api/driver/shift",{},async()=>Response.json({ok:true,shift:{start:"s"}}))).ok,true);
+console.log("PASS browser privacy: account scope, reload/tab persistence, storage failure, explicit resume and bounded control requests");

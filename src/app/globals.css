@@ -1433,6 +1433,7 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .ekpi .k,.ekpi small{overflow-wrap:anywhere}
 .driver-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px;margin-top:40px}
 .driver-stats>div{min-width:0}.driver-stats .drv-big{overflow-wrap:anywhere;line-height:1.15}
+.driver-gps-hold{display:grid;gap:12px}.driver-gps-hold .btn{justify-self:start;max-width:100%;white-space:normal}
 .driver-main h1,.receipt-photo small,.outbox .it b,.outbox details p{overflow-wrap:anywhere}
 .receipt-photo .ico{flex-shrink:0}
 @media(max-width:480px){

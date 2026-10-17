@@ -1,4 +1,5 @@
 "use client";
+import { postDriverControl } from "@/lib/driver-control";
 import { useDriverTracking } from "./DriverTracking";
 import { SHIFT_CHECKS as CHECKS } from "@/lib/shift-checklist";
 import { loadReceiptDraft, saveReceiptDraft } from "@/lib/receipt-draft";
@@ -58,12 +59,16 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   const pauseWork = (t = Date.now()) => { const w = work.current; if (w.since !== null) { w.ms += Math.max(0, t - w.since); w.since = null; } };
   useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
 
-  const shiftBusy = useRef(false);
+  const shiftBusy = useRef(false), shiftStart = useRef(initial?.start);
   const [askEnd, setAskEnd] = useState(false);
-  const { gps, lastAck } = useDriverTracking();
+  const { gps, lastAck, held } = useDriverTracking();
+  const controlError = (status: number) => [401, 403, 409].includes(status)
+    ? tri(loc, "Tura, camionul sau sesiunea s-a schimbat. Reîncarcă pagina și verifică starea înainte să reîncerci.|The shift, truck or session changed. Reload and check the current state before retrying.|Zmiana, pojazd lub sesja uległy zmianie. Odśwież i sprawdź stan przed ponowieniem.")
+    : tri(loc, "Operația nu este confirmată. Verifică internetul și reîncearcă.|Action not confirmed. Check your connection and retry.|Operacja niepotwierdzona. Sprawdź połączenie i spróbuj ponownie.");
   // Ignore snapshots racing a local action briefly; do not compare phone and server clocks.
   useEffect(() => {
     if (shiftBusy.current || Date.now() - mutationAt.current < 5000) return;
+    shiftStart.current = initial?.start;
     setOn(!!initial); setPriv(!!initial?.priv);
     setKm(today?.km ?? 0);
     work.current = { ms: (today?.hours ?? 0) * 3600000, since: initial && !initial.priv ? serverNow : null };
@@ -81,11 +86,13 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     shiftBusy.current = true;
     const next = !on;
     if (!next) window.dispatchEvent(new Event("qf-tracking-pause"));
-    const rs = await fetch("/api/driver/shift", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, action: next ? "start" : "stop", checklist: checks }) }).catch(() => null);
+    const rs = await postDriverControl("/api/driver/shift", { vehicleId, action: next ? "start" : "stop", checklist: checks, ...(!next && shiftStart.current ? { expectedShiftStart: shiftStart.current } : {}) });
     shiftBusy.current = false;
-    if (!rs?.ok) { window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg({ t: rs?.status === 409 || rs?.status === 403 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
+    if (!rs.ok) { if (next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg({ t: controlError(rs.status), k: "err" }); return; }
     mutationAt.current = Date.now();
+    shiftStart.current = next ? rs.data?.shift?.start : undefined;
     setPriv(false);
+    if (!next) setChecks([]); window.dispatchEvent(new Event("qf-tracking-resume"));
     setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
     if (next) { work.current.since = Date.now(); }
     else pauseWork();
@@ -97,11 +104,12 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     shiftBusy.current = true;
     const next = !priv;
     if (next) window.dispatchEvent(new Event("qf-tracking-pause"));
-    const r = await fetch("/api/driver/private", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, on: next }) }).catch(() => null);
+    const r = await postDriverControl("/api/driver/private", { vehicleId, on: next, ...(shiftStart.current ? { expectedShiftStart: shiftStart.current } : {}) });
     shiftBusy.current = false;
-    if (!r?.ok) { window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg({ t: r?.status === 409 ? L["drv.role"] : L["drv.invalid"], k: "err" }); return; }
+    if (!r.ok) { if (!next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg({ t: controlError(r.status), k: "err" }); return; }
     mutationAt.current = Date.now();
     if (next) pauseWork(); else if (on) work.current.since = Date.now();
+    window.dispatchEvent(new Event("qf-tracking-resume"));
     setPriv(next); window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !next }));
     window.dispatchEvent(new Event("qf-refresh"));
   }
@@ -187,9 +195,10 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
           <details><summary className="btn sec sm">{L["drv.truckChange"]}</summary><div className="drvtruck-list">{switchTo.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className="btn sec sm">{x.name}</a>)}</div></details>
         </div>
       ) : null}
+      {held && !demo ? <div className="msg warn driver-gps-hold" role="status"><span>{tri(loc, "GPS rămâne oprit pe acest dispozitiv. Reîncearcă operația neconfirmată sau reia GPS explicit.|GPS remains stopped on this device. Retry the unconfirmed action or explicitly resume GPS.|GPS pozostaje wyłączony. Ponów niepotwierdzoną operację lub wznów GPS.")}</span><button type="button" className="btn sec sm" onClick={() => window.dispatchEvent(new Event("qf-tracking-resume"))}>{tri(loc, "Reia GPS|Resume GPS|Wznów GPS")}</button></div> : null}
       {!on || priv ? (
         <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span><small className="geo-off">⌀ {L["priv.geoOff"]}</small></div></div>
-      ) : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: demo || trackingOk ? "var(--pos)" : "var(--fg3)", margin: 0 }} /><div><b>{gps === "error" && !demo ? tri(loc, "Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : L["priv.tracking" + (demo || trackingOk ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
+      ) : held && !demo ? null : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: demo || trackingOk ? "var(--pos)" : "var(--fg3)", margin: 0 }} /><div><b>{gps === "error" && !demo ? tri(loc, "Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : L["priv.tracking" + (demo || trackingOk ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
       <div className="driver-stats fade d1">
         <div><div className="drv-big" suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }} suppressHydrationWarning>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>

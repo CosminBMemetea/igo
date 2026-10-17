@@ -2,22 +2,32 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 const memory = new Map<string, unknown>();
-let callback: (event: unknown)=>Promise<void>, running=false, sends=0, offline=false;
+let callback: (event: unknown)=>Promise<void>, running=false, sends=0, offline=false, badStatusWrite=false, badGateRead=false;
+let scope="account-a", denied=0, errorCode="", heldRequest:(()=>Promise<void>)|null=null, permission:(()=>Promise<{granted:boolean}>)|null=null;
 let state={enabled:true,vehicleId:"truck-a",shiftStart:"2026-10-17T08:00:00Z"};
-class ApiError extends Error { constructor(public status:number){super("api");} }
-let denied=0;
-const api = async (path:string) => {
- if(offline)throw new Error("offline");if(denied)throw new ApiError(denied);
+const controlsSent: unknown[]=[];
+class ApiError extends Error { constructor(public status:number,public code=""){super("api");} }
+const api = async (path:string,body?:unknown,opts?:{scope?:string}) => {
+ if(opts?.scope && opts.scope!==scope)throw new ApiError(409,"account-changed");
+ if(offline)throw new Error("offline");if(denied)throw new ApiError(denied,errorCode);
  if(path.endsWith("/tracking"))return state;
  if(path.endsWith("/ping")){sends++;return;}
+ controlsSent.push(body);if(heldRequest){const wait=heldRequest;heldRequest=null;await wait();}
 };
-const service={api,ApiError,read:async(k:string)=>memory.get(k)??null,write:async(k:string,v:unknown)=>{memory.set(k,v);},remove:async(k:string)=>{memory.delete(k);},abortRequests:()=>{}};
-const location={hasStartedLocationUpdatesAsync:async()=>running,stopLocationUpdatesAsync:async()=>{running=false;},requestForegroundPermissionsAsync:async()=>({granted:true}),requestBackgroundPermissionsAsync:async()=>({granted:true}),startLocationUpdatesAsync:async()=>{running=true;},Accuracy:{High:4},ActivityType:{AutomotiveNavigation:1}};
-const source=ts.transpileModule(fs.readFileSync("apps/driver/src/tracking.ts","utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
-const module={exports:{} as Record<string, (...args:any[])=>Promise<void>>};
-new Function("require","module","exports",source)((name:string)=>name==="expo-task-manager"?{defineTask:(_name:string,fn:typeof callback)=>{callback=fn;}}:name==="expo-location"?location:service,module,module.exports);
-const t=module.exports;
+const service={api,ApiError,sessionScope:async()=>scope,read:async(k:string)=>{if(badGateRead&&k==="gps-gate")throw Error("storage");return memory.get(k)??null;},write:async(k:string,v:unknown)=>{if(badStatusWrite&&k==="gps-status")throw Error("storage");memory.set(k,v);},remove:async(k:string)=>{memory.delete(k);},abortGPSRequests:()=>{}};
+const location={hasStartedLocationUpdatesAsync:async()=>running,stopLocationUpdatesAsync:async()=>{running=false;},requestForegroundPermissionsAsync:async()=>permission?permission():({granted:true}),requestBackgroundPermissionsAsync:async()=>({granted:true}),startLocationUpdatesAsync:async()=>{running=true;},Accuracy:{High:4},ActivityType:{AutomotiveNavigation:1}};
+const modules = new Map<string,any>();
+function load(name:string):any {
+ if(modules.has(name))return modules.get(name);
+ const output=ts.transpileModule(fs.readFileSync(`apps/driver/src/${name}.ts`,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+ const module={exports:{}};
+ new Function("require","module","exports",output)((dep:string)=>dep==="expo-task-manager"?{defineTask:(_name:string,fn:typeof callback)=>{callback=fn;}}:dep==="expo-location"?location:dep==="./api"?service:load(dep.slice(2)),module,module.exports);
+ modules.set(name,module.exports);return module.exports;
+}
+const t=load("tracking"), c=load("controls");
+const tick=()=>new Promise(r=>setTimeout(r,0));
 const fix=(age=0,accuracy=10)=>({data:{locations:[{timestamp:Date.now()-age,coords:{latitude:46,longitude:22,accuracy}}]}});
+const pending={path:"/api/driver/private",body:{vehicleId:"truck-a",expectedShiftStart:state.shiftStart,on:true}};
 await t.startGPS();assert.equal(running,true);assert.ok(memory.has("gps-gate"));
 await callback!(fix());assert.equal(sends,1);
 await callback!(fix(60000));await callback!(fix(0,100));assert.equal(sends,1);
@@ -26,8 +36,26 @@ console.log("PASS native collector: explicit start, accuracy/age filters, durabl
 await t.startGPS();state={...state,vehicleId:"truck-b"};await callback!(fix());assert.equal(running,false);assert.equal(sends,1);
 state={...state,vehicleId:"truck-a"};await t.startGPS();denied=401;await callback!(fix());assert.equal(running,false);denied=0;
 await t.startGPS();offline=true;await callback!(fix());assert.equal(sends,1);assert.match(JSON.stringify(memory.get("gps-status")),/Fără confirmare/);
-await assert.rejects(t.privateOrStop({path:"/api/driver/private",body:{vehicleId:"truck-a",on:true}}));
-assert.equal(running,false);assert.equal(memory.has("gps-gate"),false);assert.ok(memory.has("pending-control"));
+await assert.rejects(t.privateOrStop(pending));
+assert.equal(running,false);assert.equal(memory.has("gps-gate"),false);assert.ok(await c.pendingControl());
 await assert.rejects(t.startGPS());assert.equal(running,false);
-offline=false;await t.syncPending();assert.equal(memory.has("pending-control"),false);
-console.log("PASS native failures: assignment change, expired session, no internet, offline privacy and pending-control retry");
+scope="account-b";assert.equal(await c.pendingControl(),null);offline=false;const before=controlsSent.length;await t.syncPending();assert.equal(controlsSent.length,before);
+scope="account-a";await t.syncPending();assert.equal(await c.pendingControl(),null);
+console.log("PASS native failures: assignment/expiry/offline stop; queued controls isolated per account and replayed on return");
+// New command while a previous command's ACK is delayed must survive that ACK.
+await c.queueControl(pending);
+let release!:()=>void;heldRequest=()=>new Promise<void>(r=>{release=r;});
+const first=t.syncPending();await tick();
+const secondCommand={path:"/api/driver/shift",body:{vehicleId:"truck-a",expectedShiftStart:state.shiftStart,action:"stop"}};
+await c.queueControl(secondCommand);const second=t.syncPending();release();await Promise.all([first,second]);
+assert.equal(await c.pendingControl(),null);assert.deepEqual(controlsSent.at(-1),secondCommand.body);
+await c.queueControl(secondCommand);await c.queueControl(pending);
+assert.equal((await c.pendingControl()).path,"/api/driver/shift");await t.syncPending();
+assert.deepEqual(controlsSent.at(-1),secondCommand.body,"private cannot downgrade an offline shift stop");
+await c.queueControl(pending);denied=409;errorCode="stale-shift";await t.syncPending();assert.equal(await c.pendingControl(),null);denied=0;errorCode="";
+console.log("PASS offline controls: delayed ACK cannot erase new intent; obsolete shift commands retired without retry loops");
+await t.startGPS();badStatusWrite=true;await assert.rejects(t.stopGPS());assert.equal(running,false);assert.equal(memory.has("gps-gate"),false);badStatusWrite=false;
+await t.startGPS();badGateRead=true;await callback!(fix());assert.equal(running,false);badGateRead=false;
+let grant!:()=>void;permission=()=>new Promise(r=>{grant=()=>r({granted:true});});
+const start=t.startGPS();await tick();await t.stopGPS();grant();await assert.rejects(start);assert.equal(running,false);permission=null;
+console.log("PASS native stop: storage failure still shuts down service; delayed permission result cannot restart GPS");
