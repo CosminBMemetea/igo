@@ -51,7 +51,7 @@ function Screen() {
     {!ready ? <Text style={s.text}>Se încarcă…</Text> : !logged ? <View style={s.card}>
       <Text style={s.label}>Telefon</Text><TextInput accessibilityLabel="Telefon" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" style={s.input} />
       <Text style={s.label}>PIN / parolă</Text><TextInput accessibilityLabel="PIN sau parolă" value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
-      {button("Intră în cont", async () => { const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, true); await stopGPS(); await remove("pending-control"); await write("login", login); setPin(""); setLogged(true); await refresh(); })}
+      {button("Intră în cont", async () => { const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, true); await stopGPS(); await write("login", login); setPin(""); setLogged(true); await refresh(); })}
     </View> : <>
       <View style={s.card}><Text style={s.label}>CAMIONUL TĂU</Text><Text style={s.truck}>{board?.truck?.plate ?? "Niciun camion atribuit"}</Text>
         <Text style={s.muted}>{board?.shift && !board.shift.end ? board.shift.privateSince ? "Tură deschisă • mod Privat" : "Tură deschisă" : "În afara turei"}</Text>

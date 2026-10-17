@@ -15,7 +15,7 @@ pentru utilizare operațională și nu are APK/IPA semnat.
 - Token în SecureStore, disponibil după prima deblocare a telefonului. Valabil
   12 ore. Schimbarea PIN-ului/dezactivarea contului invalidează sesiunea pe server.
 - Privat și încheiere tură opresc întâi colectarea locală; la lipsa rețelei,
-  comanda pentru server se păstrează și se reîncearcă. GPS nu repornește înainte
+  comanda pentru server se păstrează și se reîncearcă, inclusiv după reautentificare. GPS nu repornește înainte
   de confirmarea acesteia și de un acord nou.
 - Punctele au capturedAt UTC și receivedAt UTC. Sunt respinse punctele mai vechi
   de 30 secunde, din viitor >5 secunde sau cu precizie >65 metri.
