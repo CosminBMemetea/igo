@@ -17,5 +17,9 @@ environment.env.EXPO_PUBLIC_API_URL=valid.origin;
 data.set("login",JSON.stringify({...valid,expiresAt:"not-a-date"}));await assert.rejects(a.api("/api/driver/mobile"));assert.equal(calls,count);
 data.set("login",JSON.stringify(valid));await assert.rejects(a.api("/api/driver/mobile",undefined,{scope:"another-account"}));assert.equal(calls,count);
 const stale=a.api("/api/driver/private",{}).catch((e:any)=>e);await tick();replies.at(-1)!(Response.json({error:"stale-shift"},{status:409}));assert.equal((await stale).code,"stale-shift");
+for (const [status,code,message] of [[404,"mobile-unavailable",/nu este încă activat/],[401,"credentials",/nu sunt corecte/]] as const) {
+  const result=a.api("/api/auth/mobile",{}, {anonymous:true}).catch((e:any)=>e);await tick();replies.at(-1)!(Response.json({error:code},{status}));
+  assert.match((await result).message,message);
+}
 data.set("login","corrupt json");await assert.rejects(a.read("login"));
 console.log("PASS native API: GPS abort leaves controls alive; origin/account binding; corrupt expiry/storage; typed server errors");

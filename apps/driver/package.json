@@ -7,6 +7,9 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:check": "node scripts/build-ios.mjs check",
+    "ios:build:simulator": "node scripts/build-ios.mjs simulator",
+    "ios:build:device": "node scripts/build-ios.mjs device",
     "typecheck": "tsc --noEmit",
     "export": "expo export --platform ios --platform android"
   },
@@ -23,5 +26,8 @@
   "devDependencies": {
     "typescript": "~5.9.2",
     "@types/react": "~19.3.0"
+  },
+  "overrides": {
+    "xcode": { "uuid": "11.1.1" }
   }
 }

@@ -745,3 +745,58 @@ distribuție publică. În timpul unei alte operații native, un buton de oprire
 oprește GPS local imediat; dacă operația este deja blocată de alta, UI cere
 reîncercarea comenzii server după finalizarea ei. Acest caz trebuie inclus în
 probele pe telefon, împreună cu limitele de baterie/permisiuni ale sistemului.
+
+
+## Runda 21 — pregătire iPhone și comenzi în timpul cererilor lente — 17 octombrie 2026
+
+Utilizatorul a cerut focus iPhone și pregătirea buildului fără telefon disponibil.
+Android nu a fost testat fizic în această rundă.
+
+| ID | Prioritate | Rezultat |
+| --- | --- | --- |
+| IOS-CONTROL-01 | P1 rezolvat în logică | În runda 20, o acțiune Privat/stop în timpul altei cereri necesita repetarea comenzii server. Acum oprirea și salvarea se fac imediat, iar sincronizarea așteaptă automat cererea precedentă. Pornirile GPS care încă așteaptă sunt invalidate; apăsările normale duplicate sunt ignorate. |
+| IOS-PENDING-01 | P2 rezolvat în UI | Se afișează explicit comanda fără confirmare, iar pornirea GPS este indisponibilă cât timp există această comandă. Starea locală se reîncarcă imediat după oprire și după finalizarea operației. O sincronizare reușită elimină eroarea veche de rețea. |
+| IOS-PERMISSIONS-01 | P2 corectat în configurare | Mesajele de localizare sunt în română, inclusiv cererea de precizie completă. Aplicația nu folosește biometrie sau Motion: declarațiile Face ID și Motion sunt eliminate prin pluginurile oficiale, iar modulul Motion este dezactivat la compilare. |
+| IOS-BUILD-CONFIG-01 | P1 prevenit | Scriptul de build refuză lipsa backendului, domenii placeholder, HTTP, credențiale și path/query în origin. Loginul diferențiază datele greșite de sesiunea expirată și de pilotul mobil dezactivat. |
+| MOBILE-DEP-01 | P1 parțial rezolvat | `xcode` folosește acum `uuid` 11.1.1. Auditul scade de la 22 la 15 intrări: 0 moderate, 15 high, 0 critical. Cele 15 provin din două advisories rămase, cu propagarea prin arbore; nu sunt 15 probleme independente. |
+
+### Verificări executate
+
+- `smoke:native-actions`: oprire/salvare înaintea unui ACK blocat, sincronizare
+  automată ulterior, apăsări duplicate, anularea pornirii care așteaptă refresh,
+  recuperarea după eroare de stocare.
+- `smoke:native-tracking`: toate cele patru grupuri trec; offline, izolare de cont,
+  ACK întârziat, prioritatea încheierii turei, erori SecureStore și permisiuni întârziate.
+- `smoke:native-api`: anulare selectivă, origine/identitate/expirare, stocare coruptă,
+  coduri server; mesaje distincte pentru pilot dezactivat și credențiale greșite.
+- TypeScript nativ și export Hermes iOS reușite. Sursa exportului conține 634 module;
+  niciun modul din braces, node-forge, uuid, xcode sau micromatch. Există loaderul
+  `@expo/cli/build/metro-require/require.js`; această verificare nu declară întregul
+  pachet CLI absent și nu înlocuiește auditul instrumentelor de dezvoltare.
+- Compatibilitatea override-ului uuid: Expo prebuild, 1.000 de ID-uri Xcode unice
+  în formatul așteptat și citire → scriere → recitire a proiectului generate cu succes.
+- Validatorul de build acceptă originul HTTPS și respinge origin lipsă,
+  placeholder, HTTP, credențiale și path.
+
+### Dependențe rămase deschise
+
+La verificare, nici [braces ≤3.0.3](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
+nici [node-forge ≤1.4.0](https://github.com/advisories/GHSA-86w9-cpqp-85rv) nu au o
+versiune corectată publicată. Braces este în lanțul Metro/micromatch; node-forge
+în instrumentele Expo CLI și de certificate. Nu forța downgrade-ul Expo sugerat
+de `npm audit fix --force`; nu expune serverul Metro în rețele publice și nu folosi
+certificate/configurații de proiect din surse necunoscute. Repetă auditul înainte
+de distribuție și actualizează când există versiuni compatibile corectate.
+Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
+
+### Restanțe iPhone
+
+- MOBILE-DEVICE-01: configurarea Xcode funcționează acum; CocoaPods este instalat
+  separat de Ruby-ul sistemului. Telefonul nu este disponibil. Semnarea Apple,
+  probele GPS cu ecran blocat/deplasare, baterie, permisiuni și VoiceOver rămân
+  obligatorii înainte de utilizare operațională.
+- MOBILE-OFFLINE-01, MOBILE-FLOW-01 și MOBILE-SESSION-01 rămân deschise conform
+  matricei anterioare. Nu există încă outbox pentru puncte GPS, documente/evenimente
+  native complete sau gestionarea individuală a sesiunilor per telefon.
+- Pilotul rămâne dezactivat implicit în backend. Nu s-a publicat în App Store și
+  nu s-au folosit conturi ori date de șoferi reali pentru aceste verificări.

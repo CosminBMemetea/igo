@@ -49,7 +49,40 @@ Bundle ID pilot: `com.querra.qfleet.driver`. Confirmă identitatea legală și
 identificatorul înainte de prima înscriere în magazine (ulterior nu se schimbă
 liber). Nu s-au creat conturi și nu s-au acceptat contracte în numele firmei.
 
-## Probe de acceptare — mai întâi Android, apoi iOS
+## Build iPhone fără telefon conectat
+
+Prioritatea curentă este iPhone. Pentru compilare locală sunt necesare Xcode
+complet, Node și CocoaPods (verificat cu Xcode 27.1, Ruby 4.0.7, CocoaPods 1.17.0).
+Ruby/CocoaPods pot fi instalate separat de Ruby-ul macOS; nu schimba Ruby-ul sistemului.
+
+În `apps/driver`, setează `EXPO_PUBLIC_API_URL` în `.env.local`, apoi:
+
+```sh
+npm ci
+npm run typecheck
+npm run ios:check
+npm run ios:build:device
+```
+
+Scriptul validează originul HTTPS, generează proiectul iOS, instalează pods și
+compilează Release. Arhiva rezultată este
+`apps/driver/build/ios/device/QuerraSofer.xcarchive`; `build-info.json` păstrează
+backendul, commitul, starea modificărilor locale și ora buildului. **Arhiva este
+nesemnată: nu se instalează direct pe iPhone.** La distribuție trebuie selectate
+echipa Apple și provisioningul, apoi creat un build semnat prin Xcode/EAS.
+Nu există un IPA distribuibil doar prin redenumirea acestei arhive.
+
+`npm run ios:build:simulator` produce separat un `.app` pentru simulator.
+Rularea acestuia cere și runtime-ul iOS instalat în Xcode. Nici compilarea, nici
+simulatorul nu validează GPS în fundal, consumul bateriei sau comportamentul
+după blocarea ecranului pe un telefon real.
+
+Buildul local din această rundă folosește originul verificat
+`https://igo-kappa.vercel.app`. Backendul mobil rămâne dezactivat implicit;
+loginul explică explicit această situație. Pentru acceptare folosește staging
+cu `MOBILE_DRIVER_ENABLED=1` și date fictive înainte de activarea producției.
+
+## Probe de acceptare — mai întâi iPhone
 
 Pentru fiecare probă: înregistrează modelul/OS, versiunea build-ului, ora UTC,
 permisiunile și rezultatul observat pe telefon + pe harta patronului. Folosește
@@ -69,14 +102,15 @@ un cont și traseu de test, nu datele unui angajat fără informare.
 5. Încheiere tură și Oprește GPS: verifică dispariția colectării și a indicatorului
    sistemului. Reluarea necesită acțiune explicită.
    Repetă în timpul unei cereri blocate și al dialogului de permisiuni. Verifică
-   mesajul de reîncercare pe server dacă altă operație era deja în curs.
+   salvarea imediată a comenzii și sincronizarea automată după ce operația
+   anterioară se termină. UI trebuie să arate explicit confirmarea în așteptare.
 6. Mod avion, semnal GPS slab, conexiune schimbată Wi-Fi/date, economisire baterie,
    revocare permisiune, restart telefon și închidere forțată a aplicației.
    Nu există garanție de relansare după force-quit; UI trebuie să indice lipsa ACK.
 7. Două telefoane: nu presupune că oprirea locală a unuia oprește celălalt.
    Privat/tură încheiată trebuie să blocheze pe server ambele surse.
 8. Layout: telefon mic, text mărit, tastatură deschisă, nume/rute lungi, iPad,
-   TalkBack/VoiceOver. Nu s-au făcut încă aceste probe pe dispozitiv.
+   VoiceOver (iOS), apoi TalkBack (Android). Nu s-au făcut încă aceste probe pe dispozitiv.
 9. Recunoașterea corectă a orei repetate la DST, ordinea punctelor, separarea
    curselor aceleiași zile și date din altă firmă respinse.
 10. Verifică documentele de confidențialitate, informarea șoferului, retenția și

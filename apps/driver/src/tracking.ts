@@ -20,9 +20,12 @@ export async function stopGPS(message = "GPS oprit pe acest telefon") {
     finally { await status(message); }
   }
 }
-export async function privateOrStop(pending: Pending) {
+export async function preparePrivateOrStop(pending: Pending) {
   try { await stopGPS(); }
   finally { await queueControl(pending); }
+}
+export async function privateOrStop(pending: Pending) {
+  await preparePrivateOrStop(pending);
   await syncPending();
 }
 export async function startGPS() {
