@@ -1,5 +1,5 @@
 import { driverTruck } from "@/lib/driver-access";
-import { localNow } from "@/lib/validate";
+import { validShiftChecklist } from "@/lib/shift-checklist";
 import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
@@ -16,6 +16,7 @@ export async function POST(req: Request) {
   const prev = (tn.demo ? demoShift(b.vehicleId) : null) ?? await r.shift(b.vehicleId);
   if (b.action === "start" && prev && !prev.end) return NextResponse.json({ ok: true, shift: prev });
   if (b.action === "stop" && (!prev || prev.end)) return NextResponse.json({ ok: true, shift: prev });
+  if (b.action === "start" && !validShiftChecklist(b.checklist)) return NextResponse.json({ error: "checklist" }, { status: 400 });
   const now = new Date().toISOString();
   const checklist = Array.isArray(b.checklist) ? b.checklist.filter((x): x is string => typeof x === "string").slice(0, 10) : [];
   const next = b.action === "start" ? { vehicleId: b.vehicleId, start: now, end: null, checklist, privateSince: null } : { vehicleId: b.vehicleId, start: prev?.start ?? now, end: now, checklist: prev?.checklist ?? [], privateSince: null };

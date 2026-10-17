@@ -82,3 +82,41 @@ ale exportului, fără conversie automată în ora României.
 
 Prioritățile nu sunt un calendar promis. Pentru fiecare funcție: problemă măsurabilă,
 criteriu de acceptare, test de regresie și rezultat în pilot înainte de publicitate.
+
+
+## GPS cu aplicația în fundal — direcție recomandată, 17 octombrie 2026
+
+Produs recomandat: aplicație mobilă pentru șofer pe iOS/Android, cu interfață
+comună și integrare nativă pentru locație; panoul patronului rămâne web pe
+Windows/macOS/tabletă. Același repository și backend pot fi păstrate. Un PWA sau
+un installer care doar deschide site-ul nu garantează GPS în fundal. Pluginul
+standard Capacitor Geolocation nu oferă direct această funcție.
+
+Implementarea nativă trebuie să includă:
+
+1. Tura activată explicit, permisiuni explicate, Privat și Termină tura accesibile.
+2. iOS: Core Location, background mode location, configurarea permisiunilor și
+   indicatorul sistemului; Android: serviciu foreground de tip location pornit
+   din aplicație, notificare persistentă și permisiunile cerute de versiunea OS.
+3. Autentificare mobilă cu token revocabil și stocare securizată; nu se pune o
+   cheie comună tuturor șoferilor în aplicație.
+4. Coada locală protejată, ID unic pe punct, capturedAt separat de receivedAt,
+   precizie, identificator de tură și deduplicare server. Nu se trimit puncte vechi
+   la endpoint-ul web curent ca și cum ar fi poziții actuale.
+5. Oprire locală imediată la Privat/terminare/deconectare și verificarea pe server
+   a turei, alocării, revocării și intervalelor private la sincronizare.
+6. TestFlight și test intern Google Play înainte de lansare; probe cu ecran stins,
+   aplicație în fundal, baterie redusă, fără rețea, permisiuni retrase, restart,
+   oprire forțată, schimbare camion și tură. Fără promisiunea că un telefon oprit
+   sau o aplicație oprită forțat continuă să trimită.
+
+Dacă poziția camionului trebuie să fie disponibilă independent de telefonul
+șoferului, următoarea integrare este un dispozitiv GPS/telematică instalat pe
+camion. GPS-ul singur produce distanțe/estimări și anomalii; nu dovedește consum
+real sau furt de combustibil.
+
+Documentație oficială:
+- https://www.w3.org/TR/geolocation/#request-a-position
+- https://developer.apple.com/documentation/corelocation/cllocationmanager/allowsbackgroundlocationupdates
+- https://developer.android.com/develop/sensors-and-location/location/permissions
+- https://capacitorjs.com/docs/apis/geolocation

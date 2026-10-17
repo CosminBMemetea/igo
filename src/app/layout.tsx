@@ -1,3 +1,4 @@
+import { DriverTracking } from "@/components/DriverTracking";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { demoResolved } from "@/lib/demo-shift";
 import { BSIZE_BOOT } from "@/components/BtnSize";
@@ -41,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView && !ctx.demo ? "has-trial" : undefined}>
         <Header prefs={prefs} firm={ctx} />
         <WheelX />
-        {children}
+        <DriverTracking enabled={tn?.role === "driver" && !tn.demo && !!tn.firm} loc={prefs.loc}>{children}</DriverTracking>
         {tn?.role ? <AutoRefresh /> : null}
         {/^\/(live|replay)(\/|$)/.test(ctx.path) ? null : <Footer loc={prefs.loc} />}
         {tn?.demo && prefs.role === "user" ? <DemoTour steps={tourSteps(prefs.loc)} L={tourLabels(prefs.loc)} /> : null}

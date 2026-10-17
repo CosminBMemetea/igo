@@ -1,3 +1,4 @@
+import { operationCode, reportOperationFailure } from "@/lib/operation-error";
 import { formReply } from "@/lib/form-response";
 import { back } from "@/lib/auth-cookie";
 import { store } from "@/lib/store";
@@ -31,7 +32,15 @@ export async function POST(req: Request) {
     if (revenue === null || (String(fd.get("tonnes") ?? "").trim() && tonnes === null)) return formReply(req, `/trips/${tid}`, "num");
     if (!(await store().updateTrip(f.id, tid, { revenue, tonnes }))) return formReply(req, "/trips", "missing", 404);
   }
-  if (action === "costs") await store().updateTruckEcon(f.id, vid, { costs });
-  else if (action === "archive" || action === "restore") await store().updateTruckEcon(f.id, vid, { archived: action === "archive" });
+  try {
+    if (action === "costs" || action === "archive" || action === "restore") {
+      const changed = await store().updateTruckEcon(f.id, vid, action === "costs" ? { costs } : { archived: action === "archive" });
+      if (!changed) return formReply(req, to, "missing", 404);
+    }
+  } catch (e) {
+    const busy = operationCode(e) === "truck-busy";
+    if (!busy) reportOperationFailure("truck-economics", e);
+    return formReply(req, `/vehicles/${vid}?tab=costs`, busy ? "truck-busy" : "unavailable", busy ? 409 : 503);
+  }
   return formReply(req, action === "archive" ? `/vehicles/${vid}?archived=1` : to);
 }

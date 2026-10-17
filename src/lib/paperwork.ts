@@ -5,7 +5,7 @@ import { roIso } from "./demo-time";
 import { store } from "./store";
 import { demoDelta, shiftDeep, shiftStr } from "./demo-time";
 import type { Tenant } from "./tenant";
-import type { TripEventRow, TripEventKind } from "./store/types";
+import type { TripEventRow, TripEventKind, TripRow } from "./store/types";
 
 export interface PaperFile { id: string; kind: "cmr" | "pod"; src: string; name: string }
 export interface Paperwork { events: Pick<TripEventRow, "kind" | "at" | "lat" | "lng">[]; files: PaperFile[]; podReceived: boolean; loadedAt: string | null; unloadedAt: string | null; waitMin: number; waiting: boolean; waitSince: string | null }
@@ -33,6 +33,10 @@ export function summarize(events: Paperwork["events"], now = Date.now()) {
   if (open) waitMs += Math.max(0, now - Date.parse(open));
   return { loadedAt: events.find((e) => e.kind === "loaded")?.at ?? null, unloadedAt: [...events].reverse().find((e) => e.kind === "unloaded")?.at ?? null, waitMin: Math.round(waitMs / 60000), waiting: !!open, waitSince: open };
 }
+export function summarizeTrip(events: Paperwork["events"], trip?: Pick<TripRow, "loadedAt" | "deliveredAt">, now = Date.now()) {
+  const summary = summarize(events, now);
+  return { ...summary, loadedAt: trip?.loadedAt ?? summary.loadedAt, unloadedAt: trip?.deliveredAt ?? summary.unloadedAt };
+}
 export async function paperworkFor(tn: Tenant, tripId: string): Promise<Paperwork> {
   if (tn.demo || !tn.firm) {
     const k = demoDelta(), d = demoPaperwork(tripId);
@@ -41,5 +45,6 @@ export async function paperworkFor(tn: Tenant, tripId: string): Promise<Paperwor
   }
   const s = store();
   const [events, files, trips] = await Promise.all([s.tripEvents(tn.firm.id, tripId), s.files(tn.firm.id, { tripId }), s.trips(tn.firm.id)]);
-  return { events, files: files.filter((f) => f.kind === "cmr" || f.kind === "pod").map((f) => ({ id: f.id, kind: f.kind as "cmr" | "pod", src: `/api/files/${f.id}`, name: f.name })), podReceived: !!trips.find((t) => t.id === tripId)?.podReceived, ...summarize(events) };
+  const trip = trips.find((t) => t.id === tripId);
+  return { events, files: files.filter((f) => f.kind === "cmr" || f.kind === "pod").map((f) => ({ id: f.id, kind: f.kind as "cmr" | "pod", src: `/api/files/${f.id}`, name: f.name })), podReceived: !!trip?.podReceived, ...summarizeTrip(events, trip) };
 }

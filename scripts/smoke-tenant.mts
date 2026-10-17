@@ -132,7 +132,7 @@ try {
   ok("invitație refolosită → respinsă", (await new Agent().go("/api/auth/join", { t: decodeURIComponent(link!), phone: "0744000111", pin: "111111", pin2: "111111" })).loc.includes("e=used"));
   const DL = new Agent();
   ok("șoferul intră cu telefon + PIN", (await DL.go("/api/auth/login", { email: "0744123456", password: "493827" })).loc.endsWith("/driver"));
-  ok("pornire tură reală", (await D.json("/api/driver/shift", { vehicleId: tA[0].id, action: "start" })).body.ok === true);
+  ok("pornire tură reală", (await D.json("/api/driver/shift", { vehicleId: tA[0].id, action: "start", checklist: ["chk.tyres", "chk.fluids", "chk.docs"] })).body.ok === true);
   const shiftLive = JSON.parse((await A.go("/api/live")).text).vehicles[0];
   ok("în tură fără GPS este distinct de oprit din lucru", shiftLive.onShift === true && shiftLive.at === null && shiftLive.status === "offline");
   ok("fluxul numără tura fără GPS", /class="rfsum[^]*?<b>1<small>/.test((await A.go("/feed")).text));

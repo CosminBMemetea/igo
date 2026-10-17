@@ -403,7 +403,7 @@ fictive Viena–München cu șofer/camion autoasociat: confirmare de salvare.
 
 ## Harsh testing — 17 octombrie 2026, HEAD 4f1ed00
 
-**Audit, fără remedieri în codul aplicației. Toate cele șapte constatări de mai jos sunt DESCHISE.**
+**Constatări inițiale, păstrate ca dovadă. Status actualizat în secțiunea „Remedieri GPS și integritate” de mai jos.**
 Testare exclusiv locală: build-ul de producție existent, PostgreSQL de unică folosință,
 conturi fictive patron/șofer, HTTP și browser. Nicio scriere în datele producției.
 
@@ -534,3 +534,52 @@ roluri și feedback explicit „pe telefon / confirmat de server”. Funcții no
   deschisă nu are evenimente de încărcare/livrare. Layout fără overflow la 320/390 px.
 - Regresii: driver-trips (priorități, izolare camion, excluziune câmpuri financiare
   din payloadul client), demo (flotă/hartă/istoric/planuri/economie), build și TypeScript.
+
+
+## Remedieri GPS și integritate — 17 octombrie 2026
+
+- **ROUND17-01 rezolvat:** baza de date refuză arhivarea unui camion cu tură deschisă sau cursă planificată nelivrată/neanulată. Trigger-ele serializează arhivarea cu pornirea turei și alocarea cursei. Patronul primește mesaj explicit, nu confirmare falsă. Testate ambele ordini archive/start sub blocare reală de rând.
+- **ROUND17-02 rezolvat pentru navigarea web:** un colector în layout persistă între pagini; stare autoritativă de la `/api/driver/tracking`, oprire la privat/încheiere, invalidarea răspunsurilor vechi, reluare după revenirea în pagină. Bara de pe celelalte pagini duce la comenzile turei. GPS web în fundal NU este promis și nu este implementare nativă.
+- **ROUND17-03 rezolvat pentru metadate/POD:** fișierul și flag-ul POD se salvează atomic în aceeași tranzacție SQL. ID din hash firmă/cursă/tip/conținut; cinci încărcări simultane și reîncercarea întorc un singur fișier. Eroare injectată la POD: rollback complet. Obiectul Blob duplicat este eliminat; la confirmare DB pierdută se verifică dacă obiectul a fost salvat înainte de ștergere. Dacă verificarea DB e imposibilă, obiectul este păstrat și incidentul logat pentru reconciliere. Vercel Blob real nu a fost testat în această rundă.
+- **ROUND17-04 rezolvat:** semnătură, MIME și decodare efectivă pentru JPEG/PNG/WebP; limită 25 MP. PDF necesită antet, final și structură parsabilă cu pagină. Fișierele corupte/mascate sunt refuzate înainte de scriere. Nu reprezintă verificare comercială a unui POD, antivirus sau verificare a semnăturii documentului.
+- **ROUND17-05 rezolvat:** blocare SQL a uploadului pe cursă anulată, inclusiv după așteptarea lock-ului de anulare. Istoricul existent rămâne consultabil.
+- **ROUND17-06 rezolvat pentru upload:** erori cunoscute 4xx; erorile interne sunt 503 cu referință. Clientul nu mai primește SQL sau parametrii interogării. Test HTTP cu eroare injectată confirmă acest lucru.
+- **ROUND17-07 rezolvat:** începutul turei necesită cel puțin trei opțiuni cunoscute și distincte, validate pe server. Reîncercarea unei ture deja începute rămâne idempotentă.
+- **ROUND17-08 nou, rezolvat:** verificarea turei/private și salvarea poziției telefonului erau separate. Acum `qf_driver_position` blochează rândul turei și verifică alocarea. Poziția care așteaptă după activarea Privat este refuzată; fără tură/în privat/de la alt șofer nu se scrie.
+- **ROUND17-09 nou, rezolvat:** cu loadedAt/deliveredAt salvate, dar jurnal de evenimente incomplet, panoul documentelor putea oferi „Am încărcat” din nou. Panoul folosește și starea persistentă a cursei; test de regresie pentru istoric fără evenimente.
+- **ROUND17-10 nou, rezolvat:** ajutorul pentru GPS indica doar Safari și pe alte platforme. Instrucțiunile se referă acum la permisiunea site-ului și localizarea dispozitivului, în toate cele trei limbi.
+
+### Verificări reproductibile
+
+Build de producție și typecheck reușite. Runda extinsă: 393 linii PASS, fără FAIL/SKIP,
+cu PostgreSQL de unică folosință și HTTP real; plus retest țintit după corecția
+istoricului. Include tenant, docs, card-periods, reliability/Postgres, harsh,
+flux curse, outbox, draft bon, traduceri, demo și calcule.
+
+Comenzi noi: `npm run smoke:driver-integrity` (cu TEST_DATABASE_URL pentru partea
+PostgreSQL) și `npm run smoke:driver-integrity:http` (cere TEST_DATABASE_URL și
+build existent). Aceste două suite își șterg doar firma fictivă; unele suite vechi
+precum tenant/docs/card-periods refac schema: folosiți exclusiv o bază de test.
+
+Browser: cont fictiv de șofer, navigare între /driver și /notifications, bară de
+stare + acces la Privat, activare/reluare pauză, 320 px fără overflow. Browserul
+nu are GPS real disponibil; nu pretindem probe pe telefoane fizice, ecran stins,
+rețea mobilă sau testare end-to-end a producției.
+
+### DEP-01 — P1 DESCHIS — actualizare majoră Next.js
+
+Auditul npm al dependențelor de producție raportează încă Next.js 14.2.35
+(critic) și PostCSS tranzitiv (ridicat). Semnalarea pachetului nu demonstrează
+exploatarea acestei instalări; unele probleme depind de funcții/configurări
+nefolosite aici. Optimizatorul Next de imagini, nefolosit în aplicație, a fost
+dezactivat și endpoint-ul verificat 404. Drizzle a fost actualizat la 0.45.4,
+eliminând alerta sa de identificatori SQL. Următorul pas necesar: migrare la o
+ramură Next întreținută și corectată, adaptarea API-urilor asincrone, retest
+middleware/autentificare, cache, uploaduri și build/deploy. Nu se folosește
+`npm audit fix --force` fără verificarea migrării.
+
+Surse: https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4
+și https://github.com/drizzle-team/drizzle-orm/security/advisories/GHSA-gpj5-g38j-94v9.
+Rămân deschise și OPEN-01 (telefoane reale), testele Blob în producție,
+reconcilierea obiectelor Blob orfane după erori de rețea și demo-ul comun
+patron/șofer documentat în rundele anterioare.

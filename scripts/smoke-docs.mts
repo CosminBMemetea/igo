@@ -75,8 +75,10 @@ else {
   const big = Buffer.alloc(MAX_FILE_BYTES + 1, 1);
   let capErr = ""; try { await saveFile(s, A.id, { kind: "cmr", tripId: trip.id, name: "x.jpg", mime: "image/jpeg", bytes: big, userId: drv.id }); } catch (e) { capErr = (e as Error).message; }
   ok("upload > 2 MB respins de server", capErr === "size");
-  const f = await saveFile(s, A.id, { kind: "cmr", tripId: trip.id, name: "cmr.jpg", mime: "image/jpeg", bytes: Buffer.from([0xff, 0xd8, 0xff, 1, 2, 3]), userId: drv.id });
-  ok("fișier salvat în Postgres (bytea) și citit înapoi", f.storage === "db" && (await readFile(s, A.id, f.id))?.bytes.length === 6);
+  const { default: sharp } = await import("sharp");
+  const jpeg = await sharp({ create: { width: 2, height: 2, channels: 3, background: "white" } }).jpeg().toBuffer();
+  const f = await saveFile(s, A.id, { kind: "cmr", tripId: trip.id, name: "cmr.jpg", mime: "image/jpeg", bytes: jpeg, userId: drv.id });
+  ok("fișier salvat în Postgres (bytea) și citit înapoi", f.storage === "db" && (await readFile(s, A.id, f.id))?.bytes.equals(jpeg) === true);
   ok("izolare: firma B nu citește fișierul lui A", (await readFile(s, B.id, f.id)) === null && (await s.files(B.id, { tripId: trip.id })).length === 0);
   let iso = ""; try { await s.addFile(B.id, { kind: "pod", tripId: trip.id, docId: null, name: "p", mime: "image/jpeg", size: 1, storage: "db", url: null, userId: null, data: Buffer.from([1]) }); } catch (e) { iso = (e as Error).message; }
   ok("izolare: B nu poate atașa fișiere la cursa lui A", iso === "trip");

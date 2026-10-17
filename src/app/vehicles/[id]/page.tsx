@@ -21,7 +21,7 @@ import { FleetCompare } from "@/components/Econ";
 import { fmtPct } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
-export default async function VehiclePage({ params, searchParams }: { params: { id: string }; searchParams: { tab?: string; saved?: string; archived?: string } }) {
+export default async function VehiclePage({ params, searchParams }: { params: { id: string }; searchParams: { tab?: string; saved?: string; archived?: string; e?: string } }) {
   const prefs = getPrefs(), { loc } = prefs;
   const d = await load();
   const v = d.allVehicles.find((x) => x.id === params.id);
@@ -41,6 +41,7 @@ export default async function VehiclePage({ params, searchParams }: { params: { 
         <div className="fade">
           <div className="eyebrow">{t(loc, `kind.${v.kind}`)} · {v.model}</div>
           <div className="vhead"><h1 className="h1">{v.name}</h1>{v.kind === "truck" ? <Link className="rp-mini" href={`/replay?v=${v.id}`} aria-label={t(loc, "rp.cta")}><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.cta")}</Link> : null}</div>
+          {searchParams.e ? <div className="msg err" role="alert">{searchParams.e === "truck-busy" ? tri(loc, "Încheie tura și livrează, anulează sau realocă toate cursele nelivrate înainte de arhivare.|End the shift and deliver, cancel or reassign all undelivered trips before archiving.|Zakończ zmianę i dostarcz, anuluj lub przypisz niezakończone kursy przed archiwizacją.") : tri(loc, "Modificarea nu a fost salvată. Reîncearcă.|Change was not saved. Please retry.|Zmiana nie została zapisana. Spróbuj ponownie.")}</div> : null}
           <p className="sub">{v.driver}{agri ? ` · ${t(loc, "veh.season")}` : ""}</p>
           {v.archived ? <div className="archnote"><span className="lbadge empty">{L.archived}</span> {L.archivedB} <Link href={`/vehicles/${v.id}?tab=costs`}>{L.restore} →</Link></div> : null}
           {econ ? <nav className="vtabs" aria-label={v.name}><Link href={`/vehicles/${v.id}`} className={tab === "overview" ? "on" : ""} aria-current={tab === "overview" ? "page" : undefined}>{L.tabOverview}</Link><Link href={`/vehicles/${v.id}?tab=costs`} className={tab === "costs" ? "on" : ""} aria-current={tab === "costs" ? "page" : undefined}>{L.tabCosts}</Link></nav> : null}
@@ -87,6 +88,7 @@ export default async function VehiclePage({ params, searchParams }: { params: { 
         <section className="vehicle"><div className="fade">
           <div className="eyebrow">{t(loc, `kind.${v.kind}`)} · {v.model}</div>
           <div className="vhead"><h1 className="h1">{v.name}</h1></div>
+          {searchParams.e ? <div className="msg err" role="alert">{searchParams.e === "truck-busy" ? tri(loc, "Încheie tura și livrează, anulează sau realocă toate cursele nelivrate înainte de arhivare.|End the shift and deliver, cancel or reassign all undelivered trips before archiving.|Zakończ zmianę i dostarcz, anuluj lub przypisz niezakończone kursy przed archiwizacją.") : tri(loc, "Modificarea nu a fost salvată. Reîncearcă.|Change was not saved. Please retry.|Zmiana nie została zapisana. Spróbuj ponownie.")}</div> : null}
           <p className="sub">{v.driver}</p>
           {v.archived ? <div className="archnote"><span className="lbadge empty">{L.archived}</span> {L.archivedB}</div> : null}
           <nav className="vtabs"><Link href={`/vehicles/${v.id}`}>{L.tabOverview}</Link><Link href={`/vehicles/${v.id}?tab=costs`} className="on" aria-current="page">{L.tabCosts}</Link></nav>

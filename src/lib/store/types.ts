@@ -28,7 +28,7 @@ export interface PosRow { truckId: string; at: string; lat: number; lng: number 
 
 export type FileKind = "doc" | "cmr" | "pod" | "receipt";
 export interface FileMeta { id: string; firmId: string; kind: FileKind; tripId: string | null; docId: string | null; name: string; mime: string; size: number; storage: "blob" | "db"; url: string | null; userId: string | null; createdAt: string }
-export type NewFile = Omit<FileMeta, "id" | "firmId" | "createdAt"> & { data: Buffer | null };
+export type NewFile = Omit<FileMeta, "id" | "firmId" | "createdAt"> & { data: Buffer | null; id?: string };
 export interface NotificationRow { id: string; firmId: string; userId: string | null; key: string; kind: string; docId: string | null; params: Record<string, string | number>; readAt: string | null; createdAt: string }
 export type NewNotification = Omit<NotificationRow, "id" | "firmId" | "readAt" | "createdAt">;
 export type EmailStatus = "sent" | "queued" | "failed";
@@ -119,6 +119,7 @@ export interface Store {
   shift(firmId: string, truckId: string): Promise<ShiftRow | null>;
   savedMapping(firmId: string, sig: string): Promise<Record<string, number> | null>;
   saveMapping(firmId: string, sig: string, m: Record<string, number>): Promise<void>;
+  addDriverPosition(firmId: string, userId: string, p: PosRow): Promise<boolean>;
   addPosition(firmId: string, p: PosRow): Promise<void>;
   positions(firmId: string, sinceAt?: string, truckId?: string, untilAt?: string): Promise<PosRow[]>;
   /** jurnalul șoferului (tură, pauză privată, încărcat/descărcat, alimentare) — pentru fluxul patronului și orele de azi */

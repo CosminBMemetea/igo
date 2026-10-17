@@ -216,7 +216,9 @@ export class PgStore implements Store {
   async addFile(firmId: string, f: NewFile) {
     await this.ownTrip(firmId, f.tripId);
     if (f.docId) { const [d] = await this.d.select({ id: documents.id }).from(documents).where(and(eq(documents.firmId, firmId), eq(documents.id, f.docId))); if (!d) throw new Error("doc"); }
-    const [r] = await this.d.insert(files).values({ ...f, id: newId("fl"), firmId }).returning();
+    const id = f.id ?? newId("fl");
+    const [r] = await this.d.insert(files).values({ ...f, id, firmId }).onConflictDoUpdate({ target: files.id, set: { id }, setWhere: eq(files.firmId, firmId) }).returning();
+    if (!r) throw new Error("trip");
     return fileOut(r);
   }
   async file(firmId: string, id: string) { const [r] = await this.d.select().from(files).where(and(eq(files.firmId, firmId), eq(files.id, id))); return r ? { ...fileOut(r), data: r.data ?? null } : null; }
@@ -328,6 +330,10 @@ export class PgStore implements Store {
   async driverEvents(firmId: string, sinceIso: string) {
     const rs = await this.d.select().from(driverEvents).where(and(eq(driverEvents.firmId, firmId), gte(driverEvents.at, new Date(sinceIso)))).orderBy(desc(driverEvents.at)).limit(500);
     return rs.map((r): DriverEventRow => ({ id: r.id, truckId: r.truckId, userId: r.userId, kind: r.kind as DriverEventRow["kind"], at: r.at.toISOString(), lat: r.lat, lng: r.lng, note: r.note }));
+  }
+  async addDriverPosition(firmId: string, userId: string, p: PosRow) {
+    const result = await this.d.execute(sql`select qf_driver_position(${newId("p")}, ${firmId}, ${p.truckId}, ${userId}, ${p.at}, ${p.lat}, ${p.lng}) as accepted`);
+    return result.rows[0]?.accepted === true;
   }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
   async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string): Promise<PosRow[]> {
