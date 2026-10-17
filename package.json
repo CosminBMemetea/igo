@@ -40,7 +40,8 @@
     "smoke:gps-time": "tsx scripts/smoke-gps-time.mts",
     "smoke:native-api": "tsx scripts/smoke-native-api.mts",
     "smoke:native-actions": "tsx scripts/smoke-native-actions.mts",
-    "smoke:driver-control": "tsx scripts/smoke-driver-control.mts"
+    "smoke:driver-control": "tsx scripts/smoke-driver-control.mts",
+    "check:pilot": "node scripts/check-pilot.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

@@ -142,3 +142,51 @@ Proiectul iOS/Android există în același repository, cu Expo/React Native.
 Instrucțiunile de instalare și probele obligatorii sunt în [NATIVE-DRIVER.md](NATIVE-DRIVER.md).
 Nu este încă disponibil în magazine; activarea în producție rămâne oprită până
 la testarea pe telefoane și rezolvarea restanțelor de lansare.
+
+## Pilot Apple — săptămâna 19–25 octombrie 2026
+
+Scop: probă controlată cu un patron, doi șoferi și două camioane. Nu folosi
+rezultatele demo ca dovadă că datele unei firme reale se sincronizează.
+
+### Înainte de plecare
+
+- Folosește o firmă de test separată și conturi distincte patron/șofer. Marchează
+  cursele de test și folosește documente fictive, fără datele clienților.
+- Notează modelul iPhone, versiunea iOS și dacă deschizi Safari sau aplicația
+  nativă. GPS în fundal se acceptă numai după testarea aplicației native semnate;
+  pagina web nu oferă aceeași garanție.
+- Confirmă că ambii șoferi pot accepta invitația, intra în cont și vedea camionul
+  corect. Patronul verifică simultan de pe Mac.
+
+### Proba, pas cu pas
+
+1. Patronul creează o cursă pentru azi și una viitoare; șoferul vede clar cursa
+   curentă, cea viitoare și istoricul. Celălalt șofer nu vede cursa colegului.
+2. Șoferul pornește tura și confirmă încărcarea. Patronul vede aceeași stare,
+   inclusiv după reîncărcarea paginii. Notează timpul efectiv al sincronizării.
+3. Trimite un bon fictiv și un document POD. Verifică suma, camionul, cursa și
+   documentul din ambele conturi. Repetarea aceleiași trimiteri nu creează dubluri.
+4. Oprește conexiunea și încearcă o operațiune. Interfața trebuie să arate clar
+   dacă a fost salvată sau așteaptă. Revino online și verifică înainte de retry.
+5. Livrează cursa, verifică documentele și închide-o din rolul autorizat.
+   Ea trebuie să treacă în istoric, iar cursa viitoare să rămână distinctă.
+6. Compară manual venitul, fiecare cost și profitul. Separă alimentarea de
+   consumul atribuit cursei și de orice estimare.
+7. Pentru GPS nativ: testează 15 minute cu ecranul blocat, schimbare Wi-Fi/date,
+   lipsă semnal, mod privat și sfârșit de tură. Verifică ora ultimei poziții pe
+   Mac; modul privat și tura încheiată trebuie să oprească transmiterea.
+
+Oprește pilotul dacă apar date din altă firmă/alt șofer, dubluri financiare,
+confirmări false de salvare sau poziții trimise după activarea modului privat.
+Pentru fiecare problemă notează: rol, oră, pagină/cursă de test, pași, rezultat
+observat și rezultat așteptat; atașează captură fără parole sau coduri de acces.
+
+### Verificarea tehnică înaintea probei
+
+- `npm run check:pilot`: verificări locale; raportul spune explicit că este parțial.
+- După `npm run build`, setează `TEST_DATABASE_URL` către o bază **de test,
+  dispensabilă**, apoi rulează `npm run check:pilot -- --postgres --http`.
+  Scriptul aplică migrațiile exclusiv pe această bază și nu folosește DATABASE_URL
+  al aplicației. Nu indica baza firmei: testele injectează inclusiv erori SQL.
+- Un rezultat verde nu închide testele manuale de Safari/iPhone și nici
+  acceptarea pe două dispozitive. Consultă ultima rundă din QA-AUDIT.md.

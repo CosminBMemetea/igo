@@ -975,3 +975,33 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 - Formularele exclusive contului real au fost verificate în cod și TypeScript;
   atribuirea și filtrarea într-un cont real rămân de verificat funcțional.
   Nu s-au modificat datele vreunei flote reale. iPhone fizic neacoperit.
+
+## Runda 27 — pregătire pilot Apple (17 octombrie 2026)
+
+- Comandă reproductibilă: `npm run check:pilot -- --postgres --http`, după build
+  și cu TEST_DATABASE_URL explicit către o bază dispensabilă. Migrațiile se
+  aplică înaintea suitelor; DATABASE_URL al aplicației nu este folosit de teste.
+  Fără opțiuni, raportul marchează verificarea ca parțială.
+- PASS: **29/29 suite**, inclusiv PostgreSQL și HTTP pe build de producție,
+  pe baza locală izolată qfleet_pilot_20261017, fără date reale.
+- Acoperire: calcule financiare, conversii valutare, concurență invitații și
+  atribuiri, izolare firme, schimbare stare cursă și jurnal atomic, retry POD
+  fără dubluri, istoric camion, GPS privat/oprit, comenzi offline vechi și
+  revocarea sesiunilor mobile. GPS: inclusiv 20.000 poziții cu aceeași oră.
+- Prima rulare harsh pe baza nouă nu avea schema; după migrare a trecut.
+  Scriptul pilot previne această ordine greșită. Nu a fost un bug al aplicației.
+- Build de producție PASS; lint noului error boundary PASS. Avertismentul
+  preferredRegion depreciat rămâne existent în build.
+- APPLE-SAFARI-01: reprodus pe HTTPS înaintea schimbării. Eliminat loading.tsx
+  global pentru ca paginile operaționale să nu depindă de înlocuirea skeletonului
+  prin scriptul de streaming. Compromis: se așteaptă conținutul la navigare în loc
+  de skeleton global imediat. Cauza exactă din Safari nu este confirmată.
+- Safari macOS local: demo login, lista Curse și căutare Milano → 10 rezultate
+  confirmate după schimbare. Proba HTTPS după deploy și iPhone fizic rămân
+  criterii separate; rezultatul local nu închide singur APPLE-SAFARI-01.
+- Adăugat error boundary de pagină cu retry și întoarcere Acasă, fără mesajele
+  interne ale serverului; avertizează să verifici lista înainte de retrimitere.
+- OWNER-GUIDE.md include scenariul de pilot 19–25 octombrie, pașii patron/șofer,
+  probele offline/GPS și criteriile de oprire. Nu s-au creat conturi reale și nu
+  s-au trimis invitații. iPhone semnat/dispozitiv, două dispozitive simultane și
+  livrarea reală de invitații rămân de validat înaintea acceptării pilotului.
