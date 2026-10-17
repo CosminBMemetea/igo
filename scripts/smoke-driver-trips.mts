@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { groupDriverTrips, driverTripStage } from '../src/lib/driver-trips';
+import type { TripRow } from '../src/lib/store/types';
+const trip = (id: string, values: Partial<TripRow> = {}): TripRow => ({ id, firmId:'test', truckId:'truck', client:'Client', title:'Route', date:'2026-10-17', km:0, revenue:0, litres:0, fuelPrice:0, tolls:0, driverCost:0, other:0, planned:true, ...values });
+const rows = [trip('today-a'),trip('today-b'),trip('past',{date:'2026-10-16'}),trip('future',{date:'2026-10-18'}),trip('running',{date:'2026-10-19',loadedAt:'2026-10-17T10:00:00Z'}),trip('pod',{deliveredAt:'2026-10-17T10:00:00Z'}),trip('done',{deliveredAt:'2026-10-17T10:00:00Z',podReceived:true}),trip('cancel',{cancelledAt:'2026-10-17T10:00:00Z',loadedAt:'2026-10-17T09:00:00Z'}),trip('historical',{planned:false})];
+const groups=groupDriverTrips(rows,'2026-10-17');
+assert.deepEqual(groups.ready.map(x=>x.id),['past','today-a','today-b']);
+assert.equal(groups.running[0].id,'running');
+assert.equal(groups.upcoming[0].id,'future');
+assert.equal(groups.documents[0].id,'pod');
+assert.equal(groups.cancelled[0].id,'cancel');
+assert.equal(driverTripStage(rows[8],'2026-10-17'),'finished');
+assert.equal(new Set(Object.values(groups).flat().map(x=>x.id)).size,rows.length);
+assert.equal(Object.values(groups).flat().length,rows.length);
+assert.deepEqual(rows.map(x=>x.id),['today-a','today-b','past','future','running','pod','done','cancel','historical']);
+console.log('Driver trip board: all assigned trips retained; priority, POD and cancellation checks passed.');

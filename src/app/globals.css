@@ -1469,3 +1469,19 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 @media(max-width:360px){.ntsheet .ntqbtns{grid-template-columns:minmax(0,1fr)}.ntsheet .ntqbtns>div>.btn{grid-column:1;grid-row:1}.ntsheet .ntqbtns>.btn{grid-column:1;grid-row:2}.ntsheet .ntqbtns>div>p{grid-row:auto}.ntsheet .nt-drivers{grid-template-columns:minmax(0,1fr)}}
 
 .ntsheet>.msg{margin:0;max-height:20dvh;overflow-y:auto;overflow-wrap:anywhere}
+
+/* Driver dispatch: every assigned trip is reachable, with a stable mobile card. */
+.driver-trips{margin:20px 0 28px;min-width:0}
+.driver-trips-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.driver-trip-group{margin-top:20px;min-width:0}
+.driver-trip-group summary{cursor:pointer;padding:14px 0;font-weight:600;min-height:48px}
+.driver-trip-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px}
+.driver-trip-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--bg2);color:inherit;text-decoration:none;overflow-wrap:anywhere}
+.driver-trip-card:hover{border-color:var(--acc)}
+.driver-trip-card:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.driver-trip-card strong{font-size:18px;line-height:1.4}
+.driver-trip-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}
+.driver-trip-open{margin-top:auto;padding-top:4px;font-weight:600;font-size:14px}
+.driver-trip-warning{font-size:13px;line-height:1.5;color:var(--neg)}
+.driver-trip-context{margin:20px 0;padding:16px;border:1px solid var(--line);border-radius:16px;overflow-wrap:anywhere;line-height:1.6}
+@media(max-width:600px){.driver-trip-list{grid-template-columns:minmax(0,1fr)}}

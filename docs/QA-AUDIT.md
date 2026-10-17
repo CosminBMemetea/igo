@@ -388,3 +388,15 @@ separată, vizibilă la bază. Mesajele de validare sunt în afara zonei derulab
 Verificare vizuală și măsurare: 320×740, 390×500, 768×800, 1280×800; ambele
 acțiuni finale în viewport, fără text de buton tăiat. Creare efectivă a unei curse
 fictive Viena–München cu șofer/camion autoasociat: confirmare de salvare.
+
+## Driver trip management — 2026-10-17
+
+- Fixed: multiple assigned trips on the same day and overdue trips were hidden behind a single automatically selected trip. Real drivers now have a complete grouped board before the shift form.
+- Fixed: future trips were static rows. Every assigned trip now opens its own activity/document page.
+- Fixed: trips on a different assigned truck were easy to miss. The board retains them and explains the assignment mismatch; existing server authorization remains unchanged.
+- Fixed: drivers without a truck can still see their assigned trips and delivered-trip documents. Cancelled trips remain visible in collapsed history and are read-only.
+- Added: delivered trips missing POD remain in a dedicated action group; completed and cancelled history is collapsed.
+- Verified: grouping regression covers concurrent same-day trips, overdue/future, loaded future-dated trips, cancelled loaded trips, POD missing/received, historical records, no omissions/duplicates.
+- Verified locally with PostgreSQL and a synthetic driver: open assigned trip, load, unload, return to board and see missing POD; another driver's trip returns not-found content. Mobile 320 px and desktop 1100 px have no horizontal page overflow.
+- Scope limitation: demo keeps its existing simulated trip actions; its cookie-based state is still not shared between owner and driver. Real-device offline handover, camera uploads and push notifications remain separate QA work. Direct protected production UI was not tested.
+- Active trips on the assigned truck open through `/driver?trip=…#trip-paperwork`, retaining the mounted shift/GPS component. Verified both same-day cards and a future card are present; selecting a card opens its own action panel at 390 px. GPS background reliability itself still requires real-device testing.
