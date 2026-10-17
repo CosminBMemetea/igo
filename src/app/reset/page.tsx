@@ -5,8 +5,9 @@ import { Logo } from "@/components/Logo";
 import { readReset } from "@/lib/reset";
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { token: "rst.e.token", weak: "rst.e.weak", mismatch: "join.e.mismatch" };
-export default async function Reset({ searchParams }: { searchParams: { t?: string; e?: string } }) {
-  const { loc } = getPrefs();
+export default async function Reset(props: { searchParams: Promise<{ t?: string; e?: string }> }) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   const ok = !!(await readReset(searchParams.t, process.env.SESSION_SECRET)), err = ERR[searchParams.e ?? ""] ?? (ok ? null : ERR.token);
   return (
     <main className="login r-owner">

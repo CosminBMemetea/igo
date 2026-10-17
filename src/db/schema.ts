@@ -196,6 +196,9 @@ export const shifts = pgTable("shifts", {
 
 /** Poziții GPS (din telefonul șoferului, în tură). */
 export const positions = pgTable("positions", {
+  capturedAt: text("captured_at"),
+  receivedAt: text("received_at"),
+  accuracy: doublePrecision("accuracy"),
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
   truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),

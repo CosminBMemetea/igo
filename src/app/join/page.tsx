@@ -7,8 +7,9 @@ import { Logo } from "@/components/Logo";
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { token: "join.e.token", used: "join.e.used", phone: "join.e.phone", pin: "join.e.pin", phoneused: "join.e.phoneused", revoked: "join.e.revoked", weak: "join.e.weak", len: "join.e.len", mismatch: "join.e.mismatch" };
 /** Pagina deschisă de șofer pe telefon din linkul de invitație. */
-export default async function Join({ searchParams }: { searchParams: { t?: string; e?: string } }) {
-  const { loc } = getPrefs();
+export default async function Join(props: { searchParams: Promise<{ t?: string; e?: string }> }) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   const inv = await readInvite(searchParams.t, process.env.SESSION_SECRET);
   const row = inv ? await store().invite(inv.firm, inv.inv) : null;
   const firm = inv ? await store().firm(inv.firm) : null;

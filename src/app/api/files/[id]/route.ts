@@ -6,7 +6,8 @@ import { readFile } from "@/lib/files";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 /** Servește fișierul doar dacă aparține firmei sesiunii (și pentru Blob trece prin server: URL-ul nu ajunge la client). */
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const tn = await tenant();
   if (tn.demo || !tn.firm) return NextResponse.json({ error: "not found" }, { status: 404 });
   const meta = await store().file(tn.firm.id, params.id);

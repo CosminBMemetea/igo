@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   // honeypot + trimis prea repede (< 2 s) → răspundem „trimis”, fără să salvăm
   const t0 = Number(fd.get("t0")) || 0;
   if (clip(fd.get("website"), 200) || (t0 && Date.now() - t0 < 2000)) return back(req, "/incearca?sent=1");
-  const h = headers(), ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "0";
+  const h = await headers(), ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "0";
   const ipHash = createHash("sha256").update(`${process.env.SESSION_SECRET ?? ""}:${ip}`).digest("base64url").slice(0, 24);
   const now = Date.now(), recent = (hits.get(ipHash) ?? []).filter((x) => now - x < 10 * 60e3);
   if (recent.length >= 3) return back(req, `/incearca?e=rate${keep}`);

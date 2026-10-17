@@ -1,5 +1,6 @@
 // Jurnalul șoferului (firmă reală) + „azi” corect: km din pozițiile GPS filtrate, ore din tură minus pauzele private.
 import { store } from "./store";
+import { bucharestEpoch, positionEpoch } from "./truck-history";
 import type { DriverEventKind, DriverEventRow, PosRow } from "./store/types";
 import { localNow } from "./validate";
 import { haversineKm, type LatLng } from "./fleet/data";
@@ -12,22 +13,24 @@ export async function logDriver(tn: Tn, truckId: string, kind: DriverEventKind, 
 }
 /** Miezul nopții (Europe/Bucharest) de azi, ca ISO UTC — granița zilei pentru „azi”. */
 export function dayStartIso(now = new Date()): string {
-  const local = localNow(now), off = Date.parse(local + ":00Z") - Math.floor(now.getTime() / 60000) * 60000; // ora locală − UTC
-  return new Date(Date.parse(local.slice(0, 10) + "T00:00:00Z") - off).toISOString();
+  return new Date(bucharestEpoch(localNow(now).slice(0, 10) + "T00:00")).toISOString();
 }
 const toMin = (at: string) => { const h = Number(at.slice(11, 13)), m = Number(at.slice(14, 16)); return h * 60 + m; };
-/** Filtrează zgomotul GPS: pas minim 40 m, viteză implicită ≤ 150 km/h (coordonatele au rezoluție de minut). */
-export function cleanTrack(ps: PosRow[]): { pts: { min: number; at: LatLng }[]; km: number } {
-  const out: { min: number; at: LatLng; t: string }[] = []; let km = 0;
-  for (const p of [...ps].sort((a, b) => a.at.localeCompare(b.at))) {
+/** Filtrează zgomotul GPS: pas minim 40 m, viteză implicită ≤ 150 km/h (timpi UTC pentru punctele noi). */
+export function cleanTrack(ps: PosRow[]): { pts: { min: number; at: LatLng; timestamp: number }[]; km: number } {
+  const out: { min: number; at: LatLng; timestamp: number }[] = []; let km = 0;
+  for (const p of [...ps].sort((a, b) => positionEpoch(a) - positionEpoch(b))) {
+    const timestamp = positionEpoch(p);
+    if (!Number.isFinite(timestamp) || !Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180) continue;
     const at: LatLng = [p.lat, p.lng], last = out[out.length - 1];
-    if (!last) { out.push({ min: toMin(p.at), at, t: p.at }); continue; }
-    const d = haversineKm(last.at, at), dtMin = Math.max(1, toMin(p.at) - last.min);
+    if (!last) { out.push({ min: toMin(p.at), at, timestamp }); continue; }
+    const d = haversineKm(last.at, at), dtMin = Math.max(1 / 60, (timestamp - last.timestamp) / 60000);
     if (d < 0.04) continue; // staționare / zgomot
     if ((d / dtMin) * 60 > 150 && d > 0.5) continue; // salt GPS imposibil
-    km += d; out.push({ min: toMin(p.at), at, t: p.at });
+    if (timestamp <= last.timestamp) continue;
+    if (dtMin <= 15) km += d; out.push({ min: toMin(p.at), at, timestamp });
   }
-  return { pts: out.map(({ min, at }) => ({ min, at })), km };
+  return { pts: out.map(({ min, at, timestamp }) => ({ min, at, timestamp })), km };
 }
 /** Ore de lucru azi (Europe/Bucharest): reuniunea turelor de azi (jurnal + tura curentă), tăiată la miezul nopții, minus pauzele „Privat”. */
 export function hoursToday(shift: { start: string; end: string | null; privateSince?: string | null } | null, events: DriverEventRow[], now = Date.now()): number {
@@ -53,6 +56,6 @@ export function hoursToday(shift: { start: string; end: string | null; privateSi
 export async function truckToday(firmId: string, truckId: string, shift: Parameters<typeof hoursToday>[0]) {
   const s = store(), d0 = dayStartIso();
   const [pos, ev] = await Promise.all([s.positions(firmId, localNow(new Date(d0)).slice(0, 10) + "T00:00", truckId).catch(() => []), s.driverEvents(firmId, d0).catch(() => [])]);
-  const mine = pos.filter((p) => p.truckId === truckId), tr = cleanTrack(mine);
-  return { km: Math.round(tr.km * 10) / 10, hours: hoursToday(shift, ev.filter((e) => e.truckId === truckId)), track: tr.pts, last: mine.length ? mine.reduce((x, y) => (y.at > x.at ? y : x)) : null, events: ev.filter((e) => e.truckId === truckId) };
+  const mine = pos.filter((p) => p.truckId === truckId && Number.isFinite(positionEpoch(p)) && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180), tr = cleanTrack(mine);
+  return { km: Math.round(tr.km * 10) / 10, hours: hoursToday(shift, ev.filter((e) => e.truckId === truckId)), track: tr.pts, last: mine.length ? mine.reduce((x, y) => (positionEpoch(y) > positionEpoch(x) ? y : x)) : null, events: ev.filter((e) => e.truckId === truckId) };
 }

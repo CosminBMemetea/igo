@@ -9,7 +9,7 @@ import { DriverCard, ScoreRing, TruckBars } from "@/components/Ranking";
 export const dynamic = "force-dynamic";
 const COLS: Comp[] = ["cons", "harsh", "speed", "idle", "ontime", "alerts"];
 export default async function Ranking() {
-  const { loc } = getPrefs();
+  const { loc } = (await getPrefs());
   const d = await load();
   const R = rankings(d.vehicles, d.views, d.alerts, todayFor(d.demo), d.demo);
   if (!R.drivers.length) return <main><EmptyState kind="home" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   if (!(await r.vehicles()).some((v) => v.id === b.vehicleId)) return NextResponse.json({ error: "bad request" }, { status: 400 });
   if (!(await driverTruck(store(), tn, b.vehicleId))) return NextResponse.json({ error: "assignment" }, { status: 403 });
-  const sh = (tn.demo ? demoShift(b.vehicleId) : null) ?? await r.shift(b.vehicleId);
+  const sh = (tn.demo ? (await demoShift(b.vehicleId)) : null) ?? await r.shift(b.vehicleId);
   if (!sh || sh.end) return NextResponse.json({ error: "no shift" }, { status: 409 });
   // demo: doar în cookie-ul vizitatorului (nu în memoria comună a serverului — altfel s-ar vedea la alți vizitatori)
   const next = { ...sh, privateSince: b.on ? new Date().toISOString() : null };
@@ -23,5 +23,5 @@ export async function POST(req: Request) {
   catch { return NextResponse.json({ error: "shift-conflict" }, { status: 409 }); }
   if (!!sh.privateSince !== b.on) await logDriver(tn, b.vehicleId, b.on ? "private_on" : "private_off");
   const res = NextResponse.json({ ok: true, private: !!s.privateSince });
-  return tn.demo ? saveDemoShift(res, s, sh) : res;
+  return tn.demo ? (await saveDemoShift(res, s, sh)) : res;
 }

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   await store().updateFirm(f.id, { name, cui, currency, detailsDone: true });
   const l = String(fd.get("locale") ?? ""), res = back(req, st ? "/settings?ok=firm#firm" : "/setup?step=2");
   if (l === "ro" || l === "en" || l === "pl") {
-    const uid = headers().get("x-igo-uid"); if (uid) await store().setUserLocale(uid, l);
+    const uid = (await headers()).get("x-igo-uid"); if (uid) await store().setUserLocale(uid, l);
     res.cookies.set("igo-locale", l, { path: "/", maxAge: 31536000, sameSite: "lax" });
   }
   return res;

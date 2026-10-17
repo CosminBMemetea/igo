@@ -37,7 +37,7 @@ try {
   else { assert.equal(redirected.status, 200); const html = await redirected.text(); assert.ok(html.includes('http-equiv="refresh"')); assert.ok(html.includes(`url=${destination}`)); }
   for (const path of [`/replay?trip=missing`, `/replay?v=${other.id}&d=2026-01-17`, `/vehicles/${other.id}/history`, `/replay?trip=${first.id}&v=${other.id}`]) {
     const res = await req(path), html = await res.text();
-    assert.ok(res.status === 404 || res.status === 200 && html.includes("NEXT_NOT_FOUND"), path);
+    assert.ok(res.status === 404 || res.status === 200 && (html.includes("NEXT_NOT_FOUND") || html.includes("NEXT_HTTP_ERROR_FALLBACK;404")), path);
     assert.equal(html.includes(other.plate), false);
   }
   console.log("PASS HTTP: truck replay requires explicit choice; unknown and foreign resources rejected");

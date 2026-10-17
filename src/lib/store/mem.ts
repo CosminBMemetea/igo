@@ -225,7 +225,8 @@ export class MemStore implements Store {
   async addDriverPosition(firmId: string, userId: string, p: PosRow) {
     const sh = this.H.get(`${firmId}:${p.truckId}`);
     if (!sh || sh.end || sh.privateSince || !this.U.some(u => u.id === userId && u.firmId === firmId && u.role === "driver" && !u.disabledAt && !!u.passwordHash && u.truckId === p.truckId) || !this.T.some(t => t.id === p.truckId && t.firmId === firmId && !t.archivedAt)) return false;
-    this.P.push({ ...p, firmId }); return true;
+    if (p.capturedAt && (Date.parse(p.capturedAt) < Date.parse(sh.start) || Date.now() - Date.parse(p.capturedAt) > 30000 || Date.parse(p.capturedAt) - Date.now() > 5000)) return false;
+    this.P.push({ ...p, firmId, receivedAt: new Date().toISOString() }); return true;
   }
   async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }
   async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string) { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt && (!truckId || p.truckId === truckId) && (!untilAt || p.at < untilAt)).map(({ firmId: _f, ...p }) => p); }

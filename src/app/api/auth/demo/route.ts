@@ -12,6 +12,6 @@ export async function POST(req: Request) {
   const res = back(req, safeNext(next, sess) ?? (as === "driver" ? "/driver" : "/"));
   // sesiunea demo (24 h) se păstrează la orice intrare (șofer → ieșire → patron vede tura și bonul);
   // se reia de la zero doar la prima vizită, după expirare sau cu butonul explicit „Pornește un demo nou” (reset=1)
-  if (fd?.get("reset") === "1" || !cookies().get(DEMO_SID)) newDemoSession(res);
+  if (fd?.get("reset") === "1" || !(await cookies()).get(DEMO_SID)) newDemoSession(res);
   return withSession(res, sess);
 }

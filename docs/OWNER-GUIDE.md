@@ -133,5 +133,12 @@ dacă există cel puțin două puncte distincte.
 deplasări fără cursă. Dacă o cursă veche nu are orele încărcării/descărcării,
 este oferită această vizualizare, cu explicația limitei. Golurile din GPS nu
 dovedesc o pauză privată, iar ultimul punct nu dovedește încheierea turei.
-Orele sunt afișate în fusul României, la precizia de un minut a datelor existente.
+Orele sunt afișate în fusul României. Punctele noi păstrează ora UTC și precizia; datele vechi rămân la rezoluția lor originală.
 În demo, butonul este numit **Simulare traseu**.
+
+## Pilotul nativ pentru șofer
+
+Proiectul iOS/Android există în același repository, cu Expo/React Native.
+Instrucțiunile de instalare și probele obligatorii sunt în [NATIVE-DRIVER.md](NATIVE-DRIVER.md).
+Nu este încă disponibil în magazine; activarea în producție rămâne oprită până
+la testarea pe telefoane și rezolvarea restanțelor de lansare.

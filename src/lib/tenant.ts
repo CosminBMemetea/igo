@@ -12,13 +12,13 @@ export interface Tenant { role: Role | null; uid: string | null; email: string |
 /** O singură dată per cerere (layout + pagină împart firma și repo-ul memoizat). */
 export const tenant = cache(tenantUncached);
 async function tenantUncached(): Promise<Tenant> {
-  const h = headers();
+  const h = await headers();
   const r = h.get("x-igo-role");
   const role = (["admin", "owner", "driver", "user"] as const).find((x) => x === r) ?? null;
   const e = h.get("x-igo-email");
   const base = { role, uid: h.get("x-igo-uid"), email: e ? decodeURIComponent(e) : null, dbOk: dbConfigured() };
   const own = role === "owner" || role === "driver" ? h.get("x-igo-firm") : null;
-  const firmId = role === "admin" ? cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo" : own ?? "demo";
+  const firmId = role === "admin" ? (await cookies()).get(ADMIN_FIRM_COOKIE)?.value ?? "demo" : own ?? "demo";
   // sesiune fără stare: verificăm contul la fiecare cerere — șofer dezactivat / cont șters → afară imediat
   // The signed demo driver is synthetic and has no database user. Real drivers
   // still pass all revocation, password and tenant checks below.

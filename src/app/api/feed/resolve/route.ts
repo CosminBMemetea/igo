@@ -12,6 +12,6 @@ export async function POST(req: Request) {
   const tn = await tenant();
   if (!tn.demo || tn.role === "driver") return NextResponse.json({ error: "demo only" }, { status: 409 });
   const res = NextResponse.json({ ok: true });
-  setDemoResolved(res, b.id, a, typeof b.note === "string" ? b.note.trim() : undefined);
+  (await setDemoResolved(res, b.id, a, typeof b.note === "string" ? b.note.trim() : undefined));
   return res;
 }

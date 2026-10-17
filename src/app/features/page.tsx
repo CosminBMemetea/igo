@@ -7,8 +7,8 @@ import { Icon } from "@/components/icons";
 
 const LINK: Partial<Record<FeatureId, string>> = { profit: "/trips", savings: "/", live: "/live", receipts: "/receipts", documents: "/documents", driverApp: "/driver", crm: "/crm", invoicing: "/invoices", replay: "/live", maintenance: "/documents?tab=service", agri: "/vehicles/lexion760", ai: "/", alertsCenter: "/alerts", fuelAlerts: "/alerts", efactura: "/invoices" };
 export const dynamic = "force-dynamic";
-export default function Features() {
-  const { loc, plan, trialLeft, role } = getPrefs();
+export default async function Features() {
+  const { loc, plan, trialLeft, role } = (await getPrefs());
   const on = FEATURES.filter((f) => planIncludes(plan, f.id)).length;
   return (
     <main>

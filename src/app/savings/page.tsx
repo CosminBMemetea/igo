@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 export default async function Savings() {
-  const prefs = getPrefs(), { loc } = prefs;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   if (!d.demo && !d.trips.length) return <main><EmptyState kind="trips" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const days = d.demo ? 15 : Number(localNow().slice(8, 10));

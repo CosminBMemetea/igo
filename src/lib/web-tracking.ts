@@ -17,7 +17,7 @@ export function startWebTracking(geo: Geolocation, vehicleId: string, report: (s
     busy = true;
     const controller = new AbortController(); request = controller;
     const timeout = setTimeout(() => controller.abort(), 15000);
-    void send("/api/driver/ping", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: at[0], lng: at[1] }) })
+    void send("/api/driver/ping", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: at[0], lng: at[1], capturedAt: new Date(p.timestamp).toISOString(), accuracy: p.coords.accuracy }) })
       .then(r => {
         if (!alive) return;
         if (r.status !== 204 || r.redirected) {

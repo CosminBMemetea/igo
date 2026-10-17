@@ -10,14 +10,17 @@ import { tripView } from "@/lib/query";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { dayReplayWindow, tripReplayWindow } from "@/lib/truck-history";
+import { replayQueryBounds, dayReplayWindow, tripReplayWindow } from "@/lib/truck-history";
 
 export const dynamic = "force-dynamic";
 const RK = ["unknownTank", "fuelNote", "demoTank", "dayStart", "tank", "sumTitle", "hours", "normal", "profit", "again", "hl", "hlHint", "title", "back", "play", "pauseBtn", "scrub", "follow", "time", "km", "litres", "fueled", "stops", "events", "fuel", "pause", "private", "privShort", "privNote", "start", "end", "openTrip", "st_drive", "st_pause", "st_fuel", "st_private", "st_end"] as const;
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Bucharest" });
 
-export default async function Replay({ searchParams }: { searchParams: { v?: string; trip?: string; d?: string; autoplay?: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function Replay(
+  props: { searchParams: Promise<{ v?: string; trip?: string; d?: string; autoplay?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const tn = await tenant();
   const r = tn.repo;
   const [vehicles, trips] = await Promise.all([r.vehicles(), r.trips()]);
@@ -59,7 +62,8 @@ export default async function Replay({ searchParams }: { searchParams: { v?: str
   if (tn.demo && (window || simulatedTrip) && TRUCKS.some(x => x.id === vid)) { const k = demoDelta(); data = shiftDeep(demoReplay(vid!, shiftStr(trip?.date ?? window?.date ?? today(), -k), trip?.id ?? null), k); }
   else if (v && tn.firm && window) {
     const s = store();
-    const [pos, fuel] = await Promise.all([s.positions(tn.firm.id, window.from, v.id, window.until), s.fuel(tn.firm.id, { truckId: v.id, limit: 5000 })]);
+    const queryBounds = replayQueryBounds(window);
+    const [pos, fuel] = await Promise.all([s.positions(tn.firm.id, queryBounds.from, v.id, queryBounds.until), s.fuel(tn.firm.id, { truckId: v.id, limit: 5000 })]);
     data = firmReplay({ vehicleId: v.id, plate: v.name, driver: tripScope ? trip?.driverName ?? "" : "", date: window.date, tripId: tripScope ? trip!.id : null, route: tripScope ? trip!.title : "", rate: v.baselineRate || 30, pos, fuel, window });
   }
   const rv = vehicles.find((x) => x.id === data?.vehicleId) ?? null;

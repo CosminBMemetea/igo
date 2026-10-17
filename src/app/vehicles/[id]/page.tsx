@@ -21,8 +21,12 @@ import { FleetCompare } from "@/components/Econ";
 import { fmtPct } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
-export default async function VehiclePage({ params, searchParams }: { params: { id: string }; searchParams: { tab?: string; saved?: string; archived?: string; e?: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function VehiclePage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; saved?: string; archived?: string; e?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   const v = d.allVehicles.find((x) => x.id === params.id);
   if (!v) notFound();

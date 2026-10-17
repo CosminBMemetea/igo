@@ -9,7 +9,7 @@ import { CopyBtn } from "./CopyBtn";
 export const dynamic = "force-dynamic";
 /** „Recomandă”: linkul ?ref=COD al firmei + firmele venite prin el. Recompensa e doar afișată (o lună gratuită). */
 export default async function Refer() {
-  const { loc } = getPrefs(), L = LT[loc];
+  const { loc } = (await getPrefs()), L = LT[loc];
   const tn = await tenant();
   const real = !tn.demo && tn.firm && tn.role === "owner";
   const code = real ? refCode(tn.firm!.id) : "DEMQRT2";

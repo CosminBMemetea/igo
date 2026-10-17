@@ -13,15 +13,18 @@ import { CopyLink } from "@/components/CopyLink";
 
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { firm: "su.e.firm", cui: "su.e.cui", plate: "set.e.plate", vin: "set.e.vin", num: "set.e.num", dup: "set.e.dup", name: "set.e.name", phone: "join.e.phone", doc: "set.e.doc", trip: "set.e.trip", nofirm: "set.e.nofirm", dupphone: "set.e.dupphone" };
-export default async function Setup({ searchParams }: { searchParams: { step?: string; e?: string; ok?: string; inv?: string } }) {
-  const { loc } = getPrefs();
+export default async function Setup(
+  props: { searchParams: Promise<{ step?: string; e?: string; ok?: string; inv?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   const f = await writableFirm();
   if (!f) return <main className="login"><h1 className="h1">{t(loc, "set.title")}</h1><p className="sub">{t(loc, "set.e.nofirm")}</p><Link className="btn sec" href="/admin" style={{ marginTop: 24 }}>{t(loc, "adm.title")}</Link></main>;
   const st = await setupState(store(), f.id);
   const q = Number(searchParams.step);
   const step: Step = (STEPS as readonly number[]).includes(q) ? (q as Step) : st.next ?? 5;
   const err = searchParams.e ? ERR[searchParams.e] : null;
-  const h = headers(), origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  const h = await headers(), origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const secret = process.env.SESSION_SECRET ?? "";
   const links = await Promise.all(st.invites.map(async (i) => {
     const url = `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret, Math.floor(Date.parse(i.createdAt) / 1000)))}`;

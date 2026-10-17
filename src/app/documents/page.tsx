@@ -39,8 +39,11 @@ function Calendar({ docs, today, loc, label }: { docs: Doc[]; today: string; loc
     </div>
   );
 }
-export default async function Documents({ searchParams }: { searchParams: { tab?: string; view?: string; add?: string; edit?: string; e?: string; ok?: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function Documents(
+  props: { searchParams: Promise<{ tab?: string; view?: string; add?: string; edit?: string; e?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const tn = await tenant(), r = tn.repo;
   const [docs, vehicles, services] = await Promise.all([r.docs(), r.vehicles(), r.services()]);
   const canEdit = !tn.demo && !!tn.firm && (tn.role === "owner" || tn.role === "admin");

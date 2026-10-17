@@ -10,15 +10,16 @@ import { inviteToken, INVITE_TTL_S } from "@/lib/invite";
 import { ActionForm } from "@/components/ActionForm";
 import { CopyLink } from "@/components/CopyLink";
 export const dynamic = "force-dynamic";
-export default async function Drivers({ searchParams }: { searchParams: { q?: string; ok?: string } }) {
-  if ((await tenant()).demo) return <DemoRoster kind="drivers" loc={getPrefs().loc} query={searchParams.q} />;
-  const f = await writableFirm(); if (!f) redirect("/");
-  const { loc } = getPrefs(), tr = (s: string) => tri(loc, s);
+export default async function Drivers(props: { searchParams: Promise<{ q?: string; ok?: string }> }) {
+  const searchParams = await props.searchParams;
+  if ((await tenant()).demo) return <DemoRoster kind="drivers" loc={(await getPrefs()).loc} query={searchParams.q} />;
+  const f = await writableFirm();if (!f) redirect("/");
+  const { loc } = (await getPrefs()), tr = (s: string) => tri(loc, s);
   const [people, trucks, invitations] = await Promise.all([store().users(f.id), store().trucks(f.id), store().invites(f.id)]);
   const all = people.filter((u) => u.role === "driver");
   const q = (searchParams.q ?? "").trim().toLocaleLowerCase();
   const drivers = all.filter((u) => `${u.name} ${u.phone ?? ""}`.toLocaleLowerCase().includes(q));
-  const h = headers(), origin = process.env.APP_URL || `${h.get("x-forwarded-proto") === "https" ? "https" : "http"}://${h.get("host")}`;
+  const h = await headers(), origin = process.env.APP_URL || `${h.get("x-forwarded-proto") === "https" ? "https" : "http"}://${h.get("host")}`;
   const links = await Promise.all(invitations.filter((i) => !i.usedAt).map(async (i) => ({ ...i, expired: Date.parse(i.createdAt) + INVITE_TTL_S * 1000 <= Date.now(), url: `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, process.env.SESSION_SECRET!, Math.floor(Date.parse(i.createdAt) / 1000)))}` })));
   return <main>
     <div className="eyebrow">{f.name}</div><h1 className="h1">{tr("Șoferi|Drivers|Kierowcy")}</h1>

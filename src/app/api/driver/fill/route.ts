@@ -37,11 +37,11 @@ export async function POST(req: Request) {
     const st = String(fd.get("station") ?? "").trim().slice(0, 80);
     const a = amount != null && amount > 0 ? amount : null;
     const res = NextResponse.json({});
-    const { dup, id } = addDemoFill(res, { v: vehicleId, t: localNow().slice(0, 16), l: litres, o: odometerKm, a: fxCols.currency ? fx?.ron ?? null : a, c: fxCols.currency ? currency : null, r: fxCols.currency ? a : null, s: st, p: photo instanceof File && photo.size > 0 ? 1 : 0 });
+    const { dup, id } = (await addDemoFill(res, { v: vehicleId, t: localNow().slice(0, 16), l: litres, o: odometerKm, a: fxCols.currency ? fx?.ron ?? null : a, c: fxCols.currency ? currency : null, r: fxCols.currency ? a : null, s: st, p: photo instanceof File && photo.size > 0 ? 1 : 0 }));
     const out = NextResponse.json({ ok: true, demo: true, id, overTank: v.tankL > 0 && litres > v.tankL, fx: fxCols.currency ? { ...fxCols, ok: !!fx } : null });
     for (const c of res.cookies.getAll()) out.cookies.set(c);
-    if (dup) return saveDemoFill(NextResponse.json({ ok: true, demo: true, dup: true, overTank: v.tankL > 0 && litres > v.tankL }), vehicleId, litres, st);
-    return saveDemoFill(out, vehicleId, litres, st);
+    if (dup) return (await saveDemoFill(NextResponse.json({ ok: true, demo: true, dup: true, overTank: v.tankL > 0 && litres > v.tankL }), vehicleId, litres, st));
+    return (await saveDemoFill(out, vehicleId, litres, st));
   }
   // poza bonului se păstrează pe server (patronul o vede la Bonuri); fără poză salvată → doar numele, ca înainte
   let fileId: string | null = null;

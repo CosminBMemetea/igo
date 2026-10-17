@@ -9,8 +9,9 @@ import { nowMin } from "@/lib/real-live";
 import { Gate } from "@/components/Gate";
 
 export const dynamic = "force-dynamic";
-export default async function Live({ searchParams }: { searchParams: { v?: string } }) {
-  const prefs = getPrefs();
+export default async function Live(props: { searchParams: Promise<{ v?: string }> }) {
+  const searchParams = await props.searchParams;
+  const prefs = (await getPrefs());
   const d = await load();
   const live = (await d.live());
   if (!d.demo && !live.length) return <main><EmptyState kind="live" loc={prefs.loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /><p className="gdpr" style={{ margin: "0 auto", textAlign: "center" }}><b>GDPR</b> · {t(prefs.loc, "priv.gdpr")}</p></main>;

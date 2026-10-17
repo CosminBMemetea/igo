@@ -16,7 +16,7 @@ import { Feed } from "@/components/Feed";
 
 export const dynamic = "force-dynamic";
 export default async function FeedPage() {
-  const { loc } = getPrefs(), F = FT[loc];
+  const { loc } = (await getPrefs()), F = FT[loc];
   const d = await load();
   if (!d.demo) {
     // firmă reală: jurnalul șoferilor din ultimele ~2 zile + starea live (reîmprospătat la 30 s)
@@ -29,7 +29,7 @@ export default async function FeedPage() {
   const today = todayFor(d.demo), live = (await d.live());
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo);
   const f = buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers });
-  const s = f.summary, rs = demoResolved();
+  const s = f.summary, rs = (await demoResolved());
   const openN = [...f.pinned, ...f.events.filter((e) => e.kind === "idle")].filter((e) => !rs[e.id]).length;
   return (
     <main className="fpage">
@@ -38,7 +38,7 @@ export default async function FeedPage() {
         <h1 className="h1 fade">{F.title}</h1>
         <p className="sub fade d1">{F.sub}</p>
         <div className="fecon-m"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>
-        <Feed data={{ pinned: f.pinned, events: f.events, queue: f.queue, stories: f.stories, now: f.now }} F={F} reacted={demoReactions().map((r) => r.id)} demo={d.demo} resolved={Object.fromEntries(Object.entries(rs).map(([k, v]) => [k, { a: v.a, ...(v.n ? { n: v.n } : {}) }]))} />
+        <Feed data={{ pinned: f.pinned, events: f.events, queue: f.queue, stories: f.stories, now: f.now }} F={F} reacted={(await demoReactions()).map((r) => r.id)} demo={d.demo} resolved={Object.fromEntries(Object.entries(rs).map(([k, v]) => [k, { a: v.a, ...(v.n ? { n: v.n } : {}) }]))} />
       </div>
       <aside className="fside">
         <div className="fecon-d"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>

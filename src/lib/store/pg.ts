@@ -332,7 +332,7 @@ export class PgStore implements Store {
     return rs.map((r): DriverEventRow => ({ id: r.id, truckId: r.truckId, userId: r.userId, kind: r.kind as DriverEventRow["kind"], at: r.at.toISOString(), lat: r.lat, lng: r.lng, note: r.note }));
   }
   async addDriverPosition(firmId: string, userId: string, p: PosRow) {
-    const result = await this.d.execute(sql`select qf_driver_position(${newId("p")}, ${firmId}, ${p.truckId}, ${userId}, ${p.at}, ${p.lat}, ${p.lng}) as accepted`);
+    const result = await this.d.execute(sql`select qf_driver_position(${newId("p")}, ${firmId}, ${p.truckId}, ${userId}, ${p.at}, ${p.lat}, ${p.lng}, ${p.capturedAt ?? null}, ${p.accuracy ?? null}) as accepted`);
     return result.rows[0]?.accepted === true;
   }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
@@ -341,7 +341,7 @@ export class PgStore implements Store {
     let cursor: { at: string; id: string } | undefined;
     // A stable keyset includes every row, including timestamps shared by many trucks.
     for (;;) {
-      const page = await this.d.select({ id: positions.id, truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng }).from(positions)
+      const page = await this.d.select({ id: positions.id, truckId: positions.truckId, at: positions.at, lat: positions.lat, lng: positions.lng, capturedAt: positions.capturedAt, receivedAt: positions.receivedAt, accuracy: positions.accuracy }).from(positions)
         .where(and(eq(positions.firmId, firmId), gte(positions.at, sinceAt), truckId ? eq(positions.truckId, truckId) : undefined,
           untilAt ? lt(positions.at, untilAt) : undefined,
           cursor ? or(gt(positions.at, cursor.at), and(eq(positions.at, cursor.at), gt(positions.id, cursor.id))) : undefined))

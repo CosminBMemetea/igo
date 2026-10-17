@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/migrate.mjs && next build",
+    "build": "node scripts/migrate.mjs && next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
@@ -34,7 +34,10 @@
     "smoke:driver-integrity": "tsx scripts/smoke-driver-integrity.mts",
     "smoke:driver-integrity:http": "tsx scripts/smoke-driver-integrity-http.mts",
     "smoke:truck-history": "tsx scripts/smoke-truck-history.mts",
-    "smoke:truck-history:http": "node --import tsx scripts/smoke-truck-history-http.mts"
+    "smoke:truck-history:http": "node --import tsx scripts/smoke-truck-history-http.mts",
+    "smoke:mobile:http": "tsx scripts/smoke-mobile-http.mts",
+    "smoke:native-tracking": "tsx scripts/smoke-native-tracking.mts",
+    "smoke:gps-time": "tsx scripts/smoke-gps-time.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -42,12 +45,12 @@
     "drizzle-orm": "^0.45.4",
     "leaflet": "1.9.4",
     "leaflet.markercluster": "1.5.3",
-    "next": "14.2.35",
+    "next": "16.4.2",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
     "ws": "^8.22.0"
@@ -58,12 +61,12 @@
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@types/ws": "^8.18.2",
     "drizzle-kit": "^0.31.11",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.35",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.2",
     "tsx": "^4.19.0",
     "typescript": "^5"
   }

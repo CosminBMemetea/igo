@@ -5,18 +5,23 @@ import { getPrefs } from "@/lib/prefs";
 import { fmtDate, tri } from "@/lib/i18n";
 import { localNow } from "@/lib/validate";
 import { store } from "@/lib/store";
-import { tripReplayWindow, windowPositions } from "@/lib/truck-history";
+import { replayQueryBounds, tripReplayWindow, windowPositions } from "@/lib/truck-history";
 import type { Trip } from "@/lib/fleet/seed";
 export const dynamic = "force-dynamic";
 
-export default async function TruckHistory({ params, searchParams }: { params: { id: string }; searchParams: { month?: string } }) {
-  const tn = await tenant(), { loc } = getPrefs(), tr = (s: string) => tri(loc, s), today = localNow().slice(0, 10);
+export default async function TruckHistory(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ month?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const tn = await tenant(), { loc } = (await getPrefs()), tr = (s: string) => tri(loc, s), today = localNow().slice(0, 10);
   const [vehicles, allTrips, clients] = await Promise.all([tn.repo.vehicles(), tn.repo.trips(), tn.repo.clients()]);
-  const vehicle = vehicles.find(v => v.id === params.id); if (!vehicle) notFound();
+  const vehicle = vehicles.find(v => v.id === params.id);if (!vehicle) notFound();
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(searchParams.month ?? "") ? searchParams.month! : today.slice(0, 7);
   const trips = allTrips.filter(t => t.vehicleId === vehicle.id && t.date.startsWith(month));
   const windows = trips.map(t => tripReplayWindow(t)).filter(w => w !== null);
-  const from = windows.map(w => w.from).sort()[0], until = windows.map(w => w.until).sort().at(-1);
+  const bounds = windows.map(replayQueryBounds);
+  const from = bounds.map(w => w.from).sort()[0], until = bounds.map(w => w.until).sort().at(-1);
   const positions = !tn.demo && tn.firm && from && until ? await store().positions(tn.firm.id, from, vehicle.id, until) : [];
   const names = new Map(clients.map(c => [c.id, c.name]));
   const group = (t: Trip) => t.cancelledAt || t.deliveredAt || !(t.planned ?? t.active) ? "history" : t.loadedAt ? "current" : "planned";

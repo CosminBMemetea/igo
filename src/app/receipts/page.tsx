@@ -14,7 +14,7 @@ import { ReceiptThumb } from "@/components/ReceiptThumb";
 
 export const dynamic = "force-dynamic";
 export default async function Receipts() {
-  const prefs = getPrefs(), { loc } = prefs;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   if (!d.demo) {
     const tx = d.tn.firm ? await store().fuel(d.tn.firm.id, { limit: 80 }) : [];
@@ -44,7 +44,7 @@ export default async function Receipts() {
     );
   }
   // demo: bonurile trimise de șofer în sesiunea demo a acestui browser (cookie), primele în listă
-  const driver = [...demoFills().map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r, photo: !!x.p })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null, photo: !!x.photo, file: x.photo?.fileId ?? null }))];
+  const driver = [...(await demoFills()).map((x) => ({ id: x.id, time: x.t, station: x.s, litres: x.l, amount: x.a, vehicleId: x.v, aiRead: false, cur: x.c, orig: x.r, photo: !!x.p })).reverse(), ...(await (await tenant()).repo.driverFills()).map((x) => ({ ...x, cur: null, orig: null, photo: !!x.photo, file: x.photo?.fileId ?? null }))];
   // aceeași sursă ca Acasă/Curse/Clienți: cursele încheiate
   const m = monthSummary(d.views);
   const fills = demoReceipts(d.views).sort((a, b) => b.time.localeCompare(a.time)).map((f) => ({ ...f, priceLei: f.amount }));

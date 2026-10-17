@@ -9,7 +9,7 @@ import type { ReplayData, ReplayEvent, RKind } from "@/lib/replay";
 import { Icon } from "./icons";
 
 const tileUrl = (theme: string, layer: "Base" | "Reference") => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${theme === "light" ? "Light" : "Dark"}_Gray_${layer}/MapServer/tile/{z}/{y}/{x}`;
-const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}${m >= 1440 ? ` (+${Math.floor(m / 1440)})` : ""}`;
+const legacyHHMM = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}${m >= 1440 ? ` (+${Math.floor(m / 1440)})` : ""}`;
 const SPEEDS = [1, 4, 16] as const;
 const BASE = 6; // minute simulate pe secundă la 1x
 const EV_COL: Record<RKind, string> = { start: "var(--pos)", fuel: "#f5a524", pause: "var(--fg2)", private: "#a78bfa", end: "var(--fg)" };
@@ -36,6 +36,13 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, history, ex
   const el = useRef<HTMLDivElement>(null);
   const m = useRef<{ L: typeof Leaflet; map: Leaflet.Map; truck: Leaflet.Marker; trail: Leaflet.Polyline; halo: Leaflet.Polyline; ghost: Leaflet.Marker } | null>(null);
   const [ready, setReady] = useState(false);
+  const hhmm = (minute: number) => {
+    if (!d.clockOrigin) return legacyHHMM(minute);
+    const time = new Date(Date.parse(d.clockOrigin) + minute * 60000);
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit" }).format(time);
+    const label = new Intl.DateTimeFormat(loc, { timeZone: "Europe/Bucharest", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset", hourCycle: "h23" }).format(time);
+    return day === d.date ? label : `${label} · ${new Intl.DateTimeFormat(loc, { timeZone: "Europe/Bucharest", day: "2-digit", month: "2-digit" }).format(time)}`;
+  };
   const [min, setMin] = useState(d.start);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(4);

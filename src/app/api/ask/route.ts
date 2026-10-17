@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const loc: Locale = detectLocale(q, isLocale(body.locale) ? body.locale : "ro");
   const tn = await tenant(), r = tn.repo;
   const [v0, t0, clients, a0] = await Promise.all([r.vehicles(), r.trips(), r.clients(), r.alerts()]);
-  const { vehicles, trips } = activeFleet(tn.demo, v0, t0), alerts = a0.filter((a) => vehicles.some((v) => v.id === (a as { vehicleId?: string }).vehicleId) || !(a as { vehicleId?: string }).vehicleId);
+  const { vehicles, trips } = (await activeFleet(tn.demo, v0, t0)), alerts = a0.filter((a) => vehicles.some((v) => v.id === (a as { vehicleId?: string }).vehicleId) || !(a as { vehicleId?: string }).vehicleId);
   const data = { vehicles, trips, clients, alerts };
   let reason: string | null = null;
   try {

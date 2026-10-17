@@ -10,7 +10,7 @@ import { TRUCKS } from "../fleet/data";
 
 export const DEMO_TRUCKS = TRUCKS.map(({ plate, tankL, normalL100 }) => ({ plate, tankL, normalL100 }));
 /** Demo = sesiune „Intră ca demo” sau admin fără firmă aleasă. */
-export const isDemoImporter = () => { const r = headers().get("x-igo-role"); return r === "user" || r === "admin"; };
+export const isDemoImporter = async () => { const r = (await headers()).get("x-igo-role"); return r === "user" || r === "admin"; };
 export async function demoSandbox() {
   const s = new MemStore();
   const f = await s.createFirm({ name: "Firmă demo", cui: null });

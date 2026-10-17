@@ -1,0 +1,57 @@
+// Disposable database only. Production build required; cleans only its own firm.
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import * as schema from "../src/db/schema";
+import { PgStore } from "../src/lib/store/pg";
+import { hashPassword } from "../src/lib/scrypt";
+import { signToken, signSession, verifySession } from "../src/lib/session";
+import { SHIFT_CHECKS } from "../src/lib/shift-checklist";
+if (!process.env.TEST_DATABASE_URL) throw new Error("TEST_DATABASE_URL is required");
+const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }), s = new PgStore(drizzle(pool, { schema }));
+await migrate(drizzle(pool), { migrationsFolder: "drizzle" });
+const secret = randomUUID()+randomUUID(), port = 8500 + Math.floor(Math.random()*500), base = `http://localhost:${port}`;
+const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], { stdio: "ignore", env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL, SESSION_SECRET: secret, MOBILE_DRIVER_ENABLED: "1" } });
+let firmId = "";
+try {
+  for (let i=0;i<60;i++) { try { await fetch(base+"/login"); break; } catch { await new Promise(r=>setTimeout(r,250)); } }
+  const firm = await s.createFirm({name:"Native QA",cui:null}); firmId=firm.id;
+  await s.updateFirm(firmId,{demoMode:false});
+  const truck = await s.addTruck(firmId,{plate:"QA MOBILE",vin:null,model:null,tankL:700,normalL100:30});
+  const other = await s.addTruck(firmId,{plate:"QA OTHER",vin:null,model:null,tankL:700,normalL100:30});
+  const login = randomUUID()+"@example.test", password = "Audit-2026-safe";
+  const user = await s.createUser({firmId,role:"driver",name:"Native Driver",email:login,phone:null,passwordHash:hashPassword(password),truckId:truck.id});
+  await s.addTrip(firmId,{truckId:truck.id,driverId:user.id,title:"Arad → Berlin",client:"QA",date:"2026-10-17",km:100,revenue:99999,litres:30,fuelPrice:7,tolls:0,driverCost:100,other:0,planned:true});
+  const auth = await fetch(base+"/api/auth/mobile", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({login,password})});
+  assert.equal(auth.status,200); const {token}=await auth.json(); assert.ok(token);
+  assert.equal(await verifySession(token,secret),null,"mobile bearer cannot become web cookie");
+  const req = (path:string,body?:unknown,bearer=token)=>fetch(base+path,{method:body===undefined?"GET":"POST",redirect:"manual",headers:{authorization:`Bearer ${bearer}`,"content-type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)});
+  assert.equal((await req("/api/driver/mobile",undefined,"invalid")).status,401);
+  assert.equal((await req("/api/live")).status,403);
+  const web = await signSession({role:"driver",firm:firmId,uid:user.id,email:login,exp:Math.floor(Date.now()/1000)+3600},secret);
+  assert.equal((await req("/api/driver/mobile",undefined,web)).status,401);
+  const board=await (await req("/api/driver/mobile")).json();
+  assert.equal(board.truck.id,truck.id); assert.equal(JSON.stringify(board).includes("99999"),false); assert.equal(JSON.stringify(board).includes("revenue"),false);
+  console.log("PASS native auth: scoped bearer, web/mobile separation, protected financial fields");
+  assert.equal((await req("/api/driver/shift",{vehicleId:truck.id,action:"start",checklist:SHIFT_CHECKS})).status,200);
+  const ping = (overrides={}) => req("/api/driver/ping",{vehicleId:truck.id,lat:46,lng:22,capturedAt:new Date().toISOString(),accuracy:10,...overrides});
+  assert.equal((await ping()).status,204);
+  const positions=await s.positions(firmId,"",truck.id); assert.ok(positions[0].capturedAt?.endsWith("Z"));assert.ok(positions[0].receivedAt?.endsWith("Z"));assert.equal(positions[0].accuracy,10);
+  assert.equal((await ping({capturedAt:"2020-01-01T00:00:00Z"})).status,400);
+  assert.equal((await ping({accuracy:999})).status,400);
+  assert.equal((await ping({vehicleId:other.id})).status,403);
+  assert.equal((await req("/api/driver/private",{vehicleId:truck.id,on:true})).status,200);
+  assert.equal((await ping()).status,409);
+  assert.equal((await req("/api/driver/private",{vehicleId:truck.id,on:false})).status,200);
+  assert.equal((await req("/api/driver/shift",{vehicleId:truck.id,action:"stop"})).status,200);
+  assert.equal((await ping()).status,409);
+  console.log("PASS native GPS: UTC storage, stale/inaccurate fixes, foreign truck, private and ended shift rejection");
+  const expired=await signToken({purpose:"driver-mobile",role:"driver",firm:firmId,uid:user.id,email:login,version:0,exp:1},secret);
+  assert.equal((await req("/api/driver/mobile",undefined,expired)).status,401);
+  await s.setUserPassword(user.id,hashPassword("Changed-2026"));
+  const revoked=await req("/api/driver/mobile"); assert.ok([307,401,403].includes(revoked.status));
+  console.log("PASS native revocation: expiry and password change invalidate existing sessions");
+} finally { if(firmId) await s.deleteFirm(firmId);server.kill("SIGTERM");await pool.end(); }

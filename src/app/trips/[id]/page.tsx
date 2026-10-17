@@ -18,13 +18,14 @@ import { paperworkFor } from "@/lib/paperwork";
 import { EL, ef } from "@/lib/econ-i18n";
 
 export const dynamic = "force-dynamic";
-export default async function TripDetail({ params }: { params: { id: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function TripDetail(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   const r = [...d.views, ...d.cancelledViews].find((x) => x.id === params.id);
   // „Duplică cursa”: aceeași rută / șofer / client, pentru mâine (firmă reală)
   const raw = !d.demo && d.tn.firm && (d.tn.role === "owner" || d.tn.role === "admin") ? (await store().trips(d.tn.firm.id)).find((x) => x.id === params.id) : null;
-  const dupNt = raw ? <div className="tdup"><NewTrip dup loc={getPrefs().loc} today={localNow().slice(0, 10)} prefill={{ from: raw.title.split(" → ")[0], to: raw.title.split(" → ")[1] ?? "", driverId: raw.driverId ?? null, truckId: raw.truckId, client: raw.client, tonnes: raw.tonnes ?? null, km: raw.km, revenue: raw.revenue ?? null }} drivers={(await store().users(d.tn.firm!.id)).filter((u) => u.role === "driver" && !u.disabledAt).map((u) => ({ id: u.id, name: u.name || u.phone || "—", truckId: u.truckId ?? null }))} trucks={d.vehicles.map((v) => ({ id: v.id, plate: v.name }))} />{raw.planned && !raw.loadedAt && !raw.cancelledAt ? <NewTrip editId={raw.id} loc={getPrefs().loc} today={localNow().slice(0, 10)} prefill={{ date: raw.date, from: raw.title.split(" → ")[0], to: raw.title.split(" → ")[1] ?? "", driverId: raw.driverId ?? null, truckId: raw.truckId, client: raw.client, tonnes: raw.tonnes ?? null, km: raw.km, revenue: raw.revenue ?? null }} drivers={(await store().users(d.tn.firm!.id)).filter((u) => u.role === "driver" && !u.disabledAt).map((u) => ({ id: u.id, name: u.name || u.phone || "—", truckId: u.truckId ?? null }))} trucks={d.vehicles.map((v) => ({ id: v.id, plate: v.name }))} /> : null}</div> : null;
+  const dupNt = raw ? <div className="tdup"><NewTrip dup loc={(await getPrefs()).loc} today={localNow().slice(0, 10)} prefill={{ from: raw.title.split(" → ")[0], to: raw.title.split(" → ")[1] ?? "", driverId: raw.driverId ?? null, truckId: raw.truckId, client: raw.client, tonnes: raw.tonnes ?? null, km: raw.km, revenue: raw.revenue ?? null }} drivers={(await store().users(d.tn.firm!.id)).filter((u) => u.role === "driver" && !u.disabledAt).map((u) => ({ id: u.id, name: u.name || u.phone || "—", truckId: u.truckId ?? null }))} trucks={d.vehicles.map((v) => ({ id: v.id, plate: v.name }))} />{raw.planned && !raw.loadedAt && !raw.cancelledAt ? <NewTrip editId={raw.id} loc={(await getPrefs()).loc} today={localNow().slice(0, 10)} prefill={{ date: raw.date, from: raw.title.split(" → ")[0], to: raw.title.split(" → ")[1] ?? "", driverId: raw.driverId ?? null, truckId: raw.truckId, client: raw.client, tonnes: raw.tonnes ?? null, km: raw.km, revenue: raw.revenue ?? null }} drivers={(await store().users(d.tn.firm!.id)).filter((u) => u.role === "driver" && !u.disabledAt).map((u) => ({ id: u.id, name: u.name || u.phone || "—", truckId: u.truckId ?? null }))} trucks={d.vehicles.map((v) => ({ id: v.id, plate: v.name }))} /> : null}</div> : null;
   if (!r) notFound();
   const agri = r.vehicle.kind === "agri";
   const unit = r.vehicle.per100 ? "L/100km" : "L/ha";

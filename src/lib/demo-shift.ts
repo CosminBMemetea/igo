@@ -7,23 +7,23 @@ import { carryDemoWork, type DemoWorkShift } from "./demo-work";
 const C = "qf-dshift";
 // valorile cookie trebuie să fie ASCII (diacriticele din note / nume de stații dau eroare 500 în antet) → JSON codat URI
 const jset = (v: unknown) => encodeURIComponent(JSON.stringify(v));
-function jget(name: string): Record<string, never> & { [k: string]: unknown } { const raw = cookies().get(name)?.value ?? "{}"; try { return JSON.parse(raw); } catch { try { return JSON.parse(decodeURIComponent(raw)); } catch { return {}; } } }
+async function jget(name: string): Promise<Record<string, never> & { [k: string]: unknown }> { const raw = (await cookies()).get(name)?.value ?? "{}"; try { return JSON.parse(raw); } catch { try { return JSON.parse(decodeURIComponent(raw)); } catch { return {}; } } }
 type Map = Record<string, DemoWorkShift>;
-const read = (): Map => { try { return jget(C) as Map; } catch { return {}; } };
-export const demoShifts = (): Map => read();
-export const demoShift = (vehicleId: string): DemoWorkShift | null => read()[vehicleId] ?? null;
-export function saveDemoShift(res: NextResponse, s: Shift, previous: DemoWorkShift | null) {
-  const m = read(); m[s.vehicleId] = carryDemoWork(s, previous, Date.now());
+const read = async (): Promise<Map> => { try { return (await jget(C)) as Map; } catch { return {}; } };
+export const demoShifts = async (): Promise<Map> => (await read());
+export const demoShift = async (vehicleId: string): Promise<DemoWorkShift | null> => (await read())[vehicleId] ?? null;
+export async function saveDemoShift(res: NextResponse, s: Shift, previous: DemoWorkShift | null) {
+  const m = (await read()); m[s.vehicleId] = carryDemoWork(s, previous, Date.now());
   res.cookies.set(C, jset(m), { path: "/", maxAge: 60 * 60 * 24, sameSite: "lax", httpOnly: true });
   return res;
 }
 
 /** Demo: ultima alimentare trimisă de șofer (doar în cookie-ul vizitatorului, nu în memoria comună). */
 const F = "qf-dfill";
-export const demoLastFill = (vehicleId: string): { litres: number; station: string } | null => { try { return (jget(F) as Record<string, { litres: number; station: string }>)[vehicleId] ?? null; } catch { return null; } };
-export function saveDemoFill(res: NextResponse, vehicleId: string, litres: number, station: string) {
+export const demoLastFill = async (vehicleId: string): Promise<{ litres: number; station: string } | null> => { try { return ((await jget(F)) as Record<string, { litres: number; station: string }>)[vehicleId] ?? null; } catch { return null; } };
+export async function saveDemoFill(res: NextResponse, vehicleId: string, litres: number, station: string) {
   let m: Record<string, { litres: number; station: string }> = {};
-  try { m = jget(F); } catch {}
+  try { m = (await jget(F)); } catch {}
   m[vehicleId] = { litres, station: station.slice(0, 60) };
   res.cookies.set(F, jset(m), { path: "/", maxAge: 60 * 60 * 24, sameSite: "lax", httpOnly: true });
   return res;
@@ -34,16 +34,16 @@ export function saveDemoFill(res: NextResponse, vehicleId: string, litres: numbe
 export const DEMO_SID = "qf-dsid", FILLS = "qf-dfills", DEMO_TTL_S = 60 * 60 * 24;
 export const DEMO_COOKIES = [C, F, FILLS, DEMO_SID, "qf-dreact", "qf-dres", "qf-decon"];
 export interface DemoFill { id: string; v: string; t: string; l: number; o: number; a: number | null; c: string | null; r: number | null; s: string; p?: number }
-export function demoFills(): DemoFill[] {
-  const sid = cookies().get(DEMO_SID)?.value;
+export async function demoFills(): Promise<DemoFill[]> {
+  const sid = (await cookies()).get(DEMO_SID)?.value;
   if (!sid) return [];
-  try { const j = jget(FILLS) as { sid?: string; f?: DemoFill[] }; return j.sid === sid && Array.isArray(j.f) ? j.f : []; } catch { return []; }
+  try { const j = (await jget(FILLS)) as { sid?: string; f?: DemoFill[] }; return j.sid === sid && Array.isArray(j.f) ? j.f : []; } catch { return []; }
 }
 /** adaugă bonul; același vehicul+litri+km → duplicat (ca în modul real) */
-export function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): { dup: boolean; id?: string } {
-  const sid = cookies().get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
-  if (!cookies().get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
-  const cur = demoFills();
+export async function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): Promise<{ dup: boolean; id?: string }> {
+  const sid = (await cookies()).get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
+  if (!(await cookies()).get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
+  const cur = (await demoFills());
   if (cur.some((x) => x.v === f.v && x.l === f.l && x.o === f.o)) return { dup: true };
   const id = `df-${Date.now().toString(36)}`;
   const list = [...cur, { ...f, s: f.s.slice(0, 50), id, ...(f.p ? { p: 1 } : {}) }].slice(-12);
@@ -61,14 +61,14 @@ export function clearDemo(res: NextResponse) { for (const c of DEMO_COOKIES) res
 /** Demo: aplauze 👏 de la patron (cookie al sesiunii demo; șoferul le vede pe /driver). */
 const RX = "qf-dreact";
 export interface DemoReaction { id: string; v: string; l: string; t: string }
-export function demoReactions(): DemoReaction[] {
-  const sid = cookies().get(DEMO_SID)?.value; if (!sid) return [];
-  try { const j = jget(RX) as { sid?: string; r?: DemoReaction[] }; return j.sid === sid && Array.isArray(j.r) ? j.r : []; } catch { return []; }
+export async function demoReactions(): Promise<DemoReaction[]> {
+  const sid = (await cookies()).get(DEMO_SID)?.value; if (!sid) return [];
+  try { const j = (await jget(RX)) as { sid?: string; r?: DemoReaction[] }; return j.sid === sid && Array.isArray(j.r) ? j.r : []; } catch { return []; }
 }
-export function addDemoReaction(res: NextResponse, x: { id: string; v: string; l: string; on: boolean }) {
-  const sid = cookies().get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
-  if (!cookies().get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
-  const cur = demoReactions().filter((r) => r.id !== x.id);
+export async function addDemoReaction(res: NextResponse, x: { id: string; v: string; l: string; on: boolean }) {
+  const sid = (await cookies()).get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
+  if (!(await cookies()).get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
+  const cur = (await demoReactions()).filter((r) => r.id !== x.id);
   const list = x.on ? [...cur, { id: x.id, v: x.v, l: x.l, t: new Date().toISOString().slice(0, 16) }].slice(-15) : cur;
   res.cookies.set(RX, jset({ sid, r: list }), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
 }
@@ -77,14 +77,14 @@ export function addDemoReaction(res: NextResponse, x: { id: string; v: string; l
 const RS = "qf-dres";
 export type ResAction = "confirm" | "false" | "upload" | "ok";
 export interface DemoRes { id: string; a: ResAction; n?: string; t: string }
-export function demoResolved(): Record<string, DemoRes> {
-  const sid = cookies().get(DEMO_SID)?.value; if (!sid) return {};
-  try { const j = jget(RS) as { sid?: string; r?: DemoRes[] }; return j.sid === sid && Array.isArray(j.r) ? Object.fromEntries(j.r.map((x) => [x.id, x])) : {}; } catch { return {}; }
+export async function demoResolved(): Promise<Record<string, DemoRes>> {
+  const sid = (await cookies()).get(DEMO_SID)?.value; if (!sid) return {};
+  try { const j = (await jget(RS)) as { sid?: string; r?: DemoRes[] }; return j.sid === sid && Array.isArray(j.r) ? Object.fromEntries(j.r.map((x) => [x.id, x])) : {}; } catch { return {}; }
 }
-export function setDemoResolved(res: NextResponse, id: string, a: ResAction | null, n?: string) {
-  const sid = cookies().get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
-  if (!cookies().get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
-  const cur = Object.values(demoResolved()).filter((x) => x.id !== id);
+export async function setDemoResolved(res: NextResponse, id: string, a: ResAction | null, n?: string) {
+  const sid = (await cookies()).get(DEMO_SID)?.value ?? Math.random().toString(36).slice(2, 10);
+  if (!(await cookies()).get(DEMO_SID)) res.cookies.set(DEMO_SID, sid, { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
+  const cur = Object.values((await demoResolved())).filter((x) => x.id !== id);
   const list = a ? [...cur, { id, a, ...(n ? { n: n.slice(0, 140) } : {}), t: new Date().toISOString().slice(0, 16) }].slice(-20) : cur;
   res.cookies.set(RS, jset({ sid, r: list }), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
 }

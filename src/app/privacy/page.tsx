@@ -4,8 +4,8 @@ import { PRIVACY } from "@/lib/legal";
 export const dynamic = "force-dynamic";
 // operatorul datelor (GDPR): doar denumirea + emailul de contact (fără CUI/adresă deocamdată)
 const CTRL = { ro: ["Operatorul datelor", "Operatorul datelor pentru contul Querra Fleet și pentru cererile de pe site este", "contact"], en: ["Data controller", "The data controller for Querra Fleet accounts and website requests is", "contact"], pl: ["Administrator danych", "Administratorem danych kont Querra Fleet i zgłoszeń ze strony jest", "kontakt"] } as const;
-export default function Page() {
-  const { loc } = getPrefs();
+export default async function Page() {
+  const { loc } = (await getPrefs());
   const d = PRIVACY[loc], contact = process.env.CONTACT_EMAIL || process.env.SUPPORT_EMAIL || process.env.ADMIN_EMAIL || "";
   return (
     <main className="legal">

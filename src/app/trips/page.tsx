@@ -12,8 +12,11 @@ import { fmtMoney, t, tri } from "@/lib/i18n";
 import { TripRows } from "../TripRows";
 
 export const dynamic = "force-dynamic";
-export default async function Trips({ searchParams }: { searchParams: { new?: string; status?: string; q?: string; truck?: string; month?: string } }) {
-  const { loc } = getPrefs();
+export default async function Trips(
+  props: { searchParams: Promise<{ new?: string; status?: string; q?: string; truck?: string; month?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   const d = await load();
   // „+ Cursă nouă” doar pentru firma reală (demo nu scrie nimic pe server)
   const canNew = !d.demo && !!d.tn.firm && (d.tn.role === "owner" || d.tn.role === "admin");

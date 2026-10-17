@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   if (!a.lockedUntil && !b.lockedUntil && email.includes("@")) {
     const u = await s.userByLogin(email);
     if (u && u.role === "owner" && !u.disabledAt && u.email) {
-      const loc = (u.locale as Locale) || getPrefs().loc, url = new URL(`/reset?t=${encodeURIComponent(await resetToken(u.id, u.passwordHash, secret!))}`, req.url).toString();
+      const loc = (u.locale as Locale) || (await getPrefs()).loc, url = new URL(`/reset?t=${encodeURIComponent(await resetToken(u.id, u.passwordHash, secret!))}`, req.url).toString();
       await queueEmail(s, u.firmId, `reset:${u.id}:${Date.now()}`, { to: u.email, subject: t(loc, "rst.mailSubj"), text: t(loc, "rst.mailBody", { url }) }).catch(() => null);
     }
   }

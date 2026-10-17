@@ -8,7 +8,7 @@ import { todayFor } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 export default async function Notifications() {
-  const { loc } = getPrefs();
+  const { loc } = (await getPrefs());
   const tn = await tenant();
   const list = await notificationsFor(tn);
   const today = todayFor(tn.demo), unread = list.filter((n) => !n.readAt).length;

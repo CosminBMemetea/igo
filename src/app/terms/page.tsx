@@ -2,8 +2,8 @@ import { getPrefs } from "@/lib/prefs";
 import { TERMS } from "@/lib/legal";
 // DRAFT juridic — de revizuit de avocat (vezi src/lib/legal.ts).
 export const dynamic = "force-dynamic";
-export default function Page() {
-  const { loc } = getPrefs();
+export default async function Page() {
+  const { loc } = (await getPrefs());
   const d = TERMS[loc];
   return (
     <main className="legal">

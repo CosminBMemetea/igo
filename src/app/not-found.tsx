@@ -3,8 +3,8 @@ import { getPrefs } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 
 /** 404 în limba și tema utilizatorului (în locul paginii albe, în engleză, din Next). */
-export default function NotFound() {
-  const { loc } = getPrefs();
+export default async function NotFound() {
+  const { loc } = (await getPrefs());
   return (
     <main className="login" style={{ maxWidth: 520, textAlign: "center" }}>
       <div className="eyebrow fade">404</div>

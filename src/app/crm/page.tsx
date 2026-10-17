@@ -9,8 +9,9 @@ import { CountUp } from "@/components/CountUp";
 
 export const dynamic = "force-dynamic";
 const BADGE = { paid: "ok", due: "warn", overdue: "bad" } as const;
-export default async function Crm({ searchParams }: { searchParams: { c?: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function Crm(props: { searchParams: Promise<{ c?: string }> }) {
+  const searchParams = await props.searchParams;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   if (!d.demo && !d.clients.length) return <main><EmptyState kind="crm" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const cs = clientSummaries(d.clients, d.views);

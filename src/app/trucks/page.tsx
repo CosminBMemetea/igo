@@ -7,10 +7,13 @@ import { store } from "@/lib/store";
 import { t, tri } from "@/lib/i18n";
 import { ActionForm } from "@/components/ActionForm";
 export const dynamic = "force-dynamic";
-export default async function Trucks({ searchParams }: { searchParams: { q?: string; archived?: string; ok?: string } }) {
-  if ((await tenant()).demo) return <DemoRoster kind="trucks" loc={getPrefs().loc} query={searchParams.q} />;
-  const firm = await writableFirm(); if (!firm) redirect("/");
-  const { loc } = getPrefs(), tr = (s: string) => tri(loc, s);
+export default async function Trucks(
+  props: { searchParams: Promise<{ q?: string; archived?: string; ok?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  if ((await tenant()).demo) return <DemoRoster kind="trucks" loc={(await getPrefs()).loc} query={searchParams.q} />;
+  const firm = await writableFirm();if (!firm) redirect("/");
+  const { loc } = (await getPrefs()), tr = (s: string) => tri(loc, s);
   const [trucks, users] = await Promise.all([store().trucks(firm.id), store().users(firm.id)]);
   const drivers = users.filter((u) => u.role === "driver" && !u.disabledAt);
   const q = (searchParams.q ?? "").trim().toLocaleLowerCase();

@@ -13,7 +13,7 @@ import { AttnCount } from "@/components/Resolve";
 
 export const dynamic = "force-dynamic";
 export default async function Alerts() {
-  const prefs = getPrefs(), { loc } = prefs;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   if (!d.demo && !d.alerts.length) return <main><EmptyState kind="alerts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /><FuelDataNote loc={loc} /></main>;
   const rules = d.demo ? [...RULES, "loss", "doc-expiry"] : [...FIRM_RULES, "loss", "doc-expiry"];
@@ -23,9 +23,9 @@ export default async function Alerts() {
         <div className="eyebrow fade">{t(loc, "alerts.title")}</div>
         <div className="big fade" style={{ marginTop: 8 }}>{d.alerts.length}</div>
         <p className="sub fade d1" dangerouslySetInnerHTML={{ __html: t(loc, "alerts.sub", { n: d.alerts.length, theft: d.alerts.filter((a) => a.theft).length }) }} />
-        {d.demo ? (() => { const rs = demoResolved(); return <AttnCount F={FT[loc]} open={d.alerts.filter((a) => a.theft || a.rule === "doc-expiry").map((a) => (a.theft ? "t-" : "c-") + a.id).filter((id) => !rs[id])} />; })() : null}
+        {d.demo ? (async () => { const rs = (await demoResolved()); return <AttnCount F={FT[loc]} open={d.alerts.filter((a) => a.theft || a.rule === "doc-expiry").map((a) => (a.theft ? "t-" : "c-") + a.id).filter((id) => !rs[id])} />; })() : null}
         <FuelDataNote loc={loc} demo={d.demo} />
-        <section className="section"><AlertList alerts={d.alerts} vehicles={d.vehicles} loc={loc} res={d.demo ? demoResolved() : undefined} F={FT[loc]} /></section>
+        <section className="section"><AlertList alerts={d.alerts} vehicles={d.vehicles} loc={loc} res={d.demo ? (await demoResolved()) : undefined} F={FT[loc]} /></section>
         <section className="section">
           <div className="head"><h2>{t(loc, "alerts.rules")}</h2></div>
           <div className="cards">

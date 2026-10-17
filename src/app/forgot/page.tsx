@@ -3,8 +3,9 @@ import { getPrefs } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 export const dynamic = "force-dynamic";
-export default function Forgot({ searchParams }: { searchParams: { sent?: string } }) {
-  const { loc } = getPrefs();
+export default async function Forgot(props: { searchParams: Promise<{ sent?: string }> }) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   return (
     <main className="login r-owner">
       <div className="fade" style={{ color: "var(--fg)", marginBottom: 18 }}><Logo height={44} /></div>

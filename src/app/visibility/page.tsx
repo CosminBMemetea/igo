@@ -26,8 +26,8 @@ const C: Record<Locale, { title: string; sub: string; sees: [string, string[]]; 
     more: "Pełne informacje w polityce prywatności",
   },
 };
-export default function Visibility() {
-  const { loc } = getPrefs(), c = C[loc];
+export default async function Visibility() {
+  const { loc } = (await getPrefs()), c = C[loc];
   return (
     <main className="legal vis">
       <h1 className="h1 fade">{c.title}</h1>

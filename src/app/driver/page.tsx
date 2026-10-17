@@ -26,8 +26,9 @@ import { todayFor } from "@/lib/today";
 export const dynamic = "force-dynamic";
 const KEYS: MsgKey[] = ["drv.truckQ", "drv.truckChange", "priv.trackingWait", "priv.trackingOff", "priv.trackingOffHint", "drv.endQ", "drv.endTxt", "drv.endYes", "drv.endNo", "drv.vehicle", "drv.kmToday", "drv.hoursToday", "drv.start", "drv.stop", "drv.onShift", "drv.offShift", "drv.check", "drv.checkNeeded", "chk.tyres", "chk.fluids", "chk.docs", "chk.damage", "drv.fill", "drv.photo", "drv.photoHint", "drv.reading", "drv.sample", "drv.tooBig", "drv.notImage", "drv.notReceipt", "drv.litresRange", "drv.odoRange", "drv.sending", "drv.dup", "drv.readMeta", "drv.read", "drv.readManual", "drv.litres", "drv.odo", "drv.amount", "drv.fxOk", "drv.fxNo", "drv.cur", "drv.station", "drv.send", "drv.sent", "drv.lastFill", "drv.consent", "drv.gpsOff", "drv.invalid", "drv.role", "drv.preview", "drv.previewHint", "drv.previewNo", "priv.on", "priv.break", "priv.offShift", "priv.tracking", "priv.trackingHint", "priv.toggle", "priv.resume", "priv.geoOff"];
 
-export default async function Driver({ searchParams }: { searchParams: { v?: string; trip?: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function Driver(props: { searchParams: Promise<{ v?: string; trip?: string }> }) {
+  const searchParams = await props.searchParams;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const tn = await tenant(), r = tn.repo;
   const queueScope = !tn.demo && tn.role === "driver" && tn.firm && tn.uid ? `${tn.firm.id}:${tn.uid}` : undefined;
   const outbox = queueScope ? <DriverOutbox scope={queueScope} loc={loc} /> : null;
@@ -35,16 +36,16 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const allVehicles = await r.vehicles();
   const realTrips = !tn.demo && tn.firm ? (await store().trips(tn.firm.id)).filter(x => tn.role !== "driver" || x.driverId === tn.uid) : [];
   const history = !tn.demo && tn.role === "driver" ? <DriverTrips trips={realTrips.map(driverTripSummary)} today={todayFor(false)} truckId={me?.truckId} trucks={allVehicles.map(x => ({ id: x.id, name: x.name }))} loc={loc} /> : null;
-  const vehicles = activeFleet(tn.demo, allVehicles).vehicles.filter((v) => tn.role !== "driver" || tn.demo || v.id === me?.truckId);
+  const vehicles = (await activeFleet(tn.demo, allVehicles)).vehicles.filter((v) => tn.role !== "driver" || tn.demo || v.id === me?.truckId);
   if (!vehicles.length && tn.role === "driver" && !tn.demo) return <main className="driver-main">{outbox}<h1 className="h1">{tri(loc, "Camion nealocat|No truck assigned|Nie przypisano pojazdu")}</h1><p className="sub">{tri(loc, "Contul tău este activ. Cere patronului să îți asocieze camionul din pagina Șoferi.|Your account is active. Ask the owner to assign your truck from Drivers.|Twoje konto jest aktywne. Poproś właściciela o przypisanie pojazdu na stronie Kierowcy.")}</p>{history}</main>;
   if (!vehicles.length) return <main><EmptyState kind={tn.role === "driver" ? "driver" : "driverOwner"} loc={loc} canSetup={tn.role !== "driver"} /></main>;
   const v = vehicles.find((x) => x.id === searchParams.v) ?? vehicles.find((x) => x.id === me?.truckId) ?? vehicles[0];
   const fd = await r.fleetData();
   const last = [...(await r.driverFills(v.id))].pop();
   const lastCard = fd.fills.filter((f) => f.truckId === v.id).pop();
-  const dl = tn.demo ? demoLastFill(v.id) : null;
+  const dl = tn.demo ? (await demoLastFill(v.id)) : null;
   const lastFill = dl ? `${fmtNum(loc, dl.litres, dl.litres % 1 ? 1 : 0)} L · ${dl.station || "—"}` : last ? `${last.litres} L · ${last.station || "—"}` : lastCard ? `${lastCard.litres} L · ${lastCard.station}` : "—";
-  const claps = tn.demo ? demoReactions().filter((x) => x.v === v.id) : [];
+  const claps = tn.demo ? (await demoReactions()).filter((x) => x.v === v.id) : [];
   const labels = Object.fromEntries(KEYS.map((k) => [k, t(loc, k)]));
   const today = todayFor(tn.demo);
   const all = (await r.trips()).filter(x => tn.role !== "driver" || tn.demo || x.driverId === tn.uid);
@@ -56,12 +57,12 @@ export default async function Driver({ searchParams }: { searchParams: { v?: str
   const stage = selected ? driverTripStage(selected, today) : null;
   const heading = tri(loc, stage === "running" ? "Cursa în desfășurare · acțiuni|Current trip · actions|Bieżący kurs · działania" : stage === "upcoming" ? "Cursă viitoare · planificată|Upcoming trip · scheduled|Nadchodzący kurs · zaplanowany" : stage === "documents" || stage === "finished" ? "Cursă livrată · documente|Delivered trip · documents|Dostarczony kurs · dokumenty" : stage === "cancelled" ? "Cursă anulată|Cancelled trip|Anulowany kurs" : "De încărcat · acțiuni|Ready for loading · actions|Do załadunku · działania");
   const pw = trip ? await paperworkFor(tn, trip.id) : null;
-  const shift0 = (tn.demo ? demoShift(v.id) : null) ?? await r.shift(v.id);
+  const shift0 = (tn.demo ? (await demoShift(v.id)) : null) ?? (await r.shift(v.id));
   // demo: o tură nu durează peste 12 h și nu începe în viitor (cookie de ieri / noaptea înainte de 05:30) → tură proaspătă, realistă (~2,5 h)
   const age = shift0 && !shift0.end ? Date.now() - Date.parse(shift0.start) : 0;
   const shift = tn.demo && shift0 && !shift0.end && (age < 0 || age > 12 * 3600e3 || Number.isNaN(age)) ? (() => { const st = new Date(Date.now() - 2.5 * 3600e3).toISOString(); return { ...shift0, start: st, privateSince: shift0.privateSince ? st : null }; })() : shift0;
   // demo: aceeași sursă ca harta live (liveFleet la minutul demo)
-  const liveKm = tn.demo ? (liveFleet(vehicles, tripViews(activeFleet(tn.demo, vehicles, await r.trips()).trips, vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
+  const liveKm = tn.demo ? (liveFleet(vehicles, tripViews((await activeFleet(tn.demo, vehicles, await r.trips())).trips, vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
   const nowMs = Date.now();
   // firmă reală: km din pozițiile GPS filtrate de azi, ore = tură ∩ azi (Europe/Bucharest) minus pauzele private
   const todayReal = !tn.demo && tn.firm ? await truckToday(tn.firm.id, v.id, shift).then((x) => ({ km: x.km, hours: x.hours })).catch(() => null) : null;

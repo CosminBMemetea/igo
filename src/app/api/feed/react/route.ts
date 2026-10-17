@@ -9,6 +9,6 @@ export async function POST(req: Request) {
   const tn = await tenant();
   if (!tn.demo || tn.role === "driver") return NextResponse.json({ error: "demo only" }, { status: 409 });
   const res = NextResponse.json({ ok: true });
-  addDemoReaction(res, { id: b.id, v: b.vehicleId, l: String(b.label ?? "").slice(0, 90), on: b.on !== false });
+  (await addDemoReaction(res, { id: b.id, v: b.vehicleId, l: String(b.label ?? "").slice(0, 90), on: b.on !== false }));
   return res;
 }

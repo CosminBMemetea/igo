@@ -7,8 +7,9 @@ import { normRef } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 const ERR: Record<string, MsgKey> = { firm: "su.e.firm", email: "su.e.email", password: "su.e.password", cui: "su.e.cui", exists: "su.e.exists", nosecret: "acct.nosecret", form: "su.e.firm" };
-export default function Signup({ searchParams }: { searchParams: { e?: string; ref?: string } }) {
-  const { loc } = getPrefs();
+export default async function Signup(props: { searchParams: Promise<{ e?: string; ref?: string }> }) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   const err = searchParams.e && ERR[searchParams.e];
   return (
     <main className="login">

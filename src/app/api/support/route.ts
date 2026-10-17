@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 /** „Asistență Querra”: cererea se salvează; adminul o vede în /admin. Fără email deocamdată. */
 export async function POST(req: Request) {
   const fd = await req.formData();
-  const h = headers(), role = h.get("x-igo-role"), e = h.get("x-igo-email");
+  const h = await headers(), role = h.get("x-igo-role"), e = h.get("x-igo-email");
   const name = clip(fd.get("name"), 80), phone = normPhone(clip(fd.get("phone"), 30));
   const offer = fd.get("topic") === "offer", qs = offer ? "&topic=offer" : "";
   if (name.length < 2 || !isPhone(phone)) return back(req, `/support?e=1${qs}`);

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const g = globalThis as unknown as { __qfTestMail?: number };
 /** Admin: trimite un email de test prin furnizorul configurat (Resend). Nu intră în coada de reamintiri. */
 export async function POST(req: Request) {
-  if (headers().get("x-igo-role") !== "admin") return back(req, "/");
+  if ((await headers()).get("x-igo-role") !== "admin") return back(req, "/");
   const to = clip((await req.formData()).get("to"), 200).trim();
   const q = (p: Record<string, string>) => back(req, `/admin?${new URLSearchParams(p)}#test-email`);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return q({ te: "bad" });

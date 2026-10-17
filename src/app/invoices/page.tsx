@@ -8,8 +8,9 @@ import { Gate } from "@/components/Gate";
 export const dynamic = "force-dynamic";
 const BADGE = { paid: "ok", due: "warn", overdue: "bad" } as const;
 const EU = new Set(["AT", "HU", "IT", "PL", "DE"]);
-export default async function Invoices({ searchParams }: { searchParams: { trip?: string } }) {
-  const prefs = getPrefs(), { loc } = prefs;
+export default async function Invoices(props: { searchParams: Promise<{ trip?: string }> }) {
+  const searchParams = await props.searchParams;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   const inv = d.views.filter((v) => v.invoiceNo).sort((a, b) => b.date.localeCompare(a.date));
   if (!inv.length) return <main><EmptyState kind="invoices" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeLink } from "./ThemeLink";
 import { DenyToast } from "./DenyToast";
 import { t, tri } from "@/lib/i18n";
 import type { Prefs } from "@/lib/prefs";
@@ -38,7 +39,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
   const prefsBox = (
     <div className="prefs">
       {firm.demo && role === "user" ? <span className="dsk"><TourButton label={t(loc, "tour.btn")} /></span> : null}
-      <a className={`ico${role ? " dsk" : ""}`} href={`?theme=${theme === "dark" ? "light" : "dark"}`} aria-label={t(loc, "pref.theme")}><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
+      <ThemeLink className={`ico${role ? " dsk" : ""}`} theme={theme === "dark" ? "light" : "dark"} label={t(loc, "pref.theme")}><Icon name={theme === "dark" ? "sun" : "moon"} /></ThemeLink>
       {role ? <Link className="ico bell dsk" href="/notifications" aria-label={t(loc, "ntf.title")}><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0" /></svg>{firm.unread ? <b>{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link> : null}
       {role ? (
         <details className="acct">
@@ -52,7 +53,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
               {firm.demo && role === "user" ? <TourButton label={t(loc, "tour.btn")} /> : null}
               <Link href="/notifications" className="mrow"><span>{t(loc, "ntf.title")}</span>{firm.unread ? <b className="cnt">{firm.unread > 9 ? "9+" : firm.unread}</b> : null}</Link>
               {(role === "owner" || role === "admin") && !firm.demo ? <Link href="/settings" className="mrow"><span>{t(loc, "stg.title")}</span></Link> : null}
-              <a href={`?theme=${theme === "dark" ? "light" : "dark"}`} className="mrow"><span>{t(loc, "pref.theme")}</span><Icon name={theme === "dark" ? "sun" : "moon"} /></a>
+              <ThemeLink theme={theme === "dark" ? "light" : "dark"} className="mrow" label={t(loc, "pref.theme")}><span>{t(loc, "pref.theme")}</span><Icon name={theme === "dark" ? "sun" : "moon"} /></ThemeLink>
             </div>
             <Suspense fallback={null}><LangPicker loc={loc} title={t(loc, "pref.lang")} inline persist /></Suspense>
             {role === "owner" || (role === "admin" && !firm.demo) ? <><Link className="btn sec sm" href="/trucks">{tri(loc, "Camioane|Trucks|Pojazdy")}</Link><Link className="btn sec sm" href="/drivers">{tri(loc, "Șoferi|Drivers|Kierowcy")}</Link></> : null}

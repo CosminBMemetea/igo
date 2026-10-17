@@ -2,7 +2,7 @@
 /** admin = ADMIN_EMAIL (toate firmele); owner = proprietarul firmei; driver = șofer invitat; user = „Intră ca demo”. */
 export type Role = "admin" | "owner" | "driver" | "user";
 export const ROLES: Role[] = ["admin", "owner", "driver", "user"];
-export interface Session { role: Role; email: string; firm: string; exp: number; uid?: string; trial?: string; version?: number }
+export interface Session { role: Role; email: string; firm: string; exp: number; uid?: string; trial?: string; version?: number; purpose?: string }
 export const SESSION_COOKIE = "igo-session";
 export const SESSION_TTL_S = 60 * 60 * 24 * 7;
 
@@ -27,11 +27,13 @@ export async function signToken(payload: object, secret: string): Promise<string
 }
 export async function verifySession(token: string | undefined, secret: string | undefined, nowS = Math.floor(Date.now() / 1000)): Promise<Session | null> {
   const s = await verifyToken<Session>(token, secret, nowS);
-  return s && ROLES.includes(s.role) && typeof s.firm === "string" ? s : null;
+  return s && !s.purpose && ROLES.includes(s.role) && typeof s.firm === "string" ? s : null;
 }
 export async function verifyToken<T extends { exp: number }>(token: string | undefined, secret: string | undefined, nowS = Math.floor(Date.now() / 1000)): Promise<T | null> {
   if (!token || !hasSecret(secret)) return null;
-  const [body, sig] = token.split(".");
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
   if (!body || !sig) return null;
   try {
     const ok = await crypto.subtle.verify("HMAC", await key(secret), fromB64u(sig), enc.encode(body));

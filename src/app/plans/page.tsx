@@ -5,9 +5,10 @@ import { t, tri } from "@/lib/i18n";
 import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
-export default function Plans({ searchParams }: { searchParams: { unit?: string } }) {
-  const { loc, plan } = getPrefs();
-  const demoUser = getPrefs().role === "user";
+export default async function Plans(props: { searchParams: Promise<{ unit?: string }> }) {
+  const searchParams = await props.searchParams;
+  const { loc, plan } = (await getPrefs());
+  const demoUser = (await getPrefs()).role === "user";
   const agri = !demoUser && searchParams.unit === "agri"; // fără prețuri deocamdată: doar oferta la cerere
   return (
     <main>

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const costs: Partial<CostProfile> = {};
   if (action === "costs") for (const k of COST_KEYS) { const n = num(fd.get(k), COST_MAX[k]); if (n === null) return formReply(req, `/vehicles/${vid}?tab=costs`, "num"); costs[k] = n; }
   if (tn.demo) {
-    const e = readDemoEcon();
+    const e = (await readDemoEcon());
     if (action === "costs") e.c[vid] = costs;
     else if (action === "archive") { if (!e.a.includes(vid)) e.a.push(vid); }
     else if (action === "restore") e.a = e.a.filter((x) => x !== vid);

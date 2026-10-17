@@ -6,7 +6,7 @@ import { normLogin } from "@/lib/validate";
 export const dynamic = "force-dynamic";
 /** Schimbă emailul patronului; cere parola curentă (și e limitat ca loginul). */
 export async function POST(req: Request) {
-  const h = headers(), uid = h.get("x-igo-uid");
+  const h = await headers(), uid = h.get("x-igo-uid");
   if (h.get("x-igo-role") !== "owner" || !uid) return back(req, "/login");
   const fd = await req.formData(), email = normLogin(String(fd.get("email") ?? "").trim().slice(0, 200)), pw = String(fd.get("password") ?? "").slice(0, 200);
   const s = store(), u = await s.userById(uid), key = `u:${u?.email ?? uid}`;

@@ -3,8 +3,11 @@ import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 /** „Asistență Querra”: cerere salvată în baza de date (datele de contact ale firmei: mai târziu). */
-export default function Support({ searchParams }: { searchParams: { sent?: string; e?: string; topic?: string } }) {
-  const { loc } = getPrefs();
+export default async function Support(
+  props: { searchParams: Promise<{ sent?: string; e?: string; topic?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   return (
     <main className="login" style={{ maxWidth: 520 }}>
       <div className="eyebrow fade">{t(loc, "sup.eyebrow")}</div>

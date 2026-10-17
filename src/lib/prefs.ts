@@ -5,8 +5,8 @@ import { effectivePlan, type View } from "./access";
 import type { Role } from "./session";
 
 export interface Prefs { loc: Locale; theme: "dark" | "light"; plan: PlanState; trialLeft: number; role: Role | null; email: string | null; view: View; adminView: boolean; previewPlan: PlanState }
-export function getPrefs(): Prefs {
-  const c = cookies(), h = headers();
+export async function getPrefs(): Promise<Prefs> {
+  const c = (await cookies()), h = (await headers());
   const l = c.get("igo-locale")?.value;
   const loc = isLocale(l) ? l : "ro"; // română implicit; fără auto-detecție din browser;
   const theme = c.get("igo-theme")?.value === "light" ? "light" : "dark";

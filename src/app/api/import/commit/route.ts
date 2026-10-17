@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 export async function POST(req: Request) {
   const f = await writableFirm();
-  if (!f && !isDemoImporter()) return NextResponse.json({ error: "nofirm" }, { status: 403 });
+  if (!f && !(await isDemoImporter())) return NextResponse.json({ error: "nofirm" }, { status: 403 });
   const b = (await req.json().catch(() => null)) as { text?: unknown; filename?: unknown; mapping?: Mapping; assign?: Record<string, string> } | null;
   if (!b || typeof b.text !== "string" || !b.text.trim()) return NextResponse.json({ error: "empty" }, { status: 400 });
   if (b.text.length > MAX_CSV_BYTES) return NextResponse.json({ error: "big" }, { status: 413 });
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const sb = await demoSandbox();
     const r = await commit(sb.s, sb.f.id, b.text, filename, b.mapping ?? undefined, b.assign ?? {});
     if (!r.ok) return NextResponse.json(r, { status: 422 });
-    return NextResponse.json({ ...r, demo: await demoResult(sb.s, sb.f, getPrefs().loc) });
+    return NextResponse.json({ ...r, demo: await demoResult(sb.s, sb.f, (await getPrefs()).loc) });
   }
   try {
     const r = await commit(store(), f.id, b.text, filename, b.mapping ?? undefined, b.assign ?? {});

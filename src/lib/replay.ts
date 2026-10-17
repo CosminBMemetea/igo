@@ -2,12 +2,13 @@
 // Firme reale: pozițiile salvate în tură (pingurile șoferului). Golurile (mod privat / fără semnal) NU au geometrie — doar o legătură punctată.
 import { DEMO_DAY, DEMO_NOW_MIN, TRUCKS, dayPlan, kmAt, nearestWaypoint, pointAtKm, haversineKm, pathBetween, routeTotalKm, type LatLng } from "./fleet/data";
 import { TRIPS } from "./fleet/seed";
-import { dayReplayWindow, windowPositions, replayMinute, type ReplayWindow } from "./truck-history";
+import { dayReplayWindow, windowPositions, positionEpoch, bucharestEpoch, type ReplayWindow } from "./truck-history";
 import type { PosRow, FuelTxRow } from "./store/types";
 
 export type RKind = "start" | "fuel" | "pause" | "private" | "end";
 export interface ReplayEvent { kind: RKind; min: number; end?: number; km: number; place?: string; litres?: number; day?: boolean }
 export interface ReplayData {
+  clockOrigin?: string;
   vehicleId: string; plate: string; driver: string; route: string; date: string; tripId: string | null; demo: boolean;
   /** puncte [lat, lng, km] — km cumulați pe tură */
   path: [number, number, number][];
@@ -53,14 +54,16 @@ export function firmReplay(o: { vehicleId: string; plate: string; driver: string
   if (!window) return null;
   const day = windowPositions(o.pos, o.vehicleId, window);
   if (day.length < 2) return null;
-  const min = (iso: string) => replayMinute(iso, window.date);
+  const origin = bucharestEpoch(window.date + "T00:00");
+  const min = (iso: string) => (bucharestEpoch(iso) - origin) / 60000;
+  const pointMin = (p: PosRow) => (positionEpoch(p) - origin) / 60000;
   const path: [number, number, number][] = [], keys: [number, number][] = [], events: ReplayEvent[] = [];
   let km = 0;
   for (let i = 0; i < day.length; i++) {
-    const p = day[i], m = min(p.at);
+    const p = day[i], m = pointMin(p);
     if (i) {
-      const q = day[i - 1], gap = m - min(q.at);
-      if (gap > 15) events.push({ kind: "private", min: min(q.at), end: m, km });
+      const q = day[i - 1], gap = m - pointMin(q);
+      if (gap > 15) events.push({ kind: "private", min: pointMin(q), end: m, km });
       else km += near([q.lat, q.lng], [p.lat, p.lng]);
     }
     path.push([p.lat, p.lng, Math.round(km * 1000) / 1000]); keys.push([m, km]);
@@ -77,5 +80,5 @@ export function firmReplay(o: { vehicleId: string; plate: string; driver: string
   const start = keys[0][0], end = keys[keys.length - 1][0];
   events.push({ kind: "start", min: start, km: 0 }, { kind: "end", min: end, km });
   events.sort((a, b) => a.min - b.min);
-  return { vehicleId: o.vehicleId, plate: o.plate, driver: o.driver, route: o.route ?? "", date: window.date, tripId: o.tripId, demo: false, path, keys, events, start, end, rate: o.rate, km: Math.round(km) };
+  return { clockOrigin: new Date(origin).toISOString(), vehicleId: o.vehicleId, plate: o.plate, driver: o.driver, route: o.route ?? "", date: window.date, tripId: o.tripId, demo: false, path, keys, events, start, end, rate: o.rate, km: Math.round(km) };
 }

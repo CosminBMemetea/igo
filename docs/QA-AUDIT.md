@@ -634,3 +634,58 @@ de deplasare cu telefon real.
   parametrii URL; pe replay poate pierde cursa selectată, iar pe istoric luna.
   De refăcut cu păstrarea parametrilor, împreună cu verificarea preferințelor.
 - DEP-01 și limitările de dispozitiv/Blob/demo comun de mai sus rămân deschise.
+
+## Runda 19 — Next.js 16, UTC și pilot mobil — 17 octombrie 2026
+
+Acest status înlocuiește statusurile DEP-01 și UI-PREF-01 de mai sus.
+
+- **DEP-01 REZOLVAT pentru runtime web:** Next 16.4.2, React/React DOM 19.3.1;
+  API-uri cookies/headers/params/searchParams asincrone, middleware migrat la proxy.
+  `npm audit --omit=dev`: 0 vulnerabilități la verificarea acestei runde.
+  Regresia descoperită la migrare (`vehicles` serializat ca Promise în API live demo)
+  a fost reparată și confirmată de testul de schimbare rol/pauză privată.
+- **UI-PREF-01 REZOLVAT:** tema păstrează întreaga adresă, filtrele și fragmentul.
+  Verificat în browser: `replay?trip=bh21qrt-15` păstrează trip după schimbarea temei.
+  Butonul din meniul mobil are stil explicit, fără bordura implicită de browser.
+- **GPS-TIME-01 REZOLVAT pentru punctele noi:** migrarea 0018 păstrează capturedAt
+  UTC, receivedAt UTC și precizia. Punctele vechi rămân nealterate; offsetul lor
+  original nu poate fi inventat. Replay filtrează punctele noi prin UTC, păstrează
+  secundele și afișează offsetul. Testate ora repetată din 25 octombrie 2026,
+  limite locale inversate și puncte din secunde diferite ale aceluiași minut.
+- **MOBILE-01 IMPLEMENTAT CA PILOT:** proiect Expo/React Native separat în
+  apps/driver, aceeași bază de date și verificări de atribuire ca web. Login cu
+  telefon/PIN, token separat de cookie, 12 h, domeniu HTTPS configurat la build,
+  SecureStore, comenzi de tură, Privat, listă de curse în șase categorii.
+- **MOBILE-02 TESTAT ÎN LOGICĂ ȘI HTTP:** colector nativ cu acord explicit,
+  serviciu Android/indicator iOS, filtre precizie/vârstă, oprire la modificarea
+  turei/camionului, expirare/revocare cont. Privat/oprit dezactivează local GPS
+  înainte de rețea; comanda de control rămasă se reîncearcă. Nu există outbox GPS
+  în această etapă: lipsa internetului produce goluri declarate, nu retransmitere
+  de puncte private sau vechi.
+
+Validare: 21 suite existente, 394 linii PASS, fără FAIL/SKIP; separat teste HTTP
+mobile (3 grupuri), colector nativ cu platforma simulată (2 grupuri), replay UTC
+(4 grupuri), istoric HTTP (2 grupuri). Build Next și TypeScript trec. Exporturile
+Hermes Android/iOS și generarea proiectelor native prin Expo prebuild trec.
+Acestea NU echivalează cu compilarea APK/IPA sau probe de GPS fizic.
+
+### Restanțe / criterii de lansare mobilă
+
+| ID | Prioritate | Stare și următorul test |
+| --- | --- | --- |
+| MOBILE-DEVICE-01 | P1 | Fără Xcode complet, JDK/Android SDK și telefon conectat. ADB 37.0.1 funcționează din folderul oferit de utilizator. Sunt obligatorii probele din NATIVE-DRIVER.md înainte de activarea pilotului. |
+| MOBILE-DEP-01 | P1 | Auditul arborelui Expo raportează 22 intrări (15 high, 7 moderate), inclusiv propagarea acelorași advisories. Rădăcini: braces ≤3.0.3, node-forge ≤1.4.0, uuid <11.1.1, în principal în instrumentele Metro/config/build. Nu s-a forțat downgrade-ul Expo sugerat de npm. Necesită remediere/analiză înainte de distribuția generală; auditul web 0 nu acoperă proiectul mobil. |
+| MOBILE-OFFLINE-01 | P2 | Outbox GPS criptat, deduplicare și autorizare pe interval istoric încă neimplementate. În pilot se trimit doar puncte proaspete, când există rețea. |
+| MOBILE-FLOW-01 | P2 | CMR/POD, bonurile și evenimentele cursei rămân în web; lista nativă este deocamdată pentru consultare. |
+| MOBILE-SESSION-01 | P2 | Tokenul expiră la 12 h și este revocat prin schimbarea PIN/dezactivare cont. Managementul și revocarea individuală a dispozitivelor/refresh token nu există încă. Logout șterge tokenul local și oprește GPS; nu încheie automat tura. |
+| GPS-LEGACY-01 | P2 | Pozițiile istorice fără UTC și orele alimentărilor fără offset rămân ambigue la DST. Nu se declară asociere verificată punct–cursă. |
+| REACT-19-01 | P2 | 45 avertismente lint: 41 diagnostice noi pentru pregătirea React Compiler, 4 avertismente imagini/hooks. Compiler nu este activat; regulile sale noi rămân vizibile ca warning, Rules of Hooks rămân error. Necesită refactorizare dedicată, nu sunt declarate rezolvate. |
+
+Limitările anterioare pentru Blob, date demo între dispozitive și probe fizice
+rămân deschise. Nu s-a publicat aplicație în App Store/Google Play.
+
+Verificare suplimentară GPS-TIME: harta live și orele turei folosesc timpul UTC
+pentru punctele noi și miezul nopții calculat cu offsetul de la începutul zilei,
+nu offsetul de la prânz. `smoke:gps-time` confirmă ambele tranziții DST, intervalul
+de 30 secunde, ordinea punctelor și excluderea distanței necunoscute peste goluri
+de peste 15 minute.

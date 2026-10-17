@@ -5,7 +5,7 @@ import { ADMIN_FIRM_COOKIE } from "@/lib/tenant";
 export const dynamic = "force-dynamic";
 /** Doar adminul Querra: șterge definitiv o firmă și TOATE datele ei (tranzacție), după ce numele e tastat exact. */
 export async function POST(req: Request) {
-  if (headers().get("x-igo-role") !== "admin") return back(req, "/login");
+  if ((await headers()).get("x-igo-role") !== "admin") return back(req, "/login");
   const fd = await req.formData(), id = String(fd.get("id") ?? "").slice(0, 60), confirm = String(fd.get("confirm") ?? "").trim();
   const s = store(), f = id && id !== "demo" ? await s.firm(id) : null;
   if (!f) return back(req, "/admin?e=delnf#firms");

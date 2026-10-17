@@ -24,7 +24,7 @@ export interface ImportRow { id: string; firmId: string; source: string; filenam
 export interface ShiftRow { truckId: string; start: string; end: string | null; checklist: string[]; privateSince?: string | null }
 export type DriverEventKind = "truck_switch" | "shift_start" | "shift_end" | "private_on" | "private_off" | "loaded" | "unloaded" | "wait_start" | "wait_end" | "fill";
 export interface DriverEventRow { id: string; truckId: string; userId: string | null; kind: DriverEventKind; at: string; lat: number | null; lng: number | null; note: string | null }
-export interface PosRow { truckId: string; at: string; lat: number; lng: number }
+export interface PosRow { truckId: string; at: string; lat: number; lng: number; capturedAt?: string | null; receivedAt?: string | null; accuracy?: number | null }
 
 export type FileKind = "doc" | "cmr" | "pod" | "receipt";
 export interface FileMeta { id: string; firmId: string; kind: FileKind; tripId: string | null; docId: string | null; name: string; mime: string; size: number; storage: "blob" | "db"; url: string | null; userId: string | null; createdAt: string }

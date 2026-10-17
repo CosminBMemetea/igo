@@ -31,3 +31,19 @@ assert.ok(replay.events.every(e => e.min >= replay.start && e.min <= replay.end)
 assert.equal(firmReplay({ vehicleId: "t", plate: "TEST", driver: "", date: first.date, tripId: "trip", rate: 30, pos: [a[0], a[0]], fuel: [], window: first }), null);
 console.log("PASS multi-day GPS timeline and fuel interval; insufficient distinct positions rejected");
 console.log("PASS planned/cancelled trips have no replay; legacy trips explicitly use day scope; strict date boundaries");
+
+// Romania repeats 03:00 at the autumn DST change; UTC fixes remain distinct.
+const dst = tripReplayWindow({ ...base, date: "2026-10-25", loadedAt: "2026-10-25T00:30:00Z", deliveredAt: "2026-10-25T01:30:00Z" }, new Date("2026-10-26T00:00:00Z"))!;
+assert.ok(dst);
+const dstPoints = [
+  { ...point("2026-10-25T03:40"), capturedAt: "2026-10-25T00:40:00Z" },
+  { ...point("2026-10-25T03:10", 46.01), capturedAt: "2026-10-25T01:10:00Z" },
+  { ...point("2026-10-25T03:40", 46.02), capturedAt: "2026-10-25T01:40:00Z" },
+];
+assert.deepEqual(windowPositions(dstPoints, "t", dst), dstPoints.slice(0,2));
+const dstReplay = firmReplay({ vehicleId: "t", plate: "DST", driver: "", date: dst.date, tripId: "dst", rate: 30, pos: dstPoints, fuel: [], window: dst })!;
+assert.equal(dstReplay.end - dstReplay.start, 30);
+assert.ok(dstReplay.clockOrigin);
+const precise = [0, 1].map(i => ({ ...point("2026-10-17T08:00", 46 + i / 100), capturedAt: `2026-10-17T05:00:0${i}Z` }));
+assert.equal(windowPositions(precise, "t", first).length, 2);
+console.log("PASS UTC: repeated DST hour, reversed local bounds and distinct second-level fixes");

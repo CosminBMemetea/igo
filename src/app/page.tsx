@@ -35,7 +35,7 @@ import { fmtDate, type MsgKey } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 const HT = { ro: { title: "Azi în firmă", shift: "în tură", km: "km azi", alerts: "alerte deschise", fills: "bonuri luna asta", docs: "documente de reînnoit" }, en: { title: "Today in your company", shift: "on shift", km: "km today", alerts: "open alerts", fills: "receipts this month", docs: "documents to renew" }, pl: { title: "Dziś w firmie", shift: "na zmianie", km: "km dziś", alerts: "otwarte alerty", fills: "paragony w tym miesiącu", docs: "dokumenty do odnowienia" } } as const;
 export default async function Home() {
-  const prefs = getPrefs(), { loc } = prefs;
+  const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   const canSetup = d.tn.role === "owner" || d.tn.role === "admin";
   const st = !d.demo && d.tn.firm && canSetup ? await setupState(store(), d.tn.firm.id) : null;

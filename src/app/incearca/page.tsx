@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 const UTM = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
 type SP = { sent?: string; e?: string; ref?: string } & Partial<Record<(typeof UTM)[number], string>>;
 /** Pagina publică „Încearcă gratuit 30 de zile”: formular de lead (fără prețuri). */
-export default function TryFree({ searchParams }: { searchParams: SP }) {
-  const { loc } = getPrefs(), L = LT[loc];
+export default async function TryFree(props: { searchParams: Promise<SP> }) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs()), L = LT[loc];
   const ref = normRef(searchParams.ref);
   const utm = UTM.map((k) => [k, String(searchParams[k] ?? "").slice(0, 80)] as const).filter(([, v]) => v);
   if (searchParams.sent) return (

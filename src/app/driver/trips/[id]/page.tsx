@@ -10,13 +10,14 @@ import { PW } from "@/lib/paperwork-labels";
 import { TripPaperwork } from "@/components/TripPaperwork";
 import { DriverOutbox } from "@/components/DriverOutbox";
 export const dynamic = "force-dynamic";
-export default async function DriverDocuments({ params }: { params: { id: string } }) {
-  const tn = await tenant(), { loc } = getPrefs();
+export default async function DriverDocuments(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const tn = await tenant(), { loc } = (await getPrefs());
   if (tn.demo || tn.role !== "driver" || !tn.firm || !tn.uid) notFound();
   const trip = (await tn.repo.trips()).find(x => x.id === params.id && x.driverId === tn.uid);
   if (!trip) notFound();
   const pw = await paperworkFor(tn, trip.id), now = Date.now(), scope = `${tn.firm.id}:${tn.uid}`;
-  const canOperate = !trip.cancelledAt && !!trip.planned && await driverTruck(store(), tn, trip.vehicleId);
+  const canOperate = !trip.cancelledAt && !!trip.planned && (await driverTruck(store(), tn, trip.vehicleId));
   const shift = canOperate ? await tn.repo.shift(trip.vehicleId) : null;
   const vehicle = (await tn.repo.vehicles()).find(v => v.id === trip.vehicleId);
   const hint = trip.cancelledAt ? "Cursă anulată. Nu mai înregistra activități pentru această cursă.|Cancelled trip. No further activities can be recorded.|Kurs anulowany. Nie można rejestrować kolejnych działań."

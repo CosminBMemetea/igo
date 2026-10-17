@@ -10,15 +10,18 @@ import { firmByRef, refCode } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 /** Admin (ADMIN_EMAIL): toate firmele + cererile „Asistență Querra”. Middleware blochează ruta pentru alte roluri. */
-export default async function Admin({ searchParams }: { searchParams: { rem?: string; te?: string; id?: string; msg?: string; del?: string; e?: string; deleted?: string; n?: string; left?: string } }) {
-  const { loc } = getPrefs();
+export default async function Admin(
+  props: { searchParams: Promise<{ rem?: string; te?: string; id?: string; msg?: string; del?: string; e?: string; deleted?: string; n?: string; left?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs());
   const s = store();
   const [firms, reqs, mails, leads] = await Promise.all([s.firms(), s.support(), s.emails(50), s.leads()]);
   const LL = LT[loc], referred = firms.filter((f) => f.referredBy);
   const mailOn = !!emailProvider();
   const rem = searchParams.rem?.split("-").map(Number);
   const sp = searchParams, delFirm = sp.del ? firms.find((f) => f.id === sp.del) ?? null : null, delCounts = delFirm ? await s.firmCounts(delFirm.id) : {};
-  const cur = cookies().get(ADMIN_FIRM_COOKIE)?.value ?? "demo";
+  const cur = (await cookies()).get(ADMIN_FIRM_COOKIE)?.value ?? "demo";
   const name = (id: string | null) => firms.find((f) => f.id === id)?.name ?? "—";
   return (
     <main>

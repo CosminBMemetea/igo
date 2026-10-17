@@ -8,7 +8,7 @@ export function TripDictation({ loc, disabled, onText, onActive }: { loc: Locale
   const tr = (s: string) => tri(loc, s);
   const [server, setServer] = useState(false), [native, setNative] = useState(false), [recordable, setRecordable] = useState(false);
   const [state, setState] = useState<"idle" | "starting" | "listening" | "sending">("idle"), [error, setError] = useState("");
-  const active = useRef(true), lock = useRef(false), speech = useRef<Speech | null>(null), recorder = useRef<MediaRecorder | null>(null), stream = useRef<MediaStream | null>(null), timer = useRef<ReturnType<typeof setTimeout>>(), controller = useRef<AbortController | null>(null);
+  const active = useRef(true), lock = useRef(false), speech = useRef<Speech | null>(null), recorder = useRef<MediaRecorder | null>(null), stream = useRef<MediaStream | null>(null), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), controller = useRef<AbortController | null>(null);
   useEffect(() => { onActive(state !== "idle"); return () => onActive(false); }, [state, onActive]);
   const stopTracks = () => { stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null; if (timer.current) clearTimeout(timer.current); };
   useEffect(() => {

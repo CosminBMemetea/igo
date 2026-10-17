@@ -7,8 +7,9 @@ import { store } from "@/lib/store";
 export const dynamic = "force-dynamic";
 /** Cont și firmă: un singur loc pentru date firmă, camioane, șoferi, parolă, date personale (GDPR). */
 const ERR: Record<string, MsgKey> = { firm: "stg.e.firm", cui: "stg.e.cui", plate: "stg.e.plate", num: "stg.e.num", dup: "stg.e.dup", pw: "stg.e.pw", email: "stg.e.email", emaildup: "stg.e.emaildup", locked: "acct.locked" };
-export default async function Settings({ searchParams }: { searchParams: { e?: string; ok?: string } }) {
-  const { loc } = getPrefs(), tn = await tenant();
+export default async function Settings(props: { searchParams: Promise<{ e?: string; ok?: string }> }) {
+  const searchParams = await props.searchParams;
+  const { loc } = (await getPrefs()), tn = await tenant();
   if (tn.role === "driver") redirect("/driver");
   const me = tn.uid ? await store().userById(tn.uid).catch(() => null) : null;
   const trucks = tn.firm && !tn.demo ? await store().trucks(tn.firm.id) : [], err = ERR[searchParams.e ?? ""];
