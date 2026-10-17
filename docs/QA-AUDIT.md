@@ -919,3 +919,9 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 - Următoarele priorități Apple: tastatură/VoiceOver și text mărit pe iPhone real;
   flux creare cursă și documente în Safari; onboarding GPS nativ cu permisiuni
   și test ecran blocat. Nu declarăm întregul produs validat prin această rundă.
+- Publicare `078261f`: Vercel SUCCESS, widgetul nou confirmat pe HTTPS în
+  browserul integrat. **APPLE-SAFARI-01, deschis:** în Safari-ul instalat,
+  sesiunea existentă admin/demo afișează antetul, dar conținutul rămâne în
+  skeleton inclusiv la navigarea directă `?q=Milano`. Nu există încă diagnostic
+  care să separe sesiunea, setările browserului și încărcarea aplicației.
+  Nu marca acceptarea Safari drept PASS; acesta este următorul blocaj de verificat.
