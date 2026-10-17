@@ -1485,3 +1485,22 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .driver-trip-warning{font-size:13px;line-height:1.5;color:var(--neg)}
 .driver-trip-context{margin:20px 0;padding:16px;border:1px solid var(--line);border-radius:16px;overflow-wrap:anywhere;line-height:1.6}
 @media(max-width:600px){.driver-trip-list{grid-template-columns:minmax(0,1fr)}}
+
+/* Driver overview: explicit current work, future plans and delivery history. */
+.driver-current{padding:22px;margin:16px 0;border:1px solid var(--line);border-radius:20px;background:var(--bg2);display:flex;flex-direction:column;gap:12px;overflow-wrap:anywhere}
+.driver-current.active{border-color:color-mix(in srgb,var(--pos) 55%,var(--bg));background:linear-gradient(135deg,color-mix(in srgb,var(--pos) 12%,var(--bg2)),var(--bg2))}
+.driver-current.active .eyebrow{color:var(--pos)}
+.driver-current h3{font-size:clamp(23px,5vw,32px);line-height:1.2;margin:0;font-weight:600}
+.driver-current p{margin:0;line-height:1.5}.driver-current .btn{align-self:flex-start;min-height:48px;height:auto;white-space:normal;max-width:100%;text-align:center}
+.driver-trip-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:5px;background:var(--bg3);border-radius:15px;margin-top:20px}
+.driver-trip-tabs button{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;min-width:0;min-height:52px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--fg2);padding:10px 5px;cursor:pointer;font-size:14px;line-height:1.4}
+.driver-trip-tabs button[aria-pressed=true]{background:var(--bg);border-color:var(--acc);color:var(--fg)}
+.driver-trip-tabs b{font-size:12px;min-width:20px;padding:2px 5px;border-radius:6px;background:var(--bg3)}
+.driver-trip-tabs button:focus-visible,.driver-pod-reminder:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.driver-trip-explanation,.driver-trip-empty{font-size:14px;line-height:1.6;color:var(--fg2);margin:14px 0}
+.driver-trip-empty{padding:18px;border:1px dashed var(--line);border-radius:12px}
+.driver-pod-reminder{display:block;width:100%;padding:14px 16px;border:1px solid color-mix(in srgb,#f5a524 45%,var(--bg));border-radius:12px;background:color-mix(in srgb,#f5a524 10%,var(--bg));color:var(--fg);font:inherit;text-align:left;cursor:pointer;line-height:1.5;overflow-wrap:anywhere}
+.driver-trip-card.selected{border-color:var(--acc)}
+.driver-trip-card.selected .driver-trip-open{color:var(--acc)}
+#trip-paperwork{scroll-margin-top:80px}
+@media(max-width:360px){.driver-current{padding:18px}.driver-trip-tabs button{flex-direction:column;gap:4px;font-size:13px}}

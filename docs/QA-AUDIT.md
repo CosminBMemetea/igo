@@ -400,3 +400,137 @@ fictive Viena–München cu șofer/camion autoasociat: confirmare de salvare.
 - Verified locally with PostgreSQL and a synthetic driver: open assigned trip, load, unload, return to board and see missing POD; another driver's trip returns not-found content. Mobile 320 px and desktop 1100 px have no horizontal page overflow.
 - Scope limitation: demo keeps its existing simulated trip actions; its cookie-based state is still not shared between owner and driver. Real-device offline handover, camera uploads and push notifications remain separate QA work. Direct protected production UI was not tested.
 - Active trips on the assigned truck open through `/driver?trip=…#trip-paperwork`, retaining the mounted shift/GPS component. Verified both same-day cards and a future card are present; selecting a card opens its own action panel at 390 px. GPS background reliability itself still requires real-device testing.
+
+## Harsh testing — 17 octombrie 2026, HEAD 4f1ed00
+
+**Audit, fără remedieri în codul aplicației. Toate cele șapte constatări de mai jos sunt DESCHISE.**
+Testare exclusiv locală: build-ul de producție existent, PostgreSQL de unică folosință,
+conturi fictive patron/șofer, HTTP și browser. Nicio scriere în datele producției.
+
+### ROUND17-01 — P1 — Arhivarea camionului blochează cursa și ascunde tura activă
+
+Loc: `src/app/api/vehicles/econ/route.ts:35`, `src/app/driver/page.tsx:35`,
+`src/components/DriverTrips.tsx:18`.
+Reprodus: camion cu șofer alocat, tură deschisă și cursă încărcată. Patronul trimite
+`action=archive`: răspuns 303, camion arhivat. Șoferul vede „Camion nealocat”, iar
+linkul cursei îl întoarce la `/driver?trip=…` fără butoanele cursei. Tura rămâne
+activă în DB. Remediere: blocarea arhivării cât timp există tură/cursă activă sau
+un flux explicit și atomic de închidere/transfer; linkurile istorice trebuie să
+rămână consultabile. Retest: arhivare concurentă cu încărcarea/pornirea turei.
+
+### ROUND17-02 — P1 — Navigarea la documente oprește colectorul GPS al turei
+
+Loc: `src/components/DriverTrips.tsx:18`,
+`src/components/DriverApp.tsx:100–133`, `src/app/driver/trips/[id]/page.tsx:28`.
+Reprodus în browser: în tură, deschide istoricul unei curse livrate. Se navighează
+pe pagina separată, fără DriverApp, fără Termină tura și fără Privat. Efectul GPS
+este deținut de DriverApp, iar cleanup-ul apelează clearWatch și anulează cererea
+în curs. Tura din DB rămâne deschisă. Aceeași limită există la alte pagini care
+părăsesc ecranul principal. Remediere: un singur gestionar persistent al turei și
+GPS în layout-ul șoferului, cu controale de confidențialitate accesibile.
+**Nivel de dovadă:** navigare verificată în browser + ciclul de viață confirmat
+în cod; browserul de test nu avea GPS disponibil. Nu este un test de coordonate
+reale sau de funcționare în fundal pe Android/iOS.
+
+### ROUND17-03 — P1 — Salvarea fotografiei și marcarea POD nu sunt atomice
+
+Loc: `src/app/api/files/route.ts:21–22`.
+Reprodus prin eroare injectată local la actualizarea pod_received: uploadul întoarce
+404, dar există deja un fișier salvat, în timp ce podReceived rămâne false.
+Reîncercarea după înlăturarea erorii răspunde 200 și lasă **două fișiere** pentru
+aceeași încărcare. Remediere: operațiune atomică pentru metadate/starea POD,
+compensare pentru Blob și cheie de idempotentă pentru reîncercări. Retest:
+întrerupere după salvarea fișierului și răspuns pierdut după commit.
+
+### ROUND17-04 — P2 — Conținut invalid acceptat drept POD
+
+Loc: `src/lib/files.ts:8–16`, `src/app/api/files/route.ts:21–22`.
+Reprodus: 12 octeți cu textul „not an image”, declarați image/png, primesc 200.
+podReceived devine true; cursa intră la Finalizate, dar imaginea apare stricată
+în browser (naturalWidth=0). Validarea verifică doar MIME declarat și mărime.
+Remediere: verificare a formatului/conținutului real și respingere înainte de
+salvare; un fișier tehnic valid nu trebuie confundat cu validarea comercială a
+conținutului documentului. Retest: text mascat, fișier trunchiat, PNG/JPEG/PDF valide.
+
+### ROUND17-05 — P2 — Cursa anulată încă acceptă documente prin API
+
+Loc: `src/app/api/files/route.ts:19`, `src/lib/driver-access.ts:16–19`.
+Reprodus cu același șofer: evenimentul loaded pe cursa anulată este respins cu 409,
+dar upload POD răspunde 200. UI este read-only, însă API verifică doar atribuirea
+și firma. Remediere: regulă explicită și comună pentru documentele unei curse
+anulate (blocare sau excepție autorizată și jurnalizată). Retest inclusiv un upload
+început înainte de anulare și finalizat după aceasta.
+
+### ROUND17-06 — P2 — Erorile interne SQL sunt returnate ca 404 cu detalii
+
+Loc: `src/app/api/files/route.ts:24–26`.
+Eroarea injectată la ROUND17-03 a returnat către șofer textul interogării UPDATE,
+numele coloanelor și parametrii cu ID-uri. O indisponibilitate internă este etichetată
+„not found”, ceea ce împiedică tratarea corectă a reîncercărilor. Remediere: mesaj
+public stabil, cod 5xx pentru eroare internă și detalii numai în loguri cu ID de
+corelare. Nu s-au observat parole sau tokenuri în răspunsul testat.
+
+### ROUND17-07 — P2 — Checklistul obligatoriu există numai în interfață
+
+Loc: `src/components/DriverApp.tsx:82`, `src/app/api/driver/shift/route.ts:23–24`.
+UI cere cel puțin trei verificări. Reprodus: POST start cu checklist=[] primește
+200 și creează tură activă, cu checklist gol. Serverul acceptă și șiruri arbitrare,
+fără validarea opțiunilor cunoscute. Remediere: validarea aceleiași reguli pe server,
+cu valori distincte din lista permisă; păstrarea idempotentei pentru o tură deja
+pornită. Retest: gol, duplicate, valori necunoscute, checklist valid.
+
+### Ce a trecut și limitele rundei
+
+- Suitele fără infrastructură au trecut. Smoke tenant a fost inițial sărit fără
+  TEST_DATABASE_URL; apoi a fost rulat efectiv: **116 verificări PASS** HTTP/PostgreSQL.
+- Smoke card-periods a cerut inițial configurația bazei; rerularea cu PostgreSQL a
+  trecut, inclusiv migrare repetabilă și concurență. Nu este defect al aplicației.
+- Reliability memorie/PostgreSQL, outbox, draft bon, auth, calcule, i18n, reguli,
+  fuel evidence, demo și driver-trips au trecut. Smoke harsh a trecut inclusiv
+  peste 20.000 poziții GPS și eșecul citirii confidențialității. Aceste suite nu
+  acopereau cele șapte cazuri noi; rezultatele verzi nu le invalidează.
+- Browser: încărcarea apare în lista șoferului și în fluxul patronului; documentul
+  invalid este într-adevăr ilizibil. Ecranele verificate nu au overflow orizontal:
+  documente șofer/flux/curse la 320 px, șoferi/camioane la 390 px. Cursă nouă:
+  Anulează/Creează cursa sunt în viewport la 320×740 și 390×500.
+- Dovezi temporare: `/tmp/igo-round-backend.mjs`, `/tmp/igo-round-backend.log`,
+  `/tmp/igo-round-archive.mjs`, `/tmp/igo-round-tests.log`, `/tmp/igo-round-tenant.log`,
+  `/tmp/igo-round-cards.log`, `/tmp/igo-harsh-pod-invalid.png`. Triggerul de eroare a
+  fost eliminat în finally; camionul de test a fost restaurat după verificare.
+- Suitele tenant/card-periods reconstruiesc schema bazei de test. Nu se rulează
+  pe producție sau pe o bază cu date de păstrat.
+- Restantele OPEN-01/03/04/10 și SYNC-04/05 rămân: dispozitive reale, offline
+  extins, restaurarea backupului, fusuri orare pentru carburant și demo comun.
+  Nu s-a făcut certificare end-to-end în producția protejată de SSO.
+
+Feedback: lista de curse este mai clară, dar robustețea fluxurilor de excepție
+rămâne în urma interfeței. Prioritate: continuitatea turei, blocarea arhivării
+incompatibile și salvarea sigură a documentelor; apoi stări consecvente între
+roluri și feedback explicit „pe telefon / confirmat de server”. Funcții noi după
+închiderea P1 și probe pe două telefoane reale, cu rețea întreruptă.
+
+## Clarificarea ecranului șoferului — 17 octombrie 2026
+
+- Cursa încărcată este afișată explicit într-un card „Cursa în desfășurare”,
+  cu ruta, camionul, data și acces la acțiuni. O cursă doar planificată nu este
+  prezentată drept cursă începută. Dacă există mai multe încărcate, apare avertizare.
+- Trei liste distincte cu număr: Acum, Urmează, Livrate. Fiecare rând are stare
+  explicită; livrările fără POD apar primele și au memento separat. Anulate are
+  propriul istoric pliabil. Cursa deschisă și cursa în desfășurare sunt distincte.
+- Selectarea automată preferă cursa încărcată, apoi una de încărcat azi/restantă,
+  pe camionul curent; nu selectează automat o cursă viitoare ca activitate curentă.
+- Aceeași organizare în demo, cu două curse viitoare per camion. Planurile nu au
+  încărcări/CMR/POD fictiv finalizate și nu intră în profitul curselor încheiate.
+- ROUND17-02: remediat pentru navigarea din noua listă când există camion activ:
+  inclusiv documentele livrărilor se deschid în `/driver?trip=…`, păstrând DriverApp.
+  Rămâne DESCHIS pentru accesul direct pe ruta separată și navigarea la alte
+  pagini; gestionarul GPS global nu a fost extras în această rundă.
+- Celelalte șase constatări ROUND17 rămân DESCHISE. Demo-ul păstrează limita deja
+  explicată în interfață: confirmările/fotografiile temporare nu sunt stare
+  persistentă comună între roluri/dispozitive.
+- Verificat în browser cu cont real de test: cursa curentă rămâne aceeași când
+  deschizi o cursă viitoare; Livrate diferențiază POD lipsă/trimis; documentele
+  păstrează Termină tura/Privat. Demo: Acum 1, Urmează 2, Livrate 7; cursa viitoare
+  deschisă nu are evenimente de încărcare/livrare. Layout fără overflow la 320/390 px.
+- Regresii: driver-trips (priorități, izolare camion, excluziune câmpuri financiare
+  din payloadul client), demo (flotă/hartă/istoric/planuri/economie), build și TypeScript.

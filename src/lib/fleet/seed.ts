@@ -108,6 +108,10 @@ function buildTrips(): Trip[] {
     }
     const ar = r1(base * 0.89), arrival = dayPlan(t).find((p) => p.kind === "stop" && p.kmStart > 0)!.start;
     out.push({ id: `${t.id}-15`, vehicleId: t.id, clientId, type: "transport", date: DEMO_DAY, title: t.routeName, km, hours: r1(km / 64), ha: 0, units: km, revenue: Math.round(km * RATE_BY_TRUCK[ti] / 10) * 10, litres: Math.round(km * ar / 100), fuelPrice: FUEL_PRICE, tolls: Math.round(km * 1.18), driver: 450, other: Math.round(km * 0.28), actualRate: ar, tonnes: 18 + ti * 0.5, emptyKm: Math.round(km * 0.04), active: true, planned: true, driverName: t.driver, loadedAt: roIso(DEMO_DAY, minToHHMM(t.depMin)), deliveredAt: arrival <= DEMO_NOW_MIN ? roIso(DEMO_DAY, minToHHMM(arrival)) : null, payment: "due", invoiceNo: null, tariffNote: `${RATE_BY_TRUCK[ti]} lei/km` });
+    const current = out[out.length - 1];
+    for (const [day, back] of [[17, true], [19, false]] as const) {
+      out.push({ ...current, id: `${t.id}-plan-${day}`, date: `2026-10-${day}`, title: back ? t.routeName.split(" → ").reverse().join(" → ") : t.routeName, loadedAt: null, deliveredAt: null, litresSource: "estimate" });
+    }
   });
   // utilaje agricole: lucrări pe parcele
   const AG: [string, string, JobType, number, number, number, number, number][] = [
@@ -132,7 +136,7 @@ function buildTrips(): Trip[] {
     const km = 140 + day * 3;
     out.push({ id: `bh05qrt-${pad(day)}`, vehicleId: "bh05qrt", clientId: "dedeman", type: "transport", date: `2026-10-${pad(day)}`, title: "Oradea · local", km, hours: 7, ha: 0, units: km, revenue: 1450, litres: Math.round(km * 0.104), fuelPrice: FUEL_PRICE, tolls: 0, driver: 380, other: Math.round(km * 0.3), actualRate: 10.4, active: false, payment: day < 5 ? "paid" : "due", invoiceNo: `QF-2026-U${pad(day)}`, tariffNote: "1.450 lei / zi" });
   }
-  return out.sort((a, b) => b.date.localeCompare(a.date) || b.revenue - a.revenue);
+  return out.sort((a, b) => Number(!!b.loadedAt && b.active) - Number(!!a.loadedAt && a.active) || b.date.localeCompare(a.date) || b.revenue - a.revenue);
 }
 export const TRIPS: Trip[] = buildTrips();
 export const tripById = (id: string) => TRIPS.find((t) => t.id === id);

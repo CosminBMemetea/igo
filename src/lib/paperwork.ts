@@ -13,7 +13,7 @@ export interface Paperwork { events: Pick<TripEventRow, "kind" | "at" | "lat" | 
 const ev = (kind: TripEventKind, at: string, lat: number | null = null, lng: number | null = null) => ({ kind, at, lat, lng });
 function demoPaperwork(tripId: string) {
   const tr = TRIPS.find((t) => t.id === tripId), truck = TRUCKS.find((t) => t.id === tr?.vehicleId);
-  if (!tr || !truck) return { events: [], files: [], pod: false };
+  if (!tr || !truck || (tr.planned && tr.date > DEMO_DAY && !tr.loadedAt)) return { events: [], files: [], pod: false };
   const back = tr.title === truck.routeName.split(" → ").reverse().join(" → ");
   const route = back ? [...truck.route].reverse() : truck.route, first = route[0].at, last = route[route.length - 1].at;
   const events = [ev("loaded", tr.loadedAt ?? roIso(tr.date, "07:00"), ...first)];

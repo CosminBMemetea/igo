@@ -26,7 +26,7 @@ const today = realToday();
 // Șapte echipaje reale în scenariu, cu o singură rută comună hărții și curselor.
 ok("exact 7 camioane și 7 șoferi distincți", vehicles.length === 7 && TRUCKS.length === 7 && new Set(vehicles.map((v) => v.driver)).size === 7);
 ok("fiecare cursă are camion și client valabile", trips.every((t) => vehicles.some((v) => v.id === t.vehicleId) && clients.some((c) => c.id === t.clientId)));
-ok("exact o cursă de azi per camion", vehicles.every((v) => trips.filter((t) => t.vehicleId === v.id && t.active).length === 1));
+ok("exact o cursă de azi per camion", vehicles.every((v) => trips.filter((t) => t.vehicleId === v.id && t.active && t.date === today).length === 1));
 const countries = new Set(TRUCKS.flatMap((t) => t.route.map((w) => CITY_CC[w.name] ?? "RO")));
 ok("rutele traversează cel puțin 12 țări", countries.size >= 12, [...countries].join(", "));
 const live = liveFleet(vehicles, views, [], [], DEMO_NOW_MIN, new Set());
@@ -63,8 +63,8 @@ ok("economii măsurate = economia de pe Acasă", near(e.lines.fuel, m.savings.sa
 ok("profit Acasă = Σ curse încheiate", near(views.filter((v) => !v.active).reduce((s, v) => s + v.p.profit, 0), m.profit));
 
 // 2. date relative la azi
-ok("nicio cursă din viitor", trips.every((t) => t.date <= today), today);
-ok("cursele în desfășurare sunt de azi", trips.filter((t) => t.active).every((t) => t.date === today) && trips.some((t) => t.active));
+ok("cursele viitoare sunt planificate și neîncepute", trips.some(t => t.date > today) && trips.filter(t => t.date > today).every(t => t.planned && !t.loadedAt && !t.deliveredAt));
+ok("cursele în desfășurare sunt de azi", trips.filter((t) => t.active && t.loadedAt).every((t) => t.date === today) && trips.some((t) => t.active && t.loadedAt));
 ok("alertele nu sunt din viitor (în afară de expirări)", alerts.filter((a) => a.rule !== "doc-expiry").every((a) => a.time.slice(0, 10) <= today));
 ok("documentele care expiră sunt în viitor", docs.filter((d) => d.expires).every((d) => d.expires! >= today));
 ok("shiftStr", shiftStr("2026-10-15T12:00", -3) === "2026-10-12T12:00" && demoDelta("2026-10-15") === 0);
