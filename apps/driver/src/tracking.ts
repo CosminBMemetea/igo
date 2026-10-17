@@ -1,5 +1,6 @@
 import * as TaskManager from "expo-task-manager";
 import * as Location from "expo-location";
+import { PermissionsAndroid, Platform } from "react-native";
 import { api, ApiError, read, write, remove, abortGPSRequests, sessionScope, type Gate, type Pending } from "./api";
 import { pendingControl, queueControl, syncPending } from "./controls";
 export { syncPending } from "./controls";
@@ -35,8 +36,17 @@ export async function startGPS() {
   const scope = await sessionScope();
   const foreground = await Location.requestForegroundPermissionsAsync(); current();
   if (!foreground.granted) throw new Error("Permite locația precisă din setările telefonului.");
+  if (Platform.OS === "android" && Number(Platform.Version) >= 33) {
+    const notifications = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS, {
+      title: "Notificarea GPS în tură",
+      message: "Querra afișează o notificare cât timp trimite poziția firmei. Permite notificările pentru a vedea când GPS este activ.",
+      buttonPositive: "Continuă", buttonNegative: "Mai târziu",
+    });
+    current();
+    if (notifications !== PermissionsAndroid.RESULTS.GRANTED) throw new Error("Permite notificările Querra din Setări înainte de a activa GPS în fundal.");
+  }
   const background = await Location.requestBackgroundPermissionsAsync(); current();
-  if (!background.granted) throw new Error("Pentru GPS cu ecranul blocat, permite locația «Întotdeauna» din Setări.");
+  if (!background.granted) throw new Error(Platform.OS === "android" ? "Pentru GPS cu ecranul blocat, permite locația «Tot timpul» din Setări." : "Pentru GPS cu ecranul blocat, permite locația «Întotdeauna» din Setări.");
   const state = await api<{ enabled: boolean; vehicleId: string; shiftStart: string }>("/api/driver/tracking", undefined, { gps: true, scope }); current();
   if (!state.enabled) throw new Error("GPS se poate activa numai într-o tură deschisă, în afara modului Privat.");
   await write("gps-gate", { vehicleId: state.vehicleId, shiftStart: state.shiftStart, enabledAt: Date.now(), scope } satisfies Gate);

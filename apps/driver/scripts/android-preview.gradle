@@ -1,0 +1,20 @@
+// Applied only by build-android.mjs to the generated native project.
+// The test key stays outside Git and is reused so later test APKs can update it.
+if (System.getenv('QFLEET_ANDROID_PREVIEW') == '1') {
+    def keyPath = System.getenv('QFLEET_ANDROID_KEYSTORE')
+    def passwordPath = System.getenv('QFLEET_ANDROID_KEY_PASSWORD_FILE')
+    if (!keyPath || !passwordPath) {
+        throw new GradleException('Run npm run android:build:preview to configure the local preview signing key.')
+    }
+    def password = new File(passwordPath).text.trim()
+    android.signingConfigs {
+        qfleetPreview {
+            storeFile new File(keyPath)
+            storePassword password
+            keyAlias 'qfleet-preview'
+            keyPassword password
+            storeType 'PKCS12'
+        }
+    }
+    android.buildTypes.release.signingConfig = android.signingConfigs.qfleetPreview
+}

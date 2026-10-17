@@ -16,12 +16,14 @@ const api = async (path:string,body?:unknown,opts?:{scope?:string}) => {
 };
 const service={api,ApiError,sessionScope:async()=>scope,read:async(k:string)=>{if(badGateRead&&k==="gps-gate")throw Error("storage");return memory.get(k)??null;},write:async(k:string,v:unknown)=>{if(badStatusWrite&&k==="gps-status")throw Error("storage");memory.set(k,v);},remove:async(k:string)=>{memory.delete(k);},abortGPSRequests:()=>{}};
 const location={hasStartedLocationUpdatesAsync:async()=>running,stopLocationUpdatesAsync:async()=>{running=false;},requestForegroundPermissionsAsync:async()=>permission?permission():({granted:true}),requestBackgroundPermissionsAsync:async()=>({granted:true}),startLocationUpdatesAsync:async()=>{running=true;},Accuracy:{High:4},ActivityType:{AutomotiveNavigation:1}};
+let notificationResult="granted", notificationRequests=0, notificationPermission:(()=>Promise<string>)|null=null;
+const native={Platform:{OS:"ios",Version:27},PermissionsAndroid:{PERMISSIONS:{POST_NOTIFICATIONS:"notifications"},RESULTS:{GRANTED:"granted"},request:async()=>{notificationRequests++;return notificationPermission?notificationPermission():notificationResult;}}};
 const modules = new Map<string,any>();
 function load(name:string):any {
  if(modules.has(name))return modules.get(name);
  const output=ts.transpileModule(fs.readFileSync(`apps/driver/src/${name}.ts`,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
  const module={exports:{}};
- new Function("require","module","exports",output)((dep:string)=>dep==="expo-task-manager"?{defineTask:(_name:string,fn:typeof callback)=>{callback=fn;}}:dep==="expo-location"?location:dep==="./api"?service:load(dep.slice(2)),module,module.exports);
+ new Function("require","module","exports",output)((dep:string)=>dep==="expo-task-manager"?{defineTask:(_name:string,fn:typeof callback)=>{callback=fn;}}:dep==="expo-location"?location:dep==="react-native"?native:dep==="./api"?service:load(dep.slice(2)),module,module.exports);
  modules.set(name,module.exports);return module.exports;
 }
 const t=load("tracking"), c=load("controls");
@@ -59,3 +61,11 @@ await t.startGPS();badGateRead=true;await callback!(fix());assert.equal(running,
 let grant!:()=>void;permission=()=>new Promise(r=>{grant=()=>r({granted:true});});
 const start=t.startGPS();await tick();await t.stopGPS();grant();await assert.rejects(start);assert.equal(running,false);permission=null;
 console.log("PASS native stop: storage failure still shuts down service; delayed permission result cannot restart GPS");
+
+native.Platform.OS="android";native.Platform.Version=33;notificationResult="denied";
+await assert.rejects(t.startGPS(),/notificările/);assert.equal(running,false);assert.equal(memory.has("gps-gate"),false);
+notificationResult="granted";await t.startGPS();assert.equal(running,true);await t.stopGPS();
+let allowNotifications!:()=>void;notificationPermission=()=>new Promise(r=>{allowNotifications=()=>r("granted");});
+const delayedNotification=t.startGPS();await tick();await t.stopGPS();allowNotifications();await assert.rejects(delayedNotification);assert.equal(running,false);notificationPermission=null;
+const notificationCount=notificationRequests;native.Platform.Version=32;await t.startGPS();await t.stopGPS();assert.equal(notificationRequests,notificationCount);
+console.log("PASS Android notification consent: denial blocks GPS, grant starts it, delayed grant cannot override stop, Android 12 skips Android 13 permission");

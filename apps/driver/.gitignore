@@ -1,8 +1,12 @@
 node_modules
 .expo
 dist
+dist-*
 build
 ios
 android
 .env*
 !.env.example
+*.keystore
+*.jks
+*.p12
