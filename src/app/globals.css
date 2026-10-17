@@ -504,7 +504,11 @@ body:has(.rp) .demo{display:none!important}
 .tour-foot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:12px}
 .tour-dots{display:flex;gap:6px}.tour-dots button{width:7px;height:7px;padding:0;border:0;border-radius:4px;background:var(--bg3);cursor:pointer;transition:width .3s,background .3s}
 .tour-dots button.past{background:color-mix(in srgb,var(--acc) 45%,var(--bg3))}.tour-dots button.on{width:22px;background:var(--acc)}
-.tour-btns{display:flex;gap:8px}
+.tour-btns{display:flex;gap:8px;flex-shrink:0}
+.tour-btns .tour-arrow{display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;padding:0;border-radius:50%}
+.tour-arrow svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tour-arrow:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.tour-dots{flex-wrap:wrap;min-width:0}
 .tour-cta{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}.tour-cta .btn{flex:1;text-align:center}
 .tour.m .tour-card{left:12px;right:12px;width:auto;top:auto;bottom:calc(84px + env(safe-area-inset-bottom));padding:16px 18px 14px}
 .tour.m .tour-card h3{font-size:18px}.tour.m .tour-card p{font-size:13px}

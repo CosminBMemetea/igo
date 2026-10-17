@@ -137,8 +137,8 @@ export function DemoTour({ steps, L }: { steps: TourStep[]; L: TourL }) {
         <div className="tour-foot">
           <div className="tour-dots">{steps.map((_, j) => <button key={j} type="button" className={j === st.i ? "on" : j < st.i ? "past" : ""} onClick={() => set({ i: j, on: true })} aria-label={`${j + 1}`} />)}</div>
           <div className="tour-btns">
-            {st.i > 0 ? <button type="button" className="btn sec sm" onClick={() => set({ i: st.i - 1, on: true })}>{L.back}</button> : null}
-            <button type="button" className="btn pri sm" onClick={() => (last ? set({ i: 0, on: false, done: true }) : set({ i: st.i + 1, on: true }))}>{last ? L.done : L.next}</button>
+            {st.i > 0 ? <button type="button" className="btn sec tour-arrow" aria-label={L.back} title={L.back} onClick={() => set({ i: st.i - 1, on: true })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h12" /></svg></button> : null}
+            <button type="button" className="btn pri tour-arrow" aria-label={last ? L.done : L.next} title={last ? L.done : L.next} onClick={() => (last ? set({ i: 0, on: false, done: true }) : set({ i: st.i + 1, on: true }))}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={last ? "m5 12 4 4L19 6" : "m10 6 6 6-6 6M4 12h12"} /></svg></button>
           </div>
         </div>
       </div>
