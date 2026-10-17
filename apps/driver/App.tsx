@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { Alert, AppState, Keyboard, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, AppState, Keyboard, KeyboardAvoidingView, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { api, apiOrigin, ApiError, read, write, remove, type Login, type Gate, type Pending } from "./src/api";
 import { startGPS, stopGPS, preparePrivateOrStop, syncPending, type GPSStatus } from "./src/tracking";
@@ -65,7 +65,7 @@ function Screen() {
   }
   const button = (label: string, action: () => Promise<void>, secondary = false, prepare?: () => Promise<void>) => <Pressable accessibilityRole="button" disabled={busy && !prepare} onPress={() => void run(action, prepare)} accessibilityState={{ disabled: busy && !prepare }} style={[s.button, secondary && s.secondary, busy && !prepare && { opacity: .5 }]}><Text style={[s.buttonText, secondary && { color: "#eef4ff" }]}>{label}</Text></Pressable>;
   const consent = () => new Promise<void>((resolve) => Alert.alert("GPS în tură", "Poziția este trimisă firmei tale, inclusiv cu ecranul blocat. Modul Privat, Oprește GPS și încheierea turei opresc colectarea. Fără internet rămân goluri în traseu. În Setări, acordă locația precisă și accesul în fundal.", [{ text: "Mai târziu", style: "cancel", onPress: resolve }, { text: "Activează GPS", onPress: () => { void run(startGPS).finally(resolve); } }]));
-  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" /><ScrollView ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" /><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "android" ? "height" : undefined}><ScrollView onLayout={() => { if (Keyboard.isVisible()) revealInput(); }} ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
     <Text style={s.eyebrow}>QUERRA / ȘOFER</Text><Text style={s.title}>{logged ? board?.name ?? "Ziua ta de lucru" : "Bun venit la bord"}</Text>
     <Text style={s.muted}>{logged ? board?.firm ?? "Conectăm datele firmei…" : "Camionul, cursele și tura ta, într-un singur loc."}</Text>
     {!!error && <View accessibilityRole="alert" style={s.error}><Text style={s.text}>{error}</Text></View>}
@@ -94,7 +94,7 @@ function Screen() {
       {button("Reîmprospătează", refresh, true)}
       {button("Deconectare • oprește GPS", async () => { await syncPending(); await remove("login"); setLogged(false); setBoard(null); }, true, stopGPS)}
     </>}
-  </ScrollView></SafeAreaView>;
+  </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
 export default function App() { return <SafeAreaProvider><Screen /></SafeAreaProvider>; }
 const s = StyleSheet.create({ safe: { flex: 1, backgroundColor: "#0a1220" }, content: { padding: 20, gap: 16, width: "100%", maxWidth: 680, alignSelf: "center", paddingBottom: 40 }, eyebrow: { color: "#80e2c2", fontSize: 12, fontWeight: "700", letterSpacing: 2 }, title: { color: "#f5f7fc", fontSize: 30, fontWeight: "700" }, subtitle: { color: "#f5f7fc", fontSize: 20, fontWeight: "600" }, truck: { color: "#f5f7fc", fontSize: 28, fontWeight: "700" }, text: { color: "#eef4ff", fontSize: 16, lineHeight: 24 }, muted: { color: "#aabbd1", fontSize: 14, lineHeight: 22 }, card: { backgroundColor: "#142137", padding: 20, borderRadius: 22, gap: 14, borderColor: "#253853", borderWidth: 1 }, label: { color: "#aabbd1", fontSize: 13, fontWeight: "600" }, input: { backgroundColor: "#0a1220", borderRadius: 12, padding: 16, color: "white", fontSize: 18, minHeight: 54, borderColor: "#3b506a", borderWidth: 1 }, button: { minHeight: 54, backgroundColor: "#80e2c2", borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 14 }, secondary: { backgroundColor: "#22364e" }, buttonText: { color: "#09241c", fontSize: 16, fontWeight: "700", textAlign: "center", flexShrink: 1 }, check: { paddingVertical: 12 }, trip: { paddingTop: 12, borderTopWidth: 1, borderColor: "#30445e", gap: 4 }, notice: { backgroundColor: "#284039", padding: 16, borderRadius: 12 }, error: { backgroundColor: "#532932", padding: 16, borderRadius: 12 } });
