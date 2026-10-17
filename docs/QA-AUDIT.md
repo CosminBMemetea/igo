@@ -1010,3 +1010,6 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
   cu Rotterdam afișează cele 10 curse corecte. APPLE-SAFARI-01 este mitigat
   pentru acest caz, fără a pretinde identificarea cauzei interne a browserului
   sau acceptare iPhone. Captură: /tmp/qfleet-safari-pilot.png (locală).
+- Captura vizuală a evidențiat o a doua cauză de conținut ascuns: animația fade
+  pornea la opacity:0. Textul și cardurile sunt acum vizibile din primul cadru,
+  chiar când animația este suspendată. Citirea AX singură nu dovedea vizibilitatea.
