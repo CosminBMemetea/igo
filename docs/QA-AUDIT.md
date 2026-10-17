@@ -826,3 +826,75 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
   native complete sau gestionarea individuală a sesiunilor per telefon.
 - Pilotul rămâne dezactivat implicit în backend. Nu s-a publicat în App Store și
   nu s-au folosit conturi ori date de șoferi reali pentru aceste verificări.
+
+## Runda 22 — pregătire Android și probă nativă în emulator (17 octombrie 2026)
+
+### Remedieri și build
+
+- Toolchain local instalat: Temurin JDK 17, Android SDK 37/Build Tools 37.0.0,
+  NDK 27.1.12297006, emulator Google Play Android 36.1 arm64.
+- Script reproductibil `android:check` / `android:build:preview`; APK Release
+  semnat cu o cheie privată de test în afara repository-ului, identitate separată
+  `com.querra.qfleet.driver.preview`. Nu folosește cheia debug standard.
+- Android 13+: cerere explicită POST_NOTIFICATIONS înainte de GPS. Refuzul
+  notificărilor blochează pornirea; aprobarea întârziată nu poate anula Stop.
+- Dezactivate backup-ul Android, traficul HTTP în Release și permisiunile
+  nefolosite de stocare, microfon și overlay. Tema dark are modulul SystemUI.
+- Defect observat pe emulator 360×640 dp: tastatura acoperea PIN-ul. Formularul
+  deplasează acum câmpul activ deasupra tastaturii pe Android; autentificarea
+  închide tastatura și revine la zona mesajelor de eroare.
+- Build final: sursa `ad9eab5`, 2026-10-17T17:18:39Z; numai cele două documente
+  QA/ghid aveau modificări necomise (`sourceDirty: true`), codul era comis;
+  `BUILD SUCCESSFUL` (3m 5s la reconstruire). APK aproximativ 38.1 MiB.
+  SHA-256: `dfe7ab635a422c3c45ce47b9c516d46a8ec87fb73dc3fbab5a8ac980b85c1c51`.
+  Certificat public SHA-256:
+  `3b8b380f582ea6d8d562f5e924c1b964fab31dab17dcd207036b0e9e0064a2e6`.
+
+### Verificări executate
+
+- TypeScript nativ, smoke native-tracking (5 grupuri), native-actions și
+  native-api: PASS. Include refuz/acord notificări, acord întârziat după Stop,
+  Android 12 fără cererea de notificări Android 13.
+- Validator origine HTTPS: acceptă originul valid, respinge lipsă/placeholder/
+  HTTP/credențiale/path/query/hash. Export Hermes Android reușit, 632 surse;
+  fără module braces/node-forge/uuid/xcode/micromatch în exportul verificat.
+- APK final: semnătură verificată și certificat identic cu cheia preview;
+  non-debuggable, bundle JS și backend HTTPS incluse, permisiuni verificate.
+  `zipalign -c -P 16 4` PASS; toate cele 34 biblioteci ELF64 au segmentele LOAD
+  aliniate la minimum 16 KB. Acesta este un control static, nu test pe OS 16 KB.
+- Primul APK: instalare în emulator, lansare fără Metro, mesajul explicit
+  `mobile-unavailable`, layout login la font normal și font_scale 2.0: PASS.
+  Formularul rămâne derulabil, fără overflow lateral observat. Defectul PIN de
+  mai sus a fost găsit în această probă; nu declarăm toate ecranele validate.
+
+- APK final: reinstalare cu aceeași semnătură, cold launch fără Metro, PIN
+  vizibil deasupra tastaturii, buton accesibil prin derulare, apăsare login cu
+  închiderea tastaturii și afișarea mesajului serverului: PASS. Bufferul Android
+  de crash este gol după această probă. Nu s-au introdus credențiale reale.
+- Emulatorul a avut o blocare QEMU la o repornire intermediară; proba finală a
+  fost repetată după cold boot cu 2 nuclee/1536 MB. Incident de mediu, cauză
+  neconfirmată; nu este prezentat drept test de stabilitate pe telefon.
+
+### Restanțe / criterii de lansare
+
+- **MOBILE-DEVICE-01, deschis:** nicio probă pe Android fizic. Trebuie verificat
+  GPS 30 minute în deplasare cu ecranul blocat, notificarea serviciului,
+  refuz/revocare permisiuni, baterie/economisire, offline/reconectare, Privat,
+  sfârșit de tură, force-stop/restart și recepția pe harta patronului.
+- **MOBILE-STAGING-01, deschis:** backendul inclus în APK rămâne cu pilotul
+  dezactivat; autentificarea reală, dashboardul și traseul complet n-au fost
+  validate în emulator. Pregătește staging HTTPS, activează flagul acolo,
+  creează șofer/camion de test și reconstruiește APK-ul pentru acel origin.
+- **ANDROID-COMPAT-01, deschis:** APK numai arm64-v8a/x86_64; 32-bit neacoperit.
+  Minimum declarat API24, target36; emulator testat API36.1. Rămân versiuni
+  mai vechi, dispozitive Samsung/Xiaomi, TalkBack și ecranele autentificate.
+- **ANDROID-NATIVE-WARN-01, P2:** avertismente API legacy în dependențe și
+  MainActivity generat; avertisment de incompatibilitate viitoare Gradle 10.
+  Nu sunt suprimate. Buildul reușit nu închide evaluarea actualizărilor.
+- **MOBILE-DEP-01** rămâne deschis: npm audit are 15 high propagate din cele
+  două advisory-uri documentate în runda 21. Nu s-a folosit `audit fix --force`.
+- **MOBILE-OFFLINE-01 / MOBILE-FLOW-01 / MOBILE-SESSION-01** rămân deschise:
+  fără outbox GPS, fără CMR/POD/evenimente native complete, fără revocare
+  individuală per telefon sau reînnoire automată a tokenului.
+- Nu s-a publicat în Google Play și nu există AAB/semnare de producție.
+  Arhiva iPhone anterioară rămâne nesemnată și nu include corecțiile acestei runde.

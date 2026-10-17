@@ -2,7 +2,8 @@
 
 Aplicația nativă se află în `apps/driver`, în același repository. Patronul folosește
 aplicația web. Nu este nevoie de alt repository. Pilotul nu este încă certificat
-pentru utilizare operațională și nu are APK/IPA semnat.
+pentru utilizare operațională. Există APK Android semnat pentru test local;
+arhiva iPhone este încă nesemnată.
 
 ## Ce există
 
@@ -154,3 +155,66 @@ Auditul de dependențe Expo și probele de dispozitiv au restanțe explicite în
 Surse tehnice: [Expo Location](https://docs.expo.dev/versions/latest/sdk/location/),
 [TaskManager](https://docs.expo.dev/versions/latest/sdk/task-manager/),
 [SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore/).
+
+## Android — APK de test semnat (17 octombrie 2026)
+
+Pe acest Mac sunt instalate JDK Temurin 17, Android SDK/CLI, platforma 37,
+Build Tools 37.0.0, NDK 27.1.12297006 și emulatorul Android 36.1 `small_phone`.
+Android Studio nu este necesar pentru scriptul de build local.
+
+Din `apps/driver`, cu Node în PATH:
+
+```sh
+npm run android:check
+npm run android:build:preview
+```
+
+Scriptul folosește `JAVA_HOME` și `ANDROID_HOME` dacă sunt definite; altfel
+caută JDK-ul instalat în `~/.cache/querra-android-tools/jdk` și SDK-ul în
+`~/Library/Android/sdk`. `EXPO_PUBLIC_API_URL` trebuie să fie origin HTTPS valid.
+Pentru staging schimbă originul și reconstruiește: acesta este inclus în APK.
+
+Rezultat: `build/android/preview/QuerraSofer-Android-0.1.0-preview.apk`, cu
+`build-info.json` și `verification.txt`. Aplicația se numește **Querra Șofer Test**,
+identificator `com.querra.qfleet.driver.preview`, versiunea 0.1.0 (1).
+Build Release, fără Metro, minimum Android 7/API 24; include numai arhitecturile
+64-bit `arm64-v8a` și `x86_64`. Minimum SDK declarat nu înseamnă că fiecare
+versiune Android a fost testată; telefoanele exclusiv 32-bit nu sunt acoperite.
+
+Instalare USB, după conectarea și autorizarea telefonului:
+
+```sh
+~/Library/Android/sdk/platform-tools/adb devices -l
+# Înlocuiește SERIAL cu telefonul verificat în lista de mai sus.
+~/Library/Android/sdk/platform-tools/adb -s SERIAL install -r build/android/preview/QuerraSofer-Android-0.1.0-preview.apk
+```
+
+Alternativ, copiază APK-ul pe telefon, deschide-l și permite instalarea pentru
+aplicația folosită la deschidere, dacă Android o solicită. Nu este o publicare
+Google Play. Identitatea de test este separată de viitoarea aplicație de producție.
+
+Cheia privată de test este în `~/.local/share/querra/android-preview-signing`;
+directorul are permisiuni 0700, fișierele 0600. Păstrează o copie securizată a
+**întregului director**, separat de Git. Actualizările aceleiași aplicații cer
+aceeași cheie. Nu distribui `preview.p12` sau fișierul `password` cu APK-ul.
+Scriptul verifică semnătura și amprenta certificatului, permisiunile, bundle-ul
+JS și alinierea ZIP la 16 KB înainte să livreze artefactul.
+
+Pe Android 13+ aplicația cere explicit permisiunea pentru notificări înainte
+să pornească GPS. Refuzul oprește activarea și explică revenirea în Setări.
+Sunt necesare și locația precisă și accesul în fundal („Tot timpul”). Nu se cer
+microfon, acces general la stocare sau suprapunerea peste alte aplicații.
+
+**Blocaj pentru utilizare:** originul inclus în acest APK este
+`https://igo-kappa.vercel.app`, unde pilotul mobil este încă dezactivat.
+Instalarea și ecranul de login funcționează, dar autentificarea mobilă nu va
+funcționa până când backendul ales este configurat pentru pilot. Pregătește
+staging cu baza de test, migrațiile și `MOBILE_DRIVER_ENABLED=1`, creează un
+șofer de test cu camion atribuit și reconstruiește cu originul staging.
+Conturile demo web nu sunt conturi native. Probele autentificate și GPS trebuie
+executate înainte de activarea producției.
+
+Pentru distribuție Play mai sunt necesare contul firmei, identitatea definitivă,
+semnarea/AAB de producție, materialele și declarațiile cerute de magazin și
+verificarea politicilor curente. Cheia locală de preview nu este o configurare
+Play App Signing. Nu s-a publicat în magazin.
