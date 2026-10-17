@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Alert, AppState, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
+import { Alert, AppState, Keyboard, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { api, apiOrigin, ApiError, read, write, remove, type Login, type Gate, type Pending } from "./src/api";
 import { startGPS, stopGPS, preparePrivateOrStop, syncPending, type GPSStatus } from "./src/tracking";
@@ -14,6 +14,15 @@ function Screen() {
   const [board, setBoard] = useState<Board | null>(null), [gps, setGPS] = useState<GPSStatus | null>(null), [gate, setGate] = useState<Gate | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [selected, setSelected] = useState<string[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  function revealInput() {
+    const input = TextInput.State.currentlyFocusedInput();
+    if (Platform.OS === "android" && input) scroll.current?.scrollResponderScrollNativeHandleToKeyboard(input, 24, true);
+  }
+  useEffect(() => {
+    const subscription = Keyboard.addListener("keyboardDidShow", revealInput);
+    return () => subscription.remove();
+  }, []);
   const workKey = useRef("");
   const refreshing = useRef<Promise<void> | null>(null);
   const [actions] = useState(() => createActions(() => refreshing.current, setBusy));
@@ -56,14 +65,14 @@ function Screen() {
   }
   const button = (label: string, action: () => Promise<void>, secondary = false, prepare?: () => Promise<void>) => <Pressable accessibilityRole="button" disabled={busy && !prepare} onPress={() => void run(action, prepare)} accessibilityState={{ disabled: busy && !prepare }} style={[s.button, secondary && s.secondary, busy && !prepare && { opacity: .5 }]}><Text style={[s.buttonText, secondary && { color: "#eef4ff" }]}>{label}</Text></Pressable>;
   const consent = () => new Promise<void>((resolve) => Alert.alert("GPS în tură", "Poziția este trimisă firmei tale, inclusiv cu ecranul blocat. Modul Privat, Oprește GPS și încheierea turei opresc colectarea. Fără internet rămân goluri în traseu. În Setări, acordă locația precisă și accesul în fundal.", [{ text: "Mai târziu", style: "cancel", onPress: resolve }, { text: "Activează GPS", onPress: () => { void run(startGPS).finally(resolve); } }]));
-  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" /><ScrollView automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" /><ScrollView ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
     <Text style={s.eyebrow}>QUERRA / ȘOFER</Text><Text style={s.title}>{logged ? board?.name ?? "Ziua ta de lucru" : "Bun venit la bord"}</Text>
     <Text style={s.muted}>{logged ? board?.firm ?? "Conectăm datele firmei…" : "Camionul, cursele și tura ta, într-un singur loc."}</Text>
     {!!error && <View accessibilityRole="alert" style={s.error}><Text style={s.text}>{error}</Text></View>}
     {!ready ? <Text style={s.text}>Se încarcă…</Text> : !logged ? <View style={s.card}>
-      <Text style={s.label}>Telefon</Text><TextInput accessibilityLabel="Telefon" value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" style={s.input} />
-      <Text style={s.label}>PIN / parolă</Text><TextInput accessibilityLabel="PIN sau parolă" value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
-      {button("Intră în cont", async () => { const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); await write("login", { ...login, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); })}
+      <Text style={s.label}>Telefon</Text><TextInput accessibilityLabel="Telefon" onFocus={revealInput} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" style={s.input} />
+      <Text style={s.label}>PIN / parolă</Text><TextInput accessibilityLabel="PIN sau parolă" onFocus={revealInput} value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
+      {button("Intră în cont", async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); await write("login", { ...login, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); })}
     </View> : <>
       {!!pending && <View accessibilityRole="alert" style={s.notice}><Text style={s.text}>{pending.path === "/api/driver/shift" ? "Încheierea turei" : "Modul Privat"} așteaptă confirmarea firmei. GPS este oprit pe acest telefon. Reîncercăm automat când revii în aplicație și ai internet.</Text></View>}
       <View style={s.card}><Text style={s.label}>CAMIONUL TĂU</Text><Text style={s.truck}>{board?.truck?.plate ?? "Niciun camion atribuit"}</Text>
