@@ -1,3 +1,4 @@
+import { SearchField } from "@/components/SearchField";
 import { DemoRoster } from "@/components/DemoRoster";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -36,10 +37,9 @@ export default async function Trucks(
         <button className="btn pri" style={{ marginTop: 16 }}>{t(loc, "set.addTruck")}</button>
       </ActionForm>
     </details>
-    <form className="invrow" method="get" style={{ margin: "24px 0" }}>
-      <label className="lf"><span>{tr("Caută număr sau model|Search plate or model|Szukaj numeru lub modelu")}</span><input name="q" defaultValue={searchParams.q} /></label>
+    <form className="truck-search" method="get">
+      <SearchField id="truck-query" label={tr("Caută număr sau model|Search plate or model|Szukaj numeru lub modelu")} value={searchParams.q} button={tr("Caută|Search|Szukaj")} />
       <label className="lf"><span>{tr("Stare|Status|Status")}</span><select name="archived" defaultValue={searchParams.archived ?? "0"}><option value="0">{tr("În flotă|Active fleet|We flocie")}</option><option value="1">{tr("Arhivate|Archived|Archiwalne")}</option></select></label>
-      <button className="btn sec">{tr("Caută|Search|Szukaj")}</button>
     </form>
     <div className="list">{list.map((v) => {
       const driver = drivers.find((u) => u.truckId === v.id);
@@ -47,7 +47,7 @@ export default async function Trucks(
         <div className="head"><h2><Link href={`/vehicles/${v.id}`}>{v.plate}</Link></h2><span className="badge">{v.archivedAt ? tr("Arhivat|Archived|Archiwalny") : driver?.name ?? tr("Fără șofer|Unassigned|Bez kierowcy")}</span></div>
         <p className="sub">{v.model || "—"}</p>
         {!v.archivedAt ? driver ? <ActionForm action="/api/drivers/assign" returnTo="/trucks" loc={loc}><input type="hidden" name="uid" value={driver.id} /><input type="hidden" name="truck" value="" /><p>{driver.name} · {driver.passwordHash ? tr("Acces activ|Access active|Dostęp aktywny") : tr("Invitație în așteptare|Invitation pending|Oczekuje na aktywację")}</p><button className="btn sec sm">{tr("Eliberează camionul|Unassign driver|Odłącz kierowcę")}</button></ActionForm> : <ActionForm action="/api/drivers/assign" returnTo="/trucks" loc={loc}>
-          <input type="hidden" name="truck" value={v.id} /><label className="lf"><span>{tr("Asociază șofer|Assign driver|Przypisz kierowcę")}</span><select name="uid" required defaultValue=""><option value="" disabled>{tr("Alege șoferul|Choose driver|Wybierz kierowcę")}</option>{drivers.filter((u) => !u.truckId).map((u) => <option value={u.id} key={u.id}>{u.name}</option>)}</select></label><button className="btn sec">{t(loc, "stg.save")}</button><Link className="link" href="/drivers"> + {tr("Adaugă șofer|Add driver|Dodaj kierowcę")}</Link>
+          <input type="hidden" name="truck" value={v.id} /><div className="assignment-row"><label className="lf"><span>{tr("Asociază șofer|Assign driver|Przypisz kierowcę")}</span><select name="uid" required defaultValue=""><option value="" disabled>{tr("Alege șoferul|Choose driver|Wybierz kierowcę")}</option>{drivers.filter((u) => !u.truckId).map((u) => <option value={u.id} key={u.id}>{u.name}</option>)}</select></label><button className="btn pri" type="submit">{t(loc, "stg.save")}</button></div><Link className="link" href="/drivers"> + {tr("Adaugă șofer|Add driver|Dodaj kierowcę")}</Link>
         </ActionForm> : null}
         <details><summary className="btn sec sm">{tr("Editează detaliile|Edit details|Edytuj dane")}</summary>
           <ActionForm action="/api/settings/truck" returnTo="/trucks" loc={loc}>
@@ -60,7 +60,7 @@ export default async function Trucks(
             <button className="btn pri">{t(loc, "stg.save")}</button>
           </ActionForm>
         </details>
-        <div className="invrow" style={{ marginTop: 16 }}><Link className="btn sec sm" href={`/vehicles/${v.id}/history`}>{tr("Curse și trasee|Trips and routes|Kursy i trasy")}</Link><Link className="btn sec sm" href={`/vehicles/${v.id}?tab=costs`}>{t(loc, "stg.costsArchive")}</Link><Link className="btn sec sm" href="/documents">{t(loc, "nav.docs")}</Link></div>
+        <div className="truck-card-actions"><Link className="btn pri sm" href={`/vehicles/${v.id}/history`}>{tr("Curse și trasee|Trips and routes|Kursy i trasy")}</Link><Link className="btn sec sm" href={`/vehicles/${v.id}?tab=costs`}>{t(loc, "stg.costsArchive")}</Link><Link className="btn sec sm" href="/documents">{t(loc, "nav.docs")}</Link></div>
       </section>;
     })}</div>
     {!list.length ? <p className="sub">{tr("Niciun camion în această listă.|No trucks in this list.|Brak pojazdów na liście.")}</p> : null}

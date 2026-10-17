@@ -1,4 +1,3 @@
-import { HScroll } from "@/components/HScroll";
 import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
@@ -26,7 +25,7 @@ export default async function Receipts() {
           <div className="eyebrow fade">{t(loc, "rc.title")}</div>
           <h1 className="h1 fade">{fmtMoney(loc, lei)}</h1>
           <p className="sub fade d1">{t(loc, tx.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: tx.length, litres: fmtNum(loc, L) })}</p>
-          <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>
+          <section className="section"><div className="receipt-list">
             {tx.map((x) => {
               const v = d.vehicles.find((y) => y.id === x.truckId);
               return (
@@ -38,7 +37,7 @@ export default async function Receipts() {
                 </div>
               );
             })}
-          </div></HScroll></section>
+          </div></section>
         </main>
       </Gate>
     );
@@ -63,7 +62,7 @@ export default async function Receipts() {
             {cats.map(([n, v]) => <div className="r" key={n}><span>{n}</span><span className="v">{fmtMoney(loc, v)}</span><div className="bar"><i style={{ left: 0, width: `${(v / max) * 100}%`, background: n === cats[0][0] ? "var(--fg)" : "var(--fg2)" }} /></div></div>)}
           </div>
         </section>
-        <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>
+        <section className="section"><div className="receipt-list">
           {[...driver.map((f) => ({ id: f.id, time: f.time, station: f.station || "—", litres: f.litres, amount: f.amount ?? 0, truckId: f.vehicleId, ok: true, ai: f.aiRead, drv: true, photo: f.photo, file: "file" in f ? f.file : null, orig: f.cur && f.orig ? { amount: f.orig, cur: f.cur } : null })), ...fills.map((f) => ({ id: f.id, time: f.time, station: f.station, litres: f.litres, amount: f.priceLei, truckId: f.truckId, ok: true, ai: false, orig: "currency" in f && f.currency && f.origAmount ? { amount: f.origAmount, cur: f.currency } : null }))].map((f) => {
             const v = d.vehicles.find((x) => x.id === f.truckId);
             return (
@@ -75,7 +74,7 @@ export default async function Receipts() {
               </div>
             );
           })}
-        </div></HScroll></section>
+        </div></section>
       </main>
     </Gate>
   );

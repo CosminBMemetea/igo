@@ -956,3 +956,22 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 - Formular: verificare vizuală la 390 px și aliniere desktop. Recalculare
   demo 4880 → 5000 lei: venit 5000, profit 1517; restaurat prețul 4880.
 - Nu reprezintă validare pe iPhone fizic sau închiderea APPLE-SAFARI-01.
+
+## Runda 26 — formulare flotă și carduri alimentări (17 octombrie 2026)
+
+- Camioane reale: SearchField comun cu buton integrat, filtru de stare separat;
+  formularul GET păstrează q și archived.
+- Atribuire camion/șofer: selector și Salvare aliniate pe desktop, buton lat pe
+  telefon. Curse și trasee devine acțiunea principală în cardul camionului.
+- Alimentări reale și demo: eliminată lățimea minimă de 600 px; carduri mobile
+  cu litri/sumă sus, stație/data/camion și stare vizibilă dedesubt. Corectată
+  regula veche care ascundea coloana stării pe telefon.
+- Costuri camion: unitățile sunt sub input, fără suprapunere cu cifrele.
+- PASS: TypeScript, diff check, ESLint fără erori; avertismentul Date.now
+  din invitații rămâne existent.
+- Browser demo: 49 alimentări încap la 320/390/1440 px; toate cele 49 de stări
+  sunt vizibile pe mobil. Cele 11 câmpuri de cost încap la aceleași lățimi,
+  cu unitățile sub câmp. Captură vizuală verificată la 390 px.
+- Formularele exclusive contului real au fost verificate în cod și TypeScript;
+  atribuirea și filtrarea într-un cont real rămân de verificat funcțional.
+  Nu s-au modificat datele vreunei flote reale. iPhone fizic neacoperit.

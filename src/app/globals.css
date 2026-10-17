@@ -1585,3 +1585,29 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .trip-recalculate-fields .btn{min-height:50px;margin:0;justify-content:center}
 .trip-recalculate>.hint{margin:14px 0 0;line-height:1.5}
 @media(max-width:600px){.trip-recalculate-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.trip-recalculate-fields .btn{grid-column:1/-1;width:100%;border-radius:12px}}
+
+/* Fleet forms and receipts remain readable without sideways scrolling. */
+.truck-search{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,240px);gap:16px;align-items:end;margin:24px 0}
+.truck-search>.lf{margin:0}.truck-search select{min-height:56px}
+.assignment-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px}
+.assignment-row>.lf{margin:0}.assignment-row select,.assignment-row>.btn{min-height:50px}
+.assignment-row+.link{display:inline-block;margin-top:14px}
+.truck-card-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.truck-card-actions>.btn{justify-content:center}
+.ecost .einp{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ecost .einp .input{padding:12px 14px;min-width:0}
+.ecost .einp em{position:static;transform:none;white-space:normal;line-height:1.4;min-height:16px}
+.receipt-list .rcrow{grid-template-columns:minmax(0,1.6fr) minmax(0,.65fr) minmax(0,1fr) minmax(0,1fr);gap:16px;cursor:default}
+.receipt-list .rcrow>*,.receipt-list .rcmain>div{min-width:0}
+.receipt-list .rcrow .t,.receipt-list .rcrow .m,.receipt-list .fxo{white-space:normal;overflow-wrap:anywhere}
+.receipt-list .badge{white-space:normal;text-align:left;line-height:1.5}
+@media(max-width:760px){
+ .truck-search{grid-template-columns:1fr}
+ .assignment-row{grid-template-columns:1fr}.assignment-row>.btn{width:100%;justify-content:center}
+ .truck-card-actions>.btn:first-child{flex-basis:100%}.truck-card-actions>.btn{flex:1 1 120px}
+ .receipt-list{display:grid;gap:12px}
+ .receipt-list .rcrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--bg2)}
+ .receipt-list .row.r4.rcrow>.v{white-space:normal;grid-row:1;font-size:20px;text-align:left;overflow-wrap:anywhere}
+ .receipt-list .rcrow>.v:nth-child(3){text-align:right}
+ .receipt-list .rcmain{grid-column:1/-1;grid-row:2}
+ .receipt-list .row.r4.rcrow>:nth-child(4){display:block;grid-column:1/-1;text-align:left!important}
+}
