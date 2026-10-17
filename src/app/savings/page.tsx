@@ -40,15 +40,15 @@ export default async function Savings() {
         <section className="section">
           <div className="head"><h2>{t(loc, "sav.estTitle")}</h2></div>
           <p className="hint" style={{ marginTop: -6 }}>{t(loc, "sav.estHint")}</p>
-          <HScroll hint={t(loc, "ui.swipe")} min={560}><div className="wf">
+          <div className="wf">
             {(["docs", "time", "cash"] as const).map((k) => (
               <div key={k} className="r" style={{ alignItems: "start" }}>
                 <span>{t(loc, `sav.cat.${k}` as MsgKey)}<small className="d" style={{ display: "block", color: "var(--fg2)", fontSize: 12, marginTop: 4, maxWidth: 360 }}>{how[k]}</small></span>
-                <div className="bar"><i style={{ left: 0, width: `${(Math.abs(e.lines[k]) / max) * 100}%`, background: "var(--fg2)" }} /></div>
                 <span className="v">{fmtMoney(loc, e.lines[k])}</span>
+                <div className="bar"><i style={{ left: 0, width: `${(Math.abs(e.lines[k]) / max) * 100}%`, background: "var(--fg2)" }} /></div>
               </div>
             ))}
-          </div></HScroll>
+          </div>
         </section>
         {e.best.length ? (
           <section className="section">

@@ -60,7 +60,7 @@ export default async function Receipts() {
         <section className="section">
           <div className="head"><h2>{t(loc, "rc.byCat")}</h2></div>
           <div className="wf">
-            {cats.map(([n, v]) => <div className="r" key={n}><span>{n}</span><div className="bar"><i style={{ left: 0, width: `${(v / max) * 100}%`, background: n === cats[0][0] ? "var(--fg)" : "var(--fg2)" }} /></div><span className="v">{fmtMoney(loc, v)}</span></div>)}
+            {cats.map(([n, v]) => <div className="r" key={n}><span>{n}</span><span className="v">{fmtMoney(loc, v)}</span><div className="bar"><i style={{ left: 0, width: `${(v / max) * 100}%`, background: n === cats[0][0] ? "var(--fg)" : "var(--fg2)" }} /></div></div>)}
           </div>
         </section>
         <section className="section"><HScroll hint={t(loc, "ui.swipe")} min={600}><div>

@@ -51,13 +51,13 @@ export function TruckBars({ rows, avg, loc }: { rows: TruckCmp[]; avg: number | 
       {rows.map((r, i) => (
         <div key={r.id} className="rk-bar">
           <Link href={`/vehicles/${r.id}`} className="n"><b>{r.plate}</b><small>{r.model}</small></Link>
-          <div className="track">
-            <i className={i === 0 ? "neg" : i === rows.length - 1 ? "pos" : ""} style={{ width: x(r.l100 ?? min) }} />
-            {avg ? <span className="avg" style={{ left: x(avg) }} /> : null}
-          </div>
           <div className="v"><b>{fmtNum(loc, r.l100 ?? 0, 1)}</b>
             <small className={r.vsFleet != null && r.vsFleet > 0.03 ? "neg" : r.vsFleet != null && r.vsFleet < -0.03 ? "pos" : ""}>{r.vsFleet != null ? pct(loc, r.vsFleet) : ""}</small>
             {r.trend != null ? <small className={`tr ${r.trend > 0.2 ? "neg" : r.trend < -0.2 ? "pos" : ""}`} title={t(loc, "rk.trend")}>{r.trend > 0.2 ? "↑" : r.trend < -0.2 ? "↓" : "→"} {fmtNum(loc, Math.abs(r.trend), 1)}</small> : null}
+          </div>
+          <div className="track">
+            <i className={i === 0 ? "neg" : i === rows.length - 1 ? "pos" : ""} style={{ width: x(r.l100 ?? min) }} />
+            {avg ? <span className="avg" style={{ left: x(avg) }} /> : null}
           </div>
           {i === 0 ? <span className="badge bad rk-tag">{t(loc, "rk.most")}</span> : i === rows.length - 1 ? <span className="badge ok rk-tag">{t(loc, "rk.least")}</span> : null}
         </div>

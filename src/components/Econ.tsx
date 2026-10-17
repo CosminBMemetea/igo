@@ -27,9 +27,9 @@ export function FleetCompare({ vehicles, views, loc, current }: { vehicles: Vehi
       {rows.map((r) => (
         <Link key={r.v.id} href={`/vehicles/${r.v.id}?tab=costs`} className={`fcr${r.v.id === current ? " me" : ""}${r.cpk > f.cpk * 1.08 ? " hi" : ""}`}>
           <span className="pl">{r.v.name}</span>
-          <span className="br" aria-hidden="true"><i style={{ width: `${(r.cpk / max) * 100}%` }} /><em style={{ left: `${(f.cpk / max) * 100}%` }} /></span>
           <span className="v">{fmtMoney(loc, r.cpk, 2)}</span>
           <span className={`m ${r.profit < 0 ? "neg" : "pos"}`}>{fmtPct(loc, r.margin, 0)}</span>
+          <span className="br" aria-hidden="true"><i style={{ width: `${(r.cpk / max) * 100}%` }} /><em style={{ left: `${(f.cpk / max) * 100}%` }} /></span>
         </Link>
       ))}
       <p className="hint">│ {L.fleetAvg}: {fmtMoney(loc, f.cpk, 2)} {L.perKm} · {L.margin} %</p>

@@ -939,3 +939,20 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 - Pagina reală de șoferi folosește același control, dar nu a fost verificată
   cu un cont real. Testele responsive nu înlocuiesc proba fizică iPhone.
   APPLE-SAFARI-01 rămâne deschis; această schimbare nu îi confirmă rezolvarea.
+
+## Runda 25 — valori înaintea barelor și recalculare (17 octombrie 2026)
+
+- Venit, motorină, celelalte costuri și profit: valoarea precede bara; pe mobil
+  eticheta și valoarea sunt deasupra ei. Aplicat și la categorii de alimentări,
+  economii, comparație flotă și clasamentul camioanelor. Eliminat scrollul
+  orizontal din graficul estimărilor de economii.
+- Formularul de preț/tonaj are titlu, câmpuri aliniate și buton principal;
+  pe telefon butonul ocupă un rând, cu nota demo separată dedesubt.
+- PASS: TypeScript, diff check; ESLint fără erori, avertisment img existent
+  în detaliul cursei.
+- Browser demo: toate cele 11 valori din defalcarea cursei preced bara și
+  încap la 320, 390 și 1440 px. Economii: 3 rânduri încap la 320 px;
+  comparație flotă: 7 rânduri încap la 320 px.
+- Formular: verificare vizuală la 390 px și aliniere desktop. Recalculare
+  demo 4880 → 5000 lei: venit 5000, profit 1517; restaurat prețul 4880.
+- Nu reprezintă validare pe iPhone fizic sau închiderea APPLE-SAFARI-01.

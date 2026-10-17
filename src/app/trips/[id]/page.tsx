@@ -71,12 +71,12 @@ export default async function TripDetail(props: { params: Promise<{ id: string }
       <p className="hint fuel-source">{t(loc, d.demo ? "fuel.demo" : r.litresSource === "estimate" ? "fuel.estimate" : "fuel.manual")}</p>
       <p className="hint fuel-source">{t(loc, `fuel.base.${d.demo ? "demo" : r.vehicle.baselineKind ?? "default"}`)}</p>
       <section className="wf section">
-        <div className="r"><span>{t(loc, "col.revenue")}</span><div className="bar"><i style={{ left: 0, width: `${(p.revenue / max) * 100}%`, background: "var(--fg)" }} /></div><span className="v">{fmtMoney(loc, p.revenue)}</span></div>
+        <div className="r"><span>{t(loc, "col.revenue")}</span><span className="v">{fmtMoney(loc, p.revenue)}</span><div className="bar"><i style={{ left: 0, width: `${(p.revenue / max) * 100}%`, background: "var(--fg)" }} /></div></div>
         {segs.map(([name, val, note], i) => {
           const left = acc; acc += val;
-          return <div className="r" key={name}><span>{name}{note ? <><br /><small style={{ color: "var(--fg3)" }}>{note}</small></> : null}</span><div className="bar"><i style={{ left: `${(left / max) * 100}%`, width: `${(val / max) * 100}%`, background: "var(--fg2)", animationDelay: `${0.1 * (i + 1)}s` }} /></div><span className="v">− {fmtMoney(loc, val)}</span></div>;
+          return <div className="r" key={name}><span>{name}{note ? <><br /><small style={{ color: "var(--fg3)" }}>{note}</small></> : null}</span><span className="v">− {fmtMoney(loc, val)}</span><div className="bar"><i style={{ left: `${(left / max) * 100}%`, width: `${(val / max) * 100}%`, background: "var(--fg2)", animationDelay: `${0.1 * (i + 1)}s` }} /></div></div>;
         })}
-        <div className="r" style={{ paddingTop: 24 }}><b style={{ fontWeight: 500 }}>{E ? L.realProfit : t(loc, "col.profit")}</b><div className="bar">{p.profit > 0 ? <i style={{ left: `${(p.costs / max) * 100}%`, width: `${(p.profit / max) * 100}%`, background: "var(--pos)", animationDelay: ".5s" }} /> : <i style={{ left: `${(p.revenue / max) * 100}%`, width: `${(-p.profit / max) * 100}%`, background: "var(--neg)", animationDelay: ".5s" }} />}</div><span className={`v ${p.profit < 0 ? "neg" : "pos"}`} style={{ fontSize: 22 }}>{fmtMoney(loc, p.profit)}</span></div>
+        <div className="r" style={{ paddingTop: 24 }}><b style={{ fontWeight: 500 }}>{E ? L.realProfit : t(loc, "col.profit")}</b><span className={`v ${p.profit < 0 ? "neg" : "pos"}`} style={{ fontSize: 22 }}>{fmtMoney(loc, p.profit)}</span><div className="bar">{p.profit > 0 ? <i style={{ left: `${(p.costs / max) * 100}%`, width: `${(p.profit / max) * 100}%`, background: "var(--pos)", animationDelay: ".5s" }} /> : <i style={{ left: `${(p.revenue / max) * 100}%`, width: `${(-p.profit / max) * 100}%`, background: "var(--neg)", animationDelay: ".5s" }} />}</div></div>
         <p className="sub" style={{ fontSize: 12 }}>{E ? L.formula : t(loc, "trip.formula")}</p>
       </section>
       </> : null}
@@ -95,10 +95,15 @@ export default async function TripDetail(props: { params: Promise<{ id: string }
           {canEdit ? (
             <ActionForm action="/api/vehicles/econ" loc={loc}>
               <input type="hidden" name="action" value="trip" /><input type="hidden" name="tid" value={r.id} /><input type="hidden" name="vid" value={r.vehicleId} />
-              <label><span>{L.freight} ({t(loc, "cur")})</span><input className="input" name="revenue" inputMode="decimal" defaultValue={String(r.revenue)} /></label>
-              <label><span>{L.tonnes} (t)</span><input className="input" name="tonnes" inputMode="decimal" defaultValue={E.tonnes === null ? "" : String(E.tonnes)} /></label>
-              <button className="btn sec">{L.apply}</button>
-              <p className="hint">{L.editTrip}{d.demo ? ` · ${L.demoNote}` : ""}</p>
+              <div className="trip-recalculate">
+                <h3>{L.editTrip}</h3>
+                <div className="trip-recalculate-fields">
+                  <label className="lf"><span>{L.freight} ({t(loc, "cur")})</span><input name="revenue" inputMode="decimal" defaultValue={String(r.revenue)} /></label>
+                  <label className="lf"><span>{L.tonnes} (t)</span><input name="tonnes" inputMode="decimal" defaultValue={E.tonnes === null ? "" : String(E.tonnes)} /></label>
+                  <button className="btn pri" type="submit">{L.apply}</button>
+                </div>
+                {d.demo ? <p className="hint">{L.demoNote}</p> : null}
+              </div>
             </ActionForm>
           ) : null}
         </section>
