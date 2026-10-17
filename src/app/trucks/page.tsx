@@ -57,7 +57,7 @@ export default async function Trucks({ searchParams }: { searchParams: { q?: str
             <button className="btn pri">{t(loc, "stg.save")}</button>
           </ActionForm>
         </details>
-        <div className="invrow" style={{ marginTop: 16 }}><Link className="btn sec sm" href={`/vehicles/${v.id}?tab=costs`}>{t(loc, "stg.costsArchive")}</Link><Link className="btn sec sm" href="/documents">{t(loc, "nav.docs")}</Link></div>
+        <div className="invrow" style={{ marginTop: 16 }}><Link className="btn sec sm" href={`/vehicles/${v.id}/history`}>{tr("Curse și trasee|Trips and routes|Kursy i trasy")}</Link><Link className="btn sec sm" href={`/vehicles/${v.id}?tab=costs`}>{t(loc, "stg.costsArchive")}</Link><Link className="btn sec sm" href="/documents">{t(loc, "nav.docs")}</Link></div>
       </section>;
     })}</div>
     {!list.length ? <p className="sub">{tr("Niciun camion în această listă.|No trucks in this list.|Brak pojazdów na liście.")}</p> : null}

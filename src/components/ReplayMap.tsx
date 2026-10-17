@@ -9,7 +9,7 @@ import type { ReplayData, ReplayEvent, RKind } from "@/lib/replay";
 import { Icon } from "./icons";
 
 const tileUrl = (theme: string, layer: "Base" | "Reference") => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${theme === "light" ? "Light" : "Dark"}_Gray_${layer}/MapServer/tile/{z}/{y}/{x}`;
-const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}`;
+const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.floor(m % 60)).padStart(2, "0")}${m >= 1440 ? ` (+${Math.floor(m / 1440)})` : ""}`;
 const SPEEDS = [1, 4, 16] as const;
 const BASE = 6; // minute simulate pe secundă la 1x
 const EV_COL: Record<RKind, string> = { start: "var(--pos)", fuel: "#f5a524", pause: "var(--fg2)", private: "#a78bfa", end: "var(--fg)" };
@@ -30,9 +30,9 @@ const TRUCK = `<svg viewBox="0 0 40 72" width="26" height="47" aria-hidden="true
 
 const x0near = (e: ReplayEvent, x: number) => x >= e.min - 6 && x <= (e.end ?? e.min) + 2;
 export interface ReplayExtra { normal: number | null; profit: number | null; tank: number | null }
-export interface ReplayProps { data: ReplayData; theme: "dark" | "light"; loc: Locale; L: Record<string, string>; back: string; extra?: ReplayExtra; autoplay?: boolean }
+export interface ReplayProps { data: ReplayData; theme: "dark" | "light"; loc: Locale; L: Record<string, string>; back: string; history?: string; extra?: ReplayExtra; autoplay?: boolean }
 
-export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, autoplay = false }: ReplayProps) {
+export default function ReplayMap({ data: d, theme, loc, L: t, back, history, extra, autoplay = false }: ReplayProps) {
   const el = useRef<HTMLDivElement>(null);
   const m = useRef<{ L: typeof Leaflet; map: Leaflet.Map; truck: Leaflet.Marker; trail: Leaflet.Polyline; halo: Leaflet.Polyline; ghost: Leaflet.Marker } | null>(null);
   const [ready, setReady] = useState(false);
@@ -255,7 +255,13 @@ export default function ReplayMap({ data: d, theme, loc, L: t, back, extra, auto
       <div ref={el} className="rp-map" />
       <div className="rp-top">
         <Link href={back} className="rp-back" aria-label={t.back}><svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" /></svg></Link>
-        <div><div className="eyebrow">{t.title} · {fmtDate(loc, d.date, true)}</div><div className="rp-name">{d.plate}{d.route ? <span> · {d.route}</span> : null}</div></div>
+        <div><div className="eyebrow">{t.title} · {fmtDate(loc, d.date, true)}</div><div className="rp-name" title={d.route || d.plate}>{d.route || d.plate}</div>
+          {d.route ? <small>{d.plate}</small> : null}
+          <div className="rp-context">
+            {history ? <Link href={history}>{t.history}</Link> : null}
+            {t.scopeNote ? <details><summary>{t.scopeLabel}</summary><p>{d.route ? <b>{d.route}<br /></b> : null}{t.scopeNote}</p></details> : null}
+          </div>
+        </div>
         {d.demo ? <span className="badge acc">DEMO</span> : null}
       </div>
       <div className="rp-hud" aria-live="polite">

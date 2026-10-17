@@ -2,6 +2,7 @@
 // Firme reale: pozițiile salvate în tură (pingurile șoferului). Golurile (mod privat / fără semnal) NU au geometrie — doar o legătură punctată.
 import { DEMO_DAY, DEMO_NOW_MIN, TRUCKS, dayPlan, kmAt, nearestWaypoint, pointAtKm, haversineKm, pathBetween, routeTotalKm, type LatLng } from "./fleet/data";
 import { TRIPS } from "./fleet/seed";
+import { dayReplayWindow, windowPositions, replayMinute, type ReplayWindow } from "./truck-history";
 import type { PosRow, FuelTxRow } from "./store/types";
 
 export type RKind = "start" | "fuel" | "pause" | "private" | "end";
@@ -46,11 +47,13 @@ export function demoReplay(vehicleId: string, date: string, tripId: string | nul
   return { vehicleId, plate: t.plate, driver: t.driver, route: t.routeName, date, tripId, demo: true, path: pts, keys, events, start, end, rate: t.normalL100, km: Math.round(km) };
 }
 
-/** Firmă reală: pozițiile din ziua respectivă. Gol > 15 min = privat / fără semnal (nu inventăm traseu). */
-export function firmReplay(o: { vehicleId: string; plate: string; driver: string; date: string; tripId: string | null; rate: number; pos: PosRow[]; fuel: FuelTxRow[] }): ReplayData | null {
-  const day = o.pos.filter((p) => p.truckId === o.vehicleId && p.at.slice(0, 10) === o.date).sort((a, b) => a.at.localeCompare(b.at));
+/** Firmă reală: pozițiile din interval. Golurile > 15 min nu indică motivul lipsei de date. */
+export function firmReplay(o: { vehicleId: string; plate: string; driver: string; date: string; tripId: string | null; rate: number; pos: PosRow[]; fuel: FuelTxRow[]; window?: ReplayWindow; route?: string }): ReplayData | null {
+  const window = o.window ?? dayReplayWindow(o.date);
+  if (!window) return null;
+  const day = windowPositions(o.pos, o.vehicleId, window);
   if (day.length < 2) return null;
-  const min = (iso: string) => +iso.slice(11, 13) * 60 + +iso.slice(14, 16) + (+iso.slice(17, 19) || 0) / 60;
+  const min = (iso: string) => replayMinute(iso, window.date);
   const path: [number, number, number][] = [], keys: [number, number][] = [], events: ReplayEvent[] = [];
   let km = 0;
   for (let i = 0; i < day.length; i++) {
@@ -67,12 +70,12 @@ export function firmReplay(o: { vehicleId: string; plate: string; driver: string
     let j = i; while (j + 1 < keys.length && keys[j + 1][1] - keys[i][1] < 0.15 && keys[j + 1][0] - keys[j][0] <= 15) j++;
     if (j > i && keys[j][0] - keys[i][0] >= 10) { events.push({ kind: "pause", min: keys[i][0], end: keys[j][0], km: keys[i][1] }); i = j; }
   }
-  for (const f of o.fuel) if (f.truckId === o.vehicleId && f.at.slice(0, 10) === o.date) {
+  for (const f of o.fuel) if (f.truckId === o.vehicleId && f.at >= day[0].at && f.at <= day[day.length - 1].at && f.at >= window.from && f.at < window.until) {
     const m = min(f.at); const k = keys.reduce((b, x) => (Math.abs(x[0] - m) < Math.abs(b[0] - m) ? x : b), keys[0]);
-    events.push({ kind: "fuel", min: m, end: m + 15, km: k[1], place: f.station, litres: f.litres });
+    events.push({ kind: "fuel", min: m, end: Math.min(m + 15, keys[keys.length - 1][0]), km: k[1], place: f.station, litres: f.litres });
   }
   const start = keys[0][0], end = keys[keys.length - 1][0];
   events.push({ kind: "start", min: start, km: 0 }, { kind: "end", min: end, km });
   events.sort((a, b) => a.min - b.min);
-  return { vehicleId: o.vehicleId, plate: o.plate, driver: o.driver, route: "", date: o.date, tripId: o.tripId, demo: false, path, keys, events, start, end, rate: o.rate, km: Math.round(km) };
+  return { vehicleId: o.vehicleId, plate: o.plate, driver: o.driver, route: o.route ?? "", date: window.date, tripId: o.tripId, demo: false, path, keys, events, start, end, rate: o.rate, km: Math.round(km) };
 }

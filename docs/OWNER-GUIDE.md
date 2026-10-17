@@ -120,3 +120,18 @@ Documentație oficială:
 - https://developer.apple.com/documentation/corelocation/cllocationmanager/allowsbackgroundlocationupdates
 - https://developer.android.com/develop/sensors-and-location/location/permissions
 - https://capacitorjs.com/docs/apis/geolocation
+
+## Un camion cu mai multe curse
+
+Din Camioane sau profilul camionului, deschide **Curse și trasee**. Alege luna
+plecării: vezi separat cursele în desfășurare, planificate și istoricul, cu ruta,
+clientul și șoferul de atunci. **Detalii cursă** deschide documentele și datele
+cursei; **GPS din cursă** arată numai punctele din intervalul încărcare–descărcare,
+dacă există cel puțin două puncte distincte.
+
+**GPS-ul camionului pe zi** este separat: poate include mai multe curse sau
+deplasări fără cursă. Dacă o cursă veche nu are orele încărcării/descărcării,
+este oferită această vizualizare, cu explicația limitei. Golurile din GPS nu
+dovedesc o pauză privată, iar ultimul punct nu dovedește încheierea turei.
+Orele sunt afișate în fusul României, la precizia de un minut a datelor existente.
+În demo, butonul este numit **Simulare traseu**.

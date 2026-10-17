@@ -583,3 +583,54 @@ Surse: https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4
 Rămân deschise și OPEN-01 (telefoane reale), testele Blob în producție,
 reconcilierea obiectelor Blob orfane după erori de rețea și demo-ul comun
 patron/șofer documentat în rundele anterioare.
+
+## Istoricul camionului și alegerea cursei — 17 octombrie 2026
+
+- **HISTORY-01 rezolvat:** „Redă cursa” de pe camion nu identifica o cursă.
+  Acum „Curse și trasee” deschide istoricul lunar, separat în În desfășurare,
+  Planificate și Istoric. Fiecare rând arată data, ruta, clientul și șoferul
+  înregistrat pe cursă, nu șoferul alocat acum camionului.
+- **HISTORY-02 rezolvat:** redarea reală putea include alte curse din aceeași zi.
+  Selectarea unei curse limitează punctele GPS și alimentările la intervalul
+  încărcare–descărcare (până acum pentru o cursă încărcată). Capătul este exclusiv;
+  două curse adiacente nu împart punctul de la începutul celei de-a doua.
+  Sunt acceptate intervale peste miezul nopții, cu (+1), (+2) pe cronologie.
+- **HISTORY-03 rezolvat:** fără orele cursei, interfața oferă explicit GPS-ul zilei,
+  cu avertizarea că poate cuprinde alte curse. Vizualizarea zilei nu atașează
+  automat o cursă/profit/șofer curent. Planificatele și anulatele nu au redare;
+  lipsa a două puncte distincte este explicată fără buton care promite o hartă.
+- **HISTORY-04 rezolvat:** ruta era ascunsă pe mobil; apare acum în antet, cu data,
+  camionul, „Alege altă cursă” și explicația intervalului. Textul lung se încadrează,
+  iar panoul explicativ apare deasupra instrumentelor hărții. Redarea pornește la
+  cerere, nu automat. Ultimul punct GPS nu mai afirmă că tura s-a încheiat.
+- **HISTORY-05 rezolvat:** linkurile cu o cursă/camion necunoscut sau incompatibil
+  nu mai cad pe altă cursă. Accesul este limitat la firma sesiunii. Linkul vechi
+  `/replay?v=…`, fără dată, duce la alegerea cursei.
+- **HISTORY-06 rezolvat, prins în browser:** navigarea lunilor actualiza lista,
+  dar câmpurile native de lună/zi puteau păstra valorile vechi. Formularele se
+  recreează la schimbarea lunii. O lună viitoare nu precompletează o zi GPS
+  viitoare, invalidă față de limita formularului.
+
+Verificări: build producție, TypeScript, `smoke:truck-history`, `smoke:demo`,
+`smoke:driver-trips` și `smoke:truck-history:http` pe PostgreSQL de test. Suita HTTP
+își șterge doar firmele fictive. Verifică selecția explicită, izolarea între firme,
+filtrul lunar, excluderea planificatelor și prioritatea intervalului cursei față de
+un parametru de zi contradictoriu. Next poate transmite redirect/404 în fluxul
+HTML după layout; testul verifică și această formă, fără a presupune doar statusul HTTP.
+
+Browser: două curse în aceeași zi cu alt șofer istoric, cursă peste miezul nopții,
+zi completă separată, demo retur München–Viena și filtru fără rezultate.
+Verificări de layout la 320/390 px și desktop; date GPS sintetice, fără probe
+de deplasare cu telefon real.
+
+### Probleme rămase observate
+
+- **GPS-TIME-01 — P2 DESCHIS:** pozițiile vechi sunt salvate ca oră locală București,
+  la minut, fără offset. Ora repetată la trecerea la iarnă nu poate fi reconstruită
+  neechivoc. Migrare necesară la capturedAt UTC + receivedAt + precizie, înainte de
+  colectorul mobil și de sincronizarea pozițiilor offline; nu se inventează precizia
+  datelor deja existente. GPS-ul din interval nu este o asociere verificată punct–cursă.
+- **UI-PREF-01 — P2 DESCHIS:** linkul de schimbare a temei din Header înlocuiește
+  parametrii URL; pe replay poate pierde cursa selectată, iar pe istoric luna.
+  De refăcut cu păstrarea parametrilor, împreună cu verificarea preferințelor.
+- DEP-01 și limitările de dispozitiv/Blob/demo comun de mai sus rămân deschise.
