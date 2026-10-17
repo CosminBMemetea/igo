@@ -19,7 +19,7 @@ import { DemoTour } from "@/components/DemoTour";
 import { tourSteps, tourLabels } from "@/lib/tour";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"], weight: ["200", "300", "400", "500", "600"], variable: "--font-inter", display: "swap" });
-export const metadata: Metadata = { title: "Querra Fleet", manifest: "/manifest.webmanifest", description: "Querra Fleet: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
+export const metadata: Metadata = { title: "Querra Fleet", appleWebApp: { capable: true, title: "Querra Fleet", statusBarStyle: "default" }, icons: { icon: "/icons/icon-32.png", apple: "/icons/apple-touch-icon.png" }, manifest: "/manifest.webmanifest", description: "Querra Fleet: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0b0b0c" };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -898,3 +898,24 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
   individuală per telefon sau reînnoire automată a tokenului.
 - Nu s-a publicat în Google Play și nu există AAB/semnare de producție.
   Arhiva iPhone anterioară rămâne nesemnată și nu include corecțiile acestei runde.
+
+## Runda 23 — căutare curse pe Mac și telefon (17 octombrie 2026)
+
+- Înlocuit grila generică a filtrelor cu layout dedicat: căutare prioritară,
+  filtre aliniate pe desktop, câmpuri pe coloană pe telefon, săgeți vizibile
+  pentru selectoare, buton principal și resetare numai când există filtre.
+- Selectorul lunii este acum un select nativ cu lunile curselor disponibile;
+  păstrează și luna validă primită prin URL. Nu depinde de aspectul input month
+  între browsere. Căutarea include deja clientul; noul placeholder îl explică.
+- Metadata Apple: nume aplicație web și apple-touch-icon explicit.
+- PASS: TypeScript, ESLint pe fișierele TSX schimbate, smoke-trip-workflow.
+- PASS în browser: desktop 1440×1000, mobil 390×844 și lățime 320 fără overflow
+  al paginii; câmpuri de 50 px și butoane de minimum 48 px. Milano + Planificată
+  → 2 rezultate; luna octombrie păstrează 2; resetare → 70. Enter cu termen
+  inexistent → 0 și mesaj explicit. Nu s-au folosit date reale.
+- Proba Safari locală a revenit la login după demo în sesiunea de test; cauza
+  nu este confirmată. Nu modificăm securitatea autentificării pentru acest test.
+  Verificarea HTTPS în Safari și proba fizică iPhone se urmăresc separat.
+- Următoarele priorități Apple: tastatură/VoiceOver și text mărit pe iPhone real;
+  flux creare cursă și documente în Safari; onboarding GPS nativ cu permisiuni
+  și test ecran blocat. Nu declarăm întregul produs validat prin această rundă.
