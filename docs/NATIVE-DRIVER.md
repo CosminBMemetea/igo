@@ -55,6 +55,15 @@ Prioritatea curentă este iPhone. Pentru compilare locală sunt necesare Xcode
 complet, Node și CocoaPods (verificat cu Xcode 27.1, Ruby 4.0.7, CocoaPods 1.17.0).
 Ruby/CocoaPods pot fi instalate separat de Ruby-ul macOS; nu schimba Ruby-ul sistemului.
 
+Pe Mac-ul pregătit în această rundă, terminalul poate folosi instrumentele locale:
+
+```sh
+export PATH="$HOME/.cache/querra-ios-tools/portable-ruby/4.0.7_1/bin:$HOME/.cache/querra-ios-tools/gems/bin:$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH"
+export GEM_HOME="$HOME/.cache/querra-ios-tools/gems"
+export GEM_PATH="$GEM_HOME"
+export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+```
+
 În `apps/driver`, setează `EXPO_PUBLIC_API_URL` în `.env.local`, apoi:
 
 ```sh
@@ -81,6 +90,21 @@ Buildul local din această rundă folosește originul verificat
 `https://igo-kappa.vercel.app`. Backendul mobil rămâne dezactivat implicit;
 loginul explică explicit această situație. Pentru acceptare folosește staging
 cu `MOBILE_DRIVER_ENABLED=1` și date fictive înainte de activarea producției.
+
+Validare locală la 17 octombrie 2026: arhivare Release **reușită**, versiunea
+0.1.0 (1), arm64, minimum iOS 16.4. Arhiva include bundle-ul Hermes, backendul
+HTTPS și pictograma Querra de 1024 px, fără declarațiile Face ID/Motion.
+Sursa aplicației: `d42964d`, arbore curat la build. A fost creat și ZIP-ul
+`build/ios/device/QuerraSofer-iPhone-0.1.0-unsigned.zip`. Nu conține semnătură sau
+profil de instalare. Runtime-ul simulatorului nu a fost instalat; nu s-au făcut
+probe vizuale native sau de GPS fizic. Avertismentele compilatorului și celelalte
+restanțe sunt consemnate în runda 21 din `QA-AUDIT.md`.
+
+Când telefonul este disponibil: deschide proiectul generat
+`ios/QuerraSofer.xcworkspace` în Xcode, selectează echipa Apple la Signing &
+Capabilities și telefonul ca destinație. Autentificarea în contul Apple și
+aprobările de pe telefon se fac de către utilizator. Urmează probele de mai jos
+pe backendul de staging înainte de activarea accesului mobil în producție.
 
 ## Probe de acceptare — mai întâi iPhone
 

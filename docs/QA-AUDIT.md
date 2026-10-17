@@ -789,6 +789,32 @@ certificate/configurații de proiect din surse necunoscute. Repetă auditul îna
 de distribuție și actualizează când există versiuni compatibile corectate.
 Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 
+### Arhiva iPhone verificată
+
+- Xcode 27.1 / CocoaPods 1.17.0: `ARCHIVE SUCCEEDED`, Release pentru dispozitiv
+  arm64, fără semnare. Versiune 0.1.0 (1), minimum iOS 16.4. Sursa `d42964d`,
+  arbore curat; ora buildului: 2026-10-17T16:07:33Z.
+- Verificate în arhivă: executabil Mach-O arm64, `main.jsbundle` Hermes cu
+  originul HTTPS corect, `Assets.car` și pictograma de aplicație, modul background
+  location, ATS fără arbitrary loads, absența declarațiilor Face ID/Motion.
+  Configurația compilată ExpoLocation include `EXPO_LOCATION_DISABLE_MOTION`.
+- Arhivă aproximativ 60 MiB. ZIP local:
+  `apps/driver/build/ios/device/QuerraSofer-iPhone-0.1.0-unsigned.zip`.
+  SHA-256: `45640fcde1add54481e4eba9258e539ffaaf0d4a03627d63978075729f9734cc`.
+- Backendul public verificat răspunde `404 mobile-unavailable` la cererea de
+  autentificare mobilă fără credențiale. Nu s-a activat pilotul și nu s-au trimis
+  credențiale reale. TypeScript pentru aplicația web trece și el.
+- **IOS-NATIVE-WARN-01, P2 deschis:** buildul reușește cu 821 apariții de warning
+  (189 mesaje distincte, multe repetate pentru aceleași headere). Categoriile
+  principale sunt nullability/umbrella headers React, API-uri legacy, Sendable
+  în dependențe Swift și globale furnizate de runtime în compilarea Hermes.
+  Nu s-au dezactivat avertismentele. Warningul despre CoreModule intern este
+  verificat în sursă: AppContext îl instanțiază direct. Rămân necesare testarea
+  pe telefon și evaluarea actualizărilor compatibile Expo/React Native; succesul
+  compilării nu dovedește compatibilitatea tuturor fluxurilor la rulare.
+- Nu există rezultat UI din simulator: descărcarea runtime-ului de 7,85 GB a
+  fost oprită pentru a prioritiza arhiva iPhone. Nu s-au făcut teste fizice.
+
 ### Restanțe iPhone
 
 - MOBILE-DEVICE-01: configurarea Xcode funcționează acum; CocoaPods este instalat
