@@ -3,7 +3,7 @@ import { nextCostMonth } from "../costs";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gt, gte, lt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
@@ -40,7 +40,7 @@ export class PgStore implements Store {
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, id)); }
   private firmTables() {
-    return { users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
+    return { complianceTasks, users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
   }
   async firmCounts(firmId: string) {
     const out: Record<string, number> = {};
@@ -52,7 +52,7 @@ export class PgStore implements Store {
     const counts = await this.firmCounts(firmId);
     const blobUrls = (await this.d.select({ url: files.url }).from(files).where(and(eq(files.firmId, firmId), eq(files.storage, "blob")))).map((r) => r.url).filter((u): u is string => !!u);
     // o singură tranzacție: întâi tabelele fără FK spre firms, apoi copiii, la final firma (restul cade în cascadă)
-    const T = this.firmTables(), order = [T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
+    const T = this.firmTables(), order = [T.complianceTasks, T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
     const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<unknown>; transaction?: (f: (tx: Db) => Promise<void>) => Promise<void> };
     const build = (db: Db) => [...order.map((tb) => db.delete(tb).where(eq((tb as typeof users).firmId, firmId))), db.delete(firms).where(eq(firms.id, firmId))];
     if (typeof d.batch === "function") await d.batch(build(this.d));
@@ -152,11 +152,45 @@ export class PgStore implements Store {
     const r = await this.d.update(invites).set({ usedAt: new Date(), userId }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt), isNull(invites.revokedAt))).returning({ id: invites.id });
     return r.length === 1;
   }
+  async complianceTasks(firmId: string) { return (await this.d.select().from(complianceTasks).where(eq(complianceTasks.firmId, firmId)).orderBy(desc(complianceTasks.createdAt))).map(t => ({...t, createdAt:iso(t.createdAt)!, updatedAt:iso(t.updatedAt)!})); }
+  async addComplianceTask(firmId: string, task: Pick<import("./types").ComplianceTaskRow, "truckId" | "driverId" | "type" | "due">) {
+    const result = await this.d.execute(sql`insert into compliance_tasks(id,firm_id,truck_id,driver_id,type,due)
+      select ${newId("ct")}, ${firmId}, t.id, u.id, ${task.type}, ${task.due}::date from trucks t join users u on u.truck_id=t.id and u.firm_id=t.firm_id
+      where t.id=${task.truckId} and t.firm_id=${firmId} and t.archived_at is null and u.id=${task.driverId} and u.role='driver' and u.disabled_at is null
+      on conflict (firm_id,truck_id,type) where status in ('open','acknowledged') do update set id=compliance_tasks.id returning id`);
+    const id = result.rows[0]?.id;
+    return id ? (await this.complianceTasks(firmId)).find(t => t.id === id) ?? null : null;
+  }
+  async updateComplianceTask(firmId: string, id: string, status: "acknowledged" | "done" | "cancelled", driverId?: string) {
+    if (driverId && status !== "acknowledged") return false;
+    const result = await this.d.execute(sql`update compliance_tasks ct set status=${status}, updated_at=now()
+      where ct.firm_id=${firmId} and ct.id=${id} and ct.status in ('open','acknowledged')
+      and (${driverId ?? null}::text is null or (ct.driver_id=${driverId ?? null} and exists (
+        select 1 from users u join trucks t on t.id=u.truck_id and t.firm_id=u.firm_id
+        where u.id=ct.driver_id and u.firm_id=ct.firm_id and u.disabled_at is null and u.truck_id=ct.truck_id and t.archived_at is null
+      ))) returning ct.id`); return result.rows.length === 1;
+  }
+  async updateComplianceBatch(firmId: string, changes: import("../compliance-csv").ComplianceUpdate[]) {
+    if (!changes.length || new Set(changes.map(c => c.id)).size !== changes.length) return false;
+    // One statement works on both Neon HTTP and node-postgres. Lock and validate
+    // the complete preview before changing anything (no partially imported fleet).
+    const result = await this.d.execute(sql`with input as (
+      select * from jsonb_to_recordset(${JSON.stringify(changes)}::jsonb) as i(id text, plate text, previous jsonb, next jsonb)
+    ), locked as materialized (
+      select t.id, t.plate, t.compliance, t.archived_at from trucks t join input i on i.id = t.id
+      where t.firm_id = ${firmId} order by t.id for update of t
+    ), eligible as (
+      select l.id from locked l join input i on i.id = l.id where l.archived_at is null and l.plate = i.plate
+      and l.compliance is not distinct from nullif(i.previous, 'null'::jsonb)
+    ) update trucks t set compliance = i.next from input i where t.id = i.id and t.firm_id = ${firmId}
+      and (select count(*) from eligible) = ${changes.length} returning t.id`);
+    return result.rows.length === changes.length;
+  }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) {
     try { const [r] = await this.d.insert(trucks).values({ ...t, costHistory: t.costHistory ?? [], archivedAt: null, id: newId("t"), firmId }).returning(); return truckOut(r); }
     catch (e) { if (String((e as { code?: string }).code ?? (e as { cause?: { code?: string } }).cause?.code) === "23505") throw new Error("exists"); throw e; }
   }
-  async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }) { const r = await this.d.update(trucks).set(p).where(and(eq(trucks.firmId, firmId), eq(trucks.id, id))).returning({ id: trucks.id }); return r.length > 0; }
+  async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null; compliance?: import("../compliance").VehicleCompliance | null }) { const r = await this.d.update(trucks).set(p).where(and(eq(trucks.firmId, firmId), eq(trucks.id, id))).returning({ id: trucks.id }); return r.length > 0; }
   async setUserEmail(id: string, email: string) { await this.d.update(users).set({ email }).where(eq(users.id, id)); }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) {
     const set: Partial<typeof trucks.$inferInsert> = {};

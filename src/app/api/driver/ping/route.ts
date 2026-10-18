@@ -4,7 +4,6 @@ import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
 import { localNow } from "@/lib/validate";
 import { reportOperationFailure } from "@/lib/operation-error";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 /** Poziția din telefonul șoferului (doar în tură). Firmă reală: se salvează (folosită de regula „departe de camion”). */
 export async function POST(req: Request) {

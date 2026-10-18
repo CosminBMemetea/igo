@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
 import { demoShift, saveDemoShift } from "@/lib/demo-shift";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { vehicleId?: unknown; action?: unknown; checklist?: unknown; expectedShiftStart?: unknown } | null;

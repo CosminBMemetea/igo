@@ -4,7 +4,6 @@ import { store } from "@/lib/store";
 import { tenant } from "@/lib/tenant";
 import type { TripEventKind } from "@/lib/store/types";
 import { realToday, roIso } from "@/lib/demo-time";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const KINDS: TripEventKind[] = ["loaded", "unloaded", "wait_start", "wait_end"];
 /** Am încărcat / Am descărcat / Aștept la client (start/stop), cu ora și (opțional, cu acord, doar în tură) poziția. */

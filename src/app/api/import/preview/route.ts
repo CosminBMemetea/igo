@@ -4,7 +4,6 @@ import { writableFirm } from "@/lib/tenant";
 import { analyze, MAX_CSV_BYTES } from "@/lib/fuel/import";
 import { demoSandbox, isDemoImporter } from "@/lib/fuel/demo-import";
 import type { Mapping } from "@/lib/fuel/parse";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const f = await writableFirm();

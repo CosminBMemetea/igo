@@ -1,5 +1,5 @@
 // Querra Fleet: schema Postgres (Drizzle). Orice rând de date are firm_id; depozitul filtrează MEREU după el.
-import { customType, jsonb, boolean, date, doublePrecision, index, integer, pgTable, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, customType, jsonb, boolean, date, doublePrecision, index, integer, pgTable, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
 
@@ -48,6 +48,7 @@ export const invites = pgTable("invites", {
 }, (t) => [index("invites_firm_ix").on(t.firmId)]);
 
 export const trucks = pgTable("trucks", {
+  compliance: jsonb("compliance").$type<import("../lib/compliance").VehicleCompliance>(),
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
   plate: text("plate").notNull(),
@@ -63,7 +64,18 @@ export const trucks = pgTable("trucks", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("trucks_firm_plate_uq").on(t.firmId, t.plate)]);
 
+export const complianceTasks = pgTable("compliance_tasks", {
+  id: text("id").primaryKey(),
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  driverId: text("driver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), due: date("due").notNull(), status: text("status").$type<import("../lib/store/types").ComplianceTaskRow["status"]>().notNull().default("open"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [index("compliance_tasks_firm_ix").on(t.firmId), uniqueIndex("compliance_tasks_active_uq").on(t.firmId, t.truckId, t.type).where(sql`${t.status} in ('open', 'acknowledged')`), check("compliance_tasks_status_check", sql`${t.status} in ('open','acknowledged','done','cancelled')`)]);
+
 export const documents = pgTable("documents", {
+  validFrom: date("valid_from"),
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
   truckId: text("truck_id").references(() => trucks.id, { onDelete: "cascade" }),
@@ -76,7 +88,7 @@ export const documents = pgTable("documents", {
   note: text("note"),
   fileId: text("file_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("documents_firm_ix").on(t.firmId)]);
+}, (t) => [index("documents_firm_ix").on(t.firmId), check("documents_valid_period", sql`${t.validFrom} is null or ${t.validFrom} <= ${t.expires}`)]);
 
 export const trips = pgTable("trips", {
   id: text("id").primaryKey(),

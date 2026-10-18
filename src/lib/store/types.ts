@@ -9,8 +9,8 @@ export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
 export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; referredBy: string | null; createdAt: string }
 export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; sessionVersion?: number; disabledAt?: string | null; truckId?: string | null; locale?: string | null }
 export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
-export interface TruckRow { id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; costHistory?: import("../costs").CostVersion[] | null; archivedAt?: string | null }
-export interface DocRow { id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
+export interface TruckRow { compliance?: import("../compliance").VehicleCompliance | null; id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; costHistory?: import("../costs").CostVersion[] | null; archivedAt?: string | null }
+export interface DocRow { validFrom?: string | null; id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 export type NewDoc = Omit<DocRow, "id" | "firmId">;
 export interface TripRow { requestKey?: string | null; requestHash?: string | null; loadedAt?: string | null; deliveredAt?: string | null; waitSince?: string | null; lastEventAt?: string | null; cancelledAt?: string | null; cancelReason?: string | null; id: string; firmId: string; truckId: string; client: string; title: string; date: string; km: number; revenue: number; litres: number; fuelPrice: number; tolls: number; driverCost: number; other: number; litresSource?: "manual" | "estimate"; podReceived?: boolean; driverId?: string | null; tonnes?: number | null; planned?: boolean }
 export interface LeadRow { id: string; firm: string; person: string; phone: string; email: string; trucks: number | null; fuelCard: string | null; gps: boolean | null; gpsProvider: string | null; locale: string | null; source: string | null; referralCode: string | null; utm: string | null; ipHash: string | null; consentAt: string; status: string; createdAt: string }
@@ -36,7 +36,11 @@ export interface EmailRow { id: string; firmId: string | null; key: string; to: 
 export type TripEventKind = "loaded" | "unloaded" | "wait_start" | "wait_end";
 export interface TripEventRow { requestKey?: string | null; id: string; firmId: string; tripId: string; kind: TripEventKind; at: string; lat: number | null; lng: number | null; userId: string | null }
 
+export interface ComplianceTaskRow { id: string; firmId: string; truckId: string; driverId: string; type: string; due: string; status: "open" | "acknowledged" | "done" | "cancelled"; createdAt: string; updatedAt: string }
 export interface Store {
+  complianceTasks(firmId: string): Promise<ComplianceTaskRow[]>;
+  addComplianceTask(firmId: string, task: Pick<ComplianceTaskRow, "truckId" | "driverId" | "type" | "due">): Promise<ComplianceTaskRow | null>;
+  updateComplianceTask(firmId: string, id: string, status: "acknowledged" | "done" | "cancelled", driverId?: string): Promise<boolean>;
   readonly persistent: boolean;
   createFirm(f: Pick<FirmRow, "name" | "cui"> & { referredBy?: string | null }): Promise<FirmRow>;
   firm(id: string): Promise<FirmRow | null>;
@@ -64,9 +68,10 @@ export interface Store {
   editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">): Promise<boolean>;
   updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }): Promise<boolean>;
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;
+  updateComplianceBatch(firmId: string, changes: import("../compliance-csv").ComplianceUpdate[]): Promise<boolean>;
   addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">): Promise<TruckRow>;
   trucks(firmId: string): Promise<TruckRow[]>;
-  updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }): Promise<boolean>;
+  updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null; compliance?: import("../compliance").VehicleCompliance | null }): Promise<boolean>;
   setUserEmail(id: string, email: string): Promise<void>;
   updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }): Promise<boolean>;
   /** Documentul trebuie să aparțină unui camion SAU unui șofer al firmei. */

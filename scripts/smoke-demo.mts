@@ -2,6 +2,8 @@ import { carryDemoWork, demoWorkMs } from "../src/lib/demo-work";
 // smoke:demo: demo-ul are o singură sursă de adevăr (Acasă = Curse = Clienți = Bonuri = Economii),
 // date relative la azi (nimic din viitor), exact 3 alerte credibile și niciun „simulat” în interfață.
 import { DemoRepository } from "../src/lib/repo";
+import { docStatus } from "../src/lib/docs";
+import { vehicleCompliance } from "../src/lib/compliance";
 import { clientSummaries, demoReceipts, monthSummary, tripViews, liveFleet, fullPath } from "../src/lib/query";
 import { economii } from "../src/lib/economii";
 import { realToday, shiftStr, demoDelta } from "../src/lib/demo-time";
@@ -66,7 +68,10 @@ ok("profit Acasă = Σ curse încheiate", near(views.filter((v) => !v.active).re
 ok("cursele viitoare sunt planificate și neîncepute", trips.some(t => t.date > today) && trips.filter(t => t.date > today).every(t => t.planned && !t.loadedAt && !t.deliveredAt));
 ok("cursele în desfășurare sunt de azi", trips.filter((t) => t.active && t.loadedAt).every((t) => t.date === today) && trips.some((t) => t.active && t.loadedAt));
 ok("alertele nu sunt din viitor (în afară de expirări)", alerts.filter((a) => a.rule !== "doc-expiry").every((a) => a.time.slice(0, 10) <= today));
-ok("documentele care expiră sunt în viitor", docs.filter((d) => d.expires).every((d) => d.expires! >= today));
+const expired = docs.filter(d => d.expires && docStatus(d.expires, today).status === "expired");
+ok("demo: un ITP expirat acum două zile pentru testarea avertizării", expired.length === 1 && expired[0].ownerId === "ar45qrt" && expired[0].type === "itp" && docStatus(expired[0].expires!, today).days === -2);
+const missingItp = vehicles.filter(v => vehicleCompliance(v.compliance, docs.filter(d => d.scope === "vehicle" && d.ownerId === v.id), today).some(i => i.type === "itp" && i.state === "missing"));
+ok("demo: un ITP lipsă, distinct de expirat", missingItp.length === 1 && missingItp[0].id === "cj52qrt");
 ok("shiftStr", shiftStr("2026-10-15T12:00", -3) === "2026-10-12T12:00" && demoDelta("2026-10-15") === 0);
 
 // 3. exact 3 alerte credibile

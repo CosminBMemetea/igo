@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { tri, type Locale } from "@/lib/i18n";
 
 const ERR: Record<string, string> = {
+  "task-driver": "Verifică șoferul alocat camionului. Dacă există o sarcină pentru fostul șofer, anuleaz-o înainte de realocare.|Check the assigned driver. Cancel any task for the previous driver before assigning it again.|Sprawdź przypisanego kierowcę. Anuluj zadanie poprzedniego kierowcy przed ponownym przypisaniem.",
+  "task-exists": "Există deja o sarcină deschisă pentru acest document. Termenul ei a fost păstrat; anuleaz-o dacă vrei să creezi una cu alt termen.|An open task already exists for this document. Its due date was preserved; cancel it to create one with another date.|Otwarte zadanie dla tego dokumentu już istnieje. Zachowano jego termin; anuluj je, aby utworzyć zadanie z inną datą.",
+  classification: "Verifică datele din talon: categoria, MTMA în kg, locurile și norma EURO trebuie să fie compatibile.|Check registration details: category, MTMA in kg, seats and EURO must be consistent.|Sprawdź dane dowodu: kategoria, DMC w kg, miejsca i EURO muszą być zgodne.",
   reason: "Scrie motivul anulării.|Enter the cancellation reason.|Podaj powód anulowania.",
   transition: "Starea cursei s-a schimbat sau operațiunea nu este permisă. Reîncarcă pagina.|Trip status changed or this action is not allowed. Reload the page.|Status kursu się zmienił lub operacja jest niedozwolona. Odśwież stronę.",
   plate: "Verifică numărul de înmatriculare.|Check the registration number.|Sprawdź numer rejestracyjny.",

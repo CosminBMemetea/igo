@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history && npm run smoke:compliance",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:calc": "tsx scripts/smoke-calc.mts",
@@ -41,11 +41,13 @@
     "smoke:native-api": "tsx scripts/smoke-native-api.mts",
     "smoke:native-actions": "tsx scripts/smoke-native-actions.mts",
     "smoke:driver-control": "tsx scripts/smoke-driver-control.mts",
-    "check:pilot": "node scripts/check-pilot.mjs"
+    "check:pilot": "node scripts/check-pilot.mjs",
+    "smoke:compliance": "tsx scripts/smoke-compliance.mts",
+    "smoke:compliance:http": "tsx scripts/smoke-compliance-http.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
-    "@vercel/blob": "^2.8.1",
+    "@vercel/blob": "^2.8.2",
     "drizzle-orm": "^0.45.4",
     "leaflet": "1.9.4",
     "leaflet.markercluster": "1.5.3",
@@ -73,5 +75,10 @@
     "eslint-config-next": "16.4.2",
     "tsx": "^4.19.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
   }
 }

@@ -7,7 +7,6 @@ import { localNow, isDate } from "@/lib/validate";
 import { tenant } from "@/lib/tenant";
 import { addDemoFill, saveDemoFill } from "@/lib/demo-shift";
 import { normCur, toRon } from "@/lib/fuel/fx";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const MAX_PHOTO = 2 * 1024 * 1024;
 export async function POST(req: Request) {

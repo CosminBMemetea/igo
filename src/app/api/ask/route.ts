@@ -5,7 +5,6 @@ import { TOOLS, detectLocale, parseToolCall, render, ruleIntent, type ToolCall }
 import { isLocale, type Locale } from "@/lib/i18n";
 import { groqChat } from "@/lib/groq";
 
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 

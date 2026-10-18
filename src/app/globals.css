@@ -1664,3 +1664,39 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .tollro-actions{display:flex;flex-wrap:wrap;gap:10px}.tollro-actions .btn{min-height:44px;height:auto;white-space:normal;gap:8px}.tollro-actions svg{flex:none}
 .tollro-card>summary:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:16px}
 @media(max-width:480px){.tollro-actions .btn{flex:1 1 100%;justify-content:center}.tollro-body textarea{font-size:16px}}
+
+/* Compliance: readable statuses and actions at phone widths. */
+.compliance-fields { border: 1px solid var(--line, #ddd); border-radius: 16px; padding: 16px; margin: 20px 0; min-width: 0; }
+.compliance-fields legend { font-weight: 650; padding: 0 6px; }
+.compliance-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:24px; }
+.compliance-stats > div { padding:18px; border:1px solid var(--line, #ddd); border-radius:16px; }
+.compliance-stats strong { display:block; font-size:32px; line-height:1.2; }
+.compliance-stats span { display:block; font-size:13px; margin-top:8px; opacity:.7; }
+.compliance-filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.compliance-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.compliance-card { min-width:0; border:1px solid var(--line, #ddd); border-radius:20px; padding:22px; background:var(--surface, transparent); }
+.compliance-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.compliance-card h3 { font-size:20px; margin:0; }
+.compliance-card-head p { font-size:13px; opacity:.7; margin:6px 0 0; }
+.compliance-items { list-style:none; padding:0; margin:16px 0; }
+.compliance-items li { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--line, #ddd); }
+.compliance-items li > div { min-width:0; }
+.compliance-items strong { font-size:14px; }
+.compliance-items small { display:block; font-size:12px; line-height:1.5; opacity:.7; margin-top:5px; }
+.compliance-item-action { display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0; max-width:50%; }
+.compliance-item-action .badge { white-space:normal; text-align:right; }
+.compliance-card-foot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+.compliance-card-foot small { font-size:11px; opacity:.65; flex:1 1 160px; }
+.compliance-driver { margin:20px 0; }
+.compliance-driver summary { cursor:pointer; padding:14px 0; font-size:14px; }
+@media(max-width:800px) { .compliance-grid {grid-template-columns:1fr;} .compliance-stats {grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media(max-width:480px) { .compliance-filters {grid-template-columns:1fr;} .compliance-card {padding:16px;} .compliance-items li {flex-wrap:wrap;} .compliance-item-action {max-width:100%;align-items:flex-start;} .compliance-card-foot .btn {width:100%;} }
+
+.compliance-import {margin-top:20px;} .compliance-import summary {cursor:pointer;font-weight:600;} .compliance-preview {overflow:auto;max-height:360px;margin:16px 0;} .compliance-preview th,.compliance-preview td {padding:8px;text-align:left;white-space:nowrap;}
+
+.compliance-task {flex-wrap:wrap;gap:12px;} .compliance-task .sheet {padding:0;margin:0;border:0;background:none;box-shadow:none;} .compliance-task-actions {display:flex;gap:8px;flex-wrap:wrap;}
+
+.compliance-page > .h1 + .hint {margin:14px 0 0;} .compliance-dashboard > .hint {margin:20px 0 0;} .compliance-fields > .hint,.compliance-import > .hint {margin:12px 0 18px;} #tasks > .hint {margin:10px 0 18px;} .compliance-task .hint {margin:8px 0 0;}
+.compliance-export {margin:16px 0;}
+/* Allow for both compact and owner account controls in the desktop header. */
+@media(min-width:761px) {.trial {top:112px;} body.has-trial main {padding-top:184px;}}

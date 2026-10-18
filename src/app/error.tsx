@@ -15,6 +15,8 @@ export default function PageError({ retry }: { error: unknown; retry: () => void
       <p className="sub">{tri(loc, "Verifică conexiunea și încearcă din nou. Dacă ai trimis o modificare, verifică lista înainte să o retrimiți.|Check your connection and try again. If you submitted a change, check the list before submitting it again.|Sprawdź połączenie i spróbuj ponownie. Jeśli wysłano zmianę, sprawdź listę przed ponownym wysłaniem.")}</p>
       <div className="invrow">
         <button className="btn pri" onClick={retry}>{tri(loc, "Încearcă din nou|Try again|Spróbuj ponownie")}</button>
+        {/* Full document navigation intentionally clears a broken router/error boundary. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a className="btn sec" href="/">{tri(loc, "Acasă|Home|Strona główna")}</a>
       </div>
     </section>

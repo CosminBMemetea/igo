@@ -1,3 +1,4 @@
+import { VehicleComplianceFields } from "@/components/VehicleComplianceFields";
 import { SearchField } from "@/components/SearchField";
 import { DemoRoster } from "@/components/DemoRoster";
 import Link from "next/link";
@@ -34,6 +35,7 @@ export default async function Trucks(
           <label className="lf"><span>{t(loc, "set.tank")}</span><input name="tank" inputMode="decimal" /></label>
           <label className="lf"><span>{t(loc, "set.l100")}</span><input name="l100" inputMode="decimal" /></label>
         </details>
+        <VehicleComplianceFields loc={loc} />
         <button className="btn pri" style={{ marginTop: 16 }}>{t(loc, "set.addTruck")}</button>
       </ActionForm>
     </details>
@@ -43,7 +45,7 @@ export default async function Trucks(
     </form>
     <div className="list">{list.map((v) => {
       const driver = drivers.find((u) => u.truckId === v.id);
-      return <section className="sheet" key={v.id}>
+      return <section className="sheet" id={`truck-${v.id}`} key={v.id}>
         <div className="head"><h2><Link href={`/vehicles/${v.id}`}>{v.plate}</Link></h2><span className="badge">{v.archivedAt ? tr("Arhivat|Archived|Archiwalny") : driver?.name ?? tr("Fără șofer|Unassigned|Bez kierowcy")}</span></div>
         <p className="sub">{v.model || "—"}</p>
         {!v.archivedAt ? driver ? <ActionForm action="/api/drivers/assign" returnTo="/trucks" loc={loc}><input type="hidden" name="uid" value={driver.id} /><input type="hidden" name="truck" value="" /><p>{driver.name} · {driver.passwordHash ? tr("Acces activ|Access active|Dostęp aktywny") : tr("Invitație în așteptare|Invitation pending|Oczekuje na aktywację")}</p><button className="btn sec sm">{tr("Eliberează camionul|Unassign driver|Odłącz kierowcę")}</button></ActionForm> : <ActionForm action="/api/drivers/assign" returnTo="/trucks" loc={loc}>
@@ -57,6 +59,7 @@ export default async function Trucks(
             <label className="lf"><span>VIN</span><input name="vin" defaultValue={v.vin ?? ""} maxLength={17} /></label>
             <label className="lf"><span>{t(loc, "set.tank")}</span><input name="tank" inputMode="decimal" defaultValue={v.tankL ?? ""} /></label>
             <label className="lf"><span>{t(loc, "set.l100")}</span><input name="l100" inputMode="decimal" defaultValue={v.normalL100 ?? ""} /></label>
+            <VehicleComplianceFields value={v.compliance} loc={loc} />
             <button className="btn pri">{t(loc, "stg.save")}</button>
           </ActionForm>
         </details>

@@ -4,7 +4,6 @@ import { tenant } from "@/lib/tenant";
 import { realToday } from "@/lib/demo-time";
 import { sniffImage, MIME } from "@/lib/imgsniff";
 import { normCur } from "@/lib/fuel/fx";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
 // Llama 4 Scout a fost oprit de Groq (17.07.2026, „groq-404”): modelele de viziune curente, în ordine.

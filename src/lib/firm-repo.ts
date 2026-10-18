@@ -19,7 +19,7 @@ export function truckBaseline(t: TruckRow, tx: FuelTxRow[], since: string): { l1
   return { l100: DEFAULT_L100, kind: "default", km: 0 };
 }
 const toR = (x: FuelTxRow) => ({ id: x.id, plate: x.source === "driver" ? x.plate : null, truckId: x.truckId, at: x.at, litres: x.litres, odometer: x.odometer, station: x.station, card: x.card, lat: x.lat, lng: x.lng });
-export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, costHistory: t.costHistory ?? [], real: true, costsConfigured: !!t.costs || !!t.costHistory?.some((x) => x.month <= localNow().slice(0, 7)), archived: !!t.archivedAt });
+export const truckToVehicle = (t: TruckRow, baseline = t.normalL100 ?? DEFAULT_L100): Vehicle => ({ compliance: t.compliance, id: t.id, name: t.plate, kind: "truck", model: t.model ?? "", driver: "", baselineRate: baseline, per100: true, tankL: t.tankL ?? 0, costs: t.costs ?? undefined, costHistory: t.costHistory ?? [], real: true, costsConfigured: !!t.costs || !!t.costHistory?.some((x) => x.month <= localNow().slice(0, 7)), archived: !!t.archivedAt });
 export function tripRowToTrip(r: TripRow, tx: FuelTxRow[] = []): Trip {
   // Fuel purchases are inventory, not measured consumption of each trip.
   const { litres, fuelPrice } = r;
@@ -55,7 +55,7 @@ export class FirmRepository implements IgoRepository {
   async zones() { return []; }
   async docs(): Promise<Doc[]> {
     const [ds, us] = await Promise.all([this.s.docs(this.firm.id), this.s.users(this.firm.id)]);
-    return ds.map((d) => (d.userId ? { id: d.id, scope: "driver", ownerId: us.find((u) => u.id === d.userId)?.name ?? "—", userId: d.userId, type: d.type, expires: d.expires, dueKm: d.dueKm ?? null, note: d.note ?? null, fileId: d.fileId ?? null } : { id: d.id, scope: "vehicle", ownerId: d.truckId ?? "", type: d.type, expires: d.expires, dueKm: d.dueKm ?? null, note: d.note ?? null, fileId: d.fileId ?? null }));
+    return ds.map((d) => (d.userId ? { id: d.id, scope: "driver", ownerId: us.find((u) => u.id === d.userId)?.name ?? "—", userId: d.userId, type: d.type, expires: d.expires, validFrom: d.validFrom, dueKm: d.dueKm ?? null, note: d.note ?? null, fileId: d.fileId ?? null } : { id: d.id, scope: "vehicle", ownerId: d.truckId ?? "", type: d.type, expires: d.expires, validFrom: d.validFrom, dueKm: d.dueKm ?? null, note: d.note ?? null, fileId: d.fileId ?? null }));
   }
   async services() { return []; }
   async fleetData(): Promise<FleetData> { return { trucks: [], fills: [], levels: {} }; }
@@ -66,7 +66,11 @@ export class FirmRepository implements IgoRepository {
     return firmFuelAlerts(rt, tx.map(toR), pos);
   }
   async alerts(): Promise<AppAlert[]> {
-    return this.memo("alerts", async () => { const [fuel, v, tr, d] = await Promise.all([this.fuelAlerts(), this.vehicles(), this.trips(), this.docs()]); return sortAlerts([...fuel, ...businessAlerts(v, tr, d, Date.now())]); });
+    return this.memo("alerts", async () => {
+      const [fuel, v, tr, d, users] = await Promise.all([this.fuelAlerts(), this.vehicles(), this.trips(), this.docs(), this.memo("users", () => this.s.users(this.firm.id))]);
+      const activeDocs = d.filter(doc => doc.scope !== "driver" || users.some(u => u.id === doc.userId && !u.disabledAt));
+      return sortAlerts([...fuel, ...businessAlerts(v, tr, activeDocs, Date.now())]);
+    });
   }
   async addDriverFill(f: Omit<DriverFill, "id">) {
     const key = f.key ? `${f.userId}:${f.key}` : JSON.stringify([f.vehicleId, f.time.slice(0, 10), f.litres, f.odometerKm, f.amount, f.station]);

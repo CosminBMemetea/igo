@@ -4,7 +4,6 @@ import { store } from "@/lib/store";
 import { driverTruck } from "@/lib/driver-access";
 import { reportOperationFailure } from "@/lib/operation-error";
 export const dynamic = "force-dynamic";
-export const preferredRegion = "fra1";
 export async function GET() {
   const headers = { "Cache-Control": "private, no-store" };
   try {

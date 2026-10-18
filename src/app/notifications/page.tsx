@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
 import { notificationsFor } from "@/lib/notify";
-import { fmtDate, t, type MsgKey } from "@/lib/i18n";
+import { fmtDate, t, tri, type MsgKey } from "@/lib/i18n";
 import { STATUS_COLOR, docStatus } from "@/lib/docs";
 import { todayFor } from "@/lib/today";
 
@@ -22,6 +22,7 @@ export default async function Notifications() {
         {list.length ? (
           <div className="list">
             {list.map((n) => {
+              if (n.kind === "compliance-task") return <Link key={n.id} href="/driver#tasks" className={`it ntf${n.readAt ? " read" : ""}`}><div><div className="t">{tri(loc, "Verificare solicitată|Check requested|Prośba o sprawdzenie")} · {String(n.params.label)}</div><div className="m">{n.params.type === "tollro" ? "TollRo" : n.params.type === "classification" ? tri(loc, "Date din talon|Registration details|Dane rejestracyjne") : t(loc, `doc.${n.params.type}` as MsgKey)} · {tri(loc, "Termen|Due|Termin")} {fmtDate(loc, String(n.params.expires), true)}</div></div></Link>;
               const p = n.params, doc = t(loc, `doc.${p.type}` as MsgKey), days = docStatus(String(p.expires), today).days;
               return (
                 <Link key={n.id} href={tn.role === "driver" ? "/driver#docs" : "/documents"} className={`it ntf${n.readAt ? " read" : ""}`}>

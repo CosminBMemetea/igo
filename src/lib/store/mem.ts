@@ -1,9 +1,11 @@
+import { sameProfile } from "../compliance-csv";
 import { cardAt, plateKey, validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
 import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type DriverEventRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 export class MemStore implements Store {
   readonly persistent = false;
+  private CT: import("./types").ComplianceTaskRow[] = [];
   private F: FirmRow[] = []; private U: UserRow[] = []; private I: InviteRow[] = []; private T: TruckRow[] = [];
   private D: DocRow[] = []; private R: TripRow[] = []; private S: SupportRow[] = []; private LD: LeadRow[] = [];
   async createFirm(f: Pick<FirmRow, "name" | "cui"> & { referredBy?: string | null }) { const r: FirmRow = { id: newId("f"), name: f.name, cui: f.cui, currency: "RON", trialStart: today(), demoMode: false, detailsDone: false, csvSkipped: false, referredBy: f.referredBy ?? null, createdAt: new Date().toISOString() }; this.F.push(r); return { ...r }; }
@@ -95,8 +97,28 @@ export class MemStore implements Store {
     Object.assign(r, patch); return true;
   }
   async useInvite(firmId: string, id: string, userId: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt && !x.revokedAt); if (!r) return false; r.usedAt = new Date().toISOString(); r.userId = userId; return true; }
+  async complianceTasks(firmId: string) { return this.CT.filter(t => t.firmId === firmId).map(t => ({...t})).sort((a,b) => b.createdAt.localeCompare(a.createdAt)); }
+  async addComplianceTask(firmId: string, task: Pick<import("./types").ComplianceTaskRow, "truckId" | "driverId" | "type" | "due">) {
+    if (!this.T.some(t => t.id === task.truckId && t.firmId === firmId && !t.archivedAt) || !this.U.some(u => u.id === task.driverId && u.firmId === firmId && u.role === "driver" && !u.disabledAt && u.truckId === task.truckId)) return null;
+    const existing = this.CT.find(t => t.firmId === firmId && t.truckId === task.truckId && t.type === task.type && ["open", "acknowledged"].includes(t.status));
+    if (existing) return {...existing};
+    const now = new Date().toISOString();
+    const row: import("./types").ComplianceTaskRow = {...task, firmId, id:newId("ct"), status:"open", createdAt:now, updatedAt:now}; this.CT.push(row); return {...row};
+  }
+  async updateComplianceTask(firmId: string, id: string, status: "acknowledged" | "done" | "cancelled", driverId?: string) {
+    const task = this.CT.find(t => t.id === id && t.firmId === firmId && ["open","acknowledged"].includes(t.status));
+    if (!task) return false;
+    if (driverId && (status !== "acknowledged" || task.driverId !== driverId || !this.U.some(u => u.id === driverId && u.firmId === firmId && !u.disabledAt && u.truckId === task.truckId) || !this.T.some(t => t.id === task.truckId && t.firmId === firmId && !t.archivedAt))) return false;
+    task.status = status; task.updatedAt = new Date().toISOString(); return true;
+  }
+  async updateComplianceBatch(firmId: string, changes: import("../compliance-csv").ComplianceUpdate[]) {
+    if (!changes.length || new Set(changes.map(c => c.id)).size !== changes.length) return false;
+    const rows = changes.map(c => this.T.find(t => t.firmId === firmId && t.id === c.id && !t.archivedAt && t.plate === c.plate && sameProfile(t.compliance, c.previous)));
+    if (rows.some(t => !t)) return false;
+    rows.forEach((t, i) => { t!.compliance = { ...changes[i].next }; }); return true;
+  }
   async addTruck(firmId: string, t: Omit<TruckRow, "id" | "firmId">) { if (this.T.some((x) => x.firmId === firmId && x.plate === t.plate)) throw new Error("exists"); const r = { ...t, id: newId("t"), firmId }; this.T.push(r); return { ...r }; }
-  async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null }) { if (this.T.some((x) => x.firmId === firmId && x.plate === p.plate && x.id !== id)) throw new Error("dup"); const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; Object.assign(t, p); return true; }
+  async updateTruck(firmId: string, id: string, p: { plate: string; vin?: string | null; model: string | null; tankL: number | null; normalL100: number | null; compliance?: import("../compliance").VehicleCompliance | null }) { if (this.T.some((x) => x.firmId === firmId && x.plate === p.plate && x.id !== id)) throw new Error("dup"); const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; Object.assign(t, p); return true; }
   async setUserEmail(id: string, email: string) { if (this.U.some((x) => x.email === email && x.id !== id)) throw new Error("dup"); const u = this.U.find((x) => x.id === id); if (u) u.email = email; }
   async updateTruckEcon(firmId: string, id: string, p: { costs?: Record<string, number>; archived?: boolean }) { const t = this.T.find((x) => x.id === id && x.firmId === firmId); if (!t) return false; if (p.archived && ((this.H.get(`${firmId}:${id}`) && !this.H.get(`${firmId}:${id}`)!.end) || this.R.some(r => r.firmId === firmId && r.truckId === id && r.planned && !r.cancelledAt && !r.deliveredAt))) throw new Error("truck-busy"); if (p.costs) { const month = nextCostMonth(); t.costHistory = [...(t.costHistory ?? []).filter((x) => x.month !== month), { month, costs: { ...p.costs } }]; } if (p.archived !== undefined) t.archivedAt = p.archived ? new Date().toISOString() : null; return true; }
   async trucks(firmId: string) { return this.T.filter((x) => x.firmId === firmId); }

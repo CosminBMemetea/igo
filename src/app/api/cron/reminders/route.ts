@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { dbConfigured, store } from "@/lib/store";
 import { runReminders } from "@/lib/reminders";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-/** Vercel Cron (vercel.json, zilnic ~06:00 Europe/Bucharest). Cu CRON_SECRET: cere „Authorization: Bearer …”; fără: doar user-agentul vercel-cron. */
+/** Vercel Cron: daily 03:00 UTC (05:00/06:00 Bucharest). CRON_SECRET is mandatory; User-Agent never authorizes a request. */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   const ok = !!secret && req.headers.get("authorization") === `Bearer ${secret}`;

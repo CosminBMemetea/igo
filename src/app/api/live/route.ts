@@ -5,7 +5,6 @@ import { DEMO_NOW_MIN } from "@/lib/fleet/data";
 import { demoLive } from "@/lib/live-sync";
 import { realLive, nowMin } from "@/lib/real-live";
 import { activeFleet } from "@/lib/econ-store";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const tn = await tenant(), r = tn.repo;

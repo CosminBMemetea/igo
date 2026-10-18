@@ -1049,3 +1049,40 @@ Fixed:
 Validation: TypeScript, driver-trips (new unload/POD/stale-event/closed-history regressions), trip-workflow, outbox, i18n, driver-integrity (memory), driver-control passed. Browser reproduced demo unload: Continue trip absent, Now 0, Delivered count 7->8, missing-POD reminder and delivered paperwork header. Screenshot /tmp/qfleet-delivered-state-fixed.png.
 
 Remaining: demo changes remain page-local and reset on reload as disclosed. Real PostgreSQL checks skipped without TEST_DATABASE_URL; two-device delivery/POD synchronization remains a manual pilot check. The outbox can briefly reapply old initial state when an acknowledged event leaves the queue before refreshed server props arrive; pending/blocked events remain disclosed, but this refresh-boundary behavior needs a separate reconciliation test.
+
+## 2026-10-18 — Document compliance, cleanup and harsh QA
+
+This round supersedes the PostgreSQL test limitation above for the suites rerun below. It does not close the physical-device or two-device pilot checks. All test accounts, CSVs and PDFs were fictitious and local; no production records were deleted.
+
+| ID | Priority | Defect / gap | Fix and evidence |
+|---|---|---|---|
+| COMP-01 | P1 | Missing RCA/ITP absent from expiry-only lists | Fleet dashboard creates required rows even when no document exists; unknown never becomes valid. Pure tests and browser. |
+| COMP-02 | P1 | Future renewal could appear valid; replaced/archived documents continued alerting | Effective-date selection shared by reminders, alerts and home; calendar excludes superseded vehicle records and inapp notices hide stale documents. PostgreSQL and date/DST regressions. |
+| COMP-03 | P1 | Rovinietă could be treated as relevant for heavy freight without a regulatory profile | Category/MTMA validation, explicit unknown data, separate electric propulsion; TollRo remains unverified per journey. Threshold/bus/unknown tests. |
+| COMP-04 | P1 | New driver client card initially received all fleet document props | Scoped before serialization. HTTP checks assert another vehicle's unique note is absent from the driver response. |
+| COMP-05 | P1 | Assigned vehicle PDF was inaccessible to driver; access could remain cached after reassignment | Tenant + current assignment or personal ownership checks; no-store response. HTTP verifies 200 for assignee, 404 for other firm, 403 after unassignment. |
+| COMP-06 | P1 | CSV could overwrite intervening edits or update only part of fleet | Preview fingerprint plus atomic SQL validation/locking. Real PostgreSQL simultaneous conflicting imports accept exactly one snapshot; cross-firm/stale imports rejected. |
+| COMP-07 | P1 | Invalid attachment was rejected after document creation | Validate size/MIME/content first. HTTP proves malformed PDF does not create document. Storage failure explicitly says document details saved and requests only attachment retry. |
+| COMP-08 | P2 | Duplicate task requests and stale assignment semantics | One active task per vehicle/type, unique constraint, owner-only close/cancel; driver only acknowledges current assignment. Different duplicate deadline rejected instead of silently ignored. |
+| COMP-09 | P2 | Legacy document meters implied an arbitrary percentage; driver repeated the vehicle document list | Removed misleading expiry meters; current vehicle card and personal documents separated; retained owner history. |
+| COMP-10 | P2 | Calendar link became ineffective when Fleet became default tab | Explicit calendar URL and compatibility for older view=cal links; Fleet hides irrelevant list/calendar switch. |
+| COMP-11 | P2 | Trial banner partly hidden under desktop header; export button crowded toolbar | Corrected banner offset and spacing; inspected 1440px layout. |
+| COMP-12 | P2 | Import read races and service errors could look like invalid CSV | Ignore obsolete file reads, handle read failure, separate 400 validation from 503 infrastructure error, preview before save. |
+
+### Verification
+
+- **27 suites passed with real local PostgreSQL 18.4:** main `smoke` chain plus card-periods, harsh, receipt-draft, native-tracking, gps-time, native-api, native-actions, driver-control and reliability:pg. No PostgreSQL skip in this run. The harsher suite includes 20,000 equal-time GPS points and tenant/date isolation. Native suites are code regressions, not physical-phone certification.
+- **20 compliance groups passed** against memory and PostgreSQL, including simultaneous import/task requests, renewal gaps, archived/disabled targets, tenant isolation and terminal task states. Migration 0019 applied successfully; existing card-history migration regression verifies reapplication and retained legacy data.
+- Production build and TypeScript passed. Full ESLint: 0 errors, 42 warnings (existing render/effect/image recommendations remain; this is not a warning-free codebase). `git diff --check` passed.
+- **HTTP:** signup/invite/join using fictitious identities; document periods/attachment validation; report isolation; CSV preview/commit; owner/driver permissions; task acknowledgment; revocation after reassignment; private PDF access and RSC payload isolation.
+- **Browser:** owner/driver documents at 320/390px and owner dashboard at 1440px; no document horizontal overflow in checked views. Filters show the expected single expired/missing demo vehicle. Real-flow local UI: CSV preview/save changes unknown to N1/vignette, future RCA shows not-yet-active, owner task creation and driver acknowledgment. Production build demo filters also checked without new hydration errors; the earlier development-only HMR hydration event remains noted, not suppressed.
+- `@vercel/blob` updated 2.8.1 → 2.8.2. Removed deprecated Next preferredRegion exports; Frankfurt remains configured in vercel.json. Scoped esbuild override removes the vulnerable legacy development-server version; drizzle-kit schema generation verified in a temporary output directory.
+- Production dependency audit: **0 known findings** in the registry snapshot. Full audit: **5 high findings in the lint toolchain**, all from unpatched braces <=3.0.3 via micromatch/fast-glob/Next ESLint. Do not apply npm's suggested downgrade to Next 14. Track upstream patch: https://github.com/advisories/GHSA-vfj7-8cjw-p6xm. Latest major TypeScript/ESLint/Node type migrations are deliberately separate compatibility work.
+
+### Still open
+
+- COMP-OPEN-01: APNs/FCM/Web Push and receipt verification are not implemented. Current expiry alerts are in-app and provider-dependent email.
+- COMP-OPEN-02: Resend delivery, failed/queued-email retry lifecycle, cron monitoring, production Blob and backup restore need operational acceptance. A mocked provider test is not external delivery proof.
+- COMP-OPEN-03: TollRo quote/payment/reconciliation requires provider contract, API documentation and sandbox access. No invented prices, fines, grace periods or automatic valid/paid states.
+- COMP-OPEN-04: Per-day document records cannot certify hour-specific validity, special exemptions or historical regulatory regimes. Provider/date-versioned rules are a separate implementation.
+- Existing physical iPhone, two-device/offline and outbox refresh-boundary checks remain in the pilot backlog. See `COMPLIANCE.md` for scope and operator flows.

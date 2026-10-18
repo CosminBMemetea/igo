@@ -4,7 +4,6 @@ import { store } from "@/lib/store";
 import { groqChat, hasGroq } from "@/lib/groq";
 import { estimateKm, matchDriver, parseQuick, type Parsed } from "@/lib/trip-new";
 import { localNow, isDate } from "@/lib/validate";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 /** Text / voce → câmpurile cursei. La AI trimitem DOAR textul tastat și data de azi (fără date din flotă); numele șoferului îl potrivim local. */

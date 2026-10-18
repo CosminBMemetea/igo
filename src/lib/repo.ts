@@ -5,6 +5,9 @@ import { computeAlerts, type FleetData, type RuleId, type Severity } from "./fle
 import { CLIENTS, DOCS, PARCELS, SERVICES, TRIPS, VEHICLES, ZONES, type Client, type Doc, type Parcel, type Service, type Trip, type Vehicle, type Zone } from "./fleet/seed";
 import { tripProfit } from "./calc";
 import { byDelta, realToday, roIso, shiftDeep } from "./demo-time";
+import { currentRecordDocuments } from "./compliance-reminders";
+import { docStatus } from "./docs";
+import { localNow } from "./validate";
 
 export type AlertRule = RuleId | "loss" | "agri-over" | "doc-expiry" | "gps-privat";
 export interface AppAlert { id: string; rule: AlertRule; vehicleId: string; time: string; severity: Severity; theft: boolean; params: Record<string, string | number> }
@@ -32,7 +35,8 @@ const DEMO_DATE = Date.UTC(2026, 9, 15);
 export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[], now = DEMO_DATE): AppAlert[] {
   const out: AppAlert[] = [];
   for (const tr of trips) {
-    const v = vehicles.find((x) => x.id === tr.vehicleId)!;
+    const v = vehicles.find((x) => x.id === tr.vehicleId);
+    if (!v || v.archived) continue;
     const p = tripProfit(tr);
     if (!tr.cancelledAt && !tr.active && p.profit < 0) {
       const top = ([["tolls", p.tolls], ["other", p.other], ["fuel", p.fuel], ["driver", p.driver]] as const).reduce((a, b) => (b[1] > a[1] ? b : a));
@@ -41,9 +45,11 @@ export function businessAlerts(vehicles: Vehicle[], trips: Trip[], docs: Doc[], 
     if (v.kind === "agri" && tr.actualRate > v.baselineRate * (1 + AGRI_OVER))
       out.push({ id: `agri-${tr.id}`, rule: "agri-over", vehicleId: v.id, time: `${tr.date}T18:00`, severity: "medium", theft: false, params: { plate: v.name, parcel: tr.title, lha: tr.actualRate, base: v.baselineRate, pct: Math.round((tr.actualRate / v.baselineRate - 1) * 100) } });
   }
-  for (const d of docs) {
+  const today = localNow(new Date(now)).slice(0, 10);
+  const current = currentRecordDocuments(docs, vehicles, today);
+  for (const d of current) {
     if (!d.expires) continue;
-    const days = Math.round((Date.parse(d.expires) - now) / 86400000);
+    const days = docStatus(d.expires, today).days;
     if (days <= DOC_WINDOW_DAYS) {
       const v = vehicles.find((x) => x.id === d.ownerId);
       out.push({ id: `doc-${d.id}`, rule: "doc-expiry", vehicleId: v?.id ?? "", time: `${d.expires}T00:00`, severity: days <= 7 ? "high" : "medium", theft: false, params: { doc: d.type, owner: v?.name ?? d.ownerId, date: d.expires, days } });

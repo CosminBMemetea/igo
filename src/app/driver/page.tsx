@@ -1,3 +1,7 @@
+import { ComplianceTasks } from "@/components/ComplianceTasks";
+import { COMPLIANCE_LABELS, complianceBadge } from "@/lib/compliance-labels";
+import { ComplianceCard } from "@/components/ComplianceDashboard";
+import { currentDocument, documentState } from "@/lib/compliance";
 import { TollRoHandoff } from "@/components/TollRoHandoff";
 import { PW } from "@/lib/paperwork-labels";
 import { defaultDriverTrip, driverTripStage, driverTripSummary } from "@/lib/driver-trips";
@@ -14,13 +18,13 @@ import { store } from "@/lib/store";
 import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
-import { tri, fmtDate, fmtNum, t, type MsgKey, plural } from "@/lib/i18n";
+import { tri, fmtDate, fmtNum, t, type MsgKey } from "@/lib/i18n";
 import { Gate } from "@/components/Gate";
 import { truckToday } from "@/lib/driver-log";
 import { DriverApp } from "@/components/DriverApp";
 import { TripPaperwork } from "@/components/TripPaperwork";
 import { paperworkFor } from "@/lib/paperwork";
-import { docStatus, STATUS_CLASS } from "@/lib/docs";
+import { docStatus } from "@/lib/docs";
 import { roIso } from "@/lib/demo-time";
 import { todayFor } from "@/lib/today";
 
@@ -60,32 +64,38 @@ export default async function Driver(props: { searchParams: Promise<{ v?: string
   const pw = trip ? await paperworkFor(tn, trip.id) : null;
   const shift0 = (tn.demo ? (await demoShift(v.id)) : null) ?? (await r.shift(v.id));
   // demo: o tură nu durează peste 12 h și nu începe în viitor (cookie de ieri / noaptea înainte de 05:30) → tură proaspătă, realistă (~2,5 h)
-  const age = shift0 && !shift0.end ? Date.now() - Date.parse(shift0.start) : 0;
-  const shift = tn.demo && shift0 && !shift0.end && (age < 0 || age > 12 * 3600e3 || Number.isNaN(age)) ? (() => { const st = new Date(Date.now() - 2.5 * 3600e3).toISOString(); return { ...shift0, start: st, privateSince: shift0.privateSince ? st : null }; })() : shift0;
+  const nowMs = Date.now();
+  const age = shift0 && !shift0.end ? nowMs - Date.parse(shift0.start) : 0;
+  const shift = tn.demo && shift0 && !shift0.end && (age < 0 || age > 12 * 3600e3 || Number.isNaN(age)) ? (() => { const st = new Date(nowMs - 2.5 * 3600e3).toISOString(); return { ...shift0, start: st, privateSince: shift0.privateSince ? st : null }; })() : shift0;
   // demo: aceeași sursă ca harta live (liveFleet la minutul demo)
   const liveKm = tn.demo ? (liveFleet(vehicles, tripViews((await activeFleet(tn.demo, vehicles, await r.trips())).trips, vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
-  const nowMs = Date.now();
   // firmă reală: km din pozițiile GPS filtrate de azi, ore = tură ∩ azi (Europe/Bucharest) minus pauzele private
   const todayReal = !tn.demo && tn.firm ? await truckToday(tn.firm.id, v.id, shift).then((x) => ({ km: x.km, hours: x.hours })).catch(() => null) : null;
   const driverName = v.driver || me?.name || "";
-  const myDocs = (await r.docs()).filter((d) => d.expires && ((d.scope === "vehicle" && d.ownerId === v.id) || (d.scope === "driver" && (tn.demo ? d.ownerId === driverName : d.userId === tn.uid))))
-    .map((d) => ({ ...d, st: docStatus(d.expires!, today) })).sort((a, b) => a.st.days - b.st.days);
+  const complianceTasks = !tn.demo && tn.firm && tn.role === "driver" ? (await store().complianceTasks(tn.firm.id)).filter(task => task.driverId === tn.uid && task.truckId === me?.truckId) : [];
+  // Scope before serialization: a client component must never receive another driver's records.
+  const complianceDocs = (await r.docs()).filter(d => (d.scope === "vehicle" && d.ownerId === v.id) || (d.scope === "driver" && (tn.demo ? d.ownerId === driverName : d.userId === tn.uid)));
+  const personal = complianceDocs.filter(d => d.scope === "driver");
+  const myDocs = [...new Set(personal.map(d => d.type))].map(type => currentDocument(personal.filter(d => d.type === type), today) ?? personal.find(d => d.type === type)!)
+    .map(d => ({ ...d, st: docStatus(d.expires ?? "", today) })).sort((a, b) => a.st.days - b.st.days);
   return (
     <Gate feature="driverApp" prefs={prefs}>
       <main className="driver-main">{outbox}{tn.demo && tn.role === "driver" ? <DemoSwitcher loc={loc} driver /> : null}{!tn.demo && vehicles.length > 1 && tn.role !== "driver" ? <div className="seg" style={{ marginBottom: 8, flexWrap: "wrap", width: "auto" }}>{vehicles.map((x) => <a key={x.id} href={`/driver?v=${x.id}`} className={x.id === v.id ? "on" : ""}>{x.name}</a>)}</div> : null}
         {claps.length ? <div className="drvclap fade" role="status"><span>👏</span><div><b>{FT[loc].clapDrv.replace("{n}", String(claps.length))}</b><small>{claps[claps.length - 1].l}</small></div></div> : null}
+        <section id="docs"><ComplianceCard vehicle={v} docs={complianceDocs.filter(d => d.scope === "vehicle")} today={today} loc={loc} driver demo={tn.demo} /></section>
         <DriverTrips trips={boardTrips} today={today} truckId={v.id} trucks={allVehicles.map(x => ({ id: x.id, name: x.name }))} loc={loc} selectedId={trip?.id} embedded demo={tn.demo} />
-        <div id="trip-paperwork">{trip && pw ? <TripPaperwork key={trip.id} clockOffset={tn.demo ? Date.parse(roIso(today, "14:00")) - nowMs : 0} queueScope={queueScope} actorId={tn.uid ?? undefined} readOnly={!!trip.cancelledAt || (!tn.demo && (tn.role !== "driver" || (!trip.deliveredAt && (!trip.planned || trip.vehicleId !== v.id))))} serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((Date.now() - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={{ ...Object.fromEntries(PW.map((k) => [k, t(loc, k)])), "pw.today": heading }} /> : (tn.demo || tn.role !== "driver") ? <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p> : null}</div>
+        <div id="trip-paperwork">{trip && pw ? <TripPaperwork key={trip.id} clockOffset={tn.demo ? Date.parse(roIso(today, "14:00")) - nowMs : 0} queueScope={queueScope} actorId={tn.uid ?? undefined} readOnly={!!trip.cancelledAt || (!tn.demo && (tn.role !== "driver" || (!trip.deliveredAt && (!trip.planned || trip.vehicleId !== v.id))))} serverNow={nowMs} loc={loc} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date, true)}`} demo={tn.demo} onShift={!!shift && !shift.end && !shift.privateSince} initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((nowMs - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }} L={{ ...Object.fromEntries(PW.map((k) => [k, t(loc, k)])), "pw.today": heading }} /> : (tn.demo || tn.role !== "driver") ? <p className="sub" style={{ marginTop: 32 }}>{t(loc, "pw.noTrip")}</p> : null}</div>
         {trip && !trip.cancelledAt ? <TollRoHandoff key={trip.id} plate={allVehicles.find(x => x.id === trip.vehicleId)?.name ?? "—"} route={trip.title} date={trip.date} loc={loc} demo={tn.demo} /> : null}
         <DriverApp key={tn.uid ?? "demo-driver"} queueScope={queueScope} actorId={tn.uid ?? undefined} preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={tn.demo ? { km: liveKm ?? 0, hours: demoWorkMs(shift, nowMs) / 3600000 } : todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
 
-        <section className="section" id="docs">
-          <div className="eyebrow">{t(loc, "pw.myDocs")}</div>
+        <ComplianceTasks tasks={complianceTasks} vehicles={vehicles} today={today} loc={loc} driver />
+        <section className="section" id="personal-docs">
+          <div className="eyebrow">{tri(loc, "Documentele mele personale|My personal documents|Moje dokumenty osobiste")}</div>
           <div className="list" style={{ marginTop: 12 }}>
             {myDocs.length ? myDocs.map((d) => (
               <div key={d.id} className="it" style={{ cursor: "default" }}>
-                <div><div className="t">{t(loc, `doc.${d.type}` as MsgKey)} · {d.scope === "vehicle" ? v.name : d.ownerId}</div><div className="m">{t(loc, "docs.expires")} {fmtDate(loc, d.expires!, true)}</div></div>
-                <span className={`badge ${STATUS_CLASS[d.st.status]}`}>{d.st.status === "expired" ? t(loc, "dc.expired", { n: -d.st.days }) : d.st.status === "valid" ? t(loc, "docs.ok") : t(loc, "docs.days", { n: plural(loc, d.st.days, "u.day") })}</span>
+                <div><div className="t">{t(loc, `doc.${d.type}` as MsgKey)} · {d.ownerId}</div><div className="m">{d.expires ? `${t(loc, "docs.expires")} ${fmtDate(loc, d.expires, true)}` : "—"}{d.fileId ? <> · <a className="link" href={`/api/files/${encodeURIComponent(d.fileId)}`} target="_blank" rel="noreferrer">{t(loc, "dc.openFile")}</a></> : null}</div></div>
+                <span className={`badge ${complianceBadge(documentState(d, today))}`}>{tri(loc, COMPLIANCE_LABELS[documentState(d, today)])}</span>
               </div>
             )) : <p className="sub">{t(loc, "dc.none")}</p>}
           </div>

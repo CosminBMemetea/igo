@@ -5,7 +5,6 @@ import { getPrefs } from "@/lib/prefs";
 import { commit, MAX_CSV_BYTES } from "@/lib/fuel/import";
 import { demoResult, demoSandbox, isDemoImporter } from "@/lib/fuel/demo-import";
 import type { Mapping } from "@/lib/fuel/parse";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 export async function POST(req: Request) {

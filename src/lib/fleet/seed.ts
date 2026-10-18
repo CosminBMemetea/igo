@@ -5,6 +5,7 @@ import { DEMO_DAY, TRUCKS, mulberry32, routeTotalKm, dayPlan, minToHHMM, DEMO_NO
 export type VehicleKind = "truck" | "agri" | "van";
 export type JobType = "transport" | "harvest" | "plough" | "seed";
 export interface Vehicle {
+  compliance?: import("../compliance").VehicleCompliance | null;
   id: string; name: string; kind: VehicleKind; model: string; driver: string;
   /** km → L/100km (per100); agri → L/ha */
   baselineRate: number; per100: boolean; tankL: number;
@@ -35,7 +36,7 @@ export interface Trip {
 }
 export interface Parcel { id: string; name: string; ha: number; crop: "wheat" | "maize" | "sunflower" | "rapeseed"; poly: LatLng[] }
 export interface Zone { id: string; name: string; kind: "depot" | "client"; at: LatLng; radiusM: number }
-export interface Doc { id: string; scope: "vehicle" | "driver" | "trip"; ownerId: string; type: string; expires: string | null; provider?: string; userId?: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
+export interface Doc { validFrom?: string | null; id: string; scope: "vehicle" | "driver" | "trip"; ownerId: string; type: string; expires: string | null; provider?: string; userId?: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
 
 export const FUEL_PRICE = 7.3;
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -44,7 +45,7 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 /** Baza = consumul de dinainte de Querra Fleet (din istoricul cardului, 60–90 zile). Demo: ~11–14% peste consumul actual. */
 const TRUCK_BASE: Record<string, number> = { bh21qrt: 32.0, cj08qrt: 33.1, tm33qrt: 33.4, b120qrt: 34.6, ar45qrt: 33.0, bh77qrt: 31.4, cj52qrt: 34.2, bv19qrt: 32.6, bh88qrt: 32.4, ar12qrt: 33.6, tm61qrt: 34.0, cj90qrt: 31.2, ct14qrt: 35.8, bh42qrt: 33.1 };
 export const VEHICLES: Vehicle[] = [
-  ...TRUCKS.map((t): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", model: t.model, driver: t.driver, baselineRate: TRUCK_BASE[t.id], per100: true, tankL: t.tankL })),
+  ...TRUCKS.map((t): Vehicle => ({ id: t.id, name: t.plate, kind: "truck", compliance: { category: "N3", mtmaKg: 18000, seats: 2, euro: "6", propulsion: "diesel", country: "RO" }, model: t.model, driver: t.driver, baselineRate: TRUCK_BASE[t.id], per100: true, tankL: t.tankL })),
   { id: "lexion760", name: "Claas Lexion 760", kind: "agri", model: "2019", driver: "Gheorghe Nagy", baselineRate: 19.2, per100: false, tankL: 800, lph: 34.2, engineHours: 2412 },
   { id: "fendt724", name: "Fendt 724 Vario", kind: "agri", model: "2021", driver: "Ion Bara", baselineRate: 24.0, per100: false, tankL: 400, lph: 21.6, engineHours: 3180 },
   { id: "puma240", name: "Case IH Puma 240", kind: "agri", model: "2018", driver: "Radu Fodor", baselineRate: 9.6, per100: false, tankL: 390, lph: 18.9, engineHours: 5640 },
@@ -144,6 +145,10 @@ export const tripById = (id: string) => TRIPS.find((t) => t.id === id);
 // ---------- documente ----------
 const D = (days: number) => { const d = new Date(Date.UTC(2026, 9, 15 + days)); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; };
 export const DOCS: Doc[] = [
+  ...TRUCKS.flatMap((truck, i): Doc[] => [
+    ...(truck.id === "bh21qrt" || truck.id === "bh77qrt" ? [] : [{id:`compliance-rca-${truck.id}`,scope:"vehicle" as const,ownerId:truck.id,type:"rca",expires:D(90+i*15)}]),
+    ...(truck.id === "tm33qrt" || truck.id === "cj52qrt" ? [] : [{id:`compliance-itp-${truck.id}`,scope:"vehicle" as const,ownerId:truck.id,type:"itp",expires:D(truck.id === "ar45qrt" ? -2 : 120+i*14)}]),
+  ]),
   { id: "d1", scope: "vehicle", ownerId: "bh21qrt", type: "rca", expires: D(6), provider: "Allianz-Țiriac" },
   { id: "d2", scope: "vehicle", ownerId: "tm33qrt", type: "itp", expires: D(19), provider: "RAR" },
   { id: "d3", scope: "vehicle", ownerId: "b120qrt", type: "vignette", expires: D(28), provider: "CNAIR" },

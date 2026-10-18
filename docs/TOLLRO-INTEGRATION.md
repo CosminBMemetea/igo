@@ -2,6 +2,8 @@
 
 ## Implemented
 
+The vehicle regulatory profile and fleet compliance dashboard are now implemented; see `COMPLIANCE.md`. Vehicles without confirmed registration details remain unknown. Historical vignettes are retained as records but do not satisfy TollRo, and the vehicle dashboard never treats a document expiry date as proof of a paid TollRo journey.
+
 Official-portal handoff from owner trip details and both driver trip surfaces. Uses the selected trip's assigned truck, route and planned date. Details are copied only on user action; portal navigation contains no vehicle/trip query parameters and uses no-referrer. Demo content is labeled. Clipboard denial leaves selectable text. Cancelled trips do not offer the handoff.
 
 This is NOT an API integration. It does not calculate tolls, buy a ticket, start a charging session, retrieve invoices, upload evidence or establish payment/validity. QFleet tracking is not a replacement for the official TollRo app/device. No external request is sent by the component until the user opens the official link.
@@ -25,7 +27,7 @@ Do not send keys in chat. Install secrets server-side via the deployment provide
 
 ## Implementation after API access
 
-- Tenant-scoped truck regulatory profile: MTMA from registration (not payload), Euro class and provider-required fields. Exact Romanian route points and start time; never assume all kilometres are taxable.
+- Extend the existing tenant-scoped regulatory profile with any provider-required fields (axles, CO2 class, dimensions). Add exact Romanian route points and start time; never assume all kilometres are taxable.
 - Persist quote separately from purchase intent, official ticket and settled charge; include provider IDs, timestamps, original currency/VAT and evidence source.
 - Owner confirmation for each purchase; driver normally reads assigned trip evidence. Never initiate payment on page load or start QFleet tracking as TollRo tracking.
 - Stable idempotency key across retries; unknown timeout is pending verification, not failure to repay. Webhooks authenticated, replay-protected and tenant-mapped server-side.

@@ -5,7 +5,9 @@ export function formReply(req: Request, path: string, error?: string, status = 4
   if (req.headers.get("accept")?.includes("application/json")) {
     return error ? NextResponse.json({ error }, { status }) : NextResponse.json({ ok: true, redirect: path });
   }
-  return NextResponse.redirect(new URL(error ? `${path}${path.includes("?") ? "&" : "?"}e=${encodeURIComponent(error)}` : path, req.url), 303);
+  const dest = new URL(path, req.url);
+  if (error) dest.searchParams.set("e", error);
+  return NextResponse.redirect(dest, 303);
 }
 export function duplicateError(e: unknown) {
   const x = e as { message?: string; code?: string; cause?: { code?: string } };

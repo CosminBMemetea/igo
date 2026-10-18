@@ -1,3 +1,4 @@
+import { reminderDocuments } from "./compliance-reminders";
 // Querra Fleet: jobul zilnic de reamintiri (Vercel Cron ~06:00 Europe/Bucharest). Idempotent: chei unice pe notificări și emailuri.
 import { dueReminders, type RDoc } from "./docs";
 import { queueEmail, emailProvider, type EmailProvider } from "./email";
@@ -12,8 +13,8 @@ export async function runReminders(s: Store, today = localNow().slice(0, 10), p:
     if (!docs.length) continue;
     res.firms++;
     const label = (d: (typeof docs)[number]) => (d.userId ? users.find((u) => u.id === d.userId)?.name ?? "—" : trucks.find((x) => x.id === d.truckId)?.plate ?? "—");
-    const rdocs: RDoc[] = docs.map((d) => ({ id: d.id, type: d.type, expires: d.expires, truckId: d.truckId, userId: d.userId ?? null, label: label(d) }));
-    const due = dueReminders(rdocs, users.map((u) => ({ id: u.id, role: u.role, email: u.email, truckId: u.truckId })), today);
+    const rdocs: RDoc[] = reminderDocuments(docs, trucks, users, today).map((d) => ({ id: d.id, type: d.type, expires: d.expires, truckId: d.truckId, userId: d.userId ?? null, label: label(d) }));
+    const due = dueReminders(rdocs, users.filter(u => !u.disabledAt).map((u) => ({ id: u.id, role: u.role, email: u.email, truckId: u.truckId })), today);
     const byDoc = new Map(rdocs.map((d) => [d.id, d]));
     const added = await s.addNotifications(f.id, due.filter((r) => !r.email).map((r) => ({ userId: r.userId, key: r.key, kind: r.stage, docId: r.docId, params: { type: byDoc.get(r.docId)!.type, label: byDoc.get(r.docId)!.label, expires: byDoc.get(r.docId)!.expires, days: r.days } })));
     res.notifications += added.length;

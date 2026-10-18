@@ -4,7 +4,6 @@ import { logDriver } from "@/lib/driver-log";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { demoShift, saveDemoShift } from "@/lib/demo-shift";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 /** „Privat” în pauză (doar în tură): oprește salvarea pozițiilor până la revenire. */
 export async function POST(req: Request) {

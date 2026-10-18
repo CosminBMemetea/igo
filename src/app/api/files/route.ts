@@ -5,7 +5,6 @@ import { tenant } from "@/lib/tenant";
 import { saveFile, MAX_FILE_BYTES } from "@/lib/files";
 import { clip } from "@/lib/validate";
 import { operationCode, reportOperationFailure } from "@/lib/operation-error";
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 /** Poze CMR/POD de la șofer (sau proprietar), legate de o cursă a firmei. Comprimate în telefon; max 2 MB. */
 export async function POST(req: Request) {

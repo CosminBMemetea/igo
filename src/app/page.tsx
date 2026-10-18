@@ -29,6 +29,7 @@ import { setupState } from "@/lib/setup";
 import { store } from "@/lib/store";
 import { AlertList } from "./AlertList";
 import { docStatus, STATUS_CLASS } from "@/lib/docs";
+import { currentRecordDocuments } from "@/lib/compliance-reminders";
 import { todayFor } from "@/lib/today";
 import { fmtDate, type MsgKey } from "@/lib/i18n";
 
@@ -38,6 +39,9 @@ export default async function Home() {
   const prefs = (await getPrefs()), { loc } = prefs;
   const d = await load();
   const canSetup = d.tn.role === "owner" || d.tn.role === "admin";
+  const today = todayFor(d.demo);
+  const [records, users] = await Promise.all([d.tn.repo.docs(), !d.demo && d.tn.firm ? store().users(d.tn.firm.id) : undefined]);
+  const currentDocs = currentRecordDocuments(records, d.vehicles, today, users);
   const st = !d.demo && d.tn.firm && canSetup ? await setupState(store(), d.tn.firm.id) : null;
   const welcome = st && !st.complete ? (
     <Link href={`/setup${st.next ? `?step=${st.next}` : ""}`} className="welcome fade">
@@ -49,7 +53,7 @@ export default async function Home() {
     // firmă reală fără curse: tot arătăm datele reale de azi (tură, km, alerte, bonuri, documente), nu doar ecranul gol
     const lv = await d.live(), td = todayFor(false), H = HT[loc] ?? HT.ro;
     const fills = (await d.tn.repo.driverFills().catch(() => [])).filter((x) => x.time.slice(0, 7) === td.slice(0, 7)).length;
-    const exp = (await d.tn.repo.docs()).filter((x) => x.expires && x.scope !== "trip" && docStatus(x.expires, td).status !== "valid").length;
+    const exp = currentDocs.filter(x => x.expires && docStatus(x.expires, today).status !== "valid").length;
     const cells: [number | string, string, string][] = [[`${lv.filter((x) => x.onShift).length}/${lv.length}`, H.shift, "/live"], [fmtNum(loc, Math.round(lv.reduce((a, x) => a + x.today, 0))), H.km, "/live"], [d.alerts.length, H.alerts, "/alerts"], [fills, H.fills, "/receipts"], [exp, H.docs, "/documents"]];
     return <main>{welcome}
       <section className="hreal fade"><div className="eyebrow">{H.title}</div><div className="hreal-g">{cells.map(([n, l, h]) => <Link key={l} href={h} className={typeof n === "number" && n > 0 && (h === "/alerts" || h === "/documents") ? "bad" : ""}><b>{n}</b><span>{l}</span></Link>)}</div></section>
@@ -59,8 +63,7 @@ export default async function Home() {
   const live = (await d.live());
   const km = reportViews(d.views).filter((v) => !v.active).reduce((s, v) => s + v.km, 0), hours = reportViews(d.views).filter((v) => !v.active).reduce((s, v) => s + v.hours, 0);
   const recent = [...d.views.filter((v) => v.active).slice(0, 2), ...d.views.filter((v) => !v.active).slice(0, 4)];
-  const today = todayFor(d.demo);
-  const docs = (await d.tn.repo.docs()).filter((x) => x.expires && x.scope !== "trip").map((x) => ({ ...x, st: docStatus(x.expires!, today) })).filter((x) => x.st.status !== "valid").sort((a, b) => a.st.days - b.st.days).slice(0, 4);
+  const docs = currentDocs.filter(x => x.expires).map(x => ({ ...x, st: docStatus(x.expires!, today) })).filter(x => x.st.status !== "valid").sort((a, b) => a.st.days - b.st.days).slice(0, 4);
   const docName = (x: (typeof docs)[number]) => (x.scope === "vehicle" ? d.vehicles.find((v) => v.id === x.ownerId)?.name ?? x.ownerId : x.ownerId);
   // „4 / 8” era: vehicule în mișcare / total. Acum: chipuri cu etichetă.
   const moving = live.filter((x) => x.status === "moving" || x.status === "working").length;
@@ -150,7 +153,7 @@ export default async function Home() {
       </section>
       {docs.length ? (
         <section className="section">
-          <div className="head"><h2>{t(loc, "home.expiring")}</h2><Link className="link" href="/documents?view=cal">{t(loc, "home.allDocs")}</Link></div>
+          <div className="head"><h2>{t(loc, "home.expiring")}</h2><Link className="link" href="/documents?tab=vehicles&view=cal">{t(loc, "home.allDocs")}</Link></div>
           <div className="list">
             {docs.map((x) => (
               <Link key={x.id} href={`/documents?tab=${x.scope === "driver" ? "drivers" : "vehicles"}`} className="it">
