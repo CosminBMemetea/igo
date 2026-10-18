@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { applyDriverTripUpdate, DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
 import { useEffect, useState } from "react";
 import { tri, fmtDate, type Locale } from "@/lib/i18n";
 import { groupDriverTrips, driverTripStage, type DriverTripSummary, type DriverTripStage } from "@/lib/driver-trips";
@@ -16,13 +17,21 @@ const labels: Record<DriverTripStage, string> = {
   finished: "Încheiată|Completed|Zakończony",
   cancelled: "Anulată|Cancelled|Anulowany",
 };
-export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false }: { trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean }) {
-  const selected = trips.find(x => x.id === selectedId);
+export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false, demo = false }: { trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean; demo?: boolean }) {
+  const [updates, setUpdates] = useState<DriverTripUpdate[]>([]);
+  useEffect(() => {
+    if (!demo) return;
+    const update = (event: Event) => { const detail = (event as CustomEvent<DriverTripUpdate>).detail; if (detail && ["loaded", "unloaded", "pod"].includes(detail.kind)) setUpdates(old => [...old, detail]); };
+    window.addEventListener(DRIVER_TRIP_UPDATE, update);
+    return () => window.removeEventListener(DRIVER_TRIP_UPDATE, update);
+  }, [demo]);
+  const visibleTrips = demo ? trips.map(trip => updates.reduce(applyDriverTripUpdate, trip)) : trips;
+  const selected = visibleTrips.find(x => x.id === selectedId);
   const selectedStage = selected ? driverTripStage(selected, today) : null;
   const selectedView = selectedStage === "upcoming" ? "next" : selectedStage === "documents" || selectedStage === "finished" || selectedStage === "cancelled" ? "history" : "now";
   const [view, setView] = useState<"now" | "next" | "history">(selectedView);
   useEffect(() => { setView(selectedView); }, [selectedId, selectedView]);
-  const groups = groupDriverTrips(trips, today), current = groups.running.find(x => x.truckId === truckId) ?? groups.running[0];
+  const groups = groupDriverTrips(visibleTrips, today), current = groups.running.find(x => x.truckId === truckId) ?? groups.running[0];
   const next = groups.ready[0] ?? groups.upcoming[0];
   const href = (x: DriverTripSummary) => embedded ? `/driver?v=${encodeURIComponent(truckId ?? "")}&trip=${encodeURIComponent(x.id)}#trip-paperwork` : `/driver/trips/${encodeURIComponent(x.id)}`;
   const tr = (s: string) => tri(loc, s);

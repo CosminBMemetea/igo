@@ -8,8 +8,8 @@ export type DriverTripStage = "running" | "ready" | "upcoming" | "documents" | "
 export function driverTripStage(trip: DriverTripSummary, today: string): DriverTripStage {
   if (trip.cancelledAt) return "cancelled";
   if (trip.deliveredAt) return trip.podReceived ? "finished" : "documents";
-  if (trip.loadedAt) return "running";
   if (!trip.planned) return "finished";
+  if (trip.loadedAt) return "running";
   return trip.date > today ? "upcoming" : "ready";
 }
 export function groupDriverTrips(trips: DriverTripSummary[], today: string) {

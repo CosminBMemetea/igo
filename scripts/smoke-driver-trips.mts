@@ -22,3 +22,18 @@ assert.equal(defaultDriverTrip(rows,'2026-10-17','different'),undefined);
 assert.equal('revenue' in driverTripSummary(rows[0]),false);
 assert.equal('firmId' in driverTripSummary(rows[0]),false);
 console.log('PASS current selection: loaded before due, no future as current, truck isolation, safe driver payload.');
+
+const { applyDriverTripUpdate } = await import('../src/lib/driver-trip-update');
+const active = driverTripSummary(trip('demo-active', {loadedAt:'2026-10-17T08:00:00Z'}));
+const delivered = applyDriverTripUpdate(active, {tripId:active.id, kind:'unloaded', at:'2026-10-17T12:00:00Z'});
+assert.equal(driverTripStage(delivered,'2026-10-17'),'documents');
+assert.equal(defaultDriverTrip([delivered],'2026-10-17','truck'),undefined);
+const withPod = applyDriverTripUpdate(delivered, {tripId:active.id, kind:'pod', at:'2026-10-17T12:01:00Z'});
+assert.equal(driverTripStage(withPod,'2026-10-17'),'finished');
+assert.equal(applyDriverTripUpdate(delivered,{tripId:active.id,kind:'loaded',at:'2026-10-17T13:00:00Z'}),delivered);
+assert.equal(applyDriverTripUpdate(active,{tripId:'another-trip',kind:'unloaded',at:'2026-10-17T12:00:00Z'}),active);
+assert.equal(applyDriverTripUpdate(active,{tripId:active.id,kind:'unloaded',at:'invalid'}),active);
+assert.equal(applyDriverTripUpdate(active,{tripId:active.id,kind:'unloaded',at:'2026-10-17T07:00:00Z'}),active);
+assert.equal(driverTripStage(trip('closed-old',{planned:false,loadedAt:'2026-10-17T08:00:00Z'}),'2026-10-17'),'finished');
+assert.equal(defaultDriverTrip([trip('closed-old',{planned:false,loadedAt:'2026-10-17T08:00:00Z'})],'2026-10-17','truck'),undefined);
+console.log('PASS unloading removes Continue trip; POD moves delivery; stale loading cannot reopen; completed historical trips stay closed.');

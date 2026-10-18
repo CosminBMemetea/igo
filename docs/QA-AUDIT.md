@@ -1036,3 +1036,16 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 Added a collapsed TollRo panel on owner trip detail, selected driver trip and driver document detail. It displays/copies the trip's own truck/route/date and links to the official portal without sensitive query parameters or referrer. Cancelled trips excluded, demo warning, clipboard fallback, RO/EN/PL labels. It explicitly does not start TollRo, calculate/pay fees or verify payment. No database/payment changes.
 
 Remaining external blocker: official provider API contract and sandbox/production access, see TOLLRO-INTEGRATION.md. Do not advertise this handoff as automatic TollRo integration.
+
+## 2026-10-18 — Delivered trip still showed Continue trip
+
+Fixed:
+- Demo event success updated TripPaperwork only. DriverTrips now receives demo-only confirmed load/unload/POD changes and recomputes current selection, counters and selected tab immediately. Production data remains server-authoritative.
+- Closed historical trips carrying loadedAt but no deliveredAt were classified as running. Explicit planned=false now takes precedence over loadedAt (delivered trips missing POD still remain actionable in documents).
+- POD upload did not refresh the board immediately. Real uploads now refresh server data; demo uploads project POD state locally.
+- Paperwork header could continue saying current trip after unloading. It now reflects local delivery state, retaining server labels for read-only/cancelled contexts. A delivered trip cannot offer loading even if loadedAt is absent.
+- Shift-end confirmation explicitly distinguishes ending GPS/shift from recording unloading; multi-day trips must not be auto-completed by shift end.
+
+Validation: TypeScript, driver-trips (new unload/POD/stale-event/closed-history regressions), trip-workflow, outbox, i18n, driver-integrity (memory), driver-control passed. Browser reproduced demo unload: Continue trip absent, Now 0, Delivered count 7->8, missing-POD reminder and delivered paperwork header. Screenshot /tmp/qfleet-delivered-state-fixed.png.
+
+Remaining: demo changes remain page-local and reset on reload as disclosed. Real PostgreSQL checks skipped without TEST_DATABASE_URL; two-device delivery/POD synchronization remains a manual pilot check. The outbox can briefly reapply old initial state when an acknowledged event leaves the queue before refreshed server props arrive; pending/blocked events remain disclosed, but this refresh-boundary behavior needs a separate reconciliation test.

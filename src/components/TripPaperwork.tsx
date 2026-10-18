@@ -1,4 +1,6 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
 import { tri, type Locale } from "@/lib/i18n";
 import { enqueue, flushOutbox, outboxItems } from "@/lib/outbox";
 import { useEffect, useRef, useState } from "react";
@@ -26,6 +28,8 @@ const hhmm = (iso: string | null) => { if (!iso) return "—"; const p = Object.
 /** 1h 05m · în curs: 1:05:09 */
 const fmtWait = (sec: number, live = false) => { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return live ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${h}h ${String(m).padStart(2, "0")}m`; };
 export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow, clockOffset = 0 }: { clockOffset?: number; queueScope?: string; actorId?: string; readOnly?: boolean; serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
+  const router = useRouter();
+  const notify = (kind: DriverTripUpdate["kind"], at: string) => { if (demo) window.dispatchEvent(new CustomEvent(DRIVER_TRIP_UPDATE, { detail: { tripId, kind, at } })); else router.refresh(); };
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
   const [onShift, setOnShift] = useState(onShift0), [geo, setGeo] = useState(true), [now, setNow] = useState(serverNow + clockOffset);
   const [pending, setPending] = useState(false);
@@ -79,6 +83,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
     if (!r?.ok) { setMsg({ t: L["pw.err"], k: "err" }); return; }
     const { at } = (await r.json()) as { at: string };
     setSt((s) => kind === "loaded" ? { ...s, loadedAt: at } : kind === "unloaded" ? { ...s, unloadedAt: at } : kind === "wait_start" ? { ...s, waitSince: at } : { ...s, waitSince: null, waitMin: s.waitMin + Math.round((Date.parse(at) - Date.parse(s.waitSince ?? at)) / 60000) });
+    if (kind === "loaded" || kind === "unloaded") notify(kind, at);
     setMsg({ t: `${L[`pw.ev.${kind}`]} · ${hhmm(at)}${p.lat ? " · 📍" : ""}`, k: "ok" });
   }
   async function upload(kind: "cmr" | "pod", list: FileList | null) {
@@ -97,7 +102,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
       added.push({ id: j.id ?? `local-${Date.now()}`, kind, src: j.id ? `/api/files/${j.id}` : URL.createObjectURL(b), name: f.name });
     }
     setBusy("");
-    if (added.length) { setSt((s) => ({ ...s, files: [...s.files, ...added] })); setMsg({ t: L["pw.uploaded"].replace("{n}", String(added.length)), k: "ok" }); }
+    if (added.length) { if (kind === "pod") notify("pod", new Date().toISOString()); else if (!demo) router.refresh(); setSt((s) => ({ ...s, files: [...s.files, ...added] })); setMsg({ t: L["pw.uploaded"].replace("{n}", String(added.length)), k: "ok" }); }
     } catch { setMsg({ t: L["pw.err"], k: "err" }); } finally { setBusy(""); eventLock.current = false; }
   }
   const waitSec = st.waitMin * 60 + (st.waitSince ? Math.max(0, Math.floor((now - Date.parse(st.waitSince)) / 1000)) : 0);
@@ -105,10 +110,10 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
   const files = (k: "cmr" | "pod") => st.files.filter((f) => f.kind === k);
   return (
     <section className="pw">
-      <div className="eyebrow">{L["pw.today"]}</div>
+      <div className="eyebrow">{readOnly ? L["pw.today"] : st.unloadedAt ? tri(loc as Locale, "Cursă livrată · documente|Delivered trip · documents|Dostarczony kurs · dokumenty") : st.loadedAt ? tri(loc as Locale, "Cursa în desfășurare · acțiuni|Current trip · actions|Bieżący kurs · działania") : L["pw.today"]}</div>
       <div className="pwt">{title}</div>{pending ? <p className="msg warn">{tri(loc as Locale, "Operațiuni în așteptare pe telefon — încă neconfirmate de server.|Actions pending on this device — not yet confirmed by server.|Operacje oczekują na potwierdzenie serwera.")}</p> : null}
       <div className="pwg">
-        <button className={`pwb${st.loadedAt ? " done" : ""}`} disabled={!!busy || readOnly || !!st.loadedAt || !!st.waitSince} onClick={() => event("loaded")}><b>{L["pw.loaded"]}</b><span>{st.loadedAt ? hhmm(st.loadedAt) : L["pw.tap"]}</span></button>
+        <button className={`pwb${st.loadedAt ? " done" : ""}`} disabled={!!busy || readOnly || !!st.loadedAt || !!st.unloadedAt || !!st.waitSince} onClick={() => event("loaded")}><b>{L["pw.loaded"]}</b><span>{st.loadedAt ? hhmm(st.loadedAt) : L["pw.tap"]}</span></button>
         <button className={`pwb${st.unloadedAt ? " done" : ""}`} disabled={!!busy || readOnly || !st.loadedAt || !!st.unloadedAt || !!st.waitSince} onClick={() => event("unloaded")}><b>{L["pw.unloaded"]}</b><span>{st.unloadedAt ? hhmm(st.unloadedAt) : L["pw.tap"]}</span></button>
       </div>
       {/* card ca „Am încărcat / Am descărcat”: stare clară (nepornit / în curs), cronometru care rulează, buton explicit Pornește/Oprește */}
