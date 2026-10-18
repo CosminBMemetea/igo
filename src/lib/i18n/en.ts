@@ -626,7 +626,7 @@ export const en: Record<MsgKey, string> = {
   "rp.again": "Replay again",
   "rp.hl": "Highlights",
   "rp.hlHint": "Skips straight stretches, slows down at events",
-  "rp.cta": "Replay trip",
+  "rp.cta": "GPS route",
   "rp.dayTitle": "Today's replay",
   "rp.daySub": "Watch today's shift like a film: speed, stops, fuelling.",
   "u.day": "day|days",

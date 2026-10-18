@@ -1013,3 +1013,20 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 - Captura vizuală a evidențiat o a doua cauză de conținut ascuns: animația fade
   pornea la opacity:0. Textul și cardurile sunt acum vizibile din primul cadru,
   chiar când animația este suspendată. Citirea AX singură nu dovedea vizibilitatea.
+
+## 2026-10-18 — Trip actions and driver route readability
+
+- Moved trip replay actions out of absolute positioning into layout flow. Mobile cards retain a labeled 44px action below the summary; desktop uses a separate grid column.
+- Renamed replay entry to GPS route in RO/EN/PL, hid it for unstarted planned and cancelled trips. This is not proof that GPS points exist: replay still handles missing data.
+- Grouped trip detail replay/duplicate/edit actions, with consistent secondary buttons, icons and wrapping. Duplicate/edit remain owner/admin-only and real-firm-only.
+- Driver route shows departure, intermediate places and destination; the highlighted active trip no longer repeats in the Now list. Existing assignment, status and POD grouping retained.
+- Added explicit real-trip warning for zero recorded tolls: zero is not an automatic toll quote or evidence of payment.
+- Passed TypeScript; smoke-driver-trips, smoke-i18n and smoke-truck-history. Browser: trip list at 320/390/1280px without document horizontal overflow; replay buttons do not intersect summaries at 390/1280px. Inspected driver mobile screenshot and desktop trip detail. Real-firm duplicate/edit browser flow and physical iPhone remain unverified in this round.
+
+### Remaining: road toll integration
+
+- Existing implementation: per-trip recorded toll amount, fixed-cost vignette field, document expiry tracking; demo toll amounts are fictional. No toll quoting/payment connector found.
+- Proposed first release: truck profile (MTMA, axles, Euro/CO2 class where required, dimensions), geocoded route and departure time, truck routing/toll provider, quote timestamp/currency/coverage/source. Unknown price must remain unknown, never silently zero.
+- Keep estimates, imported settled charges and payment evidence separate. Avoid charging the same vignette as both a trip fee and an allocated fixed cost. Dedupe provider toll fare IDs across route sections.
+- Compare total costs (tolls + estimated fuel + additional time), not tolls alone. Show projected savings separately from reconciled actual costs. Do not claim theft, fuel consumption or legal driving-time compliance from phone GPS.
+- Integration needs a licensed provider account/server secret and validation of current country coverage, particularly TollRo; route estimation does not authorize payment. Automatic purchase requires a separately contracted payment/toll provider and transaction confirmation/reconciliation.

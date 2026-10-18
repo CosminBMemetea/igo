@@ -74,7 +74,7 @@ export function NewTrip({ loc, today, drivers, trucks, prefill, dup, autoOpen, e
   const dateChips: [string, string][] = [[T.today, today], [T.tmr, addDays(today, 1)], [T.day2, addDays(today, 2)]];
   return (
     <>
-      <button type="button" className={`btn ${dup ? "sec sm" : "pri"} ntbtn`} onClick={() => { setMsg({ t: "", k: "" }); setOpen(true); }}>{editId ? tri(loc, "Editează cursa|Edit trip|Edytuj kurs") : dup ? T.dup : T.btn}</button>
+      <button type="button" className={`btn ${dup || editId ? "sec" : "pri"} ntbtn`} onClick={() => { setMsg({ t: "", k: "" }); setOpen(true); }}><Icon name={editId ? "edit" : dup ? "copy" : "plus"} size={18} /><span>{editId ? tri(loc, "Editează cursa|Edit trip|Edytuj kurs") : dup ? T.dup : T.btn.replace(/^\+\s*/, "")}</span></button>
       {msg.k === "ok" && !open ? <p className="msg ok nt-ok" role="status">{msg.t}</p> : null}
       {open ? (
         <dialog ref={dialog} className="msheet-bg any" aria-labelledby={titleId} onCancel={(e) => { e.preventDefault(); if (!requestLock.current) setOpen(false); }} onClick={(e) => { if (e.target === e.currentTarget && !requestLock.current) setOpen(false); }}>

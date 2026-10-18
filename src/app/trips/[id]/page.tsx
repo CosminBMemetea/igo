@@ -5,6 +5,7 @@ import { localNow } from "@/lib/validate";
 import { store } from "@/lib/store";
 import { NewTrip } from "@/components/NewTrip";
 import Link from "next/link";
+import { Icon } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
@@ -58,8 +59,8 @@ export default async function TripDetail(props: { params: Promise<{ id: string }
   return (
     <main>
       <div className="eyebrow fade">{t(loc, agri ? "job.detail" : "trip.detail")}{!d.demo || !agri ? ` · ${tri(loc, STAGE_LABELS[tripStage(r)])}` : r.active ? ` · ${t(loc, r.planned ? "trip.planned" : "trip.active")}` : ""}</div>
-      <div className="vhead fade"><h1 className="h1">{agri ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</h1>{!agri ? <Link className="rp-mini" href={`/replay?trip=${r.id}`} aria-label={t(loc, "rp.cta")}><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor" /></svg>{t(loc, "rp.cta")}</Link> : null}</div>
-      {dupNt}
+      <div className="vhead fade"><h1 className="h1">{agri ? `${t(loc, `type.${r.type}`)} · ${r.title}` : r.title}</h1></div>
+      <div className="trip-actions">{!agri && !r.cancelledAt && (!r.planned || r.loadedAt || r.deliveredAt) ? <Link className="btn sec" href={`/replay?trip=${r.id}`}><Icon name="trips" size={18} /><span>{t(loc, "rp.cta")}</span></Link> : null}{dupNt}</div>
       {raw?.cancelledAt ? <section className="sheet"><h2>{tri(loc, "Cursă anulată|Trip cancelled|Kurs anulowany")}</h2><p>{raw.cancelReason}</p><p className="hint">{tri(loc, "Păstrată în istoric. Nu intră în venitul și profitul realizat.|Kept in history. Excluded from realized revenue and profit.|Zachowany w historii. Wyłączony z przychodu i zysku.")}</p></section> : null}
       {raw?.planned && !raw.loadedAt && !raw.cancelledAt ? <details className="sheet"><summary className="btn sec danger">{tri(loc, "Anulează cursa|Cancel trip|Anuluj kurs")}</summary><ActionForm action="/api/trips/cancel" loc={loc}><input type="hidden" name="id" value={raw.id} /><p>{tri(loc, "Anularea este disponibilă înainte de încărcare. Cursa și motivul rămân în istoric.|Cancellation is available before loading. The trip and reason remain in history.|Anulowanie jest możliwe przed załadunkiem. Kurs i powód pozostają w historii.")}</p><label className="lf"><span>{tri(loc, "Motivul anulării|Cancellation reason|Powód anulowania")}</span><textarea name="reason" required minLength={3} maxLength={500} /></label><button className="btn sec danger">{tri(loc, "Confirm anularea|Confirm cancellation|Potwierdź anulowanie")}</button></ActionForm></details> : null}
       <p className="sub fade d1">{[r.vehicle.name, r.driverName ?? r.vehicle.driver, fmtDate(loc, r.date, true), agri ? `${r.ha} ha · ${fmtNum(loc, r.hours, 1)} h` : `${fmtNum(loc, r.km)} km`, client.name, (r.tariffNote && loc !== "en" ? r.tariffNote.replace(/(\d)\.(\d)/g, "$1,$2") : r.tariffNote).replace("lei", t(loc, "cur"))].filter(Boolean).join(" · ")}</p>
@@ -81,6 +82,7 @@ export default async function TripDetail(props: { params: Promise<{ id: string }
       </section>
       </> : null}
       {!r.cancelledAt && !d.demo && (!r.vehicle.costsConfigured || r.litresSource === "estimate") ? <p className="msg warn">{tri(loc, "Profit estimat din datele completate. Costurile necompletate nu sunt incluse; alimentările nu înlocuiesc consumul cursei.|Estimated profit based on entered data. Missing costs are excluded; fuel purchases do not replace trip consumption.|Szacowany zysk na podstawie wpisanych danych. Brakujące koszty nie są uwzględnione; zakupy paliwa nie zastępują zużycia kursu.")}</p> : null}
+      {!agri && !r.cancelledAt && !d.demo && p.tolls === 0 ? <p className="msg warn">{tri(loc, "Taxe de drum: 0 lei înregistrat. Verifică taxele aplicabile înainte să te bazezi pe profitul afișat. Aplicația nu calculează și nu achită automat taxele traseului.|Road tolls: 0 recorded. Check applicable tolls before relying on the displayed profit. The app does not automatically calculate or pay route tolls.|Opłaty drogowe: zapisano 0. Sprawdź wymagane opłaty przed oceną zysku. Aplikacja nie oblicza ani nie opłaca ich automatycznie.")}</p> : null}
       {!d.demo && raw?.planned && !!raw.deliveredAt && !raw.cancelledAt && raw.date <= localNow().slice(0, 10) ? <details className="sheet"><summary className="btn pri">{tri(loc, "Finalizează cursa|Complete trip|Zakończ kurs")}</summary><ActionForm action="/api/trips/complete" loc={loc}><input type="hidden" name="id" value={raw.id} /><p>{tri(loc, "Confirmă că transportul a fost efectuat. Cursa va intra în rezultatele lunii sale.|Confirm that transport was completed. The trip will enter results for its month.|Potwierdź wykonanie transportu. Kurs zostanie ujęty w wynikach swojego miesiąca.")}</p><button className="btn pri">{tri(loc, "Confirm finalizarea|Confirm completion|Potwierdź zakończenie")}</button></ActionForm></details> : null}
       {E && !r.cancelledAt ? (
         <section className="section">

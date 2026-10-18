@@ -626,7 +626,7 @@ export const pl: Record<MsgKey, string> = {
   "rp.again": "Odtwórz ponownie",
   "rp.hl": "Kluczowe momenty",
   "rp.hlHint": "Przewija proste odcinki, zwalnia przy zdarzeniach",
-  "rp.cta": "Odtwórz kurs",
+  "rp.cta": "Trasa GPS",
   "rp.dayTitle": "Powtórka dnia",
   "rp.daySub": "Zobacz dzisiejszą zmianę jak film: prędkość, postoje, tankowania.",
   "u.day": "dzień|dni|dni",

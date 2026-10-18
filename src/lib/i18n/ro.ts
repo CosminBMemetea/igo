@@ -625,7 +625,7 @@ export const ro = {
   "rp.again": "Redă din nou",
   "rp.hl": "Momente cheie",
   "rp.hlHint": "Sare repede peste drumul drept și încetinește la evenimente",
-  "rp.cta": "Redă cursa",
+  "rp.cta": "Traseu GPS",
   "rp.dayTitle": "Reluarea zilei",
   "rp.daySub": "Vezi tura de azi ca pe un film: viteză, opriri, alimentări.",
   "u.day": "zi|zile|de zile",
