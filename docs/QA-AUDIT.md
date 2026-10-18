@@ -1030,3 +1030,9 @@ Această analiză restrânge suprafața afectată; nu închide MOBILE-DEP-01.
 - Keep estimates, imported settled charges and payment evidence separate. Avoid charging the same vignette as both a trip fee and an allocated fixed cost. Dedupe provider toll fare IDs across route sections.
 - Compare total costs (tolls + estimated fuel + additional time), not tolls alone. Show projected savings separately from reconciled actual costs. Do not claim theft, fuel consumption or legal driving-time compliance from phone GPS.
 - Integration needs a licensed provider account/server secret and validation of current country coverage, particularly TollRo; route estimation does not authorize payment. Automatic purchase requires a separately contracted payment/toll provider and transaction confirmation/reconciliation.
+
+## 2026-10-18 — TollRo external handoff (API integration still blocked)
+
+Added a collapsed TollRo panel on owner trip detail, selected driver trip and driver document detail. It displays/copies the trip's own truck/route/date and links to the official portal without sensitive query parameters or referrer. Cancelled trips excluded, demo warning, clipboard fallback, RO/EN/PL labels. It explicitly does not start TollRo, calculate/pay fees or verify payment. No database/payment changes.
+
+Remaining external blocker: official provider API contract and sandbox/production access, see TOLLRO-INTEGRATION.md. Do not advertise this handoff as automatic TollRo integration.

@@ -1649,3 +1649,18 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
  .driver-trip-meta{justify-content:space-between;align-items:flex-start}
  .driver-trip-meta .badge{white-space:normal;text-align:right;max-width:100%}
 }
+
+/* TollRo is an explicit external-portal handoff, never a paid/verified badge. */
+.tollro-card{margin:18px 0;border:1px solid var(--line);border-radius:16px;background:var(--bg2);min-width:0;overflow-wrap:anywhere}
+.tollro-card>summary{display:flex;align-items:center;gap:12px;padding:16px;min-height:56px;cursor:pointer;list-style:none}
+.tollro-card>summary::-webkit-details-marker{display:none}
+.tollro-card>summary:after{content:'+';margin-left:auto;font-size:22px;flex:none}
+.tollro-card[open]>summary:after{content:'−'}
+.tollro-card>summary>svg{flex:none;color:var(--acc)}
+.tollro-card>summary span{min-width:0}.tollro-card small{display:block;font-size:12px;color:var(--fg2);line-height:1.5;margin-top:3px}
+.tollro-body{padding:0 16px 16px;display:grid;gap:12px;min-width:0}.tollro-body p{margin:0;line-height:1.6;font-size:14px}.tollro-body .hint{font-size:12px}
+.tollro-body textarea{display:block;box-sizing:border-box;width:100%;min-width:0;resize:vertical;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:12px;font:inherit;font-size:14px;line-height:1.5}
+.tollro-context{display:grid;gap:6px;font-size:14px}.tollro-context>span:last-child{color:var(--fg2)}
+.tollro-actions{display:flex;flex-wrap:wrap;gap:10px}.tollro-actions .btn{min-height:44px;height:auto;white-space:normal;gap:8px}.tollro-actions svg{flex:none}
+.tollro-card>summary:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:16px}
+@media(max-width:480px){.tollro-actions .btn{flex:1 1 100%;justify-content:center}.tollro-body textarea{font-size:16px}}
