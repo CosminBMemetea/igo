@@ -1,3 +1,5 @@
+import { notificationJob } from "@/lib/notification-job";
+import { drainDeliveries } from "@/lib/delivery";
 import { NextResponse } from "next/server";
 import { dbConfigured, store } from "@/lib/store";
 import { runReminders } from "@/lib/reminders";
@@ -9,5 +11,7 @@ export async function GET(req: Request) {
   const ok = !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
   if (!ok) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!dbConfigured()) return NextResponse.json({ skipped: "no database" });
-  return NextResponse.json(await runReminders(store()));
+  const reminders = await notificationJob(store(), "reminders", () => runReminders(store(), undefined, null, "ro", { defer: true }));
+  const delivery = await notificationJob(store(), "deliveries", () => drainDeliveries(store()));
+  return NextResponse.json({ ...reminders, delivery });
 }

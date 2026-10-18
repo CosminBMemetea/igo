@@ -7,7 +7,7 @@ export const VEHICLE_DOC_TYPES: VehicleDocType[] = ["itp", "rca", "casco", "vign
 export const DRIVER_DOC_TYPES: DriverDocType[] = ["licence", "cpc", "tachoCard", "medical"];
 export const DOC_TYPES: DocType[] = [...VEHICLE_DOC_TYPES, ...DRIVER_DOC_TYPES];
 export interface FirmRow { id: string; name: string; cui: string | null; currency: Currency; trialStart: string; demoMode: boolean; detailsDone: boolean; csvSkipped: boolean; referredBy: string | null; createdAt: string }
-export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; sessionVersion?: number; disabledAt?: string | null; truckId?: string | null; locale?: string | null }
+export interface UserRow { id: string; firmId: string; role: "owner" | "driver"; name: string; email: string | null; phone: string | null; passwordHash: string; sessionVersion?: number; disabledAt?: string | null; truckId?: string | null; locale?: string | null; emailAlerts?: boolean }
 export interface InviteRow { id: string; firmId: string; name: string; phone: string | null; usedAt: string | null; userId: string | null; createdAt: string; revokedAt?: string | null; locale?: string | null }
 export interface TruckRow { compliance?: import("../compliance").VehicleCompliance | null; id: string; firmId: string; plate: string; vin: string | null; model: string | null; tankL: number | null; normalL100: number | null; costs?: Record<string, number> | null; costHistory?: import("../costs").CostVersion[] | null; archivedAt?: string | null }
 export interface DocRow { validFrom?: string | null; id: string; firmId: string; truckId: string | null; userId?: string | null; scope?: "vehicle" | "driver"; type: DocType; expires: string; dueKm?: number | null; note?: string | null; fileId?: string | null }
@@ -31,13 +31,22 @@ export interface FileMeta { id: string; firmId: string; kind: FileKind; tripId: 
 export type NewFile = Omit<FileMeta, "id" | "firmId" | "createdAt"> & { data: Buffer | null; id?: string };
 export interface NotificationRow { id: string; firmId: string; userId: string | null; key: string; kind: string; docId: string | null; params: Record<string, string | number>; readAt: string | null; createdAt: string }
 export type NewNotification = Omit<NotificationRow, "id" | "firmId" | "readAt" | "createdAt">;
-export type EmailStatus = "sent" | "queued" | "failed";
-export interface EmailRow { id: string; firmId: string | null; key: string; to: string; subject: string; body: string; status: EmailStatus; error: string | null; providerId: string | null; createdAt: string; sentAt: string | null }
+export type EmailStatus = "sent" | "queued" | "failed" | "processing" | "cancelled";
+export type DeliveryContext = { kind: "document"; userId: string; docId: string; expires: string; stage: string } | { kind: "task"; userId: string; taskId: string; status: string } | { kind: "account"; userId: string; version: number } | { kind: "test"; userId: string };
+export interface DeliveryFields { channel: "email" | "push"; context: DeliveryContext | null; subscriptionId: string | null; attempts: number; nextAttemptAt: string; leaseToken: string | null; leaseUntil: string | null; firstAttemptAt: string | null; expiresAt: string }
+export interface PushDevice { transport?: "web" | "apns"; validUntil?: string | null; id: string; firmId: string; userId: string; endpoint: string; p256dh: string; auth: string; sessionVersion: number; binding: string; createdAt: string }
+export type NewEmail = Pick<EmailRow, "firmId" | "key" | "to" | "subject" | "body"> & Partial<Pick<DeliveryFields, "channel" | "context" | "subscriptionId" | "expiresAt">>;
+export type DeliveryFinish = { status: EmailStatus; error: string | null; providerId?: string | null; nextAttemptAt?: string };
+export interface EmailRow extends DeliveryFields { id: string; firmId: string | null; key: string; to: string; subject: string; body: string; status: EmailStatus; error: string | null; providerId: string | null; createdAt: string; sentAt: string | null }
 export type TripEventKind = "loaded" | "unloaded" | "wait_start" | "wait_end";
 export interface TripEventRow { requestKey?: string | null; id: string; firmId: string; tripId: string; kind: TripEventKind; at: string; lat: number | null; lng: number | null; userId: string | null }
 
 export interface ComplianceTaskRow { id: string; firmId: string; truckId: string; driverId: string; type: string; due: string; status: "open" | "acknowledged" | "done" | "cancelled"; createdAt: string; updatedAt: string }
+export interface NotificationJob { name: string; runId: string; startedAt: string; finishedAt: string | null; error: string | null; summary: Record<string, number> | null }
 export interface Store {
+  startNotificationJob(name: string, runId: string, at: string): Promise<void>;
+  finishNotificationJob(name: string, runId: string, summary: Record<string, number> | null, error: string | null): Promise<void>;
+  notificationJobs(): Promise<NotificationJob[]>;
   complianceTasks(firmId: string): Promise<ComplianceTaskRow[]>;
   addComplianceTask(firmId: string, task: Pick<ComplianceTaskRow, "truckId" | "driverId" | "type" | "due">): Promise<ComplianceTaskRow | null>;
   updateComplianceTask(firmId: string, id: string, status: "acknowledged" | "done" | "cancelled", driverId?: string): Promise<boolean>;
@@ -92,9 +101,16 @@ export interface Store {
   notifications(firmId: string, userId: string | null, limit?: number): Promise<NotificationRow[]>;
   markRead(firmId: string, userId: string | null): Promise<void>;
   /** Deduplicare globală pe key; întoarce null dacă exista deja. */
-  addEmail(e: Omit<EmailRow, "id" | "createdAt" | "sentAt" | "status" | "error" | "providerId">): Promise<EmailRow | null>;
+  addEmail(e: NewEmail): Promise<EmailRow | null>;
   setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null): Promise<void>;
   emails(limit?: number): Promise<EmailRow[]>;
+  claimDelivery(channels: ("email" | "push")[], now: string, id?: string): Promise<EmailRow | null>;
+  finishDelivery(id: string, token: string, patch: DeliveryFinish): Promise<boolean>;
+  savePushDevice(d: Omit<PushDevice, "id" | "createdAt">): Promise<PushDevice>;
+  pushDevices(firmId: string, userId: string): Promise<PushDevice[]>;
+  removePushDevice(firmId: string, userId: string, id?: string, binding?: string): Promise<void>;
+  revokePushBinding(binding: string): Promise<void>;
+  setEmailAlerts(firmId: string, userId: string, enabled: boolean): Promise<void>;
   addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">): Promise<TripEventRow>;
   tripEvents(firmId: string, tripId: string): Promise<TripEventRow[]>;
   docs(firmId: string): Promise<DocRow[]>;

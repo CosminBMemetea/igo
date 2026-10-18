@@ -34,8 +34,11 @@ export function dueReminders(docs: RDoc[], users: RUser[], today: string): Remin
     const base = `${d.id}:${d.expires}:${stage}`;
     out.push({ key: `${base}:owner`, docId: d.id, stage, days, userId: null, email: null });
     for (const u of users) {
-      if (u.role === "owner" && u.email) out.push({ key: `${base}:mail:${u.id}`, docId: d.id, stage, days, userId: null, email: u.email });
-      if (u.role === "driver" && (d.userId === u.id || (d.truckId && u.truckId === d.truckId))) out.push({ key: `${base}:${u.id}`, docId: d.id, stage, days, userId: u.id, email: null });
+      if (u.role === "owner" && u.email) out.push({ key: `${base}:mail:${u.id}`, docId: d.id, stage, days, userId: u.id, email: u.email });
+      if (u.role === "driver" && (d.userId === u.id || (d.truckId && u.truckId === d.truckId))) {
+        out.push({ key: `${base}:${u.id}`, docId: d.id, stage, days, userId: u.id, email: null });
+        if (u.email) out.push({ key: `${base}:mail:${u.id}`, docId: d.id, stage, days, userId: u.id, email: u.email });
+      }
     }
   }
   return out;

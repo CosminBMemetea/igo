@@ -64,7 +64,7 @@ else {
   const sent: string[] = [];
   const fake = { name: "fake", send: async (m: { to: string }) => { sent.push(m.to); return { id: "x" + sent.length }; } };
   const r3 = await runReminders(s, add(5), fake); // a doua zi: RCA trece în pragul d1
-  ok("pragul următor (1 zi) → notificări noi + email trimis prin furnizor", r3.notifications === 2 && r3.emails.sent === 1 && sent.length === 1, JSON.stringify(r3));
+  ok("pragul următor (1 zi) → notificări noi + email trimis prin furnizor", r3.notifications === 2 && r3.emails.sent === 1 && sent.length === 1, JSON.stringify({ r3, queue: (await s.emails()).map(e => ({ status: e.status, error: e.error, attempts: e.attempts, context: e.context, nextAttemptAt: e.nextAttemptAt })) }));
   await s.updateDoc(A.id, d1.id, { expires: add(400) });
   ok("document reînnoit → nicio reamintire nouă", (await runReminders(s, add(5), fake)).notifications === 0);
   ok("clopoțel: proprietarul și șoferul își văd doar notificările lor", (await s.notifications(A.id, null)).length === 3 && (await s.notifications(A.id, drv.id)).length === 3 && (await s.notifications(B.id, null)).length === 0);

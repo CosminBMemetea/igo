@@ -1,9 +1,13 @@
+import { after } from "next/server";
+import { queueTaskAlerts } from "@/lib/alert-delivery";
+import { drainDeliveries } from "@/lib/delivery";
 import { writableFirm } from "@/lib/tenant";
 import { store } from "@/lib/store";
 import { clip, isDate } from "@/lib/validate";
 import { VEHICLE_DOC_TYPES } from "@/lib/store/types";
 import { formReply } from "@/lib/form-response";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 export async function POST(req: Request) {
   const firm = await writableFirm(), dest = "/documents#tasks";
   if (!firm) return formReply(req, dest, "nofirm", 403);
@@ -23,5 +27,7 @@ export async function POST(req: Request) {
     const truck = (await s.trucks(firm.id)).find(t => t.id === truckId);
     await s.addNotifications(firm.id, [{ key: `compliance-task:${task.id}`, kind: "compliance-task", userId: task.driverId, docId: null, params: { taskId: task.id, type, label: truck?.plate ?? "", expires: task.due } }]);
   }
+  await queueTaskAlerts(store(), firm.id);
+  after(() => drainDeliveries(store()).then(() => {}));
   return formReply(req, dest);
 }

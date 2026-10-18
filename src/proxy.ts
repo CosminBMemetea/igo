@@ -9,7 +9,7 @@ const ADMIN_PARAMS: [string, string, RegExp][] = [["plan", "igo-plan", /^(trial|
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const bearer = req.headers.get("authorization");
-  const mobile = bearer?.startsWith("Bearer ");
+  const mobile = bearer?.startsWith("Bearer ") && !path.startsWith("/api/cron/");
   if (mobile && (process.env.MOBILE_DRIVER_ENABLED !== "1" || !mobileRoute(path, req.method)))
     return NextResponse.json({ error: "mobile-unavailable" }, { status: 403 });
   const s = mobile ? await verifyMobileSession(bearer!.slice(7), process.env.SESSION_SECRET)

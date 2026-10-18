@@ -384,7 +384,7 @@ export const ro = {
   "join.e.revoked": "Invitația a fost anulată. Cere un link nou de la firmă.",
   "mail.soonSubj": "{doc} · {label} expiră în {days} zile",
   "mail.expiredSubj": "{doc} · {label} a expirat",
-  "mail.body": "Bună,\n\n{doc} pentru {label} ({firm}) expiră pe {expires} (în {days} zile).\nReînnoiește-l din timp ca să eviți amenzile și imobilizarea camionului.\n\nVezi toate documentele: https://fleet.querra.net/documents\n\nQuerra Fleet",
+  "mail.body": "Bună,\n\n{doc} pentru {label} ({firm}).\nTermen înregistrat: {expires}. Situație la {asOf}.\nVerifică documentul și actualizează datele după reînnoire.\n\nAlertele tale: {url}\n\nQuerra Fleet",
   "dc.add": "Adaugă document",
   "dc.driver": "Șofer",
   "dc.dueKm": "Sau la km (revizie)",

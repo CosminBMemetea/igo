@@ -1,3 +1,4 @@
+import { enablePush, disablePush, syncPush, pushActive, testPush, listenPush } from "./src/notifications";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Alert, AppState, Keyboard, KeyboardAvoidingView, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -6,13 +7,16 @@ import { startGPS, stopGPS, preparePrivateOrStop, syncPending, type GPSStatus } 
 import { pendingControl } from "./src/controls";
 import { createActions } from "./src/actions";
 type Trip = { id: string; title: string; date: string; client: string };
-type Board = { name: string; firm: string; truck: { id: string; plate: string } | null; shift: { start: string; end: string | null; privateSince?: string | null } | null; trips: Record<string, Trip[]> };
+type Board = { alerts?: { id: string; kind: string; label: string; type: string; expires: string }[]; name: string; firm: string; truck: { id: string; plate: string } | null; shift: { start: string; end: string | null; privateSince?: string | null } | null; trips: Record<string, Trip[]> };
 const sections = [["running", "În curs acum"], ["ready", "De început"], ["upcoming", "Urmează"], ["documents", "Livrate • lipsesc documente"], ["finished", "Încheiate"], ["cancelled", "Anulate"]];
 const checks = [["chk.tyres", "Anvelope"], ["chk.fluids", "Lichide"], ["chk.docs", "Documente"], ["chk.damage", "Starea camionului"]];
 function Screen() {
   const [logged, setLogged] = useState(false), [ready, setReady] = useState(false), [phone, setPhone] = useState(""), [pin, setPin] = useState("");
   const [board, setBoard] = useState<Board | null>(null), [gps, setGPS] = useState<GPSStatus | null>(null), [gate, setGate] = useState<Gate | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [selected, setSelected] = useState<string[]>([]);
+  const [pushEnabled, setPushEnabled] = useState(false), [pushMessage, setPushMessage] = useState("");
+  const alertPosition = useRef(0);
+  const openAlerts = useRef(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   function revealInput() {
@@ -31,12 +35,15 @@ function Screen() {
     const job = (async () => {
     try {
       await syncPending();
+      try { await syncPush(); setPushEnabled(await pushActive()); setPushMessage(""); } catch { setPushMessage("Sincronizarea notificărilor nu a reușit. GPS și cursele rămân disponibile. Reîncearcă activarea push."); }
       const value = await api<Board>("/api/driver/mobile");
       const active = await read<Gate>("gps-gate");
       if (active && (!value.truck || value.truck.id !== active.vehicleId || value.shift?.start !== active.shiftStart || value.shift.end || value.shift.privateSince)) await stopGPS("GPS oprit • tura s-a schimbat");
       const key = `${value.truck?.id}:${value.shift?.start}:${value.shift?.end}`;
       if (key !== workKey.current) { setSelected([]); workKey.current = key; }
-      setBoard(value); setGPS(await read<GPSStatus>("gps-status")); setGate(await read<Gate>("gps-gate")); setError("");
+      setBoard(value);
+      if (openAlerts.current) { openAlerts.current = false; setTimeout(() => scroll.current?.scrollTo({ y: alertPosition.current, animated: true }), 100); }
+      setGPS(await read<GPSStatus>("gps-status")); setGate(await read<Gate>("gps-gate")); setError("");
     } catch (e) {
       if (e instanceof ApiError && [401, 403].includes(e.status)) { await stopGPS("Autentifică-te din nou • GPS oprit"); setLogged(false); setBoard(null); }
       throw e;
@@ -52,6 +59,10 @@ function Screen() {
     update(); const timer = setInterval(update, 15000);
     const sub = AppState.addEventListener("change", state => { if (state === "active") update(); });
     return () => { clearInterval(timer); sub.remove(); };
+  }, [logged]);
+  useEffect(() => {
+    if (!logged) return;
+    return listenPush(() => { openAlerts.current = true; if (!actions.busy()) void refresh().catch(e => setError(e.message)); }, setError);
   }, [logged]);
   async function refreshLocal() {
     try { const [value, active] = await Promise.all([read<GPSStatus>("gps-status"), read<Gate>("gps-gate")]); setGPS(value); setGate(active); setPending(await read<Login>("login") ? await pendingControl() : null); }
@@ -89,10 +100,16 @@ function Screen() {
         {gate ? button("Oprește GPS", async () => {}, true, stopGPS) : <Pressable accessibilityRole="button" disabled={busy || !!pending || !board?.shift || !!board.shift.end || !!board.shift.privateSince} style={[s.button, (busy || !!pending || !board?.shift || !!board.shift.end || !!board.shift.privateSince) && { opacity: .4 }]} onPress={() => void consent()}><Text style={s.buttonText}>Activează GPS în fundal</Text></Pressable>}
         {button("Setările permisiunilor", async () => { await Linking.openSettings(); }, true)}
       </View>
+      <View style={s.card} onLayout={e => { alertPosition.current = e.nativeEvent.layout.y; }}><Text style={s.subtitle}>Alertele tale · {board?.alerts?.length ?? 0}</Text>
+        {board?.alerts?.length ? board.alerts.map(alert => <View key={alert.id} style={s.trip}><Text style={s.text}>{alert.kind === "compliance-task" ? "Verificare solicitată" : "Document de verificat"} · {alert.label}</Text><Text style={s.muted}>{({ rca: "RCA", itp: "ITP", vignette: "Rovinietă", licence: "Permis", cpc: "Atestat", tachoCard: "Card tahograf", medical: "Aviz medical" } as Record<string, string>)[alert.type] ?? alert.type} · {alert.expires}</Text></View>) : <Text style={s.muted}>Nu ai alerte active.</Text>}
+        {!!pushMessage && <Text style={s.muted}>{pushMessage}</Text>}
+        <Text style={s.muted}>{pushEnabled ? "Notificări activate pe acest iPhone. Sunt legate de sesiunea ta; reautentifică-te când expiră." : "Activează notificările pentru documente și verificări. Detaliile apar doar în aplicație."}</Text>
+        {Platform.OS === "ios" && <>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }, true)}{pushEnabled && button("Testează notificarea", async () => { await testPush(); Alert.alert("Test acceptat", "Apple a acceptat testul. Verifică notificările iPhone."); }, true)}</>}
+      </View>
       <Text style={s.title}>Cursele tale</Text>{sections.map(([key,title]) => <View style={s.card} key={key}><Text style={s.subtitle}>{title} · {board?.trips[key]?.length ?? 0}</Text>{board?.trips[key]?.length ? board.trips[key].map(trip => <View key={trip.id} style={s.trip}><Text style={s.text}>{trip.title}</Text><Text style={s.muted}>{trip.date} · {trip.client}</Text></View>) : <Text style={s.muted}>Nicio cursă în această categorie.</Text>}</View>)}
       <Text style={s.muted}>Pilot: încărcarea documentelor și actualizarea etapelor cursei se fac din interfața web a șoferului.</Text>
       {button("Reîmprospătează", refresh, true)}
-      {button("Deconectare • oprește GPS", async () => { await syncPending(); await remove("login"); setLogged(false); setBoard(null); }, true, stopGPS)}
+      {button("Deconectare • oprește GPS", async () => { await syncPending(); await disablePush(); await remove("login"); setLogged(false); setBoard(null); }, true, stopGPS)}
     </>}
   </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }

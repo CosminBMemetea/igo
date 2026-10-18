@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const storage=new Map<string,any>(),scope='origin:firm:driver';let currentScope=scope,configured=false,permission=true,tokenCalls=0,permissionCalls=0,networkError=false;
+const requests:any[]=[],listeners:Record<string,Function>={};const platform={OS:'ios'};
+const expiry=new Date(Date.now()+3600000).toISOString();storage.set('login',{expiresAt:expiry});
+const api={read:async(k:string)=>storage.get(k)??null,write:async(k:string,v:unknown)=>{storage.set(k,v)},remove:async(k:string)=>{storage.delete(k)},sessionScope:async()=>currentScope,api:async(path:string,body?:any,options?:any)=>{
+ if(options?.scope!==currentScope)throw Error('scope');if(networkError)throw Error('offline');requests.push({path,body});
+ return body===undefined?{configured,environment:'production'}:body.action==='test'?{status:'accepted'}:body.action==='status'?{active:true,registered:true}:{validUntil:expiry};
+}};
+const notifications={setNotificationHandler(){},requestPermissionsAsync:async()=>{permissionCalls++;return{granted:permission}},getPermissionsAsync:async()=>({granted:permission}),getDevicePushTokenAsync:async()=>{tokenCalls++;return{type:'ios',data:'a'.repeat(64)}},addNotificationResponseReceivedListener:(f:Function)=>{listeners.tap=f;return{remove(){delete listeners.tap}}},addPushTokenListener:(f:Function)=>{listeners.rotate=f;return{remove(){delete listeners.rotate}}},getLastNotificationResponseAsync:async()=>null,clearLastNotificationResponseAsync:async()=>{}};
+const source=ts.transpileModule(fs.readFileSync('apps/driver/src/notifications.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+const m={exports:{} as any};new Function('require','module','exports','process',source)((name:string)=>name==='expo-notifications'?notifications:name==='react-native'?{Platform:platform}:api,m,m.exports,{env:{EXPO_PUBLIC_APNS_ENVIRONMENT:'production'}});const n=m.exports;
+await assert.rejects(n.enablePush(),/așteaptă configurarea/);assert.equal(permissionCalls,0);assert.equal(tokenCalls,0);
+configured=true;permission=false;await assert.rejects(n.enablePush(),/Setările/);assert.equal(tokenCalls,0);
+permission=true;await n.enablePush();assert.equal(await n.pushActive(),true);assert.equal(storage.get('push-registration').scope,scope);
+networkError=true;await assert.rejects(n.disablePush());assert.ok(storage.get('push-registration'),'offline unsubscribe must not pretend server revocation succeeded');networkError=false;
+await n.disablePush();assert.equal(storage.has('push-registration'),false);
+await n.enablePush();currentScope='another-account';assert.equal(await n.pushActive(),false);const before=requests.length;await n.syncPush();assert.equal(requests.length,before);currentScope=scope;
+const dispose=n.listenPush(()=>{},()=>{});const previousTokens=tokenCalls;listeners.rotate({type:'ios',data:'b'.repeat(64)});await new Promise(r=>setTimeout(r,0));assert.equal(tokenCalls,previousTokens,'token listener must not request another device token');assert.equal(requests.at(-1).body.previousToken,'a'.repeat(64));dispose();assert.equal(Object.keys(listeners).length,0);
+permission=false;await n.syncPush();assert.equal(storage.has('push-registration'),false);
+platform.OS='android';await assert.rejects(n.enablePush(),/iPhone/);
+console.log('PASS native notifications: configuration gating, explicit permission, secure account scope, offline revocation, token rotation, revoked permission, listener cleanup and unsupported platform');

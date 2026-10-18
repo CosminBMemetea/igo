@@ -384,7 +384,7 @@ export const pl: Record<MsgKey, string> = {
   "join.e.revoked": "Zaproszenie zostało anulowane. Poproś firmę o nowy link.",
   "mail.soonSubj": "{doc} · {label} wygasa za {days} dni",
   "mail.expiredSubj": "{doc} · {label} wygasł",
-  "mail.body": "Dzień dobry,\n\n{doc} dla {label} ({firm}) wygasa {expires} (za {days} dni).\nOdnów go na czas, aby uniknąć kar i postoju ciężarówki.\n\nWszystkie dokumenty: https://fleet.querra.net/documents\n\nQuerra Fleet",
+  "mail.body": "Dzień dobry,\n\n{doc} dla {label} ({firm}).\nZapisany termin: {expires}. Stan na {asOf}.\nSprawdź dokument i zaktualizuj dane po odnowieniu.\n\nTwoje alerty: {url}\n\nQuerra Fleet",
   "dc.add": "Dodaj dokument",
   "dc.driver": "Kierowca",
   "dc.dueKm": "Lub przy km (serwis)",

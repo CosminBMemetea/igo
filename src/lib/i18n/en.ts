@@ -384,7 +384,7 @@ export const en: Record<MsgKey, string> = {
   "join.e.revoked": "This invite was revoked. Ask the company for a new link.",
   "mail.soonSubj": "{doc} · {label} expires in {days} days",
   "mail.expiredSubj": "{doc} · {label} has expired",
-  "mail.body": "Hi,\n\n{doc} for {label} ({firm}) expires on {expires} (in {days} days).\nRenew it in time to avoid fines and a grounded truck.\n\nAll documents: https://fleet.querra.net/documents\n\nQuerra Fleet",
+  "mail.body": "Hi,\n\n{doc} for {label} ({firm}).\nRecorded expiry: {expires}. Information as of {asOf}.\nCheck the document and update its details after renewal.\n\nYour alerts: {url}\n\nQuerra Fleet",
   "dc.add": "Add document",
   "dc.driver": "Driver",
   "dc.dueKm": "Or at km (service)",

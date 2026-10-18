@@ -3,19 +3,19 @@ import { nextCostMonth } from "../costs";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gt, gte, lt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { notificationJobs, pushDevices, complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
 const leadOut = (r: typeof leads.$inferSelect): LeadRow => ({ ...r, consentAt: iso(r.consentAt)!, createdAt: iso(r.createdAt)! });
 const firmOut = (f: typeof firms.$inferSelect): FirmRow => ({ ...f, currency: f.currency as Currency, createdAt: iso(f.createdAt)! });
-const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, sessionVersion: u.sessionVersion, truckId: u.truckId, locale: u.locale, disabledAt: u.disabledAt ? u.disabledAt.toISOString() : null });
+const userOut = (u: typeof users.$inferSelect): UserRow => ({ id: u.id, firmId: u.firmId, role: u.role as UserRow["role"], name: u.name, email: u.email, phone: u.phone, passwordHash: u.passwordHash, sessionVersion: u.sessionVersion, emailAlerts: u.emailAlerts, truckId: u.truckId, locale: u.locale, disabledAt: u.disabledAt ? u.disabledAt.toISOString() : null });
 const invOut = (i: typeof invites.$inferSelect): InviteRow => ({ id: i.id, firmId: i.firmId, name: i.name, phone: i.phone, usedAt: iso(i.usedAt), userId: i.userId, createdAt: iso(i.createdAt)!, revokedAt: iso(i.revokedAt), locale: i.locale });
 const truckOut = ({ createdAt: _c, archivedAt, ...t }: typeof trucks.$inferSelect): TruckRow => ({ ...t, archivedAt: iso(archivedAt) });
 const docOut = ({ createdAt: _c, ...d }: typeof documents.$inferSelect): DocRow => ({ ...d, scope: d.scope === "driver" ? "driver" : "vehicle", type: d.type as DocType });
 const fileOut = ({ data: _d, createdAt, ...f }: typeof files.$inferSelect): FileMeta => ({ ...f, kind: f.kind as FileMeta["kind"], storage: f.storage === "blob" ? "blob" : "db", createdAt: iso(createdAt)! });
 const notOut = (n: typeof notifications.$inferSelect): NotificationRow => ({ ...n, params: JSON.parse(n.params), readAt: iso(n.readAt), createdAt: iso(n.createdAt)! });
-const mailOut = (e: typeof emailOutbox.$inferSelect): EmailRow => ({ ...e, status: e.status as EmailStatus, createdAt: iso(e.createdAt)!, sentAt: iso(e.sentAt) });
+const mailOut = (e: typeof emailOutbox.$inferSelect): EmailRow => ({ ...e, channel: e.channel as EmailRow["channel"], status: e.status as EmailStatus, createdAt: iso(e.createdAt)!, sentAt: iso(e.sentAt), nextAttemptAt: iso(e.nextAttemptAt)!, leaseUntil: iso(e.leaseUntil), firstAttemptAt: iso(e.firstAttemptAt), expiresAt: iso(e.expiresAt)! });
 const evOut = (e: typeof tripEvents.$inferSelect): TripEventRow => ({ ...e, kind: e.kind as TripEventKind, at: iso(e.at)! });
 const tripOut = ({ createdAt: _c, litresSource: _l, ...t }: typeof trips.$inferSelect): TripRow => ({ ...t, litresSource: _l === "estimate" ? "estimate" : "manual" });
 const noDate = <T extends { at: Date }>(r: T) => ({ ...r, at: r.at.toISOString() });
@@ -40,7 +40,7 @@ export class PgStore implements Store {
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, id)); }
   private firmTables() {
-    return { complianceTasks, users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
+    return { pushDevices, complianceTasks, users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
   }
   async firmCounts(firmId: string) {
     const out: Record<string, number> = {};
@@ -52,7 +52,7 @@ export class PgStore implements Store {
     const counts = await this.firmCounts(firmId);
     const blobUrls = (await this.d.select({ url: files.url }).from(files).where(and(eq(files.firmId, firmId), eq(files.storage, "blob")))).map((r) => r.url).filter((u): u is string => !!u);
     // o singură tranzacție: întâi tabelele fără FK spre firms, apoi copiii, la final firma (restul cade în cascadă)
-    const T = this.firmTables(), order = [T.complianceTasks, T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
+    const T = this.firmTables(), order = [T.pushDevices, T.complianceTasks, T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
     const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<unknown>; transaction?: (f: (tx: Db) => Promise<void>) => Promise<void> };
     const build = (db: Db) => [...order.map((tb) => db.delete(tb).where(eq((tb as typeof users).firmId, firmId))), db.delete(firms).where(eq(firms.id, firmId))];
     if (typeof d.batch === "function") await d.batch(build(this.d));
@@ -274,9 +274,52 @@ export class PgStore implements Store {
   }
   async markRead(firmId: string, userId: string | null) { await this.d.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.firmId, firmId), userId ? eq(notifications.userId, userId) : isNull(notifications.userId), isNull(notifications.readAt))); }
   async addEmail(e: Parameters<Store["addEmail"]>[0]) {
-    const [r] = await this.d.insert(emailOutbox).values({ ...e, id: newId("e"), status: "queued" }).onConflictDoNothing({ target: emailOutbox.key }).returning();
+    const [r] = await this.d.insert(emailOutbox).values({ ...e, expiresAt: e.expiresAt ? new Date(e.expiresAt) : undefined, id: newId("e"), status: "queued", nextAttemptAt: new Date() }).onConflictDoNothing({ target: emailOutbox.key }).returning();
     return r ? mailOut(r) : null;
   }
+  async startNotificationJob(name: string, runId: string, at: string) {
+    const value = { name, runId, startedAt: new Date(at), finishedAt: null, error: null, summary: null };
+    await this.d.insert(notificationJobs).values(value).onConflictDoUpdate({ target: notificationJobs.name, set: value });
+  }
+  async finishNotificationJob(name: string, runId: string, summary: Record<string, number> | null, error: string | null) { await this.d.update(notificationJobs).set({ finishedAt: new Date(), summary, error }).where(and(eq(notificationJobs.name, name), eq(notificationJobs.runId, runId))); }
+  async notificationJobs() { return (await this.d.select().from(notificationJobs)).map(r => ({ ...r, startedAt: r.startedAt.toISOString(), finishedAt: iso(r.finishedAt) })); }
+  async claimDelivery(channels: ("email" | "push")[], now: string, id?: string) {
+    if (!channels.length) return null;
+    const token = newId("lease"), at = new Date(now), until = new Date(at.getTime() + 90_000);
+    // Atomic claim, including leases abandoned by a terminated serverless invocation.
+    const result = await this.d.execute(sql`with candidate as (
+      select id from email_outbox where channel in (${sql.join(channels.map(c => sql`${c}`), sql`, `)})
+      and ((status = 'queued' and next_attempt_at <= ${at}) or (status = 'processing' and lease_until <= ${at}))
+      ${id ? sql`and id = ${id}` : sql``}
+      order by next_attempt_at, created_at, id for update skip locked limit 1
+    ) update email_outbox e set status = 'processing', attempts = e.attempts + 1,
+      lease_token = ${token}, lease_until = ${until}, first_attempt_at = coalesce(e.first_attempt_at, ${at})
+      from candidate c where e.id = c.id returning e.id`);
+    const rows = (result as unknown as { rows?: { id: string }[] }).rows ?? result as unknown as { id: string }[];
+    if (!rows.length) return null;
+    const [r] = await this.d.select().from(emailOutbox).where(and(eq(emailOutbox.id, rows[0].id), eq(emailOutbox.leaseToken, token)));
+    return r ? mailOut(r) : null;
+  }
+  async finishDelivery(id: string, token: string, p: import("./types").DeliveryFinish) {
+    return (await this.d.update(emailOutbox).set({ status: p.status, error: p.error, providerId: p.providerId ?? null,
+      nextAttemptAt: p.nextAttemptAt ? new Date(p.nextAttemptAt) : undefined, leaseToken: null, leaseUntil: null,
+      sentAt: p.status === "sent" ? new Date() : null,
+    }).where(and(eq(emailOutbox.id, id), eq(emailOutbox.leaseToken, token), eq(emailOutbox.status, "processing"))).returning({ id: emailOutbox.id })).length === 1;
+  }
+  async savePushDevice(d: Omit<import("./types").PushDevice, "id" | "createdAt">) {
+    const u = await this.userById(d.userId);
+    if (!u || u.firmId !== d.firmId || u.disabledAt || (u.sessionVersion ?? 0) !== d.sessionVersion) throw new Error("recipient");
+    // New identity when a browser is rebound, so queued messages for its previous account cannot follow it.
+    const value = { ...d, validUntil: d.validUntil ? new Date(d.validUntil) : null, id: newId("push"), createdAt: new Date() };
+    const [r] = await this.d.insert(pushDevices).values(value).onConflictDoUpdate({ target: pushDevices.endpoint, set: value }).returning();
+    return { ...r, validUntil: iso(r.validUntil), createdAt: r.createdAt.toISOString() };
+  }
+  async pushDevices(firmId: string, userId: string) { return (await this.d.select().from(pushDevices).where(and(eq(pushDevices.firmId, firmId), eq(pushDevices.userId, userId)))).map(r => ({ ...r, validUntil: iso(r.validUntil), createdAt: r.createdAt.toISOString() })); }
+  async removePushDevice(firmId: string, userId: string, id?: string, binding?: string) {
+    await this.d.delete(pushDevices).where(and(eq(pushDevices.firmId, firmId), eq(pushDevices.userId, userId), id ? eq(pushDevices.id, id) : undefined, binding ? eq(pushDevices.binding, binding) : undefined));
+  }
+  async revokePushBinding(binding: string) { await this.d.delete(pushDevices).where(eq(pushDevices.binding, binding)); }
+  async setEmailAlerts(firmId: string, userId: string, enabled: boolean) { await this.d.update(users).set({ emailAlerts: enabled }).where(and(eq(users.firmId, firmId), eq(users.id, userId))); }
   async setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null) { await this.d.update(emailOutbox).set({ status, error, providerId, sentAt: status === "sent" ? new Date() : null }).where(eq(emailOutbox.id, id)); }
   async emails(limit = 100) { return (await this.d.select().from(emailOutbox).orderBy(desc(emailOutbox.createdAt)).limit(limit)).map(mailOut); }
   async setTripTruck(firmId: string, tripId: string, truckId: string) { await this.ownTruck(firmId, truckId); await this.d.update(trips).set({ truckId }).where(and(eq(trips.firmId, firmId), eq(trips.id, tripId))); }

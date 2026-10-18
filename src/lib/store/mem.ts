@@ -166,7 +166,35 @@ export class MemStore implements Store {
   }
   async notifications(firmId: string, userId: string | null, limit = 50) { return this.N.filter((x) => x.firmId === firmId && x.userId === userId).reverse().slice(0, limit); }
   async markRead(firmId: string, userId: string | null) { for (const x of this.N) if (x.firmId === firmId && x.userId === userId && !x.readAt) x.readAt = new Date().toISOString(); }
-  async addEmail(e: Parameters<Store["addEmail"]>[0]) { if (this.E.some((x) => x.key === e.key)) return null; const r: EmailRow = { ...e, id: newId("e"), status: "queued", error: null, providerId: null, createdAt: new Date().toISOString(), sentAt: null }; this.E.push(r); return { ...r }; }
+  async addEmail(e: Parameters<Store["addEmail"]>[0]) { if (this.E.some((x) => x.key === e.key)) return null; const r: EmailRow = { channel: "email", context: null, subscriptionId: null, attempts: 0, nextAttemptAt: new Date().toISOString(), leaseToken: null, leaseUntil: null, firstAttemptAt: null, expiresAt: new Date(Date.now() + 48 * 3600000).toISOString(), ...e, id: newId("e"), status: "queued", error: null, providerId: null, createdAt: new Date().toISOString(), sentAt: null }; this.E.push(r); return { ...r }; }
+  private NJ: import("./types").NotificationJob[] = [];
+  async startNotificationJob(name: string, runId: string, at: string) { this.NJ = this.NJ.filter(j => j.name !== name); this.NJ.push({ name, runId, startedAt: at, finishedAt: null, error: null, summary: null }); }
+  async finishNotificationJob(name: string, runId: string, summary: Record<string, number> | null, error: string | null) { const row = this.NJ.find(j => j.name === name && j.runId === runId); if (row) Object.assign(row, { summary, error, finishedAt: new Date().toISOString() }); }
+  async notificationJobs() { return this.NJ.map(j => ({ ...j })); }
+  async claimDelivery(channels: ("email" | "push")[], now: string, id?: string) {
+    const r = this.E.filter(e => channels.includes(e.channel) && (!id || e.id === id) &&
+      ((e.status === "queued" && e.nextAttemptAt <= now) || (e.status === "processing" && !!e.leaseUntil && e.leaseUntil <= now)))
+      .sort((a, b) => a.nextAttemptAt.localeCompare(b.nextAttemptAt) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0];
+    if (!r) return null;
+    r.status = "processing"; r.attempts++; r.leaseToken = newId("lease"); r.leaseUntil = new Date(Date.parse(now) + 90_000).toISOString(); r.firstAttemptAt ??= now;
+    return { ...r };
+  }
+  async finishDelivery(id: string, token: string, p: import("./types").DeliveryFinish) {
+    const r = this.E.find(e => e.id === id && e.leaseToken === token && e.status === "processing");
+    if (!r) return false;
+    Object.assign(r, p, { providerId: p.providerId ?? null, leaseToken: null, leaseUntil: null, sentAt: p.status === "sent" ? new Date().toISOString() : null }); return true;
+  }
+  private PD: import("./types").PushDevice[] = [];
+  async savePushDevice(d: Omit<import("./types").PushDevice, "id" | "createdAt">) {
+    const u = await this.userById(d.userId);
+    if (!u || u.firmId !== d.firmId || u.disabledAt || (u.sessionVersion ?? 0) !== d.sessionVersion) throw new Error("recipient");
+    this.PD = this.PD.filter(p => p.endpoint !== d.endpoint);
+    const r = { ...d, id: newId("push"), createdAt: new Date().toISOString() }; this.PD.push(r); return { ...r };
+  }
+  async pushDevices(firmId: string, userId: string) { return this.PD.filter(d => d.firmId === firmId && d.userId === userId).map(d => ({ ...d })); }
+  async removePushDevice(firmId: string, userId: string, id?: string, binding?: string) { this.PD = this.PD.filter(d => !(d.firmId === firmId && d.userId === userId && (!id || d.id === id) && (!binding || d.binding === binding))); }
+  async revokePushBinding(binding: string) { this.PD = this.PD.filter(d => d.binding !== binding); }
+  async setEmailAlerts(firmId: string, userId: string, enabled: boolean) { const u = this.U.find(u => u.firmId === firmId && u.id === userId); if (u) u.emailAlerts = enabled; }
   async setEmailStatus(id: string, status: EmailStatus, error: string | null, providerId: string | null) { const r = this.E.find((x) => x.id === id); if (r) Object.assign(r, { status, error, providerId, sentAt: status === "sent" ? new Date().toISOString() : null }); }
   async emails(limit = 100) { return [...this.E].reverse().slice(0, limit); }
   private TA: { firmId: string; userId: string; truckId: string; fromTruckId: string | null; at: string }[] = [];

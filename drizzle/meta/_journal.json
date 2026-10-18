@@ -141,6 +141,13 @@
       "when": 1792321200000,
       "tag": "0019_vehicle_compliance",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792321200001,
+      "tag": "0020_notification_delivery",
+      "breakpoints": true
     }
   ]
 }

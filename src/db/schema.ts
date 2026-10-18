@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   role: text("role").notNull(), // owner | driver
   name: text("name").notNull().default(""),
   email: text("email"),
+  emailAlerts: boolean("email_alerts").notNull().default(true),
   phone: text("phone"),
   passwordHash: text("password_hash").notNull(),
   sessionVersion: integer("session_version").notNull().default(0),
@@ -250,7 +251,7 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("notifications_firm_key_uq").on(t.firmId, t.key), index("notifications_firm_user_ix").on(t.firmId, t.userId)]);
 
-/** Coada de emailuri: status sent | queued (fără furnizor) | failed. Nimic nu se marchează „trimis” fără răspunsul furnizorului. */
+/** Durable outbound delivery queue. Historical table name retained for safe upgrades. sent = provider accepted, not inbox/device receipt. */
 export const emailOutbox = pgTable("email_outbox", {
   id: text("id").primaryKey(),
   firmId: text("firm_id"),
@@ -263,7 +264,30 @@ export const emailOutbox = pgTable("email_outbox", {
   providerId: text("provider_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   sentAt: timestamp("sent_at", { withTimezone: true }),
-}, (t) => [uniqueIndex("email_outbox_key_uq").on(t.key)]);
+  channel: text("channel").notNull().default("email"),
+  context: jsonb("context").$type<import("../lib/store/types").DeliveryContext>(),
+  subscriptionId: text("subscription_id"),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  leaseToken: text("lease_token"),
+  leaseUntil: timestamp("lease_until", { withTimezone: true }),
+  firstAttemptAt: timestamp("first_attempt_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull().default(sql`now() + interval '48 hours'`),
+}, (t) => [uniqueIndex("email_outbox_key_uq").on(t.key), index("email_outbox_due_ix").on(t.status, t.nextAttemptAt)]);
+
+export const pushDevices = pgTable("push_devices", {
+  transport: text("transport").$type<"web" | "apns">().notNull().default("web"),
+  validUntil: timestamp("valid_until", { withTimezone: true }),
+  id: text("id").primaryKey(),
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  sessionVersion: integer("session_version").notNull(),
+  binding: text("binding").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("push_devices_endpoint_uq").on(t.endpoint), index("push_devices_user_ix").on(t.firmId, t.userId), index("push_devices_binding_ix").on(t.binding)]);
 
 /** Evenimente pe cursă (de la șofer): încărcat, descărcat, așteptare start/stop. */
 export const tripEvents = pgTable("trip_events", {
@@ -344,3 +368,10 @@ export const truckAssignments = pgTable("truck_assignments", {
   fromTruckId: text("from_truck_id"),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("truck_assignments_firm_ix").on(t.firmId, t.at)]);
+
+/** Operational heartbeat only; no recipients or payloads. */
+export const notificationJobs = pgTable("notification_jobs", {
+  name: text("name").primaryKey(), runId: text("run_id").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(), finishedAt: timestamp("finished_at", { withTimezone: true }),
+  error: text("error"), summary: jsonb("summary").$type<Record<string, number>>(),
+});

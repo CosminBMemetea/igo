@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history && npm run smoke:compliance",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history && npm run smoke:compliance && npm run smoke:notifications",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:calc": "tsx scripts/smoke-calc.mts",
@@ -43,7 +43,12 @@
     "smoke:driver-control": "tsx scripts/smoke-driver-control.mts",
     "check:pilot": "node scripts/check-pilot.mjs",
     "smoke:compliance": "tsx scripts/smoke-compliance.mts",
-    "smoke:compliance:http": "tsx scripts/smoke-compliance-http.mts"
+    "smoke:compliance:http": "tsx scripts/smoke-compliance-http.mts",
+    "smoke:notifications": "tsx scripts/smoke-notifications.mts",
+    "smoke:notifications:http": "tsx scripts/smoke-notifications-http.mts",
+    "notifications:keys": "node scripts/notification-keys.mjs",
+    "notifications:check": "node scripts/check-notifications.mjs",
+    "smoke:native-notifications": "tsx scripts/smoke-native-notifications.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -59,6 +64,7 @@
     "react-dom": "19.3.1",
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
+    "web-push": "^3.6.7",
     "ws": "^8.22.0"
   },
   "devDependencies": {
@@ -69,6 +75,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/web-push": "^3.6.4",
     "@types/ws": "^8.18.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "9.39.5",

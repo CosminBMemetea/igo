@@ -1086,3 +1086,36 @@ This round supersedes the PostgreSQL test limitation above for the suites rerun 
 - COMP-OPEN-03: TollRo quote/payment/reconciliation requires provider contract, API documentation and sandbox access. No invented prices, fines, grace periods or automatic valid/paid states.
 - COMP-OPEN-04: Per-day document records cannot certify hour-specific validity, special exemptions or historical regulatory regimes. Provider/date-versioned rules are a separate implementation.
 - Existing physical iPhone, two-device/offline and outbox refresh-boundary checks remain in the pilot backlog. See `COMPLIANCE.md` for scope and operator flows.
+
+
+## 2026-10-18 — Push, email retry and activation preparation
+
+Supersedes COMP-OPEN-01/02 **for implementation**, not live delivery acceptance. The user has no Resend verified sender or Apple Developer account yet. All provider sends in automated tests were mocked; HTTP/UI identities and the PostgreSQL database were local and fictitious. No customer messages were sent.
+
+| ID | Priority | Defect / gap | Fix and evidence |
+|---|---|---|---|
+| NOT-01 | P1 | Failed emails had no durable retry lifecycle | Shared delivery outbox, bounded backoff, Retry-After, expiry, eight-attempt cap and visible terminal failures. Memory + real PostgreSQL. |
+| NOT-02 | P1 | Parallel workers could resend or overwrite another worker's outcome | Atomic SKIP LOCKED claim, 90-second lease, fencing token, stable Resend idempotency key, 23-hour retry window. Twelve concurrent workers and stale-lease tests. |
+| NOT-03 | P1 | A retry could alert a reassigned/disabled driver or reference a renewed document | Revalidate current account, email opt-in, assignment, document version, reminder threshold and task status immediately before dispatch. |
+| NOT-04 | P1 | Old queued reset links/alerts could be replayed after enabling email | Migration cancels historical queued/failed rows lacking context. Fresh reset messages expire after 55 minutes and follow session version. |
+| NOT-05 | P1 | Owner and driver had no usable push registration / revocation flow | Web Push and native iOS APNs, explicit opt-in, current-device test/off, all-device revoke, logout/account-switch revocation. Generic lock-screen text. HTTP + provider mocks. |
+| NOT-06 | P1 | Cron Bearer secret was processed as a mobile token | Exclude authenticated cron routes from mobile-token dispatch; reject absent/wrong cron credentials. HTTP regression. |
+| NOT-07 | P1 | PostgreSQL sub-millisecond default time could skip an immediately queued email | Set nextAttemptAt explicitly at insertion. Twenty immediate insert/send attempts on each store. |
+| NOT-08 | P2 | Driver email missing; task acknowledgments did not notify owner | Driver can set their own email using PIN; scoped expiry/task email and push; owner receives acknowledgment. Tests verify cross-user isolation. |
+| NOT-09 | P2 | Email templates linked to the wrong domain or owner-only page | Canonical APP_URL, shared authenticated notifications destination, absolute expiry date and calculation date. |
+| NOT-10 | P2 | Job failure and provider acceptance could look like successful delivery | Persist job start/completion/failure; admin shows stale heartbeat, attempts, next retry and provider acceptance. No inbox/phone delivery claim. |
+| NOT-11 | P2 | Preference controls usable before loading; checkbox inherited full-width input style | Disable until loaded, recover partial channel failure, correct checkbox layout, wrap controls, minimum 44px action targets. |
+| NOT-12 | P1 | Native push could outlive mobile session or reactivate after remote opt-out | Registration expires with mobile session; scoped secure storage, server status reconciliation, permission revocation and rotation handling. |
+
+### Verification and remaining acceptance
+
+- **29/29 pilot suites passed** with real disposable PostgreSQL 18.4, including the complete smoke chain and native/tracking/integrity regressions.
+- **38 notification groups passed** with memory and PostgreSQL: concurrency, retries, permanent errors, provider timeout, recipient changes, opt-out, task reconciliation, session expiry, renewal, tenant deletion, endpoint/curve validation and service-worker privacy.
+- **HTTP suite passed:** owner/driver login and preferences, CSRF/body limits, password/PIN gate, endpoint validation, logout/account switch, all-device revocation, cron authentication, native status and web/native separation. No real push was sent. Native notification mock suite passed.
+- TypeScript passed for web and native code. Owner settings saved successfully through the browser; checked page width at 390px equals scroll width (no horizontal overflow). Cold local development compilation exceeded the 15s preference-request timeout; the reload control recovered successfully. Driver API flows passed; live Safari/phone acceptance remains open. Full ESLint completed with 0 errors and 43 warnings (42 pre-existing recommendations plus a server-render clock purity warning in job monitoring). No lint errors are suppressed. The final web production build passed, including TypeScript, static generation and build tracing.
+- iOS simulator compilation succeeded; attempted simulator installation stalled in CoreSimulator and was terminated. **No successful simulator launch or physical-iPhone push reception is claimed.** A simulator artifact is not an iPhone-installable signed build.
+- Production web dependency audit: **0 known findings** in this registry snapshot. Full web audit: **5 high lint-toolchain findings** from unpatched braces. Native audit: **15 high dependency-chain findings** rooted in braces/node-forge in the Expo/React Native tooling; no compatible patched resolution was offered by npm. Forced Expo/React Native downgrades were not applied. Track upstream fixes; do not interpret the web production audit as a clean native audit.
+
+Open operational gates: Resend sender/domain and credentials; VAPID keys on hosting; authenticated five-minute delivery scheduler; Apple Developer/APNs signing; real delivery and two-device/offline pilot. Web Push does not require an Apple Developer membership. Production configuration keeps the existing daily cron; fast retry must be explicitly scheduled on a compatible plan or external scheduler. See [NOTIFICATIONS.md](NOTIFICATIONS.md).
+
+Still separate: email mailbox ownership verification and bounce/delivery webhooks; native Android FCM; daily generator pagination for very large fleets; TollRo provider integration; previous physical-device/GPS and outbox refresh-boundary acceptance checks.

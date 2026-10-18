@@ -2,8 +2,8 @@ import { verifyToken, type Session } from "./session";
 export const MOBILE_TTL_S = 12 * 60 * 60;
 export type MobileSession = Session & { purpose: "driver-mobile"; role: "driver"; uid: string; version: number };
 export function mobileRoute(path: string, method: string): boolean {
-  return method === "GET" ? ["/api/driver/mobile", "/api/driver/tracking"].includes(path)
-    : method === "POST" && ["/api/driver/shift", "/api/driver/private", "/api/driver/ping"].includes(path);
+  return method === "GET" ? ["/api/driver/mobile", "/api/driver/tracking", "/api/driver/push"].includes(path)
+    : method === "POST" && ["/api/driver/shift", "/api/driver/private", "/api/driver/ping", "/api/driver/push"].includes(path);
 }
 export async function verifyMobileSession(token: string | undefined, secret: string | undefined): Promise<MobileSession | null> {
   const s = await verifyToken<MobileSession>(token, secret);

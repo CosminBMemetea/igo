@@ -1,3 +1,4 @@
+import { NotificationSettings } from "@/components/NotificationSettings";
 import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
@@ -15,14 +16,15 @@ export default async function Notifications() {
   return (
     <main className="setup">
       <div className="eyebrow fade">{t(loc, "ntf.title")}</div>
-      <h1 className="h1 fade">{unread ? t(loc, "ntf.unread", { n: unread }) : t(loc, "ntf.allRead")}</h1>
+      <h1 className="h1 fade">{unread ? t(loc, "ntf.unread", { n: unread }) : tri(loc, "Notificările tale|Your notifications|Twoje powiadomienia")}</h1>
       <p className="sub fade d1">{t(loc, "ntf.sub")}</p>
+      {!tn.demo && ["owner", "driver"].includes(tn.role ?? "") ? <NotificationSettings loc={loc} /> : null}
       {unread && !tn.demo ? <form action="/api/notifications/read" method="post" style={{ marginTop: 16 }}><button className="btn sec sm">{t(loc, "ntf.markAll")}</button></form> : null}
       <section className="section">
         {list.length ? (
           <div className="list">
             {list.map((n) => {
-              if (n.kind === "compliance-task") return <Link key={n.id} href="/driver#tasks" className={`it ntf${n.readAt ? " read" : ""}`}><div><div className="t">{tri(loc, "Verificare solicitată|Check requested|Prośba o sprawdzenie")} · {String(n.params.label)}</div><div className="m">{n.params.type === "tollro" ? "TollRo" : n.params.type === "classification" ? tri(loc, "Date din talon|Registration details|Dane rejestracyjne") : t(loc, `doc.${n.params.type}` as MsgKey)} · {tri(loc, "Termen|Due|Termin")} {fmtDate(loc, String(n.params.expires), true)}</div></div></Link>;
+              if (["compliance-task", "compliance-task-owner"].includes(n.kind)) return <Link key={n.id} href={tn.role === "driver" ? "/driver#tasks" : "/documents#tasks"} className={`it ntf${n.readAt ? " read" : ""}`}><div><div className="t">{n.kind === "compliance-task-owner" ? tri(loc, "Verificare preluată de șofer|Check acknowledged by driver|Zadanie potwierdzone przez kierowcę") : tri(loc, "Verificare solicitată|Check requested|Prośba o sprawdzenie")} · {String(n.params.label)}</div><div className="m">{n.params.type === "tollro" ? "TollRo" : n.params.type === "classification" ? tri(loc, "Date din talon|Registration details|Dane rejestracyjne") : t(loc, `doc.${n.params.type}` as MsgKey)} · {tri(loc, "Termen|Due|Termin")} {fmtDate(loc, String(n.params.expires), true)}</div></div></Link>;
               const p = n.params, doc = t(loc, `doc.${p.type}` as MsgKey), days = docStatus(String(p.expires), today).days;
               return (
                 <Link key={n.id} href={tn.role === "driver" ? "/driver#docs" : "/documents"} className={`it ntf${n.readAt ? " read" : ""}`}>

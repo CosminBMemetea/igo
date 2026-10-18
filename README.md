@@ -4,8 +4,12 @@ Fleet product for trucks, agricultural machinery and vans. The owner sees two nu
 
 > **Demo build.** All vehicles, trips, clients and receipts are fictional and generated deterministically (`src/lib/fleet/`). The UI labels this with a "Demo · date fictive" badge.
 
+## Notifications
+
+Owner and driver email, Web Push and native iOS APNs use a durable delivery queue with bounded retries, current-recipient validation and job monitoring. Providers and the five-minute scheduler require activation; see [setup and acceptance steps](docs/NOTIFICATIONS.md) and [QA results](docs/QA-AUDIT.md). Simulator compilation does not certify push reception on an iPhone.
+
 ## Stack
-- Next.js 14 (App Router, TypeScript), server components + API routes, region `fra1` (`vercel.json`).
+- Next.js 16.4 (App Router, TypeScript), server components + API routes, region `fra1` (`vercel.json`).
 - i18n ro / en / pl from day one (`src/lib/i18n`, cookie `igo-locale`, `?lang=`). Dark / light themes (`?theme=`).
 - Leaflet + markercluster for maps.
 - Groq (server only, `GROQ_API_KEY`) for the assistant (tool-calling) and receipt reading (vision). Without the key both fall back: rule-based answers, manual receipt entry.

@@ -1,0 +1,7 @@
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:16px;margin:26px 0}
+.card{min-width:0;border:1px solid var(--line,#353538);border-radius:20px;padding:22px;background:var(--card,#151517);display:flex;flex-direction:column;gap:14px}
+.card h2{font-size:20px;margin:0}.card p{margin:0;font-size:14px;line-height:1.6;color:var(--muted,#a8a8ae);overflow-wrap:anywhere}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto}.actions button{min-height:44px;flex:1 1 140px;white-space:normal!important;text-align:center;justify-content:center}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.6}.check input{width:20px;height:20px;flex-shrink:0;margin:2px 0}
+.state{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}.dot{width:8px;height:8px;border-radius:50%;background:#f5a524;flex-shrink:0}.on .dot{background:#63cfa8}
+.feedback{font-size:14px;line-height:1.5;overflow-wrap:anywhere}.card input:not([type="checkbox"]){min-width:0;width:100%}.card label{margin:0}

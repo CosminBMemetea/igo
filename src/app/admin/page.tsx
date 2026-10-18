@@ -1,3 +1,5 @@
+import { pushConfig } from "@/lib/push";
+import { apnsConfig } from "@/lib/apns";
 import { cookies } from "next/headers";
 import { getPrefs } from "@/lib/prefs";
 import { fmtDate, t, type MsgKey } from "@/lib/i18n";
@@ -18,7 +20,8 @@ export default async function Admin(
   const s = store();
   const [firms, reqs, mails, leads] = await Promise.all([s.firms(), s.support(), s.emails(50), s.leads()]);
   const LL = LT[loc], referred = firms.filter((f) => f.referredBy);
-  const mailOn = !!emailProvider();
+  const mailOn = !!emailProvider(), webPushOn = !!pushConfig(), applePushOn = !!apnsConfig();
+  const jobs = await s.notificationJobs();
   const rem = searchParams.rem?.split("-").map(Number);
   const sp = searchParams, delFirm = sp.del ? firms.find((f) => f.id === sp.del) ?? null : null, delCounts = delFirm ? await s.firmCounts(delFirm.id) : {};
   const cur = (await cookies()).get(ADMIN_FIRM_COOKIE)?.value ?? "demo";
@@ -116,14 +119,19 @@ export default async function Admin(
         </div>
         <p className="sub" style={{ fontSize: 14 }}>{t(loc, "adm.cronInfo")}</p>
         {rem && rem.length === 4 ? <p className="msg ok">{t(loc, "adm.ran", { n: rem[0], sent: rem[1], queued: rem[2], failed: rem[3] })}</p> : null}
+        <div className="sheet" style={{ marginTop: 16, overflowWrap: "anywhere" }}>
+          <strong>Livrarea notificărilor</strong><p className="sub">Email: {mailOn ? "configurat" : "neconfigurat"} · Web Push: {webPushOn ? "configurat" : "neconfigurat"} · Apple Push: {applePushOn ? "configurat" : "neconfigurat"}</p>
+          <p className="sub">Retry: programează /api/cron/deliveries la 5 minute. Jobul zilnic este doar rezervă; nu garantează reîncercări rapide.</p>
+          {["reminders", "deliveries"].map(name => { const job = jobs.find(j => j.name === name), stale = !job?.finishedAt || Date.now() - Date.parse(job.finishedAt) > (name === "reminders" ? 27 * 3600000 : 15 * 60000); return <p key={name} className={`msg ${stale || job?.error ? "warn" : "ok"}`}>{name}: {job ? job.error ? "Execuție eșuată" : !job.finishedAt ? "Execuție începută, încă neconfirmată" : `Ultima confirmare ${new Date(job.finishedAt).toLocaleString("ro-RO", { timeZone: "Europe/Bucharest" })}` : "Nicio execuție înregistrată"}{stale ? " · verifică programarea" : ""}</p>; })}
+        </div>
         {!mailOn ? <p className="msg warn">{t(loc, "adm.noMail")}</p> : null}
         {!blobConfigured() ? <p className="msg warn">{t(loc, "files.noBlob")}</p> : null}
         <div className="eyebrow" style={{ marginTop: 18 }}>{t(loc, "adm.outbox", { n: mails.length })}</div>
         <div className="list" style={{ marginTop: 12 }}>
           {mails.map((m) => (
             <div key={m.id} className="it" style={{ cursor: "default" }}>
-              <div style={{ minWidth: 0 }}><div className="t">{m.subject}</div><div className="m">{m.to} · {name(m.firmId)} · {fmtDate(loc, m.createdAt.slice(0, 10), true)}{m.error ? ` · ${m.error}` : ""}</div></div>
-              <span className={`badge ${m.status === "sent" ? "ok" : m.status === "failed" ? "bad" : "warn"}`}>{m.status === "sent" ? t(loc, "adm.mail.sent") : m.status === "failed" ? t(loc, "adm.mail.failed") : mailOn ? t(loc, "adm.mail.queued") : t(loc, "adm.mail.noProvider")}</span>
+              <div style={{ minWidth: 0 }}><div className="t">{m.subject}</div><div className="m">{m.channel === "push" ? "Push" : m.to} · {name(m.firmId)} · {fmtDate(loc, m.createdAt.slice(0, 10), true)}{m.error ? ` · ${m.error}` : ""} · {m.attempts} încercări{m.status === "queued" && m.attempts > 0 ? ` · Retry: ${m.nextAttemptAt}` : ""}</div></div>
+              <span className={`badge ${m.status === "sent" ? "ok" : m.status === "failed" ? "bad" : "warn"}`}>{m.status === "sent" ? "Acceptat de furnizor" : m.status === "failed" ? t(loc, "adm.mail.failed") : m.status === "cancelled" ? "Anulat (date schimbate/expirat)" : m.status === "processing" ? "În procesare" : (m.channel === "push" ? webPushOn || applePushOn : mailOn) ? t(loc, "adm.mail.queued") : t(loc, "adm.mail.noProvider")}</span>
             </div>
           ))}
           {!mails.length ? <div className="empty"><p>{t(loc, "adm.noMails")}</p></div> : null}

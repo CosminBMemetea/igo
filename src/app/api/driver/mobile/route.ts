@@ -1,3 +1,4 @@
+import { notificationsFor } from "@/lib/notify";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
@@ -12,6 +13,7 @@ export async function GET() {
   const shift = truck ? await s.shift(tn.firm.id, truck.id) : null;
   const trips = (await s.trips(tn.firm.id)).filter(t => t.driverId === tn.uid).map(driverTripSummary);
   return NextResponse.json({ name: u?.name, firm: tn.firm.name, truck: truck ? { id: truck.id, plate: truck.plate } : null,
+    alerts: (await notificationsFor(tn)).map(n => ({ id: n.id, kind: n.kind, label: n.params.label, type: n.params.type, expires: n.params.expires })),
     shift, trips: groupDriverTrips(trips, localNow().slice(0, 10)), serverTime: new Date().toISOString() },
     { headers: { "Cache-Control": "private, no-store" } });
 }

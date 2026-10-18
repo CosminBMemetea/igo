@@ -14,6 +14,7 @@ export async function notificationsFor(tn: Tenant): Promise<NotificationRow[]> {
     const me = users.find(u => u.id === tn.uid);
     // Hide stale notices after renewal, reassignment or archive; keep the stored audit trail.
     return notifications.filter(n => {
+      if (n.kind === "compliance-task-owner") return tn.role !== "driver" && tasks.some(task => task.id === n.params.taskId && task.status === "acknowledged" && trucks.some(t => t.id === task.truckId && !t.archivedAt) && users.some(u => u.id === task.driverId && !u.disabledAt && u.truckId === task.truckId));
       if (n.kind === "compliance-task") return tasks.some(task => task.id === n.params.taskId && ["open","acknowledged"].includes(task.status) && task.driverId === tn.uid && task.truckId === me?.truckId && trucks.some(t => t.id === task.truckId && !t.archivedAt));
       if (!n.docId) return true;
       const d = active.get(n.docId);
