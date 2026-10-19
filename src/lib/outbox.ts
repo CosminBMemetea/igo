@@ -67,7 +67,10 @@ export interface QueueStorage { list(scope: string): Promise<OutboxItem[]>; remo
 /** FIFO: never send a dependent event past a rejected or uncertain request. */
 export async function drain(scope: string, storage: QueueStorage, send: (item: OutboxItem) => Promise<Response>) {
   let sent = 0;
-  for (const item of await storage.list(scope)) {
+  for (const original of await storage.list(scope)) {
+    // Discard/retry can happen while the previous network request is in flight.
+    const item = (await storage.list(scope)).find(e => e.id === original.id);
+    if (!item) continue;
     if (item.status === "blocked") break;
     let response: Response;
     try { response = await send(item); } catch { break; }

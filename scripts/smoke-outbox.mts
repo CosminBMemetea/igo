@@ -42,3 +42,10 @@ const independent={...item("independent"),created:3,payload:{tripId:"another-tri
 assert.deepEqual(discardDependants([blockedLoad,nextUnload,independent,item("foreign","other")],"firm:user","load").map(e=>[e.id,e.status]),[["unload","blocked"]]);
 assert.deepEqual(discardDependants([blockedLoad,nextUnload],"other","load"),[]);
 console.log("PASS explicit discard flags dependent events without affecting another trip or account");
+let release!:()=>void;
+jobs=[blockedLoad,nextUnload].map(e=>({...e,status:"pending" as const}));
+const inflight=drain("firm:user",storage,async e=>{assert.equal(e.id,"load");await new Promise<void>(resolve=>{release=resolve;});return ok();});
+await new Promise(resolve=>setTimeout(resolve,0));
+const dependants=discardDependants(jobs,"firm:user","load");jobs=jobs.filter(e=>e.id!=="load").map(e=>dependants.find(d=>d.id===e.id)??e);
+release();await inflight;assert.equal(jobs[0].id,"unload");assert.equal(jobs[0].status,"blocked");
+console.log("PASS discard during in-flight ACK cannot send an already-blocked dependant");
