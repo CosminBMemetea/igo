@@ -57,6 +57,14 @@ NOTIFICATIONS_TEST_URL=http://localhost:3107 npm run smoke:notifications:http
 - Datele sensibile nu apar în erorile persistate ale furnizorilor. Endpointurile web push sunt HTTPS pe o listă explicită de furnizori; redirecturile sunt interzise. Cheile P-256 și auth sunt validate. API-urile web au protecție de origine, iar API-ul nativ acceptă numai tokenurile mobile permise.
 - Workerul procesează loturi limitate (maximum 80, buget de 40 secunde). Pentru flote foarte mari, generatorul zilnic trebuie paginat înainte de a depăși durata funcției; nu afirmăm capacitate nelimitată.
 
+## Android Firebase — 19 octombrie 2026
+
+- QA local: TypeScript, configurațiile preview/producție, generarea resurselor Firebase și buildul Release semnat au trecut. APK-ul este în `apps/driver/build/android/preview/QuerraSofer-Android-0.1.0-preview.apk`. Xiaomi M2003J15SC / Android 12: după permiterea instalării USB, APK-ul a fost instalat cu succes. Lansarea la rece a returnat `Status: ok`; procesul a rămas activ, iar logurile confirmă `FirebaseApp initialization successful` și pornirea React Native. Autentificarea, GPS-ul în fundal și livrarea push rămân de validat.
+
+- Fișierul furnizat pentru proiectul Firebase `querra-fleet` este configurat local în `apps/driver/firebase/google-services.preview.json`, exclus din Git. Expo îl include numai pentru `QFLEET_ANDROID_PREVIEW=1`, cu pachetul `com.querra.qfleet.driver.preview`.
+- Configurația verifică potrivirea pachetului înainte de generarea proiectului nativ. Varianta de producție folosește separat `firebase/google-services.production.json`, după înregistrarea pachetului `com.querra.qfleet.driver` în Firebase. Fișierele locale trebuie furnizate separat pe alte calculatoare/în CI.
+- Configurarea Firebase în APK nu activează livrarea push Android: clientul de notificări și endpointul serverului sunt încă limitate la APNs/iOS. Urmează implementarea înregistrării tokenurilor FCM, livrarea HTTP v1 cu acreditări server, retry și testarea pe dispozitiv. `google-services.json` este configurația clientului, nu o cheie de autentificare pentru server.
+
 ## Acceptanță rămasă după configurare
 
 - Resend: livrare efectivă/inbox, spam, bounce/suppression. Webhookurile de bounce/delivery nu sunt implementate în această etapă; „acceptat” nu înseamnă „livrat”.

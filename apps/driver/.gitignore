@@ -10,3 +10,4 @@ android
 *.keystore
 *.jks
 *.p12
+firebase/*.json

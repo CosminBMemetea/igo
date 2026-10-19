@@ -10,8 +10,9 @@ import { t, tri } from "@/lib/i18n";
 import { inviteToken, INVITE_TTL_S } from "@/lib/invite";
 import { ActionForm } from "@/components/ActionForm";
 import { CopyLink } from "@/components/CopyLink";
+import { InviteQR } from "@/components/InviteQR";
 export const dynamic = "force-dynamic";
-export default async function Drivers(props: { searchParams: Promise<{ q?: string; ok?: string }> }) {
+export default async function Drivers(props: { searchParams: Promise<{ q?: string; ok?: string; inv?: string }> }) {
   const searchParams = await props.searchParams;
   if ((await tenant()).demo) return <DemoRoster kind="drivers" loc={(await getPrefs()).loc} query={searchParams.q} />;
   const f = await writableFirm();if (!f) redirect("/");
@@ -33,7 +34,7 @@ export default async function Drivers(props: { searchParams: Promise<{ q?: strin
         <label className="lf"><span>{t(loc, "set.drvPhone")}</span><input name="phone" type="tel" required autoComplete="tel" placeholder="+407…" /></label>
         <label className="lf"><span>{t(loc, "set.drvLang")}</span><select name="locale" defaultValue={loc}><option value="ro">Română</option><option value="en">English</option><option value="pl">Polski</option></select></label>
         <button className="btn pri">{tr("Adaugă șoferul|Add driver|Dodaj kierowcę")}</button>
-        <p className="hint">{tr("Invitația nu se trimite automat. După salvare o poți trimite prin WhatsApp sau SMS.|The invitation is not sent automatically. After saving, share it via WhatsApp or SMS.|Zaproszenie nie jest wysyłane automatycznie. Po zapisaniu wyślij je przez WhatsApp lub SMS.")}</p>
+        <p className="hint">{tr("După salvare apare codul QR: șoferul îl scanează și își alege PIN-ul. Poți distribui și linkul invitației.|After saving, a QR code appears: the driver scans it and chooses a PIN. You can also share the invitation link.|Po zapisaniu pojawia się kod QR: kierowca skanuje go i wybiera PIN. Możesz też udostępnić link.")}</p>
       </ActionForm>
     </details>
     <form method="get" className="roster-search"><SearchField id="roster-query" label={tr("Caută nume sau telefon|Search name or phone|Szukaj imienia lub telefonu")} value={searchParams.q} button={tr("Caută|Search|Szukaj")} /></form>
@@ -47,8 +48,9 @@ export default async function Drivers(props: { searchParams: Promise<{ q?: strin
       <details><summary className="btn sec sm">{u.disabledAt ? t(loc, "drv.reactivate") : t(loc, "drv.deactivate")}</summary><ActionForm action="/api/setup/driver" returnTo="/drivers" loc={loc}><input type="hidden" name="uid" value={u.id} /><input type="hidden" name="off" value={u.disabledAt ? "0" : "1"} /><p>{u.disabledAt ? t(loc, "drv.reactivate") : t(loc, "drv.deactivateQ", { name: u.name })}</p><button className="btn sec">{u.disabledAt ? t(loc, "drv.reactivate") : t(loc, "drv.deactivateYes")}</button></ActionForm></details>
     </section>)}</div>
     {!drivers.length ? <p className="sub">{tr("Niciun șofer în această listă.|No drivers in this list.|Brak kierowców na liście.")}</p> : null}
-    <section className="section"><h2>{tr("Invitații în așteptare|Pending invitations|Oczekujące zaproszenia")}</h2>{links.map((i) => <div className="sheet" key={i.id}>
+    <section className="section"><h2>{tr("Invitații în așteptare|Pending invitations|Oczekujące zaproszenia")}</h2>{links.map((i) => <div className="sheet" id={`invite-${i.id}`} key={i.id} style={{ scrollMarginTop: 96 }}>
       <b>{i.name}</b><p>{i.phone} · {i.revokedAt ? t(loc, "inv.revoked") : i.expired ? tr("Expirată|Expired|Wygasłe") : tr("În așteptare · 14 zile de la creare|Pending · 14 days from creation|Oczekuje · 14 dni od utworzenia")}</p>
+      {!i.revokedAt && !i.expired ? <InviteQR url={i.url} name={i.name} loc={loc} open={i.id === searchParams.inv} /> : null}
       {!i.revokedAt && !i.expired ? <><CopyLink url={i.url} copy={t(loc, "set.copy")} copied={t(loc, "set.copied")} wa={`https://wa.me/${i.phone?.replace("+", "") ?? ""}?text=${encodeURIComponent(t(loc, "set.waText", { firm: f.name }) + " " + i.url)}`} waLabel="WhatsApp" sms={`sms:${i.phone ?? ""}?&body=${encodeURIComponent(i.url)}`} smsLabel="SMS" /><ActionForm action="/api/setup/invite/revoke" returnTo="/drivers" loc={loc}><input type="hidden" name="id" value={i.id} /><button className="btn sec sm">{t(loc, "inv.revoke")}</button></ActionForm></> : <ActionForm action="/api/drivers/reinvite" returnTo="/drivers" loc={loc}><input type="hidden" name="id" value={i.id} /><button className="btn sec">{tr("Creează invitație nouă|Create new invitation|Utwórz nowe zaproszenie")}</button></ActionForm>}
     </div>)}</section>
   </main>;

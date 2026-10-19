@@ -1119,3 +1119,36 @@ Supersedes COMP-OPEN-01/02 **for implementation**, not live delivery acceptance.
 Open operational gates: Resend sender/domain and credentials; VAPID keys on hosting; authenticated five-minute delivery scheduler; Apple Developer/APNs signing; real delivery and two-device/offline pilot. Web Push does not require an Apple Developer membership. Production configuration keeps the existing daily cron; fast retry must be explicitly scheduled on a compatible plan or external scheduler. See [NOTIFICATIONS.md](NOTIFICATIONS.md).
 
 Still separate: email mailbox ownership verification and bounce/delivery webhooks; native Android FCM; daily generator pagination for very large fleets; TollRo provider integration; previous physical-device/GPS and outbox refresh-boundary acceptance checks.
+
+
+## 2026-10-19 — QR, curse native, permisiuni și progres
+
+| ID | Prioritate | Problemă | Corecție / dovadă |
+|---|---|---|---|
+| DRIVER-01 | P1 | Ecranul gol invita implicit șoferul să înceapă o cursă | Focus comun pentru curse eligibile pe camion; fără cursă: mesaj explicit și tură fără cursă numai la alegerea utilizatorului. Teste gol/viitor/terminat/anulat/alt camion. |
+| DRIVER-02 | P1 | Lipseau confirmările native ale încărcării/descărcării și separarea etapelor | Acum/Urmează/Istoric; evenimente autentificate, idempotente, alocare verificată. HTTP: repetare, livrare fără POD, interdicție redeschidere și altă firmă. |
+| DRIVER-03 | P1 | Solicitări repetate de permisiuni și stare GPS locală învechită | Citire înainte de request, respectare canAskAgain, revalidare tură după dialog; serviciul oprit nu rămâne afișat activ. Teste cu permisiuni acordate/refuzate și tură încheiată. |
+| DRIVER-04 | P2 | Invitația era dificil de folosit fără SMS; QR expirat rămânea în ghid | QR local, utilizare unică, termen verificat, pagină de activare cu deschidere aplicație. Teste HTTP pentru invitație/PIN și QR; tamper/expiry în testele pure. |
+| DRIVER-05 | P2 | Taxele și poziția nu erau accesibile nativ | Card Acte & taxe/Progres/Poziție; date necunoscute rămân necunoscute, poziția doar în tură publică. HTTP verifică lipsa poziției în Privat/după încheiere. |
+| DRIVER-06 | P1 | Clasamentul real putea atribui istoricul camionului noului șofer | Activitate cu POD pe driverId, fereastră 30 zile, minimum 3 participanți, egalități corecte. Exclude anulate, viitoare, fără POD, alte firme. Vechiul teaser cu scor de consum apare doar în demo. |
+| DRIVER-07 | P2 | Poziția dintr-un răspuns vechi putea păstra eticheta recentă offline | Vârsta se recalculează la 15 secunde; afișează ora și precizia. Comenzile locale Privat/Stop în așteptare ascund poziția și blochează confirmările de cursă. |
+| DRIVER-09 | P1 | Reînnoirea în aceeași secundă putea reactiva vechiul link semnat | Timestampul invitației avansează atomic în PostgreSQL și memorie; testele verifică invalidarea tokenului vechi și accesul prin cel nou. |
+| DRIVER-08 | P2 | Android sugera activare push fără control funcțional | Text explicit: alerte în aplicație, push Android încă neactiv. Firebase singur nu confirmă livrarea FCM. |
+
+### Verificări
+
+- **33/33 suite pilot trecute**, cu PostgreSQL de test izolat și server HTTP de producție local: tenant, invitații, stări curse, concurență, retry, outbox, GPS, notificări mock, API nativ și revocare. Nu au fost modificate datele firmei pentru teste.
+- TypeScript web/native și build web trecute; regresiile noi verifică progresul,
+  deep linkul fără credențiale și focusul corect al curselor.
+- Browser: QR pe cont fictiv la **320 și 390 px**, scrollWidth = clientWidth,
+  fără erori în consola paginii. Fără verificare fizică a scanării cu camera.
+- Permisiunile de locație precisă/fundal ale Xiaomi M2003J15SC conectat sunt deja acordate. Testele simulate verifică nerepetarea cererii; acest lucru nu validează păstrarea serviciului GPS după restricțiile Xiaomi de baterie.
+
+### Restanțe explicite
+
+1. Recepție reală FCM Android: server, înregistrare/revocare token și livrare cu retry; configurația Firebase client este doar pregătirea.
+2. Pilot pe traseu, două dispozitive, ecran blocat, economisire baterie Xiaomi, pierdere/revenire rețea și măsurarea bateriei. iPhone fizic și semnare/distribuție Apple rămân netestate în această rundă.
+3. CMR/POD și gestionarea așteptării direct în aplicația nativă; momentan au flux web.
+4. TollRo cumpărare/verificare/reconciliere: depinde de furnizor și acces API, inexistente momentan.
+5. Recompense financiare: nu sunt implementate; regulile, sumele și aprobarea patronului trebuie definite separat. Distincțiile actuale sunt simbolice.
+6. Activarea și acceptanța operațională a web push/emailurilor și schedulerului de retry rămân cele din NOTIFICATIONS.md. Senderul Resend a fost verificat și cheile de email au fost adăugate de utilizator; acest lucru nu echivalează cu livrare verificată în inbox.

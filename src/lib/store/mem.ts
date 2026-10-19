@@ -141,7 +141,8 @@ export class MemStore implements Store {
   }
   async renewInvite(firmId: string, id: string) {
     const i = this.I.find((x) => x.firmId === firmId && x.id === id && !x.usedAt); if (!i) return false;
-    i.createdAt = new Date().toISOString(); i.revokedAt = null; return true;
+    // Signed links use whole seconds: even an immediate renewal must invalidate the old link.
+    i.createdAt = new Date(Math.max(Date.now(), (Math.floor(Date.parse(i.createdAt) / 1000) + 1) * 1000)).toISOString(); i.revokedAt = null; return true;
   }
   async revokeInvite(firmId: string, id: string) { const r = this.I.find((x) => x.id === id && x.firmId === firmId && !x.usedAt && !x.revokedAt); if (!r) return false; r.revokedAt = new Date().toISOString(); return true; }
   async setPod(firmId: string, tripId: string, received: boolean) { const r = this.R.find((x) => x.id === tripId && x.firmId === firmId); if (!r) return false; r.podReceived = received; return true; }

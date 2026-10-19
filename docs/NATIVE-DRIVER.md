@@ -205,16 +205,52 @@ să pornească GPS. Refuzul oprește activarea și explică revenirea în Setăr
 Sunt necesare și locația precisă și accesul în fundal („Tot timpul”). Nu se cer
 microfon, acces general la stocare sau suprapunerea peste alte aplicații.
 
-**Blocaj pentru utilizare:** originul inclus în acest APK este
-`https://igo-kappa.vercel.app`, unde pilotul mobil este încă dezactivat.
-Instalarea și ecranul de login funcționează, dar autentificarea mobilă nu va
-funcționa până când backendul ales este configurat pentru pilot. Pregătește
-staging cu baza de test, migrațiile și `MOBILE_DRIVER_ENABLED=1`, creează un
-șofer de test cu camion atribuit și reconstruiește cu originul staging.
-Conturile demo web nu sunt conturi native. Probele autentificate și GPS trebuie
-executate înainte de activarea producției.
+**Backend pilot activat (19 octombrie 2026):** originul inclus în APK rămâne
+`https://igo-kappa.vercel.app`, pentru păstrarea sesiunii instalate. Atât acesta,
+cât și domeniul firmei `https://fleet.querra.net` au pilotul mobil activ;
+cererea fără credențiale returnează eroarea de validare 400, nu dezactivarea 403.
+Utilizatorul a confirmat autentificarea și sincronizarea unei curse pe Xiaomi.
+Conturile demo web nu sunt conturi native. Validarea GPS pe traseu, cu ecranul
+blocat și economisirea bateriei, rămâne necesară.
 
 Pentru distribuție Play mai sunt necesare contul firmei, identitatea definitivă,
 semnarea/AAB de producție, materialele și declarațiile cerute de magazin și
 verificarea politicilor curente. Cheia locală de preview nu este o configurare
 Play App Signing. Nu s-a publicat în magazin.
+
+
+## 19 octombrie 2026 — Invitații QR și ecranul șoferului
+
+- Patron: **Șoferi → Adaugă șofer → Arată QR pentru activare**. QR-ul este
+  generat local de server, fără servicii terțe. Este valabil 14 zile, o singură
+  dată; revocarea și reînnoirea se verifică pe server. După creare/reînnoire,
+  pagina deschide invitația respectivă. Invitațiile expirate nu mai afișează QR.
+- Șofer: scanează cu camera telefonului, deschide pagina și alege PIN-ul de
+  6 cifre. Nu este necesar SMS; funcționează prin Wi-Fi. Numărul introdus în
+  invitație rămâne identificatorul de autentificare. Pagina de succes oferă
+  deschiderea aplicației instalate (inclusiv varianta Android Test) și browser.
+  Linkul nativ precompletează doar telefonul, niciodată PIN-ul sau sesiunea.
+- **Acum / Urmează / Istoric** separă cursele disponibile de cele viitoare,
+  livrate fără POD, încheiate și anulate. Încărcarea/descărcarea se confirmă
+  nativ, cu verificarea alocării și cheie de idempotency. CMR/POD și oprirea
+  așteptării se fac încă din interfața web. Fără cursă eligibilă nu apare
+  îndemnul implicit de a începe; există separat „Lucrez fără cursă alocată”.
+- **Acte & taxe / Progres / Poziție**: profilul vehiculului, starea documentelor,
+  portalul oficial de taxe, livrările cu POD, distincții simbolice și ultima
+  poziție confirmată, cu oră/precizie și link explicit către hartă externă.
+  Poziția veche nu este prezentată ca live; Privat/încheierea turei o ascund.
+- Clasamentul real folosește livrările documentate atribuite șoferului pe cursă,
+  nu istoricul camionului său actual. Fereastra este de 30 de zile în fusul
+  Europe/Bucharest. Sunt necesari minimum 3 șoferi cu livrări în perioadă;
+  egalitățile păstrează același loc. Nu este un scor de siguranță, de consum
+  sau un drept la prime. Distincțiile de 1/5/10/25 livrări nu au valoare în bani.
+- Permisiunile deja acordate sunt verificate înainte de solicitare. Refuzul
+  definitiv trimite spre Setări; nu repetăm dialogurile automat. Informarea
+  proprie despre GPS se păstrează după activarea reușită, separat pe sesiune.
+  Pornirea GPS rămâne explicită; nu se repornește automat după oprire/Privat.
+- Android: Firebase este configurat pentru identitatea APK-ului de test, dar
+  livrarea push FCM nu este încă implementată. Alertele din aplicație se
+  actualizează la revenire și la 15 secunde cât aplicația este în prim-plan.
+- TollRo: afișare documente/profil și acces la portal, fără cumpărare automată,
+  tarife inventate sau confirmare a plății. Integrarea tranzacțională necesită
+  contract, documentație și acces tehnic de la furnizor.

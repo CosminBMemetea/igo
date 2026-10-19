@@ -20,6 +20,8 @@ export class ApiError extends Error {
   constructor(public status: number, public code = "") {
     super(code === "mobile-unavailable" ? "Accesul din aplicația mobilă nu este încă activat pentru acest server. Folosește momentan interfața web."
       : code === "credentials" ? "Telefonul sau PIN-ul/parola nu sunt corecte. Folosește contul de șofer primit de la firmă."
+      : code === "transition" ? "Etapa cursei s-a schimbat sau există o așteptare deschisă. Reîmprospătează și verifică înainte de a continua."
+      : code === "assignment" ? "Camionul sau cursa nu îți mai este alocată. Verifică împreună cu patronul."
       : status === 401 ? "Sesiunea a expirat. Autentifică-te din nou."
       : status === 429 ? "Prea multe încercări. Încearcă mai târziu."
       : "Serverul nu a confirmat operația. Reîncearcă.");

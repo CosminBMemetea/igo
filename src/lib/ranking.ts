@@ -35,7 +35,7 @@ function l100(views: TripView[]) {
 export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehicleId: string }[], today: string, demo: boolean) {
   const trucks = vehicles.filter((v) => v.kind === "truck" && v.per100);
   const day = (d: string) => Math.round((Date.parse(today) - Date.parse(d)) / 864e5);
-  const done = views.filter((v) => !v.active && v.km > 0 && day(v.date) <= 30);
+  const done = views.filter((v) => !v.active && v.km > 0 && day(v.date) >= 0 && day(v.date) < 30);
   const per = trucks.map((v) => ({ v, ...l100(done.filter((x) => x.vehicleId === v.id)) }));
   const fleetKm = per.reduce((a, x) => a + x.km, 0), fleetL = per.reduce((a, x) => a + ((x.l100 ?? 0) * x.km) / 100, 0);
   const fleetAvg = fleetKm ? Math.round((fleetL / fleetKm) * 1000) / 10 : null;

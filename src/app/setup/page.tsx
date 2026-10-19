@@ -1,14 +1,14 @@
 import { localNow } from "@/lib/validate";
 import { docStatus } from "@/lib/docs";
-import QRCode from "qrcode";
+import { InviteQR } from "@/components/InviteQR";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getPrefs } from "@/lib/prefs";
-import { fmtDate, fmtMoney, t, type MsgKey } from "@/lib/i18n";
+import { fmtDate, fmtMoney, t, tri, type MsgKey } from "@/lib/i18n";
 import { store, DOC_TYPES } from "@/lib/store";
 import { writableFirm } from "@/lib/tenant";
 import { STEPS, setupState, type Step } from "@/lib/setup";
-import { inviteToken } from "@/lib/invite";
+import { inviteToken, INVITE_TTL_S } from "@/lib/invite";
 import { CopyLink } from "@/components/CopyLink";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +24,11 @@ export default async function Setup(
   const q = Number(searchParams.step);
   const step: Step = (STEPS as readonly number[]).includes(q) ? (q as Step) : st.next ?? 5;
   const err = searchParams.e ? ERR[searchParams.e] : null;
-  const h = await headers(), origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  const h = await headers(), origin = process.env.APP_URL || `${h.get("x-forwarded-proto") === "https" ? "https" : "http"}://${h.get("host")}`;
   const secret = process.env.SESSION_SECRET ?? "";
   const links = await Promise.all(st.invites.map(async (i) => {
     const url = `${origin}/join?t=${encodeURIComponent(await inviteToken(f.id, i.id, secret, Math.floor(Date.parse(i.createdAt) / 1000)))}`;
-    return { ...i, url, qr: !i.usedAt && !i.revokedAt ? await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : "" };
+    return { ...i, url, expired: Date.parse(i.createdAt) + INVITE_TTL_S * 1000 <= Date.now() };
   }));
   const people = step === 3 ? await store().users(f.id) : [];
   const plate = (id: string) => st.trucks.find((x) => x.id === id)?.plate ?? "—";
@@ -98,12 +98,12 @@ export default async function Setup(
                     return u.disabledAt
                       ? <div className="invrow"><span className="badge bad">{t(loc, "drv.offBadge")}</span><form action="/api/setup/driver" method="post"><input type="hidden" name="uid" value={u.id} /><button className="btn sec sm">{t(loc, "drv.reactivate")}</button></form></div>
                       : <details className="drvoff"><summary className="btn sec sm">{t(loc, "drv.deactivate")}</summary><div className="drvoffbox"><p>{t(loc, "drv.deactivateQ", { name: u.name })}</p><form action="/api/setup/driver" method="post"><input type="hidden" name="uid" value={u.id} /><input type="hidden" name="off" value="1" /><button className="btn pri sm danger">{t(loc, "drv.deactivateYes")}</button></form></div></details>;
-                  })() : i.revokedAt ? <span className="badge bad">✕</span> : (() => {
+                  })() : i.revokedAt || i.expired ? <Link className="btn sec sm" href="/drivers">{i.revokedAt ? t(loc, "inv.revoked") : tri(loc, "Expirată|Expired|Wygasło")} · {t(loc, "inv.resend")}</Link> : (() => {
                     const msg = t(loc, "set.waText", { firm: st.firm!.name }) + " " + i.url;
                     return (
                       <div className="invx">
                         <CopyLink url={i.url} copy={t(loc, "set.copy")} copied={t(loc, "set.copied")} wa={`https://wa.me/${i.phone ? i.phone.replace("+", "") : ""}?text=${encodeURIComponent(msg)}`} waLabel="WhatsApp" sms={`sms:${i.phone ?? ""}?&body=${encodeURIComponent(msg)}`} smsLabel="SMS" />
-                        <details className="qr"><summary className="btn sec sm">{t(loc, "inv.qr")}</summary><div className="qrbox" dangerouslySetInnerHTML={{ __html: i.qr }} /><p className="hint">{t(loc, "inv.qrHint")}</p></details>
+                        <InviteQR url={i.url} name={i.name} loc={loc} open={i.id === searchParams.inv} />
                         <div className="invrow">
                           <Link className="btn sec sm" href={`/setup?step=3&inv=${i.id}`}>{t(loc, "inv.resend")}</Link>
                           <details className="inv-rv"><summary className="btn sec sm">{t(loc, "inv.revoke")}</summary><form action="/api/setup/invite/revoke" method="post"><input type="hidden" name="id" value={i.id} /><button className="btn sm danger">{t(loc, "inv.revokeQ")}</button></form></details>

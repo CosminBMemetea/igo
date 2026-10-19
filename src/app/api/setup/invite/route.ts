@@ -13,6 +13,6 @@ export async function POST(req: Request) {
   const l = String(fd.get("locale") ?? "ro"), locale = l === "en" || l === "pl" ? l : "ro";
   try {
     const inv = await store().createDriverInvite(f.id, name, phone, locale);
-    return formReply(req, `${dest}${dest.includes("?") ? "&" : "?"}inv=${inv.id}&ok=1`);
+    return formReply(req, `${dest}${dest.includes("?") ? "&" : "?"}inv=${inv.id}&ok=1${dest === "/drivers" ? `#invite-${inv.id}` : ""}`);
   } catch (e) { return formReply(req, dest, duplicateError(e) ? "dupphone" : "server", duplicateError(e) ? 409 : 503); }
 }

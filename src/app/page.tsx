@@ -138,7 +138,7 @@ export default async function Home() {
         </Link>
       ) : null}
       {d.demo ? <ReplayTeaser loc={loc} tripId={d.views.find((v) => v.vehicleId === "bh21qrt" && v.active)?.id ?? null} /> : null}
-      {rk.drivers.length >= 3 ? (
+      {d.demo && rk.drivers.length >= 3 ? (
         <section className="section rk-home">
           <div className="head"><h2>{t(loc, "nav.ranking")}</h2><Link className="link" href="/ranking">{t(loc, "rk.open")} →</Link></div>
           <div className="rk-homegrid">

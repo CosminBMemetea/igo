@@ -27,6 +27,8 @@ import { paperworkFor } from "@/lib/paperwork";
 import { docStatus } from "@/lib/docs";
 import { roIso } from "@/lib/demo-time";
 import { todayFor } from "@/lib/today";
+import { driverProgress } from "@/lib/driver-progress";
+import { DriverProgress } from "@/components/DriverProgress";
 
 export const dynamic = "force-dynamic";
 const KEYS: MsgKey[] = ["drv.truckQ", "drv.truckChange", "priv.trackingWait", "priv.trackingOff", "priv.trackingOffHint", "drv.endQ", "drv.endTxt", "drv.endYes", "drv.endNo", "drv.vehicle", "drv.kmToday", "drv.hoursToday", "drv.start", "drv.stop", "drv.onShift", "drv.offShift", "drv.check", "drv.checkNeeded", "chk.tyres", "chk.fluids", "chk.docs", "chk.damage", "drv.fill", "drv.photo", "drv.photoHint", "drv.reading", "drv.sample", "drv.tooBig", "drv.notImage", "drv.notReceipt", "drv.litresRange", "drv.odoRange", "drv.sending", "drv.dup", "drv.readMeta", "drv.read", "drv.readManual", "drv.litres", "drv.odo", "drv.amount", "drv.fxOk", "drv.fxNo", "drv.cur", "drv.station", "drv.send", "drv.sent", "drv.lastFill", "drv.consent", "drv.gpsOff", "drv.invalid", "drv.role", "drv.preview", "drv.previewHint", "drv.previewNo", "priv.on", "priv.break", "priv.offShift", "priv.tracking", "priv.trackingHint", "priv.toggle", "priv.resume", "priv.geoOff"];
@@ -76,6 +78,7 @@ export default async function Driver(props: { searchParams: Promise<{ v?: string
   // Scope before serialization: a client component must never receive another driver's records.
   const complianceDocs = (await r.docs()).filter(d => (d.scope === "vehicle" && d.ownerId === v.id) || (d.scope === "driver" && (tn.demo ? d.ownerId === driverName : d.userId === tn.uid)));
   const personal = complianceDocs.filter(d => d.scope === "driver");
+  const progress = !tn.demo && tn.firm && tn.uid && tn.role === "driver" ? driverProgress(await store().users(tn.firm.id), await store().trips(tn.firm.id), tn.uid, today) : null;
   const myDocs = [...new Set(personal.map(d => d.type))].map(type => currentDocument(personal.filter(d => d.type === type), today) ?? personal.find(d => d.type === type)!)
     .map(d => ({ ...d, st: docStatus(d.expires ?? "", today) })).sort((a, b) => a.st.days - b.st.days);
   return (
@@ -89,6 +92,7 @@ export default async function Driver(props: { searchParams: Promise<{ v?: string
         <DriverApp key={tn.uid ?? "demo-driver"} queueScope={queueScope} actorId={tn.uid ?? undefined} preview={tn.role !== "driver"} serverNow={nowMs} demo={tn.demo} vehicleId={v.id} vehicleName={v.name} hello={t(loc, "drv.hi", { name: driverName.split(" ")[0] })} labels={labels} lastFill={lastFill} loc={loc} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} demoKm={liveKm} today={tn.demo ? { km: liveKm ?? 0, hours: demoWorkMs(shift, nowMs) / 3600000 } : todayReal} switchTo={tn.role === "driver" && !tn.demo ? vehicles.filter((x) => x.id !== v.id).map((x) => ({ id: x.id, name: x.name })) : undefined} />
 
         <ComplianceTasks tasks={complianceTasks} vehicles={vehicles} today={today} loc={loc} driver />
+        {progress ? <DriverProgress progress={progress} loc={loc} /> : null}
         <section className="section" id="personal-docs">
           <div className="eyebrow">{tri(loc, "Documentele mele personale|My personal documents|Moje dokumenty osobiste")}</div>
           <div className="list" style={{ marginTop: 12 }}>

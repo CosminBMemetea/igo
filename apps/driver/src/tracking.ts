@@ -34,10 +34,15 @@ export async function startGPS() {
   const current = () => { if (version !== generation) throw new Error("Pornirea GPS a fost anulată."); };
   await syncPending(); current();
   const scope = await sessionScope();
-  const foreground = await Location.requestForegroundPermissionsAsync(); current();
+  const state = await api<{ enabled: boolean; vehicleId: string; shiftStart: string }>("/api/driver/tracking", undefined, { gps: true, scope }); current();
+  if (!state.enabled) throw new Error("GPS se poate activa numai într-o tură deschisă, în afara modului Privat.");
+  let foreground = await Location.getForegroundPermissionsAsync(); current();
+  if (!foreground.granted && foreground.canAskAgain !== false) { foreground = await Location.requestForegroundPermissionsAsync(); current(); }
   if (!foreground.granted) throw new Error("Permite locația precisă din setările telefonului.");
+  if (Platform.OS === "android" && foreground.android?.accuracy === "coarse") throw new Error("Activează locația precisă pentru Querra în Setări.");
   if (Platform.OS === "android" && Number(Platform.Version) >= 33) {
-    const notifications = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS, {
+    const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS); current();
+    const notifications = granted ? PermissionsAndroid.RESULTS.GRANTED : await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS, {
       title: "Notificarea GPS în tură",
       message: "Querra afișează o notificare cât timp trimite poziția firmei. Permite notificările pentru a vedea când GPS este activ.",
       buttonPositive: "Continuă", buttonNegative: "Mai târziu",
@@ -45,10 +50,12 @@ export async function startGPS() {
     current();
     if (notifications !== PermissionsAndroid.RESULTS.GRANTED) throw new Error("Permite notificările Querra din Setări înainte de a activa GPS în fundal.");
   }
-  const background = await Location.requestBackgroundPermissionsAsync(); current();
+  let background = await Location.getBackgroundPermissionsAsync(); current();
+  if (!background.granted && background.canAskAgain !== false) { background = await Location.requestBackgroundPermissionsAsync(); current(); }
   if (!background.granted) throw new Error(Platform.OS === "android" ? "Pentru GPS cu ecranul blocat, permite locația «Tot timpul» din Setări." : "Pentru GPS cu ecranul blocat, permite locația «Întotdeauna» din Setări.");
-  const state = await api<{ enabled: boolean; vehicleId: string; shiftStart: string }>("/api/driver/tracking", undefined, { gps: true, scope }); current();
-  if (!state.enabled) throw new Error("GPS se poate activa numai într-o tură deschisă, în afara modului Privat.");
+  // Permission dialogs can stay open while the owner changes the truck/shift.
+  const latest = await api<typeof state>("/api/driver/tracking", undefined, { gps: true, scope }); current();
+  if (!latest.enabled || latest.vehicleId !== state.vehicleId || latest.shiftStart !== state.shiftStart) throw new Error("Tura sau camionul s-a schimbat. Reîmprospătează înainte de a activa GPS.");
   await write("gps-gate", { vehicleId: state.vehicleId, shiftStart: state.shiftStart, enabledAt: Date.now(), scope } satisfies Gate);
   try {
     current(); locallyStopped = false;
@@ -56,8 +63,12 @@ export async function startGPS() {
       pausesUpdatesAutomatically: false, showsBackgroundLocationIndicator: true,
       activityType: Location.ActivityType.AutomotiveNavigation,
       foregroundService: { notificationTitle: "Querra • GPS în tură", notificationBody: "Poziția este trimisă firmei tale. Oprește GPS sau activează Privat din aplicație.", killServiceOnDestroy: true } });
-    current(); await status("GPS pornit • așteptăm prima confirmare");
+    current(); await write("gps-status", { message: "GPS pornit • așteptăm prima confirmare" });
   } catch (e) { await stopGPS("GPS nu a pornit"); throw e; }
+}
+/** Reading state must not trigger permission dialogs or restart a stopped service. */
+export async function reconcileGPS() {
+  if (await read<Gate>("gps-gate") && !await Location.hasStartedLocationUpdatesAsync(TASK)) await stopGPS("Telefonul a oprit serviciul GPS. Apasă Activează GPS pentru a-l relua.");
 }
 TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TASK, async ({ data, error }) => {
   if (sending || locallyStopped) return;

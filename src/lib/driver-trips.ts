@@ -1,8 +1,8 @@
 import type { TripRow } from "./store/types";
-export type DriverTripSummary = Pick<TripRow, "id" | "truckId" | "client" | "title" | "date" | "planned" | "loadedAt" | "deliveredAt" | "cancelledAt" | "cancelReason" | "podReceived">;
+export type DriverTripSummary = Pick<TripRow, "id" | "truckId" | "client" | "title" | "date" | "planned" | "loadedAt" | "deliveredAt" | "cancelledAt" | "cancelReason" | "podReceived" | "waitSince">;
 /** Explicit allowlist: never serialize revenue, costs or company data to the driver board. */
 export function driverTripSummary(x: DriverTripSummary): DriverTripSummary {
-  return { id: x.id, truckId: x.truckId, client: x.client, title: x.title, date: x.date, planned: x.planned, loadedAt: x.loadedAt, deliveredAt: x.deliveredAt, cancelledAt: x.cancelledAt, cancelReason: x.cancelReason, podReceived: x.podReceived };
+  return { id: x.id, truckId: x.truckId, client: x.client, title: x.title, date: x.date, planned: x.planned, loadedAt: x.loadedAt, deliveredAt: x.deliveredAt, cancelledAt: x.cancelledAt, cancelReason: x.cancelReason, podReceived: x.podReceived, waitSince: x.waitSince };
 }
 export type DriverTripStage = "running" | "ready" | "upcoming" | "documents" | "finished" | "cancelled";
 export function driverTripStage(trip: DriverTripSummary, today: string): DriverTripStage {

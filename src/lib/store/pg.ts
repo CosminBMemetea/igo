@@ -237,7 +237,8 @@ export class PgStore implements Store {
     if (!result.rows.length) throw new Error("assignment");
   }
   async renewInvite(firmId: string, id: string) {
-    const r = await this.d.update(invites).set({ createdAt: new Date(), revokedAt: null }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt))).returning({ id: invites.id });
+    // Advance atomically past the old token's whole-second timestamp, including concurrent renewals.
+    const r = await this.d.update(invites).set({ createdAt: sql`greatest(now(), date_trunc('second', ${invites.createdAt}) + interval '1 second')`, revokedAt: null }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt))).returning({ id: invites.id });
     return r.length === 1;
   }
   async revokeInvite(firmId: string, id: string) { return (await this.d.update(invites).set({ revokedAt: new Date() }).where(and(eq(invites.firmId, firmId), eq(invites.id, id), isNull(invites.usedAt), isNull(invites.revokedAt))).returning({ id: invites.id })).length === 1; }

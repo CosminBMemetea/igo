@@ -7,5 +7,5 @@ export async function POST(req: Request) {
   if (!firm) return formReply(req, "/drivers", "nofirm", 403);
   const id = clip((await req.formData()).get("id"), 60);
   const ok = await store().renewInvite(firm.id, id);
-  return formReply(req, "/drivers?ok=1", ok ? undefined : "missing", 404);
+  return formReply(req, ok ? `/drivers?ok=1&inv=${encodeURIComponent(id)}#invite-${encodeURIComponent(id)}` : "/drivers", ok ? undefined : "missing", 404);
 }

@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import pg from "pg";
+import { inviteToken } from "../src/lib/invite";
 const URL_DB = process.env.TEST_DATABASE_URL;
 if (!URL_DB) { console.log("smoke:tenant: TEST_DATABASE_URL lipsește, sar peste (ex.: postgres://igo:igo@localhost/igo_test)"); process.exit(0); }
 let fail = 0;
@@ -124,7 +125,9 @@ try {
   ok("șoferul deschide linkul fără cont", jp.status === 200 && jp.text.includes("Trans Test A SRL"));
   ok("token falsificat respins", (await D.go(`/join?t=${link!.slice(0, -3)}abc`)).text.includes("join") && !(await D.go(`/join?t=${link!.slice(0, -3)}abc`)).text.includes("Trans Test A SRL"));
   const j = await D.go("/api/auth/join", { t: decodeURIComponent(link!), phone: "0744 123 456", pin: "493827", pin2: "493827" });
-  ok("invitație acceptată → /driver", j.status === 303 && j.loc.endsWith("/driver"), `${j.status} ${j.loc}`);
+  ok("invitație acceptată → /join/ready", j.status === 303 && j.loc.endsWith("/join/ready"), `${j.status} ${j.loc}`);
+  ok("QR generat local pentru invitație", s3.text.includes("data:image/png;base64,"));
+  ok("activare → deschidere aplicație fără PIN în link", (await D.go("/join/ready")).text.includes("qfleet-driver-test://login?phone="));
   const drv = (await db.query("select * from users where firm_id=$1 and role='driver'", [firmA.id])).rows;
   ok("șofer în DB, telefon normalizat, invitație consumată", drv.length === 1 && drv[0].phone === "+40744123456" && (await db.query("select used_at from invites where firm_id=$1", [firmA.id])).rows[0].used_at != null);
   ok("pagina de șofer vede camionul firmei", (await D.go("/driver")).text.includes("BH 21 QRT"));
@@ -203,6 +206,24 @@ try {
   ok("lista de curse B: goală, fără cursa lui A", tripsB.status === 200 && !tripsB.text.includes("Oradea → Sibiu"));
   { const r = await B.go(`/trips/${trip.id}`); ok("B nu poate deschide cursa lui A", (r.status === 404 || r.text.includes("NEXT_NOT_FOUND") || r.text.includes("404")) && !r.text.includes("Oradea → Sibiu")); }
   ok("pagini permanente camion și șofer", (await A.go("/trucks")).text.includes("BH 21 QRT") && (await A.go("/drivers")).text.includes("Ioan Pop"));
+  const qrInvite = await A.go("/api/setup/invite", { name: "QR Test", phone: "+40744000199", ret: "/drivers" });
+  const qrId = new URL(qrInvite.loc).searchParams.get("inv")!;
+  ok("invitație nouă → QR deschis și ancoră", new URL(qrInvite.loc).hash === `#invite-${qrId}`);
+  // Simulate an immediate renewal/clock rollback: it must still change the signed token timestamp.
+  await db.query("update invites set created_at=now()+interval '1 minute', revoked_at=now() where id=$1", [qrId]);
+  let qrTime = (await db.query("select created_at from invites where id=$1", [qrId])).rows[0].created_at.getTime();
+  const oldQR = await inviteToken(firmA.id, qrId, env.SESSION_SECRET, Math.floor(qrTime / 1000));
+  for (let n = 0; n < 2; n++) {
+    const renewed = await A.go("/api/drivers/reinvite", { id: qrId });
+    const nextTime = (await db.query("select created_at from invites where id=$1", [qrId])).rows[0].created_at.getTime();
+    ok("reînnoire imediată schimbă semnătura QR și deschide invitația", Math.floor(nextTime / 1000) > Math.floor(qrTime / 1000) && new URL(renewed.loc).hash === `#invite-${qrId}`);
+    qrTime = nextTime;
+  }
+  ok("altă firmă nu poate reînnoi QR", (await B.go("/api/drivers/reinvite", { id: qrId })).loc.includes("e=missing"));
+  const QR = new Agent();
+  ok("vechiul QR nu mai poate activa contul", (await QR.go("/api/auth/join", { t: oldQR, phone: "+40744000199", pin: "492718", pin2: "492718" })).loc.includes("e=token"));
+  const newQR = await inviteToken(firmA.id, qrId, env.SESSION_SECRET, Math.floor(qrTime / 1000));
+  ok("noul QR oferă formularul PIN", (await QR.go(`/join?t=${encodeURIComponent(newQR)}`)).text.includes('name="pin"'));
   await A.go("/api/setup/driver", { uid: drv[0].id, off: "1", ret: "/drivers" });
   const revoked = await D.go("/driver");
   ok("dezactivarea revocă sesiunea existentă", revoked.status === 307 && revoked.loc.includes("/api/auth/logout"));

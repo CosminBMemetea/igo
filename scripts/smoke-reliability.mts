@@ -79,9 +79,14 @@ async function verifyStore(s: Store) {
     const pending = (await s.users(firm.id))[0];
     assert.equal(pending.passwordHash, "");
     assert.equal(invite.userId, pending.id);
+    assert.equal(await s.renewInvite(other.id, invite.id), false);
+    assert.deepEqual(await Promise.all(Array.from({ length: 3 }, () => s.renewInvite(firm.id, invite.id))), [true, true, true]);
+    const renewed = (await s.invite(firm.id, invite.id))!;
+    assert.ok(Math.floor(Date.parse(renewed.createdAt) / 1000) >= Math.floor(Date.parse(invite.createdAt) / 1000) + 3, "concurrent renewals must invalidate every previous whole-second token");
     await s.setUserTruck(firm.id, pending.id, t1.id);
     const accepted = await Promise.all([s.acceptInvite(firm.id, invite.id, phone, "hash-a"), s.acceptInvite(firm.id, invite.id, phone, "hash-b")]);
     assert.equal(accepted.filter(Boolean).length, 1, "single-use invite must activate exactly once");
+    assert.equal(await s.renewInvite(firm.id, invite.id), false, "a used invitation must never reopen");
     assert.equal((await s.users(firm.id)).length, 1, "no orphan users from double acceptance");
     const user = accepted.find(Boolean)!;
     assert.equal(user.id, pending.id, "activation preserves planned assignments");

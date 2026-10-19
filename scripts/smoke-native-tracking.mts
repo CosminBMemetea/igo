@@ -15,9 +15,11 @@ const api = async (path:string,body?:unknown,opts?:{scope?:string}) => {
  controlsSent.push(body);if(heldRequest){const wait=heldRequest;heldRequest=null;await wait();}
 };
 const service={api,ApiError,sessionScope:async()=>scope,read:async(k:string)=>{if(badGateRead&&k==="gps-gate")throw Error("storage");return memory.get(k)??null;},write:async(k:string,v:unknown)=>{if(badStatusWrite&&k==="gps-status")throw Error("storage");memory.set(k,v);},remove:async(k:string)=>{memory.delete(k);},abortGPSRequests:()=>{}};
-const location={hasStartedLocationUpdatesAsync:async()=>running,stopLocationUpdatesAsync:async()=>{running=false;},requestForegroundPermissionsAsync:async()=>permission?permission():({granted:true}),requestBackgroundPermissionsAsync:async()=>({granted:true}),startLocationUpdatesAsync:async()=>{running=true;},Accuracy:{High:4},ActivityType:{AutomotiveNavigation:1}};
+let foregroundGranted=true, backgroundGranted=true, canAskAgain=true, foregroundRequests=0, backgroundRequests=0;
+const location={getForegroundPermissionsAsync:async()=>({granted:permission?false:foregroundGranted,canAskAgain}),getBackgroundPermissionsAsync:async()=>({granted:backgroundGranted,canAskAgain}),hasStartedLocationUpdatesAsync:async()=>running,stopLocationUpdatesAsync:async()=>{running=false;},requestForegroundPermissionsAsync:async()=>{foregroundRequests++;return permission?permission():({granted:true});},requestBackgroundPermissionsAsync:async()=>{backgroundRequests++;return {granted:true};},startLocationUpdatesAsync:async()=>{running=true;},Accuracy:{High:4},ActivityType:{AutomotiveNavigation:1}};
+let notificationGranted=false;
 let notificationResult="granted", notificationRequests=0, notificationPermission:(()=>Promise<string>)|null=null;
-const native={Platform:{OS:"ios",Version:27},PermissionsAndroid:{PERMISSIONS:{POST_NOTIFICATIONS:"notifications"},RESULTS:{GRANTED:"granted"},request:async()=>{notificationRequests++;return notificationPermission?notificationPermission():notificationResult;}}};
+const native={Platform:{OS:"ios",Version:27},PermissionsAndroid:{PERMISSIONS:{POST_NOTIFICATIONS:"notifications"},RESULTS:{GRANTED:"granted"},check:async()=>notificationGranted,request:async()=>{notificationRequests++;return notificationPermission?notificationPermission():notificationResult;}}};
 const modules = new Map<string,any>();
 function load(name:string):any {
  if(modules.has(name))return modules.get(name);
@@ -69,3 +71,13 @@ let allowNotifications!:()=>void;notificationPermission=()=>new Promise(r=>{allo
 const delayedNotification=t.startGPS();await tick();await t.stopGPS();allowNotifications();await assert.rejects(delayedNotification);assert.equal(running,false);notificationPermission=null;
 const notificationCount=notificationRequests;native.Platform.Version=32;await t.startGPS();await t.stopGPS();assert.equal(notificationRequests,notificationCount);
 console.log("PASS Android notification consent: denial blocks GPS, grant starts it, delayed grant cannot override stop, Android 12 skips Android 13 permission");
+
+const fgCount=foregroundRequests, bgCount=backgroundRequests, ntCount=notificationRequests;
+native.Platform.Version=33;notificationGranted=true;
+await t.startGPS();await t.stopGPS();await t.startGPS();await t.stopGPS();
+assert.equal(foregroundRequests,fgCount);assert.equal(backgroundRequests,bgCount);assert.equal(notificationRequests,ntCount);
+foregroundGranted=false;canAskAgain=false;await assert.rejects(t.startGPS(),/locația/);assert.equal(foregroundRequests,fgCount);
+foregroundGranted=true;backgroundGranted=false;await assert.rejects(t.startGPS(),/Tot timpul/);assert.equal(backgroundRequests,bgCount);
+backgroundGranted=true;canAskAgain=true;state.enabled=false;await assert.rejects(t.startGPS(),/tură deschisă/);assert.equal(foregroundRequests,fgCount);state.enabled=true;
+await t.startGPS();running=false;await t.reconcileGPS();assert.equal(memory.has("gps-gate"),false);assert.match(JSON.stringify(memory.get("gps-status")),/Telefonul a oprit/);
+console.log("PASS permission persistence: no repeat prompts when granted; permanent denial opens no dialog; closed shift cannot prompt; killed native service clears stale GPS status");
