@@ -302,3 +302,13 @@ este instalat pe Xiaomi. Verificate fizic: cele patru taburi, lipsa acțiunii de
 fictive, previzualizarea și restaurarea draftului după închidere forțată. Draftul
 a fost eliminat local fără trimitere. Pentru iOS a trecut exportul Metro/Hermes;
 acesta nu este un IPA semnat și nu înlocuiește proba pe iPhone.
+
+### Actualizare QA — 19 octombrie, confirmări și fotografii
+
+Preview Android instalat pe Xiaomi din surse curate `c61981b`. Confirmările de
+etapă recitesc starea locală actualizată, inclusiv tura, camionul și operațiile
+în așteptare. Anularea galeriei nu redeschide un draft vechi; test fizic trecut.
+Indicatorul de sincronizare diferențiază operațiile de verificat și drafturile.
+APK verificat: SHA-256
+`272b09c62ae907cf24bf2869c115677369cc087265464c91b6e96476e1653702`.
+Rezultatele complete și restanțele sunt în `docs/QA-AUDIT.md`.

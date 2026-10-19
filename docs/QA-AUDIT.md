@@ -1269,3 +1269,24 @@ TollRo fără furnizor/API.
 Probă de conflict în browser: cursa sintetică mutată pe mâine după deschiderea
 formularului, apoi încărcare apăsată → server respinge, niciun stadiu fictiv
 finalizat, controale blocate și mesaj de verificare.
+
+### Închidere QA / publicare pentru această rundă
+
+- Commit funcțional final `c61981b`: publicat pe main, Vercel **success**.
+  Buildul web final a trecut; încă o rulare completă: **39/39** suite trecute.
+- Browser: 390 px și 320 px fără scroll orizontal; test real de retry după
+  conflict → „Etapă confirmată de firmă”, fără regresie la „Am încărcat”.
+  Un JPEG fictiv valid + unul invalid → 1 miniatură și eroare cu numele exact al
+  fișierului respins. Hover login șofer: fundal `rgb(22,163,74)`, text
+  `rgb(4,19,10)`, verificate în browser după rebuild.
+- Android Release semnat: surse curate `c61981b`, build 20:09 UTC,
+  SHA-256 `272b09c62ae907cf24bf2869c115677369cc087265464c91b6e96476e1653702`.
+  Instalare peste versiunea existentă pe Xiaomi: **succes**, sesiune păstrată.
+- Probă fizică: draft CMR fictiv → păstrare → deschidere galerie → anulare.
+  Aplicația rămâne în Acte, nu deschide draftul vechi și nu creează alt draft.
+  Indicatorul arată „1 operațiune locală”; draftul și copia din Downloads au
+  fost eliminate după probă. Contorul final este zero, aplicația este în Azi.
+  Nu s-a apăsat Trimite, nu s-a pornit GPS și nu s-au modificat curse reale.
+  Bufferul crash Android nu conține intrări.
+- Dovezi locale, ignorate de Git: `apps/driver/build/qa/2026-10-19-buground/`.
+  Exportul iOS este o verificare a bundle-ului JS, nu un test pe iPhone fizic.
