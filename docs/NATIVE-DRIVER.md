@@ -254,3 +254,9 @@ Play App Signing. Nu s-a publicat în magazin.
 - TollRo: afișare documente/profil și acces la portal, fără cumpărare automată,
   tarife inventate sau confirmare a plății. Integrarea tranzacțională necesită
   contract, documentație și acces tehnic de la furnizor.
+
+Verificare dispozitiv: APK-ul final din commitul `5f42b20` (surse curate), construit
+la 19 octombrie 2026, 18:20 UTC, a fost instalat cu succes peste versiunea existentă
+pe Xiaomi M2003J15SC / Android 12. Sesiunea și permisiunile acordate au fost
+păstrate; ecranele Curse, Acte & taxe, Progres și Poziție au fost inspectate.
+Această verificare nu certifică traseul GPS cu ecranul blocat sau notificări FCM.

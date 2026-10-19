@@ -1144,6 +1144,9 @@ Still separate: email mailbox ownership verification and bounce/delivery webhook
   fără erori în consola paginii. Fără verificare fizică a scanării cu camera.
 - Permisiunile de locație precisă/fundal ale Xiaomi M2003J15SC conectat sunt deja acordate. Testele simulate verifică nerepetarea cererii; acest lucru nu validează păstrarea serviciului GPS după restricțiile Xiaomi de baterie.
 
+- **Confirmare finală pe commitul `5f42b20`:** build web local și Vercel reușite; rerulare HTTP tenant/invitații și API mobil, plus regresiile concurente pe memorie/PostgreSQL, toate trecute. Lint pe fișierele web vizate: 0 erori, 2 avertismente de puritate pentru ceasul serverului în pagini dinamice.
+- **APK Release semnat**, construit din surse curate la 19 octombrie, 18:20 UTC, instalat cu `adb install -r` pe Xiaomi M2003J15SC. Pornire React Native și Firebase confirmate; sesiunea și permisiunile de locație păstrate. Inspectate pe telefon: cursa de încărcat separată de cursa în desfășurare, Acte & taxe, Progres și Poziție fără coordonate inventate. Nu au fost create/încheiate curse și nu s-a pornit GPS pentru această verificare. Camera QR și traseul cu ecranul blocat rămân probe separate.
+
 ### Restanțe explicite
 
 1. Recepție reală FCM Android: server, înregistrare/revocare token și livrare cu retry; configurația Firebase client este doar pregătirea.
