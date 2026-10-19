@@ -23,6 +23,9 @@ for (const trips of [[], [{...trip,truckId:"other"}], [{...trip,deliveredAt:"202
 assert.equal(render(React.createElement(DriverTrips,{...tripsProps,trips:[trip]})).includes("Continuă cursa"),true);
 assert.equal(render(React.createElement(DriverTrips,{...tripsProps,trips:[trip],queueScope:"qa-driver"})).includes("Continuă cursa"),false);
 const paperwork={tripId:"trip",title:"QA",demo:false,onShift:true,serverNow:Date.now(),loc:"ro",initial:{loadedAt:null,unloadedAt:null,waitMin:0,waitSince:null,files:[]},L:{"pw.loaded":"Am încărcat","pw.unloaded":"Am descărcat","pw.wStart":"Pornește așteptarea","pw.cmr":"CMR"}};
+const pendingPaperwork = render(React.createElement(TripPaperwork,{...paperwork,queueScope:"qa-driver"}));
+assert.match(pendingPaperwork, /Verificăm operațiunile/);
+assert.match(pendingPaperwork, /disabled=""><b>Am încărcat/);
 const future = render(React.createElement(TripPaperwork,{...paperwork,canRecordEvents:false}));
 assert.equal(future.includes("Am încărcat"),false);assert.equal(future.includes("Pornește așteptarea"),false);assert.equal(future.includes("CMR"),true);
 console.log("PASS rendered driver UI: no start for empty/future/delivered/cancelled/other truck; shift remains distinct; future trip allows documents but no lifecycle controls");

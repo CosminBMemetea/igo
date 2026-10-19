@@ -10,6 +10,7 @@ import { tripFocus, invitationPhone, type Board, type Trip } from "./src/board";
 import { TripOverview, DriverDetails } from "./src/DriverOverview";
 import { workQueue, workId, discardWork, cleanConfirmedPhotos, watchWork } from "./src/work-storage";
 import { projectedBoard, unconfirmed, eventLabel, type WorkEntry, type EventKind } from "./src/work-queue";
+import { confirmTripEvent } from "./src/trip-confirmation";
 import { captureDocument, recoverDocument } from "./src/paperwork";
 import { PaperworkPanel, DocumentPreview } from "./src/PaperworkPanel";
 type Page = "today" | "trips" | "documents" | "account";
@@ -27,6 +28,7 @@ function Screen() {
   const [gpsExpanded, setGpsExpanded] = useState(false);
   const loadedDrafts = useRef(false);
   const localRevision = useRef(0);
+  const boardScope = useRef("");
   const localLock = useRef(false);
   const [localBusy, setLocalBusy] = useState(false);
   const [withoutTrip, setWithoutTrip] = useState(false);
@@ -110,7 +112,7 @@ function Screen() {
       if (await sessionScope() !== scope || revision !== localRevision.current) return;
       setGPS(value); setGate(active);
       setEntries(local); setPending(control);
-      if (snapshot) { setBoard(projectedBoard(snapshot, local)); setSyncedAt(snapshot.savedAt); }
+      if (snapshot) { boardScope.current = scope; setBoard(projectedBoard(snapshot, local)); setSyncedAt(snapshot.savedAt); }
       if (!loadedDrafts.current) { loadedDrafts.current = true; setReviewId(local.find(e => e.status === "draft")?.id ?? null); }
     } catch { setError("Datele locale nu pot fi citite. Nu șterge aplicația; verifică spațiul disponibil sau contactează suportul."); }
   }
@@ -143,22 +145,28 @@ function Screen() {
   }
   const stale = !syncedAt || Date.now() - syncedAt > 86400000 || Date.now() < syncedAt - 300000;
   function tripEvent(trip: Trip, kind: EventKind) {
+    const expectedScope = boardScope.current;
     Alert.alert(`${eventLabel[kind]} · confirmi?`, trip.title + (kind === "unloaded" ? "\nDupă descărcare, adaugă dovada livrării (POD)." : ""), [{ text: "Anulează", style: "cancel" }, { text: "Confirmă", onPress: () => void localRun(async () => {
-      if (stale || !board?.shift || pending || await pendingControl()) throw new Error("Actualizează datele cursei înainte de a confirma etapa.");
       const scope = await sessionScope();
-      await workQueue.add({ id: workId(), scope, type: "event", tripId: trip.id, title: trip.title, kind,
-        truckId: trip.truckId, shiftStart: board.shift.start, createdAt: new Date().toISOString(), status: "queued", attempts: 0, nextAttempt: 0 });
+      if (scope !== expectedScope || !board?.shift || pending || await pendingControl()) throw new Error("Actualizează datele cursei înainte de a confirma etapa.");
+      const [snapshot, local] = await Promise.all([workQueue.snapshot(scope), workQueue.list(scope)]);
+      const current = confirmTripEvent(snapshot, local, { tripId: trip.id, truckId: trip.truckId, shiftStart: board.shift.start, kind });
+      await workQueue.add({ id: workId(), scope, type: "event", tripId: current.id, title: current.title, kind,
+        truckId: current.truckId, shiftStart: board.shift.start, createdAt: new Date().toISOString(), status: "queued", attempts: 0, nextAttempt: 0 });
       await refreshLocal(); syncSoon();
     }) }]);
   }
   function chooseDocument(trip: Trip, kind: "cmr" | "pod", replaceId?: string) {
+    const expectedScope = boardScope.current;
     Alert.alert(`${kind.toUpperCase()} · ${trip.title}`, "Alege o fotografie clară a documentului.", [
       { text: "Camera", onPress: () => capture("camera") }, { text: "Galerie", onPress: () => capture("library") }, { text: "Anulează", style: "cancel" },
     ]);
     function capture(source: "camera" | "library") { void localRun(async () => {
-      await captureDocument(trip, kind, source, replaceId);
+      if (await sessionScope() !== expectedScope) throw new Error("Contul s-a schimbat. Reia operația în contul corect.");
+      const id = await captureDocument(trip, kind, source, replaceId);
+      if (!id) return;
       const local = await workQueue.list(await sessionScope());
-      setEntries(local); setReviewId(local.filter(e => e.status === "draft").at(-1)?.id ?? null); navigate("documents");
+      setEntries(local); setReviewId(id); navigate("documents");
     }); }
   }
   function discard(id: string) {
@@ -167,6 +175,8 @@ function Screen() {
   async function retry(id: string) { const scope = await sessionScope(); await workQueue.submit(scope, id); await refreshLocal(); syncSoon(); }
   const review = entries.find(e => e.id === reviewId) ?? null;
   const pendingWork = entries.filter(unconfirmed).length;
+  const attention = entries.filter(e => e.status === "attention").length;
+  const localCount = `${pendingWork} ${pendingWork === 1 ? "operațiune locală" : "operațiuni locale"}`;
   const overviewProps = board ? { board: pending || !online ? { ...board, position: null } : board, busy: busy || localBusy || !!pending || stale,
     blockedTrips: entries.filter(e => e.status === "attention").map(e => e.tripId), onEvent: tripEvent, onDocument: chooseDocument,
     onOpen: (url: string) => { void run(async () => { await Linking.openURL(url); }); } } : null;
@@ -180,7 +190,7 @@ function Screen() {
       {button("Intră în cont", async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); await write("login", { ...login, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); })}
     </View> : <>
       {!!pending && <View accessibilityRole="alert" style={s.notice}><Text style={s.text}>{pending.path === "/api/driver/shift" ? "Încheierea turei" : "Modul Privat"} așteaptă confirmarea firmei. GPS este oprit pe acest telefon. Reîncercăm automat când revii în aplicație și ai internet.</Text></View>}
-      <Pressable accessibilityRole="button" onPress={() => navigate("documents")} style={s.sync}><View style={[s.dot, { backgroundColor: online ? "#80e2c2" : "#f6cb86" }]} /><View style={{ flex: 1 }}><Text style={s.text}>{syncing ? "Sincronizare în curs…" : pendingWork ? `${pendingWork} operațiuni pe telefon` : online ? "Actualizat cu firma" : "Date salvate pe telefon"}</Text><Text style={s.muted}>{syncedAt ? `Ultima actualizare: ${new Date(syncedAt).toLocaleString("ro-RO")}` : "Prima conectare necesită internet"}</Text></View></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => navigate("documents")} style={s.sync}><View style={[s.dot, { backgroundColor: attention ? "#ff9ba8" : online && !pendingWork && !pending && !stale ? "#80e2c2" : "#f6cb86" }]} /><View style={{ flex: 1 }}><Text style={s.text}>{attention ? `${attention} ${attention === 1 ? "operațiune de verificat" : "operațiuni de verificat"}` : syncing ? "Sincronizare în curs…" : pendingWork ? localCount : online && !pending && !stale ? "Actualizat cu firma" : "Date salvate pe telefon"}</Text><Text style={s.muted}>{syncedAt ? `Ultima actualizare: ${new Date(syncedAt).toLocaleString("ro-RO")}` : "Prima conectare necesită internet"}</Text></View></Pressable>
       {!board && button("Reîncearcă actualizarea", () => refresh(true))}
       {stale && !!board && <Text style={s.muted}>Datele au peste 24 de ore sau ora telefonului s-a schimbat. Reconectează-te înainte de a confirma etape.</Text>}
       {overviewProps && (page === "today" || page === "trips") && <TripOverview key={page} {...overviewProps} compact={page === "today"} onShowTrips={() => navigate("trips")} />}
@@ -220,13 +230,13 @@ function Screen() {
       <Text style={s.muted}>CMR/POD sunt disponibile în Acte. Interfața web rămâne disponibilă pentru celelalte opțiuni ale contului.</Text>
       {button("Deschide interfața web", async () => { await Linking.openURL(`${apiOrigin()}/driver`); }, true)}
       {button("Reîmprospătează", () => refresh(true), true)}
-      {!!pendingWork && <Text style={s.muted}>Ai {pendingWork} operațiuni locale. După deconectare se păstrează pentru același cont; sincronizează înainte de a șterge aplicația.</Text>}
+      {!!pendingWork && <Text style={s.muted}>Ai {localCount}. După deconectare se păstrează pentru același cont; sincronizează înainte de a șterge aplicația.</Text>}
       {button("Deconectare • oprește GPS", async () => { await syncPending(); await disablePush(); await remove("login"); setLogged(false); setBoard(null); setEntries([]); setReviewId(null); setSyncedAt(null); setOnline(false); loadedDrafts.current = false; navigate("today"); }, true, stopGPS)}
       </>}
     </>}
   </ScrollView></KeyboardAvoidingView>
-    {logged && <View style={s.navigation}>{([["today", "Azi", "◉"], ["trips", "Curse", "↗"], ["documents", "Acte", "▤"], ["account", "Cont", "●"]] as const).map(([key, label, icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: page === key }} accessibilityLabel={label + (key === "documents" && pendingWork ? `, ${pendingWork} operațiuni locale` : "")} style={[s.navItem, page === key && s.navSelected]} onPress={() => navigate(key)}><Text style={[s.navIcon, page === key && s.navActive]}>{key === "documents" && pendingWork ? pendingWork : icon}</Text><Text style={[s.navLabel, page === key && s.navActive]}>{label}</Text></Pressable>)}</View>}
-    <DocumentPreview entry={review} busy={busy || localBusy} onClose={() => setReviewId(null)} onSend={() => { if (review) void localRun(async () => { const id = review.id; setReviewId(null); await retry(id); }); }} onRetake={() => { if (review?.type === "file") { const trip = Object.values(board?.trips ?? {}).flat().find(t => t.id === review.tripId); if (trip) chooseDocument(trip, review.kind, review.id); } }} />
+    {logged && <View style={s.navigation}>{([["today", "Azi", "◉"], ["trips", "Curse", "↗"], ["documents", "Acte", "▤"], ["account", "Cont", "●"]] as const).map(([key, label, icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: page === key }} accessibilityLabel={label + (key === "documents" && pendingWork ? `, ${localCount}` : "")} style={[s.navItem, page === key && s.navSelected]} onPress={() => navigate(key)}><Text style={[s.navIcon, page === key && s.navActive]}>{key === "documents" && pendingWork ? pendingWork : icon}</Text><Text style={[s.navLabel, page === key && s.navActive]}>{label}</Text></Pressable>)}</View>}
+    <DocumentPreview entry={review} busy={busy || localBusy} onClose={() => setReviewId(null)} onSend={() => { if (review) void localRun(async () => { const id = review.id; setReviewId(null); await retry(id); }); }} onRetake={() => { if (review?.type === "file") { const trip = Object.values(board?.trips ?? {}).flat().find(t => t.id === review.tripId); if (trip && !trip.cancelledAt) chooseDocument(trip, review.kind, review.id); else Alert.alert("Cursa nu mai este disponibilă", "Fotografia rămâne pe telefon. Verifică alocarea cu patronul înainte de a o înlocui sau trimite."); } }} />
   </SafeAreaView>;
 }
 export default function App() { return <SafeAreaProvider><Screen /></SafeAreaProvider>; }

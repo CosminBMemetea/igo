@@ -1308,6 +1308,7 @@ dialog.msheet-bg::backdrop{background:rgba(0,0,0,.40);backdrop-filter:blur(4px)}
 @media(hover:hover){
  .btn.pri:not(:disabled):hover{background:#294fb8;box-shadow:0 5px 16px rgba(30,65,160,.28)}
  .btn.sec:not(:disabled):hover{background:color-mix(in srgb,var(--fg) 8%,var(--bg3));border-color:color-mix(in srgb,var(--fg) 22%,transparent)}
+ .login.r-driver .rbtn:not(:disabled):hover{background:#16a34a;color:#04130a;border-color:#16a34a}
  a.card:hover{border-color:color-mix(in srgb,var(--acc) 50%,var(--line));box-shadow:var(--shadow)}
  .pwb:not(:disabled):hover{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 9%,var(--bg3))}
 }

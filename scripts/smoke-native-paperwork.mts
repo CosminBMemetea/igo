@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import ts from "typescript";
+const values=new Map<string,any>(); let result:any={canceled:true}, scope="scope", count=0, persisted=0, released=0;
+const entries:any[]=[{id:"old-draft",status:"draft"}];
+const picker={getCameraPermissionsAsync:async()=>({granted:true}),launchCameraAsync:async()=>result,launchImageLibraryAsync:async()=>result,getPendingResultAsync:async()=>result};
+class File{size=100;exists=true;constructor(public uri:string){}delete(){this.exists=false;}}
+const context={resize(){},renderAsync:async()=>({saveAsync:async()=>({uri:"cache.jpg"}),release(){released++;}}),release(){released++;}};
+const modules:Record<string,any>={"expo-image-picker":picker,"expo-image-manipulator":{ImageManipulator:{manipulate:()=>context},SaveFormat:{JPEG:"jpeg"}},"expo-file-system":{File},"./api":{read:async(k:string)=>values.get(k),write:async(k:string,v:any)=>{values.set(k,v);},remove:async(k:string)=>{values.delete(k);},sessionScope:async()=>scope},"./work-storage":{workId:()=>`new-${++count}`,persistPhoto:async()=>{persisted++;},workQueue:{list:async()=>entries,add:async(e:any)=>{entries.push(e);}},discardWork:async(_s:string,id:string)=>{entries.splice(entries.findIndex(e=>e.id===id),1);}}};
+const source=ts.transpileModule(fs.readFileSync("apps/driver/src/paperwork.ts","utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const module={exports:{} as any};new Function("require","module","exports",source)((name:string)=>{if(!modules[name])throw Error(name);return modules[name];},module,module.exports);
+const {captureDocument,recoverDocument}=module.exports;const trip={id:"trip",title:"QA"};
+assert.equal(await captureDocument(trip,"cmr","library"),null,"cancel cannot reopen old draft");assert.equal(entries.length,1);assert.equal(persisted,0);
+result={canceled:false,assets:[{uri:"picked.jpg",width:3000,height:2000}]};
+const id=await captureDocument(trip,"cmr","library");assert.equal(id,"new-2");assert.equal(entries.at(-1).id,id);assert.equal(entries.at(-1).status,"draft");assert.equal(released,2);
+result={canceled:true};assert.equal(await captureDocument(trip,"cmr","camera",id),null);assert.ok(entries.some(e=>e.id===id),"cancel retake keeps original");
+result={canceled:false,assets:[{uri:"picked.jpg",width:500,height:500}]};
+const replacement=await captureDocument(trip,"cmr","camera",id);assert.equal(replacement,"new-4");assert.ok(!entries.some(e=>e.id===id));assert.ok(entries.some(e=>e.id===replacement));
+values.set("paperwork-capture-v1",{id:replacement,scope,tripId:"trip",title:"QA",kind:"cmr"});await recoverDocument();assert.equal(entries.filter(e=>e.id===replacement).length,1,"pending camera recovery is idempotent");
+values.set("paperwork-capture-v1",{id:"foreign",scope:"other",tripId:"trip",title:"QA",kind:"cmr"});await recoverDocument();assert.ok(!entries.some(e=>e.id==="foreign"));
+console.log("PASS native picker: cancel returns no document; exact new draft selected; canceled retake retains original; replacement saved first; pending result idempotent and account-scoped");

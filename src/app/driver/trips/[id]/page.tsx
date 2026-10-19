@@ -31,7 +31,7 @@ export default async function DriverDocuments(props: { params: Promise<{ id: str
     <div className="driver-trip-context"><p className="eyebrow">{vehicle?.name}</p><p>{tri(loc, hint)}</p>{trip.cancelledAt && trip.cancelReason ? <p>{trip.cancelReason}</p> : null}</div>
     {!trip.cancelledAt ? <TollRoHandoff plate={vehicle?.name ?? "—"} route={trip.title} date={trip.date} loc={loc} /> : null}
     <TripPaperwork canRecordEvents={canOperate && !trip.deliveredAt && (!!trip.loadedAt || trip.date <= todayFor(false))} key={trip.id} queueScope={scope} actorId={tn.uid} readOnly={!!trip.cancelledAt || (!trip.deliveredAt && !canOperate)} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date)}`} demo={false} onShift={!!shift && !shift.end && !shift.privateSince} serverNow={now} loc={loc}
-      initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((now - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }}
+      initial={{ lastEventAt: pw.lastEventAt, loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((now - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }}
       L={{ ...Object.fromEntries(PW.map(k => [k, t(loc, k)])), "pw.today": tri(loc, "Cursa și documentele|Trip and documents|Kurs i dokumenty") }} />
   </main>;
 }

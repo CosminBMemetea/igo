@@ -52,7 +52,10 @@
     "smoke:driver-experience": "tsx scripts/smoke-driver-experience.mts",
     "smoke:native-work": "tsx scripts/smoke-native-work.mts",
     "smoke:driver-start-ui": "tsx scripts/smoke-driver-start-ui.mts",
-    "smoke:native-work-storage": "tsx scripts/smoke-native-work-storage.mts"
+    "smoke:native-work-storage": "tsx scripts/smoke-native-work-storage.mts",
+    "smoke:paperwork-state": "tsx scripts/smoke-paperwork-state.mts",
+    "smoke:native-confirmation": "tsx scripts/smoke-native-confirmation.mts",
+    "smoke:native-paperwork": "tsx scripts/smoke-native-paperwork.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

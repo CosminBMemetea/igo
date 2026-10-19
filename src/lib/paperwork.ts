@@ -8,7 +8,7 @@ import type { Tenant } from "./tenant";
 import type { TripEventRow, TripEventKind, TripRow } from "./store/types";
 
 export interface PaperFile { id: string; kind: "cmr" | "pod"; src: string; name: string }
-export interface Paperwork { events: Pick<TripEventRow, "kind" | "at" | "lat" | "lng">[]; files: PaperFile[]; podReceived: boolean; loadedAt: string | null; unloadedAt: string | null; waitMin: number; waiting: boolean; waitSince: string | null }
+export interface Paperwork { events: Pick<TripEventRow, "kind" | "at" | "lat" | "lng">[]; files: PaperFile[]; podReceived: boolean; loadedAt: string | null; unloadedAt: string | null; waitMin: number; waiting: boolean; waitSince: string | null; lastEventAt: string | null }
 
 const ev = (kind: TripEventKind, at: string, lat: number | null = null, lng: number | null = null) => ({ kind, at, lat, lng });
 function demoPaperwork(tripId: string) {
@@ -31,7 +31,7 @@ export function summarize(events: Paperwork["events"], now = Date.now()) {
     if (e.kind === "wait_end" && open) { waitMs += Date.parse(e.at) - Date.parse(open); open = null; }
   }
   if (open) waitMs += Math.max(0, now - Date.parse(open));
-  return { loadedAt: events.find((e) => e.kind === "loaded")?.at ?? null, unloadedAt: [...events].reverse().find((e) => e.kind === "unloaded")?.at ?? null, waitMin: Math.round(waitMs / 60000), waiting: !!open, waitSince: open };
+  return { loadedAt: events.find((e) => e.kind === "loaded")?.at ?? null, unloadedAt: [...events].reverse().find((e) => e.kind === "unloaded")?.at ?? null, waitMin: Math.round(waitMs / 60000), waiting: !!open, waitSince: open, lastEventAt: events.map(e => e.at).sort().at(-1) ?? null };
 }
 export function summarizeTrip(events: Paperwork["events"], trip?: Pick<TripRow, "loadedAt" | "deliveredAt">, now = Date.now()) {
   const summary = summarize(events, now);

@@ -30,6 +30,27 @@ export async function removeOutbox(scope: string, id: string) {
   if (!(await outboxItems(scope)).some((x) => x.id === id)) return;
   await operation("readwrite", (s) => s.delete(id)); changed();
 }
+export function discardDependants(items: OutboxItem[], scope: string, id: string) {
+  const ordered = items.filter(e => e.scope === scope).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id));
+  const index = ordered.findIndex(e => e.id === id), item = ordered[index];
+  if (!item || item.kind !== "event") return [];
+  const tripId = (item.payload as Record<string, string>).tripId;
+  return ordered.slice(index + 1).filter(e => e.kind === "event" && (e.payload as Record<string, string>).tripId === tripId).map(e => ({ ...e, status: "blocked" as const, error: 409 }));
+}
+/** Explicit discard is different from a server ACK: dependent steps require review. */
+export async function discardOutbox(scope: string, id: string) {
+  await operation("readwrite", s => {
+    const req = s.getAll();
+    req.onsuccess = () => {
+      const items = req.result as OutboxItem[];
+      if (!items.some(e => e.id === id && e.scope === scope)) return;
+      for (const dependant of discardDependants(items, scope, id)) s.put(dependant);
+      s.delete(id);
+    };
+    return req;
+  });
+  changed();
+}
 export async function retryOutbox(scope: string, id: string) {
   const item = (await outboxItems(scope)).find((x) => x.id === id); if (!item) return;
   await operation("readwrite", (s) => s.put({ ...item, status: "pending", error: undefined })); changed();
@@ -53,7 +74,7 @@ export async function drain(scope: string, storage: QueueStorage, send: (item: O
     if (response.ok) {
       const body = await response.json().catch(() => null);
       if (!body || !body.ok || body.demo) { await storage.block({ ...item, status: "blocked", error: 401 }); break; }
-      if (item.kind === "event" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("qf-trip-server-ack", { detail: { scope, ...item.payload } }));
+      if (item.kind === "event" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("qf-trip-server-ack", { detail: { ...item.payload, scope, id: item.id, occurredAt: body.at ?? (item.payload as Record<string, string>).occurredAt } }));
       await storage.remove(scope, item.id); sent++;
     } else if (retryable(response.status)) break;
     else { await storage.block({ ...item, status: "blocked", error: response.status || 401 }); break; }

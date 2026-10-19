@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { drain, transmit, type OutboxItem, type QueueStorage } from "../src/lib/outbox";
+import { discardDependants, drain, transmit, type OutboxItem, type QueueStorage } from "../src/lib/outbox";
 const item = (id: string, scope = "firm:user"): OutboxItem => ({ id, scope, actorId: "user", kind: "event", label: id, created: 1, payload: { tripId: "trip", kind: "loaded", occurredAt: "2026-10-14T10:00:00.000Z" }, status: "pending" });
 let jobs: OutboxItem[] = [];
 const storage: QueueStorage = { list: async scope => jobs.filter(x => x.scope === scope), remove: async (scope,id) => { jobs = jobs.filter(x => x.scope !== scope || x.id !== id); }, block: async item => { jobs = jobs.map(x => x.id === item.id ? item : x); } };
@@ -35,3 +35,10 @@ const fd = request!.body as FormData;
 assert.equal(fd.get("date"), "2026-10-13"); assert.equal(fd.get("key"), "receipt-key");
 assert.equal(await (fd.get("photo") as File).text(), "photo-data");
 console.log("PASS outbox: offline retention, FIFO, retryable responses, blocked conflicts, account scope, original timestamp, stable keys and receipt file");
+
+const blockedLoad={...item("load"),created:1,status:"blocked" as const};
+const nextUnload={...item("unload"),created:2,payload:{tripId:"trip",kind:"unloaded",occurredAt:"2026-10-14T10:10:00.000Z"}};
+const independent={...item("independent"),created:3,payload:{tripId:"another-trip",kind:"loaded",occurredAt:"2026-10-14T10:11:00.000Z"}};
+assert.deepEqual(discardDependants([blockedLoad,nextUnload,independent,item("foreign","other")],"firm:user","load").map(e=>[e.id,e.status]),[["unload","blocked"]]);
+assert.deepEqual(discardDependants([blockedLoad,nextUnload],"other","load"),[]);
+console.log("PASS explicit discard flags dependent events without affecting another trip or account");

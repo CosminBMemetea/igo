@@ -1222,3 +1222,50 @@ TollRo tranzacțional. Nu declarăm aceste probe ca trecute pe baza testelor moc
   baza de test, nu prin încărcarea unui document fictiv în producție.
 - Camera fizică, recuperarea Android după terminarea activității în selector,
   iPhone fizic și pilotul offline cu două telefoane rămân probe manuale.
+
+## 19 octombrie 2026 — stări false și documente, a doua rundă
+
+Corecții implementate:
+
+- Formularul web nu mai proiectează operațiile respinse și etapele dependente ca
+  efectuate. Controalele așteaptă citirea IndexedDB și se blochează la conflict.
+- Eliminarea explicită din coada web blochează etapele dependente într-o
+  tranzacție IndexedDB; confirmarea serverului continuă să elimine normal copia.
+- Confirmările serverului rămân proiectate după eliminarea din coadă până când
+  snapshotul nou le include; așteptarea nu este adunată de două ori. Mesajul se
+  schimbă din „în așteptarea sincronizării” în „Etapă confirmată de firmă”.
+- Actualizările de server refac starea formularului și fără o coadă locală.
+- Uploadurile foto raportează separat reușitele, eșecurile cu nume și fișierele
+  peste limita de 8. Răspunsurile duplicate nu dublează miniaturile. Bitmapurile
+  sunt eliberate după compresie; cererile au timeout de 45 secunde.
+- Confirmările native recitesc snapshotul și operațiile locale. O alertă veche
+  nu poate confirma o etapă după reasignare, anulare, livrare, tură nouă,
+  intrare în Privat sau schimbare de cont; serverul rămâne autoritatea finală.
+- Anularea selectorului foto nu mai deschide un draft vechi. Refotografierea
+  unei curse dispărute explică problema în loc să nu facă nimic.
+- Indicatorul nativ diferențiază operațiile de verificat, cele în așteptare și
+  sincronizarea completă; formularea pentru o singură operațiune este corectă.
+- Hoverul butonului „Intră ca șofer” păstrează contrastul pe desktop.
+
+Validare automatizată: **39/39 suite trecute**, inclusiv PostgreSQL și HTTP, pe
+`driver_experience_qa` local, separat de producție. Teste noi:
+`smoke-paperwork-state`, `smoke-native-confirmation`, `smoke-native-paperwork`.
+TypeScript web/nativ și exportul JS iOS au trecut. Lintul fișierelor web vizate:
+0 erori, 5 avertismente (sincronizare state/effect și imaginea documentului).
+
+Browser local la 390 px: cursa viitoare nu oferă etape; încărcare → așteptare →
+încheiere așteptare → descărcare, cu refresh/ACK real. După descărcare dispar
+„Continuă cursa” și controalele etapelor. Lățimea documentului rămâne 390 px.
+Probele folosesc exclusiv firma sintetică din `driver_visual_qa`.
+
+Restanțe cunoscute pentru pilot: deconectarea fără internet poate rămâne
+neconfirmată până la revocarea push/comenzilor de confidențialitate; necesită
+un flux separat de revocare durabilă, nu ignorarea erorilor. FCM Android nu este
+activat; APNs necesită configurarea Apple. Rămân testele fizice iPhone, camera
+reală, terminarea activității Android în selector, GPS pe traseu/baterie și
+acceptanța owner–driver pe două dispozitive. Nu există integrare de plată
+TollRo fără furnizor/API.
+
+Probă de conflict în browser: cursa sintetică mutată pe mâine după deschiderea
+formularului, apoi încărcare apăsată → server respinge, niciun stadiu fictiv
+finalizat, controale blocate și mesaj de verificare.
