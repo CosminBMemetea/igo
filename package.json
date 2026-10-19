@@ -49,7 +49,10 @@
     "notifications:keys": "node scripts/notification-keys.mjs",
     "notifications:check": "node scripts/check-notifications.mjs",
     "smoke:native-notifications": "tsx scripts/smoke-native-notifications.mts",
-    "smoke:driver-experience": "tsx scripts/smoke-driver-experience.mts"
+    "smoke:driver-experience": "tsx scripts/smoke-driver-experience.mts",
+    "smoke:native-work": "tsx scripts/smoke-native-work.mts",
+    "smoke:driver-start-ui": "tsx scripts/smoke-driver-start-ui.mts",
+    "smoke:native-work-storage": "tsx scripts/smoke-native-work-storage.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

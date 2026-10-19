@@ -1,4 +1,4 @@
-export type Trip = { id: string; truckId: string; title: string; date: string; client: string; cancelReason?: string | null; waitSince?: string | null };
+export type Trip = { id: string; truckId: string; title: string; date: string; client: string; cancelReason?: string | null; waitSince?: string | null; planned?: boolean; loadedAt?: string | null; deliveredAt?: string | null; cancelledAt?: string | null; podReceived?: boolean; localPending?: boolean };
 export type Board = {
   alerts?: { id: string; kind: string; label: string; type: string; expires: string }[];
   name: string; firm: string; truck: { id: string; plate: string } | null;
@@ -8,11 +8,12 @@ export type Board = {
   progress?: { completed: number; lifetime: number; rank: number | null; participants: number; badges: { count: number; label: string }[]; next: { count: number; label: string } | null };
   position?: { lat: number; lng: number; at: string; accuracy: number | null } | null;
   serverTime: string;
+  paperwork?: { id: string; tripId: string; kind: "cmr" | "pod"; name: string; createdAt: string }[];
 };
 export function tripFocus(board: Board | null) {
   const running = board?.trips.running ?? [], ready = board?.trips.ready ?? [], upcoming = board?.trips.upcoming ?? [];
-  const current = running.find(t => t.truckId === board?.truck?.id) ?? running[0];
-  const next = ready.find(t => t.truckId === board?.truck?.id) ?? ready[0] ?? upcoming[0];
+  const current = running.find(t => t.truckId === board?.truck?.id);
+  const next = ready.find(t => t.truckId === board?.truck?.id) ?? upcoming.find(t => t.truckId === board?.truck?.id);
   return { current, next, hasWork: [...running, ...ready].some(t => t.truckId === board?.truck?.id) };
 }
 export function invitationPhone(url: string): string | null {

@@ -1,4 +1,5 @@
 import { TollRoHandoff } from "@/components/TollRoHandoff";
+import { todayFor } from "@/lib/today";
 import { store } from "@/lib/store";
 import { driverTruck } from "@/lib/driver-access";
 import Link from "next/link";
@@ -29,7 +30,7 @@ export default async function DriverDocuments(props: { params: Promise<{ id: str
   return <main className="driver-main"><Link className="btn sec" href="/driver">{tri(loc, "Înapoi|Back|Wstecz")}</Link><DriverOutbox scope={scope} loc={loc} />
     <div className="driver-trip-context"><p className="eyebrow">{vehicle?.name}</p><p>{tri(loc, hint)}</p>{trip.cancelledAt && trip.cancelReason ? <p>{trip.cancelReason}</p> : null}</div>
     {!trip.cancelledAt ? <TollRoHandoff plate={vehicle?.name ?? "—"} route={trip.title} date={trip.date} loc={loc} /> : null}
-    <TripPaperwork key={trip.id} queueScope={scope} actorId={tn.uid} readOnly={!!trip.cancelledAt || (!trip.deliveredAt && !canOperate)} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date)}`} demo={false} onShift={!!shift && !shift.end && !shift.privateSince} serverNow={now} loc={loc}
+    <TripPaperwork canRecordEvents={canOperate && !trip.deliveredAt && (!!trip.loadedAt || trip.date <= todayFor(false))} key={trip.id} queueScope={scope} actorId={tn.uid} readOnly={!!trip.cancelledAt || (!trip.deliveredAt && !canOperate)} tripId={trip.id} title={`${trip.title} · ${fmtDate(loc, trip.date)}`} demo={false} onShift={!!shift && !shift.end && !shift.privateSince} serverNow={now} loc={loc}
       initial={{ loadedAt: pw.loadedAt, unloadedAt: pw.unloadedAt, waitMin: pw.waiting ? pw.waitMin - Math.round((now - Date.parse(pw.waitSince!)) / 60000) : pw.waitMin, waitSince: pw.waitSince, files: pw.files }}
       L={{ ...Object.fromEntries(PW.map(k => [k, t(loc, k)])), "pw.today": tri(loc, "Cursa și documentele|Trip and documents|Kurs i dokumenty") }} />
   </main>;

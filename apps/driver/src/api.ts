@@ -35,17 +35,17 @@ export async function sessionScope(): Promise<string> {
 }
 const requests = new Map<AbortController, boolean>();
 export function abortGPSRequests() { for (const [controller, gps] of requests) if (gps) controller.abort(); }
-export async function api<T>(path: string, body?: unknown, opts: { anonymous?: boolean; gps?: boolean; scope?: string } = {}): Promise<T> {
+export async function api<T>(path: string, body?: unknown, opts: { anonymous?: boolean; gps?: boolean; scope?: string; multipart?: boolean } = {}): Promise<T> {
   const origin = apiOrigin(), login = opts.anonymous ? null : await read<Login>("login");
   if (!opts.anonymous && (!login || login.origin !== origin || !login.uid || !login.firm || typeof login.token !== "string" || !login.token
     || !Number.isFinite(Date.parse(login.expiresAt)) || Date.parse(login.expiresAt) <= Date.now())) throw new ApiError(401);
   if (opts.scope && JSON.stringify([login?.origin, login?.firm, login?.uid]) !== opts.scope) throw new ApiError(409, "account-changed");
   const controller = new AbortController(); requests.set(controller, !!opts.gps);
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), opts.multipart ? 45000 : 12000);
   try {
     const response = await fetch(origin + path, { method: body === undefined ? "GET" : "POST", signal: controller.signal,
-      headers: { Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(login ? { Authorization: `Bearer ${login.token}` } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body) });
+      headers: { Accept: "application/json", ...(body === undefined || opts.multipart ? {} : { "Content-Type": "application/json" }), ...(login ? { Authorization: `Bearer ${login.token}` } : {}) },
+      body: body === undefined ? undefined : opts.multipart ? body as FormData : JSON.stringify(body) });
     const json = response.headers.get("content-type")?.includes("application/json");
     if (!response.ok || response.redirected || (response.status !== 204 && !json)) {
       const error = json ? await response.json().catch(() => null) : null;

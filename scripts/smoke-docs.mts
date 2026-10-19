@@ -71,7 +71,7 @@ else {
   await s.markRead(A.id, drv.id);
   ok("marcare ca citit doar pentru șofer", (await s.notifications(A.id, drv.id)).every((n) => n.readAt) && (await s.notifications(A.id, null)).every((n) => !n.readAt));
   // fișiere + izolare
-  const trip = await s.addTrip(A.id, { truckId: tA.id, client: "X", title: "Oradea → Cluj", date: T, km: 150, revenue: 2000, litres: 45, fuelPrice: 7, tolls: 0, driverCost: 300, other: 0 });
+  const trip = await s.addTrip(A.id, { truckId: tA.id, driverId: drv.id, client: "X", title: "Oradea → Cluj", date: T, km: 150, revenue: 2000, litres: 45, fuelPrice: 7, tolls: 0, driverCost: 300, other: 0 });
   const big = Buffer.alloc(MAX_FILE_BYTES + 1, 1);
   let capErr = ""; try { await saveFile(s, A.id, { kind: "cmr", tripId: trip.id, name: "x.jpg", mime: "image/jpeg", bytes: big, userId: drv.id }); } catch (e) { capErr = (e as Error).message; }
   ok("upload > 2 MB respins de server", capErr === "size");

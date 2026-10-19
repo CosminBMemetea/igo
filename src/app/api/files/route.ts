@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ id: m.id, size: m.size });
   } catch (e) {
     const code = operationCode(e);
-    if (code) return NextResponse.json({ error: code }, { status: code === "size" ? 413 : code === "type" || code === "empty" ? 415 : code === "trip-closed" ? 409 : 404 });
+    if (code) return NextResponse.json({ error: code }, { status: code === "size" ? 413 : code === "type" || code === "empty" ? 415 : (code === "trip-closed" || code === "assignment") ? 409 : 404 });
     return NextResponse.json({ error: "upload-unavailable", reference: reportOperationFailure("trip-upload", e) }, { status: 503 });
   }
 }

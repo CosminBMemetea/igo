@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { outboxItems, type OutboxItem } from "@/lib/outbox";
 import { applyDriverTripUpdate, DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
 import { useEffect, useState } from "react";
 import { tri, fmtDate, type Locale } from "@/lib/i18n";
@@ -17,7 +18,15 @@ const labels: Record<DriverTripStage, string> = {
   finished: "Încheiată|Completed|Zakończony",
   cancelled: "Anulată|Cancelled|Anulowany",
 };
-export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false, demo = false }: { trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean; demo?: boolean }) {
+export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false, demo = false, queueScope }: { queueScope?: string; trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean; demo?: boolean }) {
+  const [queued, setQueued] = useState<OutboxItem[]>([]);
+  useEffect(() => {
+    if (!queueScope || demo) return;
+    let alive = true;
+    const read = () => { void outboxItems(queueScope).then(items => { if (alive) setQueued(items); }).catch(() => {}); };
+    read(); window.addEventListener("igo-outbox", read);
+    return () => { alive = false; window.removeEventListener("igo-outbox", read); };
+  }, [queueScope, demo]);
   const [updates, setUpdates] = useState<DriverTripUpdate[]>([]);
   useEffect(() => {
     if (!demo) return;
@@ -25,14 +34,27 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
     window.addEventListener(DRIVER_TRIP_UPDATE, update);
     return () => window.removeEventListener(DRIVER_TRIP_UPDATE, update);
   }, [demo]);
-  const visibleTrips = demo ? trips.map(trip => updates.reduce(applyDriverTripUpdate, trip)) : trips;
+  useEffect(() => {
+    if (!queueScope || demo) return;
+    const acknowledge = (event: Event) => {
+      const detail = (event as CustomEvent<{ scope: string; tripId: string; kind: string; occurredAt: string }>).detail;
+      if (detail?.scope === queueScope && (detail.kind === "loaded" || detail.kind === "unloaded")) {
+        const update: DriverTripUpdate = { tripId: detail.tripId, kind: detail.kind, at: detail.occurredAt };
+        setUpdates(old => [...old.filter(x => x.tripId !== update.tripId || x.kind !== update.kind), update]);
+      }
+    };
+    window.addEventListener("qf-trip-server-ack", acknowledge);
+    return () => window.removeEventListener("qf-trip-server-ack", acknowledge);
+  }, [queueScope, demo]);
+  const pendingIds = new Set(queued.filter(x => x.kind === "event").map(x => (x.payload as Record<string, string>).tripId));
+  const visibleTrips = trips.map(trip => (demo ? updates : [...updates, ...queued.filter(x => x.status === "pending" && x.kind === "event" && !queued.some(b => b.status === "blocked" && (b.payload as Record<string, string>).tripId === (x.payload as Record<string, string>).tripId)).map(x => ({ tripId: (x.payload as Record<string, string>).tripId, kind: (x.payload as Record<string, string>).kind, at: (x.payload as Record<string, string>).occurredAt })).filter(x => x.kind === "loaded" || x.kind === "unloaded")] as DriverTripUpdate[]).reduce(applyDriverTripUpdate, trip));
   const selected = visibleTrips.find(x => x.id === selectedId);
   const selectedStage = selected ? driverTripStage(selected, today) : null;
   const selectedView = selectedStage === "upcoming" ? "next" : selectedStage === "documents" || selectedStage === "finished" || selectedStage === "cancelled" ? "history" : "now";
   const [view, setView] = useState<"now" | "next" | "history">(selectedView);
   useEffect(() => { setView(selectedView); }, [selectedId, selectedView]);
-  const groups = groupDriverTrips(visibleTrips, today), current = groups.running.find(x => x.truckId === truckId) ?? groups.running[0];
-  const next = groups.ready[0] ?? groups.upcoming[0];
+  const groups = groupDriverTrips(visibleTrips, today), current = groups.running.find(x => x.truckId === truckId);
+  const next = groups.ready.find(x => x.truckId === truckId) ?? groups.upcoming.find(x => x.truckId === truckId);
   const href = (x: DriverTripSummary) => embedded ? `/driver?v=${encodeURIComponent(truckId ?? "")}&trip=${encodeURIComponent(x.id)}#trip-paperwork` : `/driver/trips/${encodeURIComponent(x.id)}`;
   const tr = (s: string) => tri(loc, s);
   const counts = { now: groups.running.length + groups.ready.length, next: groups.upcoming.length, history: groups.documents.length + groups.finished.length };
@@ -40,6 +62,7 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
     const stage = driverTripStage(x, today);
     return <Link key={x.id} className={`driver-trip-card stage-${stage}${x.id === selectedId ? " selected" : ""}`} href={href(x)} aria-current={x.id === selectedId ? "true" : undefined}>
       <div className="driver-trip-meta"><span>{fmtDate(loc, x.date, true)}</span><span className={`badge ${stage === "documents" ? "warn" : stage === "running" ? "ok" : ""}`}>{tr(stage === "finished" && x.deliveredAt && x.podReceived ? "Livrată · POD trimis|Delivered · POD sent|Dostarczony · POD wysłany" : labels[stage])}</span></div>
+      {pendingIds.has(x.id) && <span className="driver-trip-warning">{tr("Operațiuni locale · așteaptă confirmarea firmei|Local actions · awaiting company confirmation|Operacje lokalne · oczekują na potwierdzenie")}</span>}
       <TripRoute title={x.title} loc={loc} /><span className="driver-trip-assignment">{[trucks.find(v => v.id === x.truckId)?.name, x.client].filter(value => value && value !== "—").join(" · ")}</span>
       {stage === "ready" && x.date < today ? <span className="driver-trip-warning">{tr("Data planificată a trecut · verifică cu patronul|Scheduled date passed · check with the owner|Termin minął · sprawdź z właścicielem")}</span> : null}
       {!x.cancelledAt && !x.deliveredAt && x.planned && x.truckId !== truckId ? <span className="driver-trip-warning">{tr("Camion diferit de cel alocat · contactează patronul|Different truck assigned · contact the owner|Inny przypisany pojazd · skontaktuj się z właścicielem")}</span> : null}
@@ -52,7 +75,7 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
     <h2 className="h2" id="my-trips-title">{tr("Cursele mele|My trips|Moje kursy")}</h2>
     <div className={`driver-current${current ? " active" : ""}`}>
       <p className="eyebrow">{tr(current ? "Cursa în desfășurare|Current trip|Bieżący kurs" : "Nicio cursă în desfășurare|No trip in progress|Brak kursu w trakcie")}</p>
-      {current ? <><TripRoute title={current.title} loc={loc} /><p>{tr("Marfă încărcată · așteaptă descărcarea|Cargo loaded · awaiting unloading|Ładunek załadowany · oczekuje na rozładunek")}</p><div className="driver-trip-meta">{fmtDate(loc, current.date, true)} · {trucks.find(v => v.id === current.truckId)?.name}</div><Link className="btn pri" href={href(current)}>{tr("Continuă cursa|Continue trip|Kontynuuj kurs")}</Link></> : <><p>{next ? `${tr("Următoarea cursă|Next trip|Następny kurs")}: ${next.title} · ${fmtDate(loc, next.date, true)}` : tr("Patronul nu ți-a atribuit alte curse.|The owner has not assigned any more trips.|Właściciel nie przypisał kolejnych kursów.")}</p>{next ? <Link className="btn sec" href={href(next)}>{tr("Vezi următoarea cursă|View next trip|Zobacz następny kurs")}</Link> : null}</>}
+      {current ? <><TripRoute title={current.title} loc={loc} /><p>{tr("Marfă încărcată · așteaptă descărcarea|Cargo loaded · awaiting unloading|Ładunek załadowany · oczekuje na rozładunek")}</p><div className="driver-trip-meta">{fmtDate(loc, current.date, true)} · {trucks.find(v => v.id === current.truckId)?.name}</div><Link className="btn pri" href={href(current)}>{tr(pendingIds.has(current.id) ? "Verifică sincronizarea cursei|Check trip sync|Sprawdź synchronizację kursu" : "Continuă cursa|Continue trip|Kontynuuj kurs")}</Link></> : <><p>{next ? `${tr("Următoarea cursă|Next trip|Następny kurs")}: ${next.title} · ${fmtDate(loc, next.date, true)}` : tr("Patronul nu ți-a atribuit alte curse.|The owner has not assigned any more trips.|Właściciel nie przypisał kolejnych kursów.")}</p>{next ? <Link className="btn sec" href={href(next)}>{tr("Vezi următoarea cursă|View next trip|Zobacz następny kurs")}</Link> : null}</>}
       {groups.running.length > 1 ? <p className="driver-trip-warning">{tr("Ai mai multe curse marcate încărcate. Verifică situația cu patronul.|Multiple trips are marked loaded. Check with the owner.|Kilka kursów oznaczono jako załadowane. Sprawdź z właścicielem.")}</p> : null}
     </div>
     {groups.documents.length ? <button className="driver-pod-reminder" onClick={() => setView("history")}>{groups.documents.length}{" "}{tr(groups.documents.length === 1 ? "livrare fără POD · vezi documentele →|delivery missing POD · view documents →|dostawa bez POD · zobacz dokumenty →" : "livrări fără POD · vezi documentele →|deliveries missing POD · view documents →|dostaw bez POD · zobacz dokumenty →")}</button> : null}

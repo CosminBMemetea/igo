@@ -260,3 +260,38 @@ la 19 octombrie 2026, 18:20 UTC, a fost instalat cu succes peste versiunea exist
 pe Xiaomi M2003J15SC / Android 12. Sesiunea și permisiunile acordate au fost
 păstrate; ecranele Curse, Acte & taxe, Progres și Poziție au fost inspectate.
 Această verificare nu certifică traseul GPS cu ecranul blocat sau notificări FCM.
+
+## 19 octombrie 2026 — lucru nativ și sincronizare persistentă
+
+- Navigație fixă **Azi / Curse / Acte / Cont**. Azi arată numai cursa curentă sau
+  următoarea cursă eligibilă pe camionul alocat. Curse păstrează Acum/Urmează/Istoric.
+- CMR/POD: cameră sau selectorul sistemului → JPEG cu latura maximă 2200 px și
+  maximum 2 MB → previzualizare → trimitere explicită. Fiecare pagină se adaugă
+  separat. Permisiunea pentru cameră se cere numai la utilizare; microfonul și
+  accesul larg la stocarea Android rămân blocate. Nu se solicită acces la întreaga
+  galerie pentru selectorul sistemului.
+- Fotografiile de verificat și operațiile netrimise sunt păstrate în directorul
+  privat al aplicației, separat de cache. Jurnalul păstrează două generații pentru
+  recuperare după o scriere întreruptă. Datele sunt delimitate prin backend,
+  firmă și utilizator. Dezinstalarea/ștergerea datelor aplicației pierde fișierele
+  locale; deconectarea le păstrează pentru același cont.
+- Încărcare, descărcare și început/sfârșit așteptare folosesc ID-uri persistente și
+  ora acțiunii. Progresul local este marcat explicit; nu acordă POD sau distincții
+  până la confirmarea serverului. Un conflict blochează operațiile dependente ale
+  aceleiași curse, fără a bloca alte curse. Retry păstrează ID-ul și ora originale.
+- Retry se execută în prim-plan și la revenirea în aplicație, cu temporizare până
+  la 5 minute pentru erori temporare. **Nu este un serviciu OS de upload în fundal**.
+  O sesiune expirată cere reautentificare, fără pierderea cozii locale. Cache-ul
+  mai vechi de 24 de ore nu permite înregistrarea de etape noi.
+- API mobil: POST `/api/files` folosește autentificarea existentă, validarea
+  conținutului, limita de 2 MB, deduplicarea și actualizarea atomică POD. Noul
+  jurnal mobil din `/api/driver/mobile` expune numai metadatele documentelor
+  curselor șoferului, fără URL-uri Blob sau date financiare.
+- Migrarea `0021_mobile_paperwork_guard.sql` reverifică alocarea la salvarea
+  documentului, sub blocarea rândului cursei. Comenzile de etapă native includ
+  camionul și identitatea turei; nu se aplică automat unei ture ulterioare.
+
+Restanța CMR/POD/așteptare exclusiv în web din secțiunea anterioară este înlocuită
+prin acest flux. FCM, integrarea tranzacțională TollRo și pilotul GPS pe traseu
+rămân separate. Implementarea este comună Android/iOS; validarea pe iPhone fizic
+rămâne necesară.

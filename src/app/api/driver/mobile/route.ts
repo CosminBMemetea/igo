@@ -16,6 +16,9 @@ export async function GET() {
   const today = localNow().slice(0, 10);
   const [allTrips, users, docs] = await Promise.all([s.trips(tn.firm.id), s.users(tn.firm.id), s.docs(tn.firm.id)]);
   const trips = allTrips.filter(t => t.driverId === tn.uid).map(driverTripSummary);
+  const ownIds = new Set(trips.map(t => t.id));
+  const paperwork = (await s.files(tn.firm.id, {})).filter(f => f.tripId && ownIds.has(f.tripId) && (f.kind === "cmr" || f.kind === "pod"))
+    .map(f => ({ id: f.id, tripId: f.tripId, kind: f.kind, name: f.name, createdAt: f.createdAt }));
   // Only the current shift's recent truck positions, never a prior driver's history.
   const positions = truck && shift && !shift.end && !shift.privateSince
     ? await s.positions(tn.firm.id, [shift.start, new Date(Date.now() - 3600000).toISOString()].sort().at(-1)!, truck.id) : [];
@@ -27,6 +30,6 @@ export async function GET() {
     progress: driverProgress(users, allTrips, tn.uid, today),
     position: last ? { lat: last.lat, lng: last.lng, at: last.capturedAt ?? last.at, accuracy: last.accuracy ?? null } : null,
     alerts: (await notificationsFor(tn)).map(n => ({ id: n.id, kind: n.kind, label: n.params.label, type: n.params.type, expires: n.params.expires })),
-    shift, trips: groupDriverTrips(trips, today), serverTime: new Date().toISOString() },
+    shift, paperwork, trips: groupDriverTrips(trips, today), serverTime: new Date().toISOString() },
     { headers: { "Cache-Control": "private, no-store" } });
 }

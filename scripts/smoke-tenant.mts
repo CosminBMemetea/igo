@@ -154,7 +154,8 @@ try {
   const transcribed = await fetch(BASE + "/api/trips/transcribe", { method: "POST", headers: { cookie: [...A.jar].map(([k,v]) => `${k}=${v}`).join("; ") }, body: audio });
   ok("audio → text prin furnizor simulat", transcribed.status === 200 && (await transcribed.json()).text.includes("Oradea"));
   ok("șoferul nu poate folosi transcrierea patronului", (await D.json("/api/trips/transcribe", {})).status === 403);
-  const payload = { from: "Oradea", to: "Arad", date: "2026-12-01", truckId: tA[0].id, driverId: drv[0].id, km: "120", revenue: "2000" };
+  const localDate = (at: Date) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Bucharest" }).format(at);
+  const payload = { from: "Oradea", to: "Arad", date: localDate(new Date(Date.now() + 86_400_000)), truckId: tA[0].id, driverId: drv[0].id, km: "120", revenue: "2000" };
   ok("numere invalide respinse", (await A.json("/api/trips/new", { ...payload, revenue: "abc" })).status === 400);
   const retryBody = { ...payload, key: "http-new-trip-001" };
   const retries = await Promise.all([A.json("/api/trips/new", retryBody), A.json("/api/trips/new", retryBody)]);
@@ -168,6 +169,8 @@ try {
   ok("filtrare curse planificate", filtered.text.includes("Oradea → Timișoara"));
   const eventBody = { tripId: created.body.id, kind: "loaded", key: "http-load-001", actorId: drv[0].id, occurredAt: new Date(Date.now() - 3600000).toISOString() };
   ok("cont schimbat respins la sincronizare", (await D.json("/api/trips/event", { ...eventBody, actorId: "another-user" })).status === 403);
+  ok("cursa viitoare nu poate fi pornită", (await D.json("/api/trips/event", eventBody)).status === 409);
+  ok("patronul reprogramează explicit cursa pentru azi", (await A.json("/api/trips/new", { ...payload, id: created.body.id, date: localDate(new Date()), to: "Timișoara" })).status === 200);
   ok("descărcare înainte de încărcare respinsă", (await D.json("/api/trips/event", { ...eventBody, kind: "unloaded" })).status === 409);
   ok("încărcare confirmată", (await D.json("/api/trips/event", eventBody)).body.ok === true);
   const feedTime = (await db.query("select at from driver_events where user_id=$1 and kind='loaded' order by at desc limit 1", [drv[0].id])).rows[0].at;

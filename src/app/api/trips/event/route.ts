@@ -3,12 +3,13 @@ import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { tenant } from "@/lib/tenant";
 import type { TripEventKind } from "@/lib/store/types";
+import { localNow } from "@/lib/validate";
 import { realToday, roIso } from "@/lib/demo-time";
 export const dynamic = "force-dynamic";
 const KINDS: TripEventKind[] = ["loaded", "unloaded", "wait_start", "wait_end"];
 /** Am încărcat / Am descărcat / Aștept la client (start/stop), cu ora și (opțional, cu acord, doar în tură) poziția. */
 export async function POST(req: Request) {
-  const b = (await req.json().catch(() => null)) as { tripId?: unknown; kind?: unknown; lat?: unknown; lng?: unknown; key?: unknown; actorId?: unknown; occurredAt?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { tripId?: unknown; kind?: unknown; lat?: unknown; lng?: unknown; key?: unknown; actorId?: unknown; occurredAt?: unknown; expectedTruckId?: unknown; expectedShiftStart?: unknown } | null;
   if (!b || typeof b.tripId !== "string" || !KINDS.includes(b.kind as TripEventKind)) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const ms = typeof b.occurredAt === "string" ? Date.parse(b.occurredAt) : Date.now();
   const tn = await tenant();
@@ -26,12 +27,22 @@ export async function POST(req: Request) {
   if (!(await driverTrip(store(), tn, b.tripId))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const ownTrip = (await store().trips(tn.firm.id)).find((t) => t.id === b.tripId)!;
   if (tn.role === "driver" && !(await driverTruck(store(), tn, ownTrip.truckId))) return NextResponse.json({ error: "assignment" }, { status: 403 });
+  if (!ownTrip.loadedAt && ownTrip.date > localNow().slice(0, 10)) return NextResponse.json({ error: "transition" }, { status: 409 });
   const shift = await tn.repo.shift(ownTrip.truckId);
+  if (tn.role === "driver" && (b.expectedTruckId !== undefined || b.expectedShiftStart !== undefined)) {
+    // A response can be lost after commit. Acknowledge that same event even when
+    // the driver has since ended the shift; never apply it to a later shift.
+    const duplicate = (await store().tripEvents(tn.firm.id, b.tripId)).find(e => e.requestKey === b.key && e.kind === b.kind && e.userId === tn.uid);
+    if (duplicate) return NextResponse.json({ ok: true, at: duplicate.at, duplicate: true });
+    if (b.expectedTruckId !== ownTrip.truckId || !shift || b.expectedShiftStart !== shift.start || ms < Date.parse(shift.start)
+      || shift.end && ms > Date.parse(shift.end) || shift.privateSince && ms >= Date.parse(shift.privateSince))
+      return NextResponse.json({ error: "stale-shift" }, { status: 409 });
+  }
   const geo = Date.now() - ms < 120000 && !!shift && !shift.end && !shift.privateSince && typeof b.lat === "number" && typeof b.lng === "number" && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180;
   const key = typeof b.key === "string" ? b.key : "";
   if (!/^[\w-]{8,100}$/.test(key)) return NextResponse.json({ error: "key" }, { status: 400 });
   try {
-    const result = await store().recordTripEvent(tn.firm.id, { requestKey: key, tripId: b.tripId, kind: b.kind as TripEventKind, at, lat: geo ? b.lat as number : null, lng: geo ? b.lng as number : null, userId: tn.uid });
+    const result = await store().recordTripEvent(tn.firm.id, { requestKey: key, tripId: b.tripId, kind: b.kind as TripEventKind, at, lat: geo ? b.lat as number : null, lng: geo ? b.lng as number : null, userId: tn.uid, ...(tn.role === "driver" && typeof b.expectedShiftStart === "string" && typeof b.expectedTruckId === "string" ? { expectedShiftStart: b.expectedShiftStart, expectedTruckId: b.expectedTruckId } : {}) });
     return NextResponse.json({ ok: true, at: result.event.at, duplicate: result.duplicate });
   } catch (error) {
     if ((error as Error).message === "transition") return NextResponse.json({ error: "transition" }, { status: 409 });

@@ -73,7 +73,7 @@ export interface Store {
   createDriverInvite(firmId: string, name: string, phone: string, locale: string): Promise<InviteRow>;
   cancelTrip(firmId: string, id: string, reason: string): Promise<boolean>;
   completeTrip(firmId: string, id: string): Promise<boolean>;
-  recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string }): Promise<{ event: TripEventRow; duplicate: boolean }>;
+  recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string; expectedShiftStart?: string; expectedTruckId?: string }): Promise<{ event: TripEventRow; duplicate: boolean }>;
   editPlannedTrip(firmId: string, id: string, patch: Omit<TripRow, "id" | "firmId">): Promise<boolean>;
   updateTrip(firmId: string, id: string, patch: { revenue?: number; tonnes?: number | null; planned?: boolean }): Promise<boolean>;
   useInvite(firmId: string, id: string, userId: string): Promise<boolean>;

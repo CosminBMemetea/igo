@@ -1,26 +1,31 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { tripFocus, type Board, type Trip } from "./board";
-type Props = { board: Board; busy: boolean; onEvent: (trip: Trip, kind: "loaded" | "unloaded") => void; onOpen: (url: string) => void };
+import type { EventKind } from "./work-queue";
+type Props = { board: Board; busy: boolean; onEvent: (trip: Trip, kind: EventKind) => void; onOpen: (url: string) => void; onDocument: (trip: Trip, kind: "cmr" | "pod") => void; blockedTrips: string[]; compact?: boolean; onShowTrips?: () => void };
 const titles: Record<string, string> = { running: "În desfășurare", ready: "De încărcat", upcoming: "Planificată", documents: "Livrată · lipsește POD", finished: "Încheiată", cancelled: "Anulată" };
 const types: Record<string, string> = { rca: "RCA", itp: "ITP", vignette: "Rovinietă", tollro: "TollRo", classification: "Datele din talon", casco: "CASCO", tacho: "Tahograf", copy: "Copie conformă", service: "Revizie" };
 const states: Record<string, string> = { valid: "În termen · declarat", soon: "Expiră curând", urgent: "Expiră în ≤ 7 zile", expired: "Expirat", missing: "Lipsește din evidență", unknown: "De verificat", future: "Nu a început încă" };
 const date = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("ro-RO");
-export function TripOverview({ board, busy, onEvent }: Props) {
+export function TripOverview({ board, busy, onEvent, onDocument, blockedTrips, compact, onShowTrips }: Props) {
   const [tab, setTab] = useState("now");
   const { current, next } = tripFocus(board);
   const groups = board.trips;
-  const keys = tab === "now" ? ["running", "ready"] : tab === "next" ? ["upcoming"] : ["documents", "finished", "cancelled"];
+  const keys = compact ? (current ? ["running"] : next ? [groups.ready?.some(t => t.id === next.id) ? "ready" : "upcoming"] : []) : tab === "now" ? ["running", "ready"] : tab === "next" ? ["upcoming"] : ["documents", "finished", "cancelled"];
   const canWork = !!board.shift && !board.shift.end && !board.shift.privateSince;
   const card = (trip: Trip, stage: string) => <View key={trip.id} style={s.row}>
     <Text style={s.accent}>{titles[stage]}</Text><Text style={s.heading}>{trip.title}</Text><Text style={s.muted}>{date(trip.date)}{trip.client ? ` · ${trip.client}` : ""}</Text>
+    {trip.localPending && <Text style={s.warn}>Etapă salvată pe telefon · așteaptă confirmarea firmei</Text>}
+    {blockedTrips.includes(trip.id) && <Text style={s.warn}>O operațiune necesită verificare în Acte → Sincronizare.</Text>}
     {trip.truckId !== board.truck?.id && ["running", "ready", "upcoming"].includes(stage) && <Text style={s.warn}>Alt camion decât cel alocat. Verifică împreună cu patronul.</Text>}
     {trip.truckId === board.truck?.id && ["running", "ready"].includes(stage) && <>
-      <Pressable accessibilityRole="button" disabled={busy || !canWork || !!trip.waitSince} onPress={() => onEvent(trip, stage === "running" ? "unloaded" : "loaded")} style={[s.action, (busy || !canWork || !!trip.waitSince) && s.disabled]}><Text style={s.actionText}>{stage === "running" ? "Confirmă descărcarea" : "Confirmă încărcarea"}</Text></Pressable>
+      {canWork && <Pressable accessibilityRole="button" disabled={busy || blockedTrips.includes(trip.id) || !canWork || !!trip.waitSince} onPress={() => onEvent(trip, stage === "running" ? "unloaded" : "loaded")} style={[s.action, (busy || blockedTrips.includes(trip.id) || !canWork || !!trip.waitSince) && s.disabled]}><Text style={s.actionText}>{stage === "running" ? "Confirmă descărcarea" : "Confirmă încărcarea"}</Text></Pressable>}
       {!canWork && <Text style={s.muted}>Începe tura de lucru și ieși din modul Privat pentru a confirma etapa cursei.</Text>}
-      {!!trip.waitSince && <Text style={s.warn}>Oprește așteptarea din interfața web înainte de a confirma etapa.</Text>}
+      {canWork && <Pressable accessibilityRole="button" disabled={busy || !canWork || blockedTrips.includes(trip.id)} style={[s.secondary, (busy || !canWork || blockedTrips.includes(trip.id)) && s.disabled]} onPress={() => onEvent(trip, trip.waitSince ? "wait_end" : "wait_start")}><Text style={s.text}>{trip.waitSince ? "Încheie așteptarea" : "Aștept la client"}</Text></Pressable>}
+      {!!trip.waitSince && <Text style={s.warn}>Așteptare din {new Date(trip.waitSince).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}. Încheie așteptarea înainte de următoarea etapă.</Text>}
     </>}
-    {stage === "documents" && <Text style={s.warn}>Livrarea este înregistrată. Trimite dovada livrării (POD) din interfața web pentru încheiere.</Text>}
+    {stage === "documents" && <Text style={s.warn}>Adaugă fotografia dovezii de livrare. Cursa se încheie după confirmarea POD-ului de către server.</Text>}
+    {stage !== "cancelled" && <View style={s.tabs}>{(["cmr", "pod"] as const).filter(kind => kind === "cmr" || ["documents", "finished"].includes(stage)).map(kind => <Pressable key={kind} accessibilityRole="button" disabled={busy} style={[s.secondary, busy && s.disabled]} onPress={() => onDocument(trip, kind)}><Text style={s.text}>＋ {kind.toUpperCase()}</Text></Pressable>)}</View>}
     {stage === "cancelled" && !!trip.cancelReason && <Text style={s.muted}>{trip.cancelReason}</Text>}
   </View>;
   return <View style={s.card}>
@@ -28,19 +33,20 @@ export function TripOverview({ board, busy, onEvent }: Props) {
     <Text style={s.heading}>{current ? "Ai o cursă în desfășurare" : "Nicio cursă în desfășurare"}</Text>
     {!current && <Text style={s.muted}>{next ? `Următoarea: ${next.title} · ${date(next.date)}` : "Patronul nu ți-a atribuit alte curse. Lista se actualizează automat."}</Text>}
     {(groups.running?.length ?? 0) > 1 && <Text style={s.warn}>Mai multe curse sunt marcate încărcate. Verifică situația cu patronul.</Text>}
-    <View style={s.tabs}>{[["now", "Acum", (groups.running?.length ?? 0) + (groups.ready?.length ?? 0)], ["next", "Urmează", groups.upcoming?.length ?? 0], ["past", "Istoric", (groups.documents?.length ?? 0) + (groups.finished?.length ?? 0) + (groups.cancelled?.length ?? 0)]].map(([key, label, count]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: tab === key }} style={[s.tab, tab === key && s.selected]} onPress={() => setTab(String(key))}><Text style={s.text}>{label} · {count}</Text></Pressable>)}</View>
-    {keys.flatMap(key => (groups[key] ?? []).map(trip => card(trip, key)))}
+    {!compact && <View style={s.tabs}>{[["now", "Acum", (groups.running?.length ?? 0) + (groups.ready?.length ?? 0)], ["next", "Urmează", groups.upcoming?.length ?? 0], ["past", "Istoric", (groups.documents?.length ?? 0) + (groups.finished?.length ?? 0) + (groups.cancelled?.length ?? 0)]].map(([key, label, count]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: tab === key }} style={[s.tab, tab === key && s.selected]} onPress={() => setTab(String(key))}><Text style={s.text}>{label} · {count}</Text></Pressable>)}</View>}
+    {keys.flatMap(key => (groups[key] ?? []).filter(trip => !compact || trip.id === (current ?? next)?.id).map(trip => card(trip, key)))}
+    {compact && <Pressable accessibilityRole="button" style={s.secondary} onPress={onShowTrips}><Text style={s.text}>Toate cursele · {(groups.documents?.length ?? 0) > 0 ? `${groups.documents.length} livrări fără POD` : "program și istoric"} →</Text></Pressable>}
     {!keys.some(key => groups[key]?.length) && <Text style={s.muted}>{tab === "now" ? "Nu ai curse de făcut acum." : tab === "next" ? "Nu ai curse viitoare." : "Nu ai încă un istoric de curse."}</Text>}
   </View>;
 }
-export function DriverDetails({ board, onOpen }: Props) {
-  const [tab, setTab] = useState("road"), road = board.road, p = board.progress, point = board.position;
+export function DriverDetails({ board, onOpen, section }: Pick<Props, "board" | "onOpen"> & { section?: "road" | "account" }) {
+  const [tab, setTab] = useState(section === "account" ? "progress" : "road"), road = board.road, p = board.progress, point = board.position;
   const [now, setNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(timer); }, []);
   const age = point ? now - Date.parse(point.at) : Infinity;
   const fresh = age >= -5000 && age <= 90000;
   return <View style={s.card}>
-    <View style={s.tabs}>{[["road", "Acte & taxe"], ["progress", "Progres"], ["map", "Poziție"]].map(([key, label]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: tab === key }} style={[s.tab, tab === key && s.selected]} onPress={() => setTab(key)}><Text style={s.text}>{label}</Text></Pressable>)}</View>
+    {section !== "road" && <View style={s.tabs}>{[["road", "Acte & taxe"], ["progress", "Progres"], ["map", "Poziție"]].filter(([key]) => section !== "account" || key !== "road").map(([key, label]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: tab === key }} style={[s.tab, tab === key && s.selected]} onPress={() => setTab(key)}><Text style={s.text}>{label}</Text></Pressable>)}</View>}
     {tab === "road" && <>
       <Text style={s.heading}>{road?.regime === "tollro" ? "TollRo · România" : road?.regime === "vignette" ? "Rovinietă · România" : "Taxe de drum · de verificat"}</Text>
       {!road ? <Text style={s.muted}>Datele apar după atribuirea unui camion.</Text> : <>
@@ -67,4 +73,4 @@ export function DriverDetails({ board, onOpen }: Props) {
     </>}
   </View>;
 }
-const s = StyleSheet.create({ card: { backgroundColor: "#142137", padding: 18, borderRadius: 22, gap: 12, borderWidth: 1, borderColor: "#253853" }, heading: { color: "#f5f7fc", fontSize: 20, fontWeight: "700" }, text: { color: "#eef4ff", fontSize: 15, lineHeight: 22 }, muted: { color: "#aabbd1", fontSize: 14, lineHeight: 21 }, accent: { color: "#80e2c2", fontSize: 14, fontWeight: "600" }, warn: { color: "#f6cb86", fontSize: 14, lineHeight: 21 }, eyebrow: { color: "#80e2c2", fontSize: 12, fontWeight: "700", letterSpacing: 1.5 }, row: { paddingTop: 14, borderTopWidth: 1, borderColor: "#30445e", gap: 8 }, tabs: { flexDirection: "row", flexWrap: "wrap", gap: 6 }, tab: { paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, backgroundColor: "#0a1220", minHeight: 48, justifyContent: "center" }, selected: { backgroundColor: "#31514c" }, action: { backgroundColor: "#80e2c2", borderRadius: 14, padding: 14, minHeight: 52, justifyContent: "center", alignItems: "center" }, actionText: { color: "#09241c", fontSize: 16, fontWeight: "700", textAlign: "center" }, disabled: { opacity: .45 }, number: { color: "#80e2c2", fontSize: 42, fontWeight: "700" } });
+const s = StyleSheet.create({ card: { backgroundColor: "#142137", padding: 18, borderRadius: 22, gap: 12, borderWidth: 1, borderColor: "#253853" }, heading: { color: "#f5f7fc", fontSize: 20, fontWeight: "700" }, text: { color: "#eef4ff", fontSize: 15, lineHeight: 22 }, muted: { color: "#aabbd1", fontSize: 14, lineHeight: 21 }, accent: { color: "#80e2c2", fontSize: 14, fontWeight: "600" }, warn: { color: "#f6cb86", fontSize: 14, lineHeight: 21 }, eyebrow: { color: "#80e2c2", fontSize: 12, fontWeight: "700", letterSpacing: 1.5 }, row: { paddingTop: 14, borderTopWidth: 1, borderColor: "#30445e", gap: 8 }, secondary: { backgroundColor: "#22364e", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, minHeight: 48, justifyContent: "center" }, tabs: { flexDirection: "row", flexWrap: "wrap", gap: 6 }, tab: { paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12, backgroundColor: "#0a1220", minHeight: 48, justifyContent: "center" }, selected: { backgroundColor: "#31514c" }, action: { backgroundColor: "#80e2c2", borderRadius: 14, padding: 14, minHeight: 52, justifyContent: "center", alignItems: "center" }, actionText: { color: "#09241c", fontSize: 16, fontWeight: "700", textAlign: "center" }, disabled: { opacity: .45 }, number: { color: "#80e2c2", fontSize: 42, fontWeight: "700" } });

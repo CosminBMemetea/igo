@@ -53,6 +53,7 @@ export async function drain(scope: string, storage: QueueStorage, send: (item: O
     if (response.ok) {
       const body = await response.json().catch(() => null);
       if (!body || !body.ok || body.demo) { await storage.block({ ...item, status: "blocked", error: 401 }); break; }
+      if (item.kind === "event" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("qf-trip-server-ack", { detail: { scope, ...item.payload } }));
       await storage.remove(scope, item.id); sent++;
     } else if (retryable(response.status)) break;
     else { await storage.block({ ...item, status: "blocked", error: response.status || 401 }); break; }

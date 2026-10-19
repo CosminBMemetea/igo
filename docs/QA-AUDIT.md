@@ -1155,3 +1155,40 @@ Still separate: email mailbox ownership verification and bounce/delivery webhook
 4. TollRo cumpărare/verificare/reconciliere: depinde de furnizor și acces API, inexistente momentan.
 5. Recompense financiare: nu sunt implementate; regulile, sumele și aprobarea patronului trebuie definite separat. Distincțiile actuale sunt simbolice.
 6. Activarea și acceptanța operațională a web push/emailurilor și schedulerului de retry rămân cele din NOTIFICATIONS.md. Senderul Resend a fost verificat și cheile de email au fost adăugate de utilizator; acest lucru nu echivalează cu livrare verificată în inbox.
+
+## 19 octombrie 2026 — navigație, CMR/POD nativ, offline și acțiuni de pornire
+
+| ID | Problemă | Corecție / verificare |
+|---|---|---|
+| WORK-01 | Pagina nativă aglomera toate operațiile într-un singur scroll | Azi / Curse / Acte / Cont; documentele, setările și sincronizarea au locuri distincte. |
+| WORK-02 | CMR/POD și sfârșitul așteptării cereau browser | Cameră/galerie cu previzualizare, trimitere explicită, documente în aceeași evidență ca patronul; evenimente wait_start/wait_end native. |
+| WORK-03 | ID-urile etapelor existau numai în memoria procesului | Jurnal persistent, retry cu același ID și aceeași oră, scop backend/firmă/șofer; test restart și răspuns pierdut. |
+| WORK-04 | O operațiune veche putea afecta altă tură | Verificare camion/tură în API și la actualizarea stării; duplicatele deja comise sunt recunoscute. |
+| WORK-05 | Alocarea se putea modifica între verificarea HTTP și salvarea fotografiei | Migrare PG cu verificare în tranzacția fișierului; test paritate memorie/PG și refuz după realocare. |
+| WORK-06 | Pornirea turei apărea fără o cursă eligibilă în web | Caz distinct „Lucrez fără cursă alocată”; checklist/pornește tura apar numai în contextul potrivit. |
+| WORK-07 | Cursa viitoare sau de pe alt camion putea sugera pornire/continuare | Focus strict pe camionul alocat, comenzi ascunse la curse viitoare și validare server; restul curselor rămân consultabile. |
+| WORK-08 | „Continuă cursa” putea reapărea până la refresh după descărcare | Proiecție explicită pentru operațiile web locale și păstrarea confirmării serverului peste intervalul de refresh. |
+| WORK-09 | Rezultatele citirilor locale concurente puteau afișa o stare mai veche | Generație de citire în aplicația nativă: numai ultimul rezultat poate actualiza ecranul. |
+
+Verificare locală 19 octombrie, după implementare: toate cele 36 de suite din
+pilot au trecut (35 în rularea completă, `smoke:tenant` la reluare după corectarea
+fixture-ului care pornea o cursă viitoare). Testul tenant verifică acum refuzul
+pornirii viitoare și reprogramarea explicită pentru azi. Buildul web de producție,
+TypeScript web/nativ și exportul iOS Metro/Hermes au trecut. ESLint pe fișierele web
+atinse: zero erori, 10 avertismente. Exportul iOS nu confirmă instalarea sau
+funcționarea camerei/GPS pe un iPhone fizic.
+
+Testele introduse: `smoke-native-work`, `smoke-native-work-storage`,
+`smoke-driver-start-ui`. Acoperă pierderea răspunsului, relansare, jurnal întrerupt,
+stocare coruptă/plină, cont schimbat în timpul trimiterii, ordinea etapelor,
+conflicte pe cursă, fotografie lipsă, draft netrimis, ștergere locală și controale
+randate pentru curse absente/viitoare/livrate/anulate/alt camion.
+
+Testul HTTP mobil verifică multipart autentificat, conținut invalid și limită de
+mărime, trei uploaduri concurente → un fișier, accesul patronului la exact aceiași
+octeți, eliminarea livrării din lista fără POD și lipsa datelor financiare/private
+în răspunsul șoferului. Niciun test de server nu folosește baza de producție.
+
+Limitări rămase: upload automat cu aplicația închisă, import PDF nativ (fluxul nou
+este foto), validare iPhone fizic, test GPS pe traseu/economisire baterie, FCM și
+TollRo tranzacțional. Nu declarăm aceste probe ca trecute pe baza testelor mock.

@@ -28,6 +28,8 @@ const load = trip("load", "a", { planned: true, deliveredAt: null, loadedAt: at,
 assert.equal(tripFocus(board([load])).current?.id, "load");
 assert.equal(tripFocus(board([{ ...load, deliveredAt: at }])).current, undefined);
 assert.equal(tripFocus(board([{ ...load, truckId: "another-truck" }])).hasWork, false);
+assert.equal(tripFocus(board([{ ...load, truckId: "another-truck" }])).current, undefined);
+assert.equal(tripFocus({ ...board([load]), truck: null }).current, undefined);
 assert.equal(tripFocus(board([{ ...load, cancelledAt: at }])).current, undefined);
 console.log("PASS trips: empty/future/finished/cancelled cannot become a current trip; another truck cannot enable the shift checklist");
 assert.equal(invitationPhone("qfleet-driver-test://login?phone=%2B40744123456"), "+40744123456");

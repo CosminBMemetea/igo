@@ -27,7 +27,7 @@ const RO_HM = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Bucharest", h
 const hhmm = (iso: string | null) => { if (!iso) return "—"; const p = Object.fromEntries(RO_HM.formatToParts(new Date(iso)).map((x) => [x.type, x.value])); return `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`; };
 /** 1h 05m · în curs: 1:05:09 */
 const fmtWait = (sec: number, live = false) => { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return live ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${h}h ${String(m).padStart(2, "0")}m`; };
-export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow, clockOffset = 0 }: { clockOffset?: number; queueScope?: string; actorId?: string; readOnly?: boolean; serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
+export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, demo, onShift: onShift0, initial, L, loc, serverNow, clockOffset = 0, canRecordEvents = true }: { canRecordEvents?: boolean; clockOffset?: number; queueScope?: string; actorId?: string; readOnly?: boolean; serverNow: number; loc: string; tripId: string; title: string; demo: boolean; onShift: boolean; initial: { loadedAt: string | null; unloadedAt: string | null; waitMin: number; waitSince: string | null; files: PaperFile[] }; L: Record<string, string> }) {
   const router = useRouter();
   const notify = (kind: DriverTripUpdate["kind"], at: string) => { if (demo) window.dispatchEvent(new CustomEvent(DRIVER_TRIP_UPDATE, { detail: { tripId, kind, at } })); else router.refresh(); };
   const [st, setSt] = useState(initial), [busy, setBusy] = useState(""), [msg, setMsg] = useState<{ t: string; k: string }>({ t: "", k: "" });
@@ -63,7 +63,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
     navigator.geolocation.getCurrentPosition((p) => res({ lat: p.coords.latitude, lng: p.coords.longitude }), () => res({}), { timeout: 6000, maximumAge: 60000 });
   });
   async function event(kind: Ev) {
-    if (eventLock.current || readOnly) return; eventLock.current = true;
+    if (eventLock.current || readOnly || !canRecordEvents) return; eventLock.current = true;
     setBusy(kind); setMsg({ t: "", k: "" });
     if (queueScope && actorId && !demo) {
       try {
@@ -112,7 +112,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
     <section className="pw">
       <div className="eyebrow">{readOnly ? L["pw.today"] : st.unloadedAt ? tri(loc as Locale, "Cursă livrată · documente|Delivered trip · documents|Dostarczony kurs · dokumenty") : st.loadedAt ? tri(loc as Locale, "Cursa în desfășurare · acțiuni|Current trip · actions|Bieżący kurs · działania") : L["pw.today"]}</div>
       <div className="pwt">{title}</div>{pending ? <p className="msg warn">{tri(loc as Locale, "Operațiuni în așteptare pe telefon — încă neconfirmate de server.|Actions pending on this device — not yet confirmed by server.|Operacje oczekują na potwierdzenie serwera.")}</p> : null}
-      <div className="pwg">
+      {canRecordEvents && <><div className="pwg">
         <button className={`pwb${st.loadedAt ? " done" : ""}`} disabled={!!busy || readOnly || !!st.loadedAt || !!st.unloadedAt || !!st.waitSince} onClick={() => event("loaded")}><b>{L["pw.loaded"]}</b><span>{st.loadedAt ? hhmm(st.loadedAt) : L["pw.tap"]}</span></button>
         <button className={`pwb${st.unloadedAt ? " done" : ""}`} disabled={!!busy || readOnly || !st.loadedAt || !!st.unloadedAt || !!st.waitSince} onClick={() => event("unloaded")}><b>{L["pw.unloaded"]}</b><span>{st.unloadedAt ? hhmm(st.unloadedAt) : L["pw.tap"]}</span></button>
       </div>
@@ -123,7 +123,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
         {st.waitSince || waitNow ? <time className="pwclock" suppressHydrationWarning>{fmtWait(st.waitSince ? waitSec : waitNow * 60, !!st.waitSince)}</time> : null}
         <button className={`btn ${st.waitSince ? "pri pwstop" : "sec"} sm`} disabled={!!busy || readOnly || !!st.unloadedAt} aria-pressed={!!st.waitSince} onClick={() => event(st.waitSince ? "wait_end" : "wait_start")}>{st.waitSince ? L["pw.wStop"] : L["pw.wStart"]}</button>
       </div>
-      <p className="hint">{L["pw.waitHint"]}</p>
+      <p className="hint">{L["pw.waitHint"]}</p></>}
       {(["cmr", "pod"] as const).map((k) => (
         <div key={k} className="pwdoc">
           <div className="head"><h3>{L[`pw.${k}`]}</h3><button className="btn sec sm" disabled={!!busy || readOnly} onClick={() => (k === "cmr" ? cmr : pod).current?.click()}>{busy === k ? "…" : `+ ${L["pw.photo"]}`}</button></div>

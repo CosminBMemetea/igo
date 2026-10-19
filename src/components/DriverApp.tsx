@@ -3,7 +3,7 @@ import { postDriverControl } from "@/lib/driver-control";
 import { useDriverTracking } from "./DriverTracking";
 import { SHIFT_CHECKS as CHECKS } from "@/lib/shift-checklist";
 import { loadReceiptDraft, saveReceiptDraft } from "@/lib/receipt-draft";
-import { enqueue, flushOutbox } from "@/lib/outbox";
+import { enqueue, flushOutbox, outboxItems } from "@/lib/outbox";
 import { localNow } from "@/lib/validate";
 import { tri } from "@/lib/i18n";
 import { saveThumb } from "./ReceiptThumb";
@@ -24,7 +24,19 @@ async function blankImage(file: File): Promise<boolean | null> {
   } catch { return null; } // nu se poate decoda
 }
 const CURS = ["RON", "EUR", "PLN", "HUF", "CZK", "BGN", "CHF", "GBP", "SEK", "DKK", "NOK"];
-export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo }: { queueScope?: string; actorId?: string; switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo, hasWork: serverHasWork = false, workTripIds }: { hasWork?: boolean; workTripIds?: string[]; queueScope?: string; actorId?: string; switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+  const [localDelivered, setLocalDelivered] = useState<string[]>([]), [ackDelivered, setAckDelivered] = useState<string[]>([]);
+  const hasWork = serverHasWork && (!workTripIds || workTripIds.some(id => !localDelivered.includes(id) && !ackDelivered.includes(id)));
+  useEffect(() => {
+    if (!queueScope || demo) return;
+    let active = true;
+    const read = () => { void outboxItems(queueScope).then(items => { if (active) setLocalDelivered(items.filter(x => x.kind === "event" && x.status === "pending" && (x.payload as Record<string,string>).kind === "unloaded").map(x => (x.payload as Record<string,string>).tripId)); }).catch(() => {}); };
+    const ack = (event: Event) => { const d = (event as CustomEvent).detail; if (d?.scope === queueScope && d.kind === "unloaded") setAckDelivered(old => [...old, d.tripId]); };
+    read(); window.addEventListener("igo-outbox", read); window.addEventListener("qf-trip-server-ack", ack);
+    return () => { active = false; window.removeEventListener("igo-outbox", read); window.removeEventListener("qf-trip-server-ack", ack); };
+  }, [queueScope, demo]);
+  const [withoutTrip, setWithoutTrip] = useState(false);
+  useEffect(() => { setWithoutTrip(false); }, [vehicleId, hasWork, initial?.start]);
   const [on, setOn] = useState(!!initial), [km, setKm] = useState(today?.km ?? 0), [now, setNow] = useState(serverNow); // același „acum” ca pe server → hidratare identică; apoi ceasul real
   const [checks, setChecks] = useState<string[]>([]), [msg, setMsg] = useState<{ t: string; k: "ok" | "err" | "warn" | "" }>({ t: "", k: "" });
   const [form, setForm] = useState(false), [f, setF] = useState({ litres: "", odo: "", amount: "", station: "" }), [photo, setPhoto] = useState<File | null>(null), [read, setRead] = useState(""), [readInfo, setReadInfo] = useState(""), [last, setLast] = useState(lastFill);
@@ -80,6 +92,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   // „Termină tura”: întâi confirmare (foaie proprie), abia apoi oprim tura
   function toggle() { if (on && !preview) { setAskEnd(true); return; } void doToggle(); }
   async function doToggle() {
+    if (!on && !hasWork && !withoutTrip) return;
     if (!on && checks.length < 3) { setMsg({ t: L["drv.checkNeeded"], k: "err" }); return; }
     if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
     if (shiftBusy.current) return;
@@ -203,14 +216,15 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
         <div><div className="drv-big" suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
         <div><div className="drv-big" style={{ color: "var(--fg2)" }} suppressHydrationWarning>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>
       </div>
-      {!on ? (
+      {!on && (hasWork || withoutTrip) ? (
         <div className="sheet fade d2">
           <div className="eyebrow">{L["drv.check"]}</div>
           {CHECKS.map((c) => <div key={c} className="chkrow" role="checkbox" aria-checked={checks.includes(c)} tabIndex={0} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.currentTarget.click(); } }} onClick={() => setChecks((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))}><span>{L[c]}</span><span className={`chkbox${checks.includes(c) ? " on" : ""}`}>{checks.includes(c) ? <Icon name="check" /> : null}</span></div>)}
         </div>
       ) : null}
       <div className="fade d2" style={{ marginTop: 16, display: "grid", gap: 12 }}>
-        <button ref={shiftTrigger} className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button>
+        {!on && !hasWork && !withoutTrip ? <><p className="sub">{tri(loc, "Nu ai o cursă disponibilă de început pe acest camion.|No trip is available to start on this truck.|Brak kursu do rozpoczęcia tym pojazdem.")}</p><button className="btn sec start" onClick={() => setWithoutTrip(true)}>{tri(loc, "Lucrez fără cursă alocată|Work without an assigned trip|Praca bez przypisanego kursu")}</button></> : null}
+        {on || hasWork || withoutTrip ? <button ref={shiftTrigger} className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button> : null}
         {askEnd ? <dialog ref={endDialog} className="msheet-bg any" aria-labelledby="endq" onCancel={() => setAskEnd(false)} onClick={(e) => { if (e.target === e.currentTarget) setAskEnd(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
           <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
           <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>

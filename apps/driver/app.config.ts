@@ -18,7 +18,7 @@ const config: ExpoConfig = {
   ios: { bundleIdentifier: "com.querra.qfleet.driver", supportsTablet: true, buildNumber: "1", infoPlist: { CFBundleDevelopmentRegion: "ro" } },
   android: { package: androidPackage, ...(hasFirebase ? { googleServicesFile: firebaseFile } : {}), versionCode: 1, allowBackup: false,
     blockedPermissions: ["android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.RECORD_AUDIO", "android.permission.SYSTEM_ALERT_WINDOW"] },
-  plugins: [["expo-notifications", { mode: process.env.EXPO_PUBLIC_APNS_ENVIRONMENT === "sandbox" ? "development" : "production" }], "./plugins/withAndroidTransport.cjs", ["expo-secure-store", { faceIDPermission: false }], ["expo-location", {
+  plugins: [["expo-image-picker", { cameraPermission: "Fotografiază documentul CMR sau dovada livrării pentru cursa ta.", photosPermission: "Alege fotografia documentului pe care vrei să o trimiți firmei.", microphonePermission: false }], ["expo-notifications", { mode: process.env.EXPO_PUBLIC_APNS_ENVIRONMENT === "sandbox" ? "development" : "production" }], "./plugins/withAndroidTransport.cjs", ["expo-secure-store", { faceIDPermission: false }], ["expo-location", {
     isIosBackgroundLocationEnabled: true, isAndroidBackgroundLocationEnabled: true, isAndroidForegroundServiceEnabled: true,
     locationWhenInUsePermission: "Querra trimite poziția camionului către firma ta doar când activezi GPS în tură.",
     locationAlwaysAndWhenInUsePermission: "În tură, Querra trimite poziția și cu ecranul blocat. Modul Privat și Oprește GPS întrerup colectarea.",

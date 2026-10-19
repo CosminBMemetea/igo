@@ -112,10 +112,12 @@ export class PgStore implements Store {
   async completeTrip(firmId: string, id: string) {
     const rows = await this.d.update(trips).set({ planned: false }).where(and(eq(trips.firmId, firmId), eq(trips.id, id), eq(trips.planned, true), isNull(trips.cancelledAt), sql`${trips.deliveredAt} is not null`)).returning({ id: trips.id }); return rows.length === 1;
   }
-  async recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string }) {
+  async recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string; expectedShiftStart?: string; expectedTruckId?: string }) {
     const id = newId("v");
     try {
-      await this.d.execute(sql`with changed as (
+      await this.d.execute(sql`with shift_guard as materialized (
+        select * from shifts where firm_id = ${firmId} and truck_id = ${e.expectedTruckId ?? ""} for update
+      ), changed as (
         update trips set
           loaded_at = case when ${e.kind} = 'loaded' then ${e.at} else loaded_at end,
           delivered_at = case when ${e.kind} = 'unloaded' then ${e.at} else delivered_at end,
@@ -123,6 +125,12 @@ export class PgStore implements Store {
           last_event_at = ${e.at}
         where id = ${e.tripId} and firm_id = ${firmId} and planned = true and cancelled_at is null and delivered_at is null
           and (last_event_at is null or last_event_at <= ${e.at})
+          ${e.expectedShiftStart ? sql`and truck_id = ${e.expectedTruckId} and driver_id = ${e.userId}
+            and exists (select 1 from users u where u.id = ${e.userId} and u.firm_id = ${firmId} and u.truck_id = trips.truck_id and u.disabled_at is null)
+            and exists (select 1 from shift_guard sh where sh.start = ${e.expectedShiftStart}
+              and sh.start::timestamptz <= ${e.at}::timestamptz
+              and (sh."end" is null or sh."end"::timestamptz >= ${e.at}::timestamptz)
+              and (sh.private_since is null or sh.private_since::timestamptz > ${e.at}::timestamptz))` : sql``}
           and not exists (select 1 from trip_events where firm_id = ${firmId} and request_key = ${e.requestKey})
           and ((${e.kind} = 'loaded' and loaded_at is null and wait_since is null)
             or (${e.kind} = 'unloaded' and loaded_at is not null and wait_since is null)

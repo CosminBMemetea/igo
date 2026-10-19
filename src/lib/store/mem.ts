@@ -72,11 +72,17 @@ export class MemStore implements Store {
     const t = this.R.find((r) => r.id === id && r.firmId === firmId && r.planned && r.deliveredAt && !r.cancelledAt);
     if (!t) return false; t.planned = false; return true;
   }
-  async recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string }) {
+  async recordTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId"> & { requestKey: string; expectedShiftStart?: string; expectedTruckId?: string }) {
     const old = this.V.find((v) => v.firmId === firmId && v.requestKey === e.requestKey);
     if (old) { if (old.tripId !== e.tripId || old.kind !== e.kind || old.userId !== e.userId) throw new Error("transition"); return { event: { ...old }, duplicate: true }; }
     const t = this.R.find((r) => r.firmId === firmId && r.id === e.tripId);
     if (!t || !t.planned || t.cancelledAt || t.deliveredAt || (t.lastEventAt && e.at < t.lastEventAt)) throw new Error("transition");
+    if (e.expectedShiftStart) {
+      const shift = this.H.get(`${firmId}:${t.truckId}`);
+      const user = this.U.find(x => x.id === e.userId && x.firmId === firmId);
+      if (!shift || shift.start !== e.expectedShiftStart || t.truckId !== e.expectedTruckId || t.driverId !== e.userId || user?.truckId !== t.truckId || user.disabledAt
+        || Date.parse(e.at) < Date.parse(shift.start) || shift.end && Date.parse(e.at) > Date.parse(shift.end) || shift.privateSince && Date.parse(e.at) >= Date.parse(shift.privateSince)) throw new Error("transition");
+    }
     if (e.kind === "loaded" && (t.loadedAt || t.waitSince) || e.kind === "unloaded" && (!t.loadedAt || t.waitSince) || e.kind === "wait_start" && t.waitSince || e.kind === "wait_end" && !t.waitSince) throw new Error("transition");
     if (e.kind === "loaded") t.loadedAt = e.at;
     if (e.kind === "unloaded") t.deliveredAt = e.at;
@@ -151,6 +157,8 @@ export class MemStore implements Store {
     const trip = this.R.find(x => x.id === f.tripId && x.firmId === firmId);
     if (f.tripId && !trip) throw new Error("trip");
     if (trip?.cancelledAt) throw new Error("trip-closed");
+    const actor = this.U.find(u => u.id === f.userId);
+    if (trip && actor?.role === "driver" && (actor.firmId !== firmId || actor.disabledAt || trip.driverId !== actor.id)) throw new Error("assignment");
     if (f.docId && !this.D.some((x) => x.id === f.docId && x.firmId === firmId)) throw new Error("doc");
     if (trip && f.kind === "pod") trip.podReceived = true;
     const old = f.id ? this.FL.find(x => x.id === f.id && x.firmId === firmId) : undefined;

@@ -73,6 +73,14 @@ async function verify(s: Store, pool?: pg.Pool) {
     assert.equal(new Set(saved.map(x => x.id)).size, 1);
     assert.equal((await s.files(firm.id, { tripId: delivered.id })).length, 1);
     assert.equal((await s.trips(firm.id)).find(x => x.id === delivered.id)?.podReceived, true);
+    const different = await s.createUser({ firmId: firm.id, role: "driver", name: "Other driver", email: randomUUID() + "@example.test", phone: null, passwordHash: "test", truckId: null });
+    // Simulate authorization passing, followed by owner reassignment before file storage.
+    const editable = await s.addTrip(firm.id, base);
+    await s.editPlannedTrip(firm.id, editable.id, { ...base, driverId: different.id });
+    await assert.rejects(saveFile(s, firm.id, { ...file, tripId: editable.id }), (e: any) => e.message === "assignment" || e.cause?.message === "assignment");
+    assert.equal((await s.files(firm.id, { tripId: editable.id })).length, 0);
+    await s.cancelTrip(firm.id, editable.id, "QA done");
+    console.log(`PASS ${s.persistent ? "Postgres" : "memory"}: upload rechecks driver assignment at storage time`);
     await s.updateTruckEcon(firm.id, truck.id, { archived: true });
     await assert.rejects(s.addTrip(firm.id, base));
     await assert.rejects(s.setShift(firm.id, { ...shift, start: new Date(Date.now() + 2000).toISOString() }));
