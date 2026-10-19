@@ -295,3 +295,10 @@ Restanța CMR/POD/așteptare exclusiv în web din secțiunea anterioară este î
 prin acest flux. FCM, integrarea tranzacțională TollRo și pilotul GPS pe traseu
 rămân separate. Implementarea este comună Android/iOS; validarea pe iPhone fizic
 rămâne necesară.
+
+APK-ul acestei runde (`1b9406f`, Release semnat, 19 octombrie 2026, 19:11 UTC)
+este instalat pe Xiaomi. Verificate fizic: cele patru taburi, lipsa acțiunii de
+încărcare în afara turei, listele goale viitoare/istoric, selectarea unei imagini
+fictive, previzualizarea și restaurarea draftului după închidere forțată. Draftul
+a fost eliminat local fără trimitere. Pentru iOS a trecut exportul Metro/Hermes;
+acesta nu este un IPA semnat și nu înlocuiește proba pe iPhone.

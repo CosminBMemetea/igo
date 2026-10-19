@@ -1151,7 +1151,7 @@ Still separate: email mailbox ownership verification and bounce/delivery webhook
 
 1. Recepție reală FCM Android: server, înregistrare/revocare token și livrare cu retry; configurația Firebase client este doar pregătirea.
 2. Pilot pe traseu, două dispozitive, ecran blocat, economisire baterie Xiaomi, pierdere/revenire rețea și măsurarea bateriei. iPhone fizic și semnare/distribuție Apple rămân netestate în această rundă.
-3. CMR/POD și gestionarea așteptării direct în aplicația nativă; momentan au flux web.
+3. **Rezolvat în runda de mai jos:** CMR/POD și gestionarea așteptării sunt acum native, cu salvare locală și trimitere explicită.
 4. TollRo cumpărare/verificare/reconciliere: depinde de furnizor și acces API, inexistente momentan.
 5. Recompense financiare: nu sunt implementate; regulile, sumele și aprobarea patronului trebuie definite separat. Distincțiile actuale sunt simbolice.
 6. Activarea și acceptanța operațională a web push/emailurilor și schedulerului de retry rămân cele din NOTIFICATIONS.md. Senderul Resend a fost verificat și cheile de email au fost adăugate de utilizator; acest lucru nu echivalează cu livrare verificată în inbox.
@@ -1200,3 +1200,25 @@ octeți, eliminarea livrării din lista fără POD și lipsa datelor financiare/
 Limitări rămase: upload automat cu aplicația închisă, import PDF nativ (fluxul nou
 este foto), validare iPhone fizic, test GPS pe traseu/economisire baterie, FCM și
 TollRo tranzacțional. Nu declarăm aceste probe ca trecute pe baza testelor mock.
+
+### Confirmare de publicare și dispozitiv
+
+- `1b9406f`: Vercel success, inclusiv protecția la restaurarea stării locale.
+  Regresia de randare verifică lipsa butoanelor înainte de citirea IndexedDB;
+  TypeScript a trecut, lint pentru cele două componente: 0 erori, 4 avertismente.
+- APK Release semnat, surse curate `1b9406f`, construit la 19:11 UTC; verificări
+  semnătură, identitate, permisiuni, bundle și zipalign trecute. SHA-256:
+  `57e6ddfa244f871dc0a5d67a1ce575c4929f351cda94d7bf54573d7900494936`.
+- Instalare peste aplicația existentă pe Xiaomi M2003J15SC / Android 12: succes,
+  sesiune păstrată. Azi/Curse/Acte/Cont inspectate; listele goale Urmează/Istoric
+  nu afișează încărcarea/pornirea. Cursa de încărcat nu oferă confirmarea etapei
+  în afara turei. Bufferul crash Android a rămas gol la verificare.
+- Selectorul foto s-a deschis fără permisiune largă pentru galerie. Imagine
+  fictivă CMR: decodare, JPEG, previzualizare, păstrare, închidere forțată,
+  redeschidere și restaurarea draftului netrimis — toate confirmate fizic.
+  Eliminarea locală a readus contorul la zero. Fișierul fictiv a fost eliminat
+  și din Downloads. Nu s-a apăsat Trimite, nu s-au schimbat curse reale și nu
+  s-a pornit GPS. Trimiterea documentului către patron este verificată HTTP pe
+  baza de test, nu prin încărcarea unui document fictiv în producție.
+- Camera fizică, recuperarea Android după terminarea activității în selector,
+  iPhone fizic și pilotul offline cu două telefoane rămân probe manuale.
