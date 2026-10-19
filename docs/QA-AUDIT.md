@@ -1169,6 +1169,7 @@ Still separate: email mailbox ownership verification and bounce/delivery webhook
 | WORK-07 | Cursa viitoare sau de pe alt camion putea sugera pornire/continuare | Focus strict pe camionul alocat, comenzi ascunse la curse viitoare și validare server; restul curselor rămân consultabile. |
 | WORK-08 | „Continuă cursa” putea reapărea până la refresh după descărcare | Proiecție explicită pentru operațiile web locale și păstrarea confirmării serverului peste intervalul de refresh. |
 | WORK-09 | Rezultatele citirilor locale concurente puteau afișa o stare mai veche | Generație de citire în aplicația nativă: numai ultimul rezultat poate actualiza ecranul. |
+| WORK-10 | La încărcarea paginii web putea apărea pentru scurt timp acțiunea veche, înainte de citirea IndexedDB | Pornirea/continuarea așteaptă citirea operațiunilor locale; numai ultima citire concurentă poate actualiza starea. Oprirea turei rămâne accesibilă. |
 
 Verificare locală 19 octombrie, după implementare: toate cele 36 de suite din
 pilot au trecut (35 în rularea completă, `smoke:tenant` la reluare după corectarea
@@ -1177,6 +1178,13 @@ pornirii viitoare și reprogramarea explicită pentru azi. Buildul web de produc
 TypeScript web/nativ și exportul iOS Metro/Hermes au trecut. ESLint pe fișierele web
 atinse: zero erori, 10 avertismente. Exportul iOS nu confirmă instalarea sau
 funcționarea camerei/GPS pe un iPhone fizic.
+
+Verificare vizuală în browserul integrat, bază locală separată: cont fără curse,
+curse viitoare + livrare fără POD, detaliu cursă viitoare; niciun buton de pornire
+sau continuare nejustificat. La 320 px, document.scrollWidth = innerWidth = 320.
+Opțiunea explicită „Lucrez fără cursă alocată” afișează checklistul și „Pornește
+tura”; tura nu a fost pornită. Migrarea și publicarea commitului 9e02ae2 au fost
+confirmate prin status Vercel success; ambele domenii de producție răspund HTTP 200.
 
 Testele introduse: `smoke-native-work`, `smoke-native-work-storage`,
 `smoke-driver-start-ui`. Acoperă pierderea răspunsului, relansare, jurnal întrerupt,

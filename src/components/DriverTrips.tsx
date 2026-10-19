@@ -20,10 +20,18 @@ const labels: Record<DriverTripStage, string> = {
 };
 export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false, demo = false, queueScope }: { queueScope?: string; trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean; demo?: boolean }) {
   const [queued, setQueued] = useState<OutboxItem[]>([]);
+  const [readScope, setReadScope] = useState<string | null>(null), [queueError, setQueueError] = useState(false);
+  const queueReady = !queueScope || demo || readScope === queueScope;
   useEffect(() => {
     if (!queueScope || demo) return;
-    let alive = true;
-    const read = () => { void outboxItems(queueScope).then(items => { if (alive) setQueued(items); }).catch(() => {}); };
+    let alive = true, revision = 0;
+    const read = () => {
+      const current = ++revision;
+      void outboxItems(queueScope).then(items => {
+        if (!alive || current !== revision) return;
+        setQueued(items); setReadScope(queueScope); setQueueError(false);
+      }).catch(() => { if (alive && current === revision) { setReadScope(null); setQueueError(true); } });
+    };
     read(); window.addEventListener("igo-outbox", read);
     return () => { alive = false; window.removeEventListener("igo-outbox", read); };
   }, [queueScope, demo]);
@@ -47,7 +55,14 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
     return () => window.removeEventListener("qf-trip-server-ack", acknowledge);
   }, [queueScope, demo]);
   const pendingIds = new Set(queued.filter(x => x.kind === "event").map(x => (x.payload as Record<string, string>).tripId));
-  const visibleTrips = trips.map(trip => (demo ? updates : [...updates, ...queued.filter(x => x.status === "pending" && x.kind === "event" && !queued.some(b => b.status === "blocked" && (b.payload as Record<string, string>).tripId === (x.payload as Record<string, string>).tripId)).map(x => ({ tripId: (x.payload as Record<string, string>).tripId, kind: (x.payload as Record<string, string>).kind, at: (x.payload as Record<string, string>).occurredAt })).filter(x => x.kind === "loaded" || x.kind === "unloaded")] as DriverTripUpdate[]).reduce(applyDriverTripUpdate, trip));
+  const blockedIds = new Set(queued.filter(x => x.status === "blocked").map(x => (x.payload as Record<string, string>).tripId));
+  const localUpdates: DriverTripUpdate[] = [];
+  for (const item of queued) {
+    const event = item.payload as Record<string, string>;
+    if (item.kind === "event" && item.status === "pending" && !blockedIds.has(event.tripId) && (event.kind === "loaded" || event.kind === "unloaded"))
+      localUpdates.push({ tripId: event.tripId, kind: event.kind, at: event.occurredAt });
+  }
+  const visibleTrips = trips.map(trip => (demo ? updates : [...updates, ...localUpdates]).reduce(applyDriverTripUpdate, trip));
   const selected = visibleTrips.find(x => x.id === selectedId);
   const selectedStage = selected ? driverTripStage(selected, today) : null;
   const selectedView = selectedStage === "upcoming" ? "next" : selectedStage === "documents" || selectedStage === "finished" || selectedStage === "cancelled" ? "history" : "now";
@@ -74,9 +89,11 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
   return <section className="driver-trips" aria-labelledby="my-trips-title">
     <h2 className="h2" id="my-trips-title">{tr("Cursele mele|My trips|Moje kursy")}</h2>
     <div className={`driver-current${current ? " active" : ""}`}>
+      {!queueReady ? <p role="status">{tr(queueError ? "Operațiunile locale nu pot fi citite. Reîncarcă pagina înainte de a continua.|Local actions could not be read. Reload before continuing.|Nie można odczytać operacji lokalnych. Odśwież stronę przed kontynuowaniem." : "Verificăm operațiunile salvate pe telefon…|Checking actions saved on this device…|Sprawdzanie operacji zapisanych na urządzeniu…")}</p> : <>
       <p className="eyebrow">{tr(current ? "Cursa în desfășurare|Current trip|Bieżący kurs" : "Nicio cursă în desfășurare|No trip in progress|Brak kursu w trakcie")}</p>
       {current ? <><TripRoute title={current.title} loc={loc} /><p>{tr("Marfă încărcată · așteaptă descărcarea|Cargo loaded · awaiting unloading|Ładunek załadowany · oczekuje na rozładunek")}</p><div className="driver-trip-meta">{fmtDate(loc, current.date, true)} · {trucks.find(v => v.id === current.truckId)?.name}</div><Link className="btn pri" href={href(current)}>{tr(pendingIds.has(current.id) ? "Verifică sincronizarea cursei|Check trip sync|Sprawdź synchronizację kursu" : "Continuă cursa|Continue trip|Kontynuuj kurs")}</Link></> : <><p>{next ? `${tr("Următoarea cursă|Next trip|Następny kurs")}: ${next.title} · ${fmtDate(loc, next.date, true)}` : tr("Patronul nu ți-a atribuit alte curse.|The owner has not assigned any more trips.|Właściciel nie przypisał kolejnych kursów.")}</p>{next ? <Link className="btn sec" href={href(next)}>{tr("Vezi următoarea cursă|View next trip|Zobacz następny kurs")}</Link> : null}</>}
       {groups.running.length > 1 ? <p className="driver-trip-warning">{tr("Ai mai multe curse marcate încărcate. Verifică situația cu patronul.|Multiple trips are marked loaded. Check with the owner.|Kilka kursów oznaczono jako załadowane. Sprawdź z właścicielem.")}</p> : null}
+      </>}
     </div>
     {groups.documents.length ? <button className="driver-pod-reminder" onClick={() => setView("history")}>{groups.documents.length}{" "}{tr(groups.documents.length === 1 ? "livrare fără POD · vezi documentele →|delivery missing POD · view documents →|dostawa bez POD · zobacz dokumenty →" : "livrări fără POD · vezi documentele →|deliveries missing POD · view documents →|dostaw bez POD · zobacz dokumenty →")}</button> : null}
     <div className="driver-trip-tabs" role="group" aria-label={tr("Alege lista de curse|Choose trip list|Wybierz listę kursów")}>{(["now", "next", "history"] as const).map(key => <button key={key} aria-pressed={view === key} onClick={() => setView(key)}><span>{tr(key === "now" ? "Acum|Now|Teraz" : key === "next" ? "Urmează|Upcoming|Nadchodzące" : "Livrate|Delivered|Dostarczone")}</span><b>{counts[key]}</b></button>)}</div>

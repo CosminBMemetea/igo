@@ -11,6 +11,8 @@ const shiftProps = {vehicleId:"truck",vehicleName:"BH QA",hello:"Salut",labels:{
 const noWork = render(React.createElement(DriverApp, {...shiftProps,hasWork:false}));
 assert.equal(noWork.includes("Pornește tura"),false); assert.equal(noWork.includes("Lucrez fără cursă alocată"),true);
 assert.equal(render(React.createElement(DriverApp, {...shiftProps,hasWork:true})).includes("Pornește tura"),true);
+const restoring = render(React.createElement(DriverApp, {...shiftProps,hasWork:true,queueScope:"qa-driver"}));
+assert.equal(restoring.includes("Pornește tura"),false);assert.equal(restoring.includes("Verificăm operațiunile"),true);
 const active = render(React.createElement(DriverApp, {...shiftProps,hasWork:false,initial:{start:new Date().toISOString(),priv:false}}));
 assert.equal(active.includes("Pornește tura"),false);assert.equal(active.includes("Termină tura"),true);
 const trip = {id:"trip",truckId:"truck",title:"Oradea → Viena",date:"2026-10-19",client:"QA",planned:true,loadedAt:"2026-10-19T08:00:00Z"};
@@ -19,6 +21,7 @@ for (const trips of [[], [{...trip,truckId:"other"}], [{...trip,deliveredAt:"202
   assert.equal(render(React.createElement(DriverTrips,{...tripsProps,trips})).includes("Continuă cursa"),false);
 }
 assert.equal(render(React.createElement(DriverTrips,{...tripsProps,trips:[trip]})).includes("Continuă cursa"),true);
+assert.equal(render(React.createElement(DriverTrips,{...tripsProps,trips:[trip],queueScope:"qa-driver"})).includes("Continuă cursa"),false);
 const paperwork={tripId:"trip",title:"QA",demo:false,onShift:true,serverNow:Date.now(),loc:"ro",initial:{loadedAt:null,unloadedAt:null,waitMin:0,waitSince:null,files:[]},L:{"pw.loaded":"Am încărcat","pw.unloaded":"Am descărcat","pw.wStart":"Pornește așteptarea","pw.cmr":"CMR"}};
 const future = render(React.createElement(TripPaperwork,{...paperwork,canRecordEvents:false}));
 assert.equal(future.includes("Am încărcat"),false);assert.equal(future.includes("Pornește așteptarea"),false);assert.equal(future.includes("CMR"),true);
