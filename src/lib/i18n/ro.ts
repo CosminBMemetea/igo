@@ -289,7 +289,7 @@ export const ro = {
   "imp.new": "noi",
   "imp.dupes": "deja importate",
   "imp.matched": "legate de camion",
-  "imp.notCsv": "Fișierul nu pare CSV. Exportă din portalul cardului ca .csv (nu PDF/Excel).", "imp.warnFuture": "Rânduri cu data în viitor: {n} — verifică formatul datei.", "imp.warnSkipped": "Rânduri ignorate (fără litri sau dată validă): {n}.", "imp.warnUnknown": "Alimentări fără camion cunoscut: {n} — alege camionul mai jos.", "imp.skipped": "ignorate",
+  "imp.notCsv": "Fișierul nu pare CSV. Exportă din portalul cardului ca .csv (nu PDF/Excel).", "imp.warnDupes": "Deja importate anterior (nu se dublează): {n}.", "imp.warnFuture": "Rânduri cu data în viitor: {n} — verifică formatul datei.", "imp.warnSkipped": "Rânduri ignorate (fără litri sau dată validă): {n}.", "imp.warnUnknown": "Alimentări fără camion cunoscut: {n} — alege camionul mai jos.", "imp.skipped": "ignorate",
   "imp.period": "Perioada: {from} → {to}",
   "imp.nonfuel": "{n} fără motorină (AdBlue, taxe) ignorate",
   "imp.showMap": "Vezi coloanele",

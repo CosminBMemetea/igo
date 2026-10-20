@@ -148,9 +148,10 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
             </div>
           ) : null}
           {sum.conflicts.length ? <div className="msg err" role="alert"><p>{tri(l.loc as Locale, "Import oprit: plăcuța din CSV contrazice istoricul cardului. Verifică perioada cardului sau corectează fișierul, apoi reîncarcă-l.|Import blocked: the CSV registration conflicts with the card history. Check the card period or correct the file, then reload it.|Import zablokowany: rejestracja w CSV jest sprzeczna z historią karty. Sprawdź okres karty lub popraw plik i wczytaj go ponownie.")}</p><ul>{sum.conflicts.slice(0, 8).map((x, i) => <li key={i}>{x.card} · {x.at.replace("T", " ")} · {x.plate} ≠ {x.expected}</li>)}</ul></div> : null}
-          {sum.future || sum.total - sum.valid > 0 || sum.unknown.length ? (
+          {sum.future || sum.dupes || sum.total - sum.valid > 0 || sum.unknown.length ? (
             <ul className="impwarn" role="status">
               {sum.future ? <li>{fmt(l.warnFuture, { n: sum.future })}</li> : null}
+              {sum.dupes ? <li>{fmt(l.warnDupes, { n: sum.dupes })}</li> : null}
               {sum.total - sum.valid > 0 ? <li>{fmt(l.warnSkipped, { n: sum.total - sum.valid })}</li> : null}
               {sum.unknown.length ? <li>{fmt(l.warnUnknown, { n: sum.unknown.reduce((a, u) => a + u.n, 0) })}</li> : null}
             </ul>
@@ -180,7 +181,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
               {x.missing ? <>{x.n > x.missing ? <br /> : null}{fmt(l.otherCur, { cur: x.cur })}</> : null}
             </p>
           ))}
-          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !!sum.missing.length || !!sum.conflicts.length} onClick={go}>{busy ? l.reading : fmt(l.go, { fills: `${sum.newRows} ${pluralForm(l.loc, sum.newRows, l.fillUnit)}` })}</button>
+          <button className="btn pri" style={{ marginTop: 22, width: "100%" }} disabled={busy || !sum.valid || !sum.newRows || !!sum.missing.length || !!sum.conflicts.length} onClick={go}>{busy ? l.reading : fmt(l.go, { fills: `${sum.newRows} ${pluralForm(l.loc, sum.newRows, l.fillUnit)}` })}</button>
         </div>
       ) : null}
     </div>

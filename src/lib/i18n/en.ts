@@ -289,7 +289,7 @@ export const en: Record<MsgKey, string> = {
   "imp.new": "new",
   "imp.dupes": "already imported",
   "imp.matched": "matched to a truck",
-  "imp.notCsv": "This doesn't look like a CSV. Export it from the card portal as .csv (not PDF/Excel).", "imp.warnFuture": "Rows dated in the future: {n} — check the date format.", "imp.warnSkipped": "Rows ignored (no litres or valid date): {n}.", "imp.warnUnknown": "Fill-ups with no known truck: {n} — pick the truck below.", "imp.skipped": "skipped",
+  "imp.notCsv": "This doesn't look like a CSV. Export it from the card portal as .csv (not PDF/Excel).", "imp.warnDupes": "Already imported earlier (not duplicated): {n}.", "imp.warnFuture": "Rows dated in the future: {n} — check the date format.", "imp.warnSkipped": "Rows ignored (no litres or valid date): {n}.", "imp.warnUnknown": "Fill-ups with no known truck: {n} — pick the truck below.", "imp.skipped": "skipped",
   "imp.period": "Period: {from} → {to}",
   "imp.nonfuel": "{n} non-diesel (AdBlue, tolls) skipped",
   "imp.showMap": "Show columns",

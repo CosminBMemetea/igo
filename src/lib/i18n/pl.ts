@@ -289,7 +289,7 @@ export const pl: Record<MsgKey, string> = {
   "imp.new": "nowe",
   "imp.dupes": "już zaimportowane",
   "imp.matched": "przypisane do ciężarówki",
-  "imp.notCsv": "To nie wygląda na CSV. Wyeksportuj z portalu karty jako .csv (nie PDF/Excel).", "imp.warnFuture": "Wiersze z datą w przyszłości: {n} — sprawdź format daty.", "imp.warnSkipped": "Wiersze pominięte (brak litrów lub poprawnej daty): {n}.", "imp.warnUnknown": "Tankowania bez znanego pojazdu: {n} — wybierz go poniżej.", "imp.skipped": "pominięte",
+  "imp.notCsv": "To nie wygląda na CSV. Wyeksportuj z portalu karty jako .csv (nie PDF/Excel).", "imp.warnDupes": "Już zaimportowane wcześniej (bez duplikatów): {n}.", "imp.warnFuture": "Wiersze z datą w przyszłości: {n} — sprawdź format daty.", "imp.warnSkipped": "Wiersze pominięte (brak litrów lub poprawnej daty): {n}.", "imp.warnUnknown": "Tankowania bez znanego pojazdu: {n} — wybierz go poniżej.", "imp.skipped": "pominięte",
   "imp.period": "Okres: {from} → {to}",
   "imp.nonfuel": "{n} bez paliwa (AdBlue, opłaty) pominięte",
   "imp.showMap": "Pokaż kolumny",
