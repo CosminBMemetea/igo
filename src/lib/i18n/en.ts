@@ -124,7 +124,7 @@ export const en: Record<MsgKey, string> = {
   "su.e.email": "The email address isn't valid.",
   "su.e.password": "The password needs at least 8 characters.",
   "su.e.cui": "The company ID is digits only, optionally prefixed with RO.",
-  "su.e.exists": "An account with this email already exists. Sign in.",
+  "su.e.rate": "Too many sign-ups from this network. Please try again in an hour.", "su.e.exists": "An account with this email already exists. Sign in.",
   "join.title0": "Invalid invite",
   "join.title": "Hi, {name}",
   "join.sub": "{firm} invited you to Querra Fleet. Pick a PIN and go straight to the driver page.",

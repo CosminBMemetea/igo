@@ -5,6 +5,7 @@ import { realToday } from "@/lib/demo-time";
 import { sniffImage, MIME } from "@/lib/imgsniff";
 import { normCur } from "@/lib/fuel/fx";
 import { reportOperationFailure } from "@/lib/operation-error";
+import { checkLimits, clientIp, limitResponse } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
 // Llama 4 Scout a fost oprit de Groq (17.07.2026, „groq-404”): modelele de viziune curente, în ordine.
@@ -25,7 +26,7 @@ const sample = (why: string) => NextResponse.json({ fields: { operator: "OMV", s
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function POST(req: Request) {
-  const demo = (await tenant()).demo;
+  const tn = await tenant(), demo = tn.demo;
   const fd = await req.formData().catch(() => null);
   const photo = fd?.get("photo");
   if (!(photo instanceof File)) return NextResponse.json({ error: "photo" }, { status: 400 });
@@ -33,7 +34,11 @@ export async function POST(req: Request) {
   // conținutul real, nu extensia: un .txt redenumit .jpg sau octeți aleatori nu ajung la AI și nu primesc exemplu
   const buf = Buffer.from(await photo.arrayBuffer()), kind = sniffImage(new Uint8Array(buf.subarray(0, 16)));
   if (!kind || kind === "heic") return NextResponse.json({ error: "not-image" }, { status: 415 });
-  if (!hasGroq()) return demo ? sample("no-key") : NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
+  // Demo sessions are public: never spend real Groq vision calls on them.
+  if (demo) return sample("demo");
+  if (!hasGroq()) return NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
+  const limited = await checkLimits([{ key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 30, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 300, windowS: 86400 }]);
+  if (limited) return limitResponse(limited);
   const b64 = buf.toString("base64");
   let failure: unknown;
   for (const m of MODELS) {

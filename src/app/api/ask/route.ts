@@ -4,6 +4,7 @@ import { tenant } from "@/lib/tenant";
 import { TOOLS, detectLocale, parseToolCall, render, ruleIntent, type ToolCall } from "@/lib/ask";
 import { isLocale, type Locale } from "@/lib/i18n";
 import { groqChat } from "@/lib/groq";
+import { checkLimits, clientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
   const { vehicles, trips } = (await activeFleet(tn.demo, v0, t0)), alerts = a0.filter((a) => vehicles.some((v) => v.id === (a as { vehicleId?: string }).vehicleId) || !(a as { vehicleId?: string }).vehicleId);
   const data = { vehicles, trips, clients, alerts };
   let reason: string | null = null;
+  // Demo is public: answer with the local rules, no Groq call. Real firms: limited per user and per firm.
+  const limited = tn.demo ? { error: "demo" } : await checkLimits([{ key: `ask:u:${tn.uid ?? clientIp(req)}`, limit: 60, windowS: 3600 }, { key: `ask:f:${tn.firm?.id ?? "none"}`, limit: 500, windowS: 86400 }]);
+  if (limited) return NextResponse.json({ ...render(loc, data, ruleIntent(q), "rules"), reason: limited.error, locale: loc });
   try {
     const call = await route(q, vehicles.map((v) => v.name));
     if (call) return NextResponse.json({ ...render(loc, data, call, "ai"), locale: loc });

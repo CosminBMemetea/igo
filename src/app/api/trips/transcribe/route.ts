@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { writableFirm } from "@/lib/tenant";
+import { tenant, writableFirm } from "@/lib/tenant";
+import { checkLimits, limitResponse } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 export async function GET() {
@@ -7,7 +8,10 @@ export async function GET() {
   return NextResponse.json({ enabled: !!process.env.GROQ_API_KEY });
 }
 export async function POST(req: Request) {
-  if (!(await writableFirm())) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const firm = await writableFirm();
+  if (!firm) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const limited = await checkLimits([{ key: `stt:u:${(await tenant()).uid ?? "admin"}`, limit: 60, windowS: 3600 }, { key: `stt:f:${firm.id}`, limit: 400, windowS: 86400 }]);
+  if (limited) return limitResponse(limited);
   const key = process.env.GROQ_API_KEY;
   if (!key) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   if (Number(req.headers.get("content-length")) > 2_200_000) return NextResponse.json({ error: "size" }, { status: 413 });

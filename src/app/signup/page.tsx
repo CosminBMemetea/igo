@@ -6,7 +6,7 @@ import { Logo } from "@/components/Logo";
 import { normRef } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
-const ERR: Record<string, MsgKey> = { firm: "su.e.firm", email: "su.e.email", password: "su.e.password", cui: "su.e.cui", exists: "su.e.exists", nosecret: "acct.nosecret", form: "su.e.firm" };
+const ERR: Record<string, MsgKey> = { firm: "su.e.firm", email: "su.e.email", password: "su.e.password", cui: "su.e.cui", exists: "su.e.exists", rate: "su.e.rate", nosecret: "acct.nosecret", form: "su.e.firm" };
 export default async function Signup(props: { searchParams: Promise<{ e?: string; ref?: string }> }) {
   const searchParams = await props.searchParams;
   const { loc } = (await getPrefs());

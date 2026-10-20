@@ -124,7 +124,7 @@ export const ro = {
   "su.e.email": "Adresa de email nu e validă.",
   "su.e.password": "Parola trebuie să aibă minim 8 caractere.",
   "su.e.cui": "CUI-ul are doar cifre, opțional cu RO în față.",
-  "su.e.exists": "Există deja un cont cu acest email. Intră în cont.",
+  "su.e.rate": "Prea multe înscrieri din această rețea. Încearcă din nou peste o oră.", "su.e.exists": "Există deja un cont cu acest email. Intră în cont.",
   "join.title0": "Invitație invalidă",
   "join.title": "Salut, {name}",
   "join.sub": "{firm} te-a invitat în Querra Fleet. Alege un PIN și intri direct în pagina de șofer.",

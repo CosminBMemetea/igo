@@ -124,7 +124,7 @@ export const pl: Record<MsgKey, string> = {
   "su.e.email": "Adres e-mail jest nieprawidłowy.",
   "su.e.password": "Hasło musi mieć co najmniej 8 znaków.",
   "su.e.cui": "Identyfikator to same cyfry, opcjonalnie z prefiksem RO.",
-  "su.e.exists": "Konto z tym adresem już istnieje. Zaloguj się.",
+  "su.e.rate": "Zbyt wiele rejestracji z tej sieci. Spróbuj ponownie za godzinę.", "su.e.exists": "Konto z tym adresem już istnieje. Zaloguj się.",
   "join.title0": "Nieważne zaproszenie",
   "join.title": "Cześć, {name}",
   "join.sub": "{firm} zaprasza cię do Querra Fleet. Wybierz PIN i przejdź od razu do strony kierowcy.",

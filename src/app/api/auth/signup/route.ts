@@ -2,6 +2,7 @@ import { normRef } from "@/lib/referral";
 import { back, withSession } from "@/lib/auth-cookie";
 import { hashPassword } from "@/lib/scrypt";
 import { store, dbConfigured } from "@/lib/store";
+import { checkLimits, clientIp } from "@/lib/rate-limit";
 import { PASSWORD_MIN, clip, isEmail, normEmail } from "@/lib/validate";
 export const dynamic = "force-dynamic";
 /** Înscriere proprietar: firmă goală pe proba de 30 de zile + cont owner. */
@@ -17,6 +18,8 @@ export async function POST(req: Request) {
   if (password.length < PASSWORD_MIN) return back(req, "/signup?e=password");
   if (cui && !/^(RO)?\d{2,10}$/.test(cui)) return back(req, "/signup?e=cui");
   if (email === process.env.ADMIN_EMAIL?.toLowerCase()) return back(req, "/signup?e=exists");
+  const ip = clientIp(req), limited = await checkLimits([{ key: `signup:ip:${ip}`, limit: 5, windowS: 3600 }, { key: `signup:ipd:${ip}`, limit: 20, windowS: 86400 }]);
+  if (limited) return back(req, "/signup?e=rate");
   const s = store();
   if (await s.userByLogin(email)) return back(req, "/signup?e=exists");
   const firm = await s.createFirm({ name, cui, referredBy: normRef(fd.get("ref")) });
