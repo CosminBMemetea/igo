@@ -86,7 +86,7 @@ if (process.env.PGLITE_MODULE) {
   const {PGlite}=await import(process.env.PGLITE_MODULE), {drizzle}=await import("drizzle-orm/node-postgres"), {migrate}=await import("drizzle-orm/node-postgres/migrator");
   const schema=await import("../src/db/schema"), {PgStore}=await import("../src/lib/store/pg");
   const pg=new PGlite();
-  const adapter={query:async (q: string | {text:string;rowMode?:string}, values:unknown[]) => pg.query(typeof q === "string" ? q : q.text, values, typeof q === "string" ? {} : {rowMode:q.rowMode})};
+  const adapter={query:async (q: string | {text:string;rowMode?:string}, values:unknown[]) => { const text=typeof q === "string" ? q : q.text; if(!values?.length && text.includes(";")){const all=await pg.exec(text);return all[all.length-1] ?? {rows:[],fields:[]};} /* migrations are multi-statement */ return pg.query(text, values, typeof q === "string" ? {} : {rowMode:q.rowMode as "array"|"object"|undefined}); }};
   const d=drizzle(adapter as never,{schema});
   try {await migrate(d,{migrationsFolder:"drizzle"}); await storeChecks(new PgStore(d));}finally{await pg.close();}
 } else if(process.env.TEST_DATABASE_URL){
