@@ -286,7 +286,7 @@ export class MemStore implements Store {
     const now = Date.now(), k = key, r = this.AT.get(k);
     const cur = r && now - r.first < windowS * 1000 ? r : { fails: 0, first: now, lock: null };
     cur.fails++; this.AT.set(k, cur);
-    return { ok: cur.fails <= limit, retryAfterS: Math.max(1, Math.ceil((cur.first + windowS * 1000 - now) / 1000)) };
+    return { ok: cur.fails <= limit, used: cur.fails, retryAfterS: Math.max(1, Math.ceil((cur.first + windowS * 1000 - now) / 1000)) };
   }
   async authClear(key: string) { this.AT.delete(key); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); this.DE.push({ ...e, id: newId("de"), firmId }); if (this.DE.length > 20000) this.DE.shift(); }

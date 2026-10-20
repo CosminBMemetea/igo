@@ -4,7 +4,7 @@ import { tenant } from "@/lib/tenant";
 import { sniffImage, MIME } from "@/lib/imgsniff";
 import { normCur } from "@/lib/fuel/fx";
 import { reportOperationFailure } from "@/lib/operation-error";
-import { checkLimits, clientIp, limitResponse } from "@/lib/rate-limit";
+import { hitLimits, clientIp, limitResponse } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
 // Llama 4 Scout a fost oprit de Groq (17.07.2026, „groq-404”): modelele de viziune curente, în ordine.
@@ -34,8 +34,9 @@ export async function POST(req: Request) {
   // Demo sessions are public: never spend real Groq vision calls on them.
   if (demo) return NextResponse.json({ demo: true, error: "demo" }, { headers: { "cache-control": "no-store" } });
   if (!hasGroq()) return NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
-  const limited = await checkLimits([{ key: `ocr:u10:${tn.uid ?? clientIp(req)}`, limit: 5, windowS: 600 }, { key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 20, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 200, windowS: 86400 }]);
-  if (limited) return limitResponse(limited);
+  const limited = await hitLimits([{ key: `ocr:u10:${tn.uid ?? clientIp(req)}`, limit: 5, windowS: 600 }, { key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 20, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 200, windowS: 86400 }]);
+  if (limited.error) return limitResponse({ error: limited.error, retryAfterS: limited.retryAfterS });
+  const rl = { "x-ratelimit-remaining": String(limited.remaining) };
   const b64 = buf.toString("base64");
   let failure: unknown;
   for (const m of MODELS) {
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
         const fields = { operator: str(raw.operator, 40), station: str(raw.station, 80), date: typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : null, plate: str(raw.plate, 16)?.toUpperCase() ?? null, litres: num(raw.litres), amount: num(raw.amount), odometerKm: num(raw.odometerKm), currency: normCur(raw.currency) };
         // nimic citit (poză goală, nu e bon): spunem asta, nu inventăm valori
         if (fields.litres == null && fields.amount == null && fields.odometerKm == null) return NextResponse.json({ error: "not-receipt" }, { status: 422 });
-        return NextResponse.json({ fields, model: m, sample: false }, { headers: { "cache-control": "no-store" } });
+        return NextResponse.json({ fields, model: m, sample: false }, { headers: { "cache-control": "no-store", ...rl } });
       } catch (e) {
         failure = e;
         // limită de rată (429, des la poze trimise una după alta) / pană scurtă: așteptăm cât cere Groq (max 8 s) și reîncercăm

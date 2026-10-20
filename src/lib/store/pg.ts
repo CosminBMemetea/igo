@@ -430,10 +430,11 @@ export class PgStore implements Store {
     const expired = sql`(${t}.first_at < now() - make_interval(secs => ${windowS}))`;
     const result = await this.d.execute(sql`insert into auth_throttle(key, fails, first_at) values (${key}, 1, now())
       on conflict (key) do update set fails = case when ${expired} then 1 else ${t}.fails + 1 end, first_at = case when ${expired} then now() else ${t}.first_at end
-      returning fails, first_at`);
-    const r = result.rows[0] as { fails: number | string; first_at: Date | string };
+      returning fails, first_at, (fails <= ${limit}) as ok`);
+    const r = result.rows[0] as { fails: number | string; first_at: Date | string; ok: boolean | string } | undefined;
+    if (!r) throw new Error("rate-limit-no-row");
     const retryAfterS = Math.max(1, Math.ceil((new Date(r.first_at).getTime() + windowS * 1000 - Date.now()) / 1000));
-    return { ok: Number(r.fails) <= limit, retryAfterS };
+    return { ok: r.ok === true || r.ok === "t" || r.ok === "true", retryAfterS, used: Number(r.fails) };
   }
   async authClear(key: string) { await this.d.delete(authThrottle).where(eq(authThrottle.key, key)); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { await this.ownTruck(firmId, e.truckId); await this.d.insert(driverEvents).values({ ...e, kind: e.kind, at: new Date(e.at), id: newId("de"), firmId }); }
