@@ -97,5 +97,8 @@
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
     }
+  },
+  "engines": {
+    "node": "20.x || 22.x"
   }
 }
