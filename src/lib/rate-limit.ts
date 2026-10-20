@@ -18,6 +18,11 @@ export async function hitLimits(limits: Limit[]): Promise<LimitResult> {
     return { error: "unavailable", retryAfterS: 60, remaining: 0 };
   }
 }
+/** Undo the hits of an allowed request whose costly work failed upstream. Best effort, logged. */
+export async function refundLimits(limits: Limit[]): Promise<void> {
+  try { const s = store(); await Promise.all(limits.map((l) => s.rateRefund(`rl:${l.key}`))); }
+  catch (e) { console.error("[rate-limit] refund failed:", e instanceof Error ? e.message.slice(0, 200) : e); }
+}
 /** Back-compat: null = allowed. */
 export async function checkLimits(limits: Limit[]) { const r = await hitLimits(limits); return r.error ? (r as LimitResult & { error: "rate" | "unavailable" }) : null; }
 export const limitResponse = (r: { error: "rate" | "unavailable"; retryAfterS: number }) =>

@@ -152,6 +152,8 @@ export interface Store {
   authClear(key: string): Promise<void>;
   /** DB-backed fixed-window limiter (shared auth_throttle table; keys prefixed rl:). */
   rateHit(key: string, limit: number, windowS: number): Promise<{ ok: boolean; retryAfterS: number; used?: number }>;
+  /** Give back one hit (e.g. the upstream provider failed). Never below zero. */
+  rateRefund(key: string): Promise<void>;
   addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">): Promise<void>;
   driverEvents(firmId: string, sinceIso: string): Promise<DriverEventRow[]>;
 }

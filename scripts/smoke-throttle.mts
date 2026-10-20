@@ -1,4 +1,5 @@
 // Lockout counter and rate limiter: atomic under concurrency, window reset, lock escalation.
+import { parseModelJson } from "../src/lib/model-json";
 import assert from "node:assert/strict";
 import { MemStore } from "../src/lib/store/mem";
 import type { Store } from "../src/lib/store/types";
@@ -17,6 +18,10 @@ async function checks(s: Store, label: string) {
   assert.ok((await s.rateHit(short, 1, 1)).ok); assert.equal((await s.rateHit(short, 1, 1)).ok, false);
   await new Promise((res) => setTimeout(res, 1200));
   assert.ok((await s.rateHit(short, 1, 1)).ok, "window resets");
+  const rf = `rl:refund-${label}-${Date.now()}`;
+  assert.ok((await s.rateHit(rf, 1, 60)).ok); await s.rateRefund(rf); assert.ok((await s.rateHit(rf, 1, 60)).ok, "refunded slot is reusable");
+  assert.equal((await s.rateHit(rf, 1, 60)).ok, false); await s.rateRefund(rf); await s.rateRefund(rf); await s.rateRefund(rf);
+  assert.equal((await s.rateHit(rf, 2, 60)).used, 1, "refund never goes below zero");
   console.log(`PASS ${label}: atomic lockout counter and rate limiter`);
 }
 await checks(new MemStore(), "memory");
@@ -37,3 +42,6 @@ if (process.env.PGLITE_MODULE) {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 10 });
   try { await migrate(drizzle(pool), { migrationsFolder: "drizzle" }); await checks(new PgStore(drizzle(pool, { schema }) as never), "postgres"); } finally { await pool.end(); }
 } else console.log("SKIP Postgres: PGLITE_MODULE / TEST_DATABASE_URL missing");
+assert.deepEqual(parseModelJson('```json\n{"a":1}\n```'), { a: 1 }); assert.deepEqual(parseModelJson('<think>{</think> Result: {"a":1} done'), { a: 1 });
+assert.equal(parseModelJson("no json"), null); assert.equal(parseModelJson("[1]"), null);
+console.log("PASS model JSON parsing tolerates fences, think blocks and surrounding text");

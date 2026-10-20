@@ -4,7 +4,8 @@ import { tenant } from "@/lib/tenant";
 import { sniffImage, MIME } from "@/lib/imgsniff";
 import { normCur } from "@/lib/fuel/fx";
 import { reportOperationFailure } from "@/lib/operation-error";
-import { hitLimits, clientIp, limitResponse } from "@/lib/rate-limit";
+import { parseModelJson } from "@/lib/model-json";
+import { hitLimits, refundLimits, clientIp, limitResponse, type Limit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
 // Llama 4 Scout a fost oprit de Groq (17.07.2026, „groq-404”): modelele de viziune curente, în ordine.
@@ -34,36 +35,47 @@ export async function POST(req: Request) {
   // Demo sessions are public: never spend real Groq vision calls on them.
   if (demo) return NextResponse.json({ demo: true, error: "demo" }, { headers: { "cache-control": "no-store" } });
   if (!hasGroq()) return NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
-  const limited = await hitLimits([{ key: `ocr:u10:${tn.uid ?? clientIp(req)}`, limit: 5, windowS: 600 }, { key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 20, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 200, windowS: 86400 }]);
-  if (limited.error) return limitResponse({ error: limited.error, retryAfterS: limited.retryAfterS });
+  const limits: Limit[] = [{ key: `ocr:u10:${tn.uid ?? clientIp(req)}`, limit: 5, windowS: 600 }, { key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 20, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 200, windowS: 86400 }];
+  const limited = await hitLimits(limits);
+  if (limited.error) { const res = limitResponse({ error: limited.error, retryAfterS: limited.retryAfterS }); res.headers.set("x-ratelimit-remaining", "0"); return res; }
   const rl = { "x-ratelimit-remaining": String(limited.remaining) };
   const b64 = buf.toString("base64");
   let failure: unknown;
-  for (const m of MODELS) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+  // One deadline for all attempts, inside maxDuration (30 s): a slow first model must not leave the next one without time.
+  const deadline = Date.now() + 25_000;
+  const upstream: string[] = [];
+  outer: for (const m of MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const left = deadline - Date.now();
+      if (left < 3000) break outer;
       try {
         const j = await groqChat({
           model: m, temperature: 0, response_format: { type: "json_object" },
           messages: [{ role: "user", content: [{ type: "text", text: PROMPT }, { type: "image_url", image_url: { url: `data:${MIME[kind]};base64,${b64}` } }] }],
-        }, 15000);
-        const txt = String((j.choices as { message?: { content?: string } }[] | undefined)?.[0]?.message?.content ?? "{}").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-        const raw = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1) || "{}") as Record<string, unknown>;
-        const num = (x: unknown) => { const n = typeof x === "string" ? Number(x.replace(",", ".")) : x; return typeof n === "number" && n > 0 && n < 10_000_000 ? n : null; };
+        }, Math.min(15000, left));
+        const raw = parseModelJson((j.choices as { message?: { content?: string } }[] | undefined)?.[0]?.message?.content);
+        if (!raw) { upstream.push(`${m}:parse`); failure = new Error("parse"); continue; } // same model once more, then the next one
+        const num = (x: unknown) => { const n = typeof x === "string" ? Number(x.replace(/\s/g, "").replace(",", ".")) : x; return typeof n === "number" && n > 0 && n < 10_000_000 ? n : null; };
         const str = (x: unknown, n: number) => (typeof x === "string" && x.trim() ? x.replace(/\s+/g, " ").trim().slice(0, n) : null);
         const fields = { operator: str(raw.operator, 40), station: str(raw.station, 80), date: typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : null, plate: str(raw.plate, 16)?.toUpperCase() ?? null, litres: num(raw.litres), amount: num(raw.amount), odometerKm: num(raw.odometerKm), currency: normCur(raw.currency) };
         // nimic citit (poză goală, nu e bon): spunem asta, nu inventăm valori
-        if (fields.litres == null && fields.amount == null && fields.odometerKm == null) return NextResponse.json({ error: "not-receipt" }, { status: 422 });
+        if (fields.litres == null && fields.amount == null && fields.odometerKm == null) return NextResponse.json({ error: "not-receipt" }, { status: 422, headers: rl });
         return NextResponse.json({ fields, model: m, sample: false }, { headers: { "cache-control": "no-store", ...rl } });
       } catch (e) {
         failure = e;
-        // limită de rată (429, des la poze trimise una după alta) / pană scurtă: așteptăm cât cere Groq (max 8 s) și reîncercăm
+        const code = e instanceof Error ? (e.name === "AbortError" ? "timeout" : e.message.slice(0, 20)) : "error";
+        upstream.push(`${m}:${code}`);
+        // 429 / 5xx / timeout: wait what Groq asks (max 6 s, within the deadline) and retry; 400/404/413: next model
         const ra = (e as { retryAfter?: number }).retryAfter;
-        if (e instanceof Error && (/^groq-(429|5\d\d)$/.test(e.message) || e.name === "AbortError") && attempt < 2) { await sleep(Math.min(8000, Math.max(1500, (ra ?? 2) * 1000))); continue; }
-        break; // 404/400 (model indisponibil) sau a doua eroare: următorul model
+        if (e instanceof Error && (/^groq-(429|5\d\d)$/.test(e.message) || e.name === "AbortError") && attempt < 1) { await sleep(Math.min(6000, Math.max(1000, (ra ?? 2) * 1000), Math.max(0, deadline - Date.now() - 3000))); continue; }
+        break;
       }
     }
   }
+  // Upstream codes only (model:status), never the model output.
+  console.warn("[receipt-extract] upstream failed", upstream.join(" "), `img=${Math.round(b64.length / 1024)}KB`);
+  await refundLimits(limits);
   // JSON parser errors may embed receipt text; never send or log their message.
   const reference = reportOperationFailure("receipt-extract", failure);
-  return NextResponse.json({ error: "ai-unavailable", reference }, { status: 502, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ error: "ai-unavailable", reference }, { status: 502, headers: { "Cache-Control": "no-store", "x-ratelimit-remaining": String(limited.remaining + 1) } });
 }

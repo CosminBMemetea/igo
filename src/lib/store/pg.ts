@@ -436,6 +436,7 @@ export class PgStore implements Store {
     const retryAfterS = Math.max(1, Math.ceil((new Date(r.first_at).getTime() + windowS * 1000 - Date.now()) / 1000));
     return { ok: r.ok === true || r.ok === "t" || r.ok === "true", retryAfterS, used: Number(r.fails) };
   }
+  async rateRefund(key: string) { await this.d.execute(sql`update auth_throttle set fails = greatest(0, fails - 1) where key = ${key}`); }
   async authClear(key: string) { await this.d.delete(authThrottle).where(eq(authThrottle.key, key)); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { await this.ownTruck(firmId, e.truckId); await this.d.insert(driverEvents).values({ ...e, kind: e.kind, at: new Date(e.at), id: newId("de"), firmId }); }
   async driverEvents(firmId: string, sinceIso: string) {

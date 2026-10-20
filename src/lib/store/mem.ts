@@ -288,6 +288,7 @@ export class MemStore implements Store {
     cur.fails++; this.AT.set(k, cur);
     return { ok: cur.fails <= limit, used: cur.fails, retryAfterS: Math.max(1, Math.ceil((cur.first + windowS * 1000 - now) / 1000)) };
   }
+  async rateRefund(key: string) { const r = this.AT.get(key); if (r) r.fails = Math.max(0, r.fails - 1); }
   async authClear(key: string) { this.AT.delete(key); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); this.DE.push({ ...e, id: newId("de"), firmId }); if (this.DE.length > 20000) this.DE.shift(); }
   async driverEvents(firmId: string, sinceIso: string) { return this.DE.filter((x) => x.firmId === firmId && x.at >= sinceIso).map(({ firmId: _f, ...x }) => x).sort((a, b) => b.at.localeCompare(a.at)); }

@@ -14,7 +14,7 @@ function load(path: string, mocks: Record<string, unknown>) {
   } }).outputText;
   new Function("require", "module", "exports", "console", "setTimeout", "clearTimeout", source)(
     (id: string) => id in mocks ? mocks[id] : require(id), module, module.exports,
-    { error: (...args: unknown[]) => logs.push(args) },
+    { error: (...args: unknown[]) => logs.push(args), warn: (...args: unknown[]) => logs.push(args) },
     () => ++timers, () => --timers,
   );
   return module.exports;
