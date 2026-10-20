@@ -22,6 +22,7 @@ function Screen() {
   const [board, setBoard] = useState<Board | null>(null), [gps, setGPS] = useState<GPSStatus | null>(null), [gate, setGate] = useState<Gate | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [selected, setSelected] = useState<string[]>([]);
   const [pushEnabled, setPushEnabled] = useState(false), [pushMessage, setPushMessage] = useState("");
+  const [pushActionMessage, setPushActionMessage] = useState("");
   const authRevision = useRef(0), signingOut = useRef(false);
   const [cleanupCount, setCleanupCount] = useState(0);
   const [page, setPage] = useState<Page>("today");
@@ -145,7 +146,7 @@ function Screen() {
       try {
       if (!await read<Login>("login")) {
         setLogged(false); setBoard(null); setEntries([]); setPending(null); setReviewId(null); setSyncedAt(null); setOnline(false);
-        setPushEnabled(false); setPushMessage(""); setGPS(null); setGate(null); setSelected([]); setWithoutTrip(false);
+        setPushEnabled(false); setPushMessage(""); setPushActionMessage(""); setGPS(null); setGate(null); setSelected([]); setWithoutTrip(false);
         loadedDrafts.current = false; boardScope.current = ""; workKey.current = ""; navigate("today");
         setCleanupCount(await pendingRevocations()); void syncRevocations().catch(() => {});
       }
@@ -159,6 +160,11 @@ function Screen() {
     try { await actions.run(fn, prepare ? async () => { try { await prepare(); } finally { await refreshLocal(); } } : undefined); }
     catch (e) { if (revision === authRevision.current) setError(e instanceof Error ? e.message : "Operația nu a reușit."); }
     finally { await refreshLocal(); }
+  }
+  async function pushAction(task: () => Promise<void>) {
+    setPushActionMessage("");
+    try { await task(); }
+    catch (e) { setPushActionMessage(e instanceof Error ? e.message : "Notificările nu au putut fi actualizate."); }
   }
   async function localRun(fn: () => Promise<void>) {
     if (localLock.current) return;
@@ -260,11 +266,10 @@ function Screen() {
       {button("Sincronizează acum", () => refresh(true), true)}
       </>}
       {page === "account" && <>
-      {overviewProps && <DriverDetails {...overviewProps} section="account" />}
       <View style={s.card}><Text style={s.subtitle}>Notificări și acces</Text>
-        {!!pushMessage && <Text style={s.muted}>{pushMessage}</Text>}
+        {!!(pushActionMessage || pushMessage) && <Text accessibilityRole="alert" style={s.muted}>{pushActionMessage || pushMessage}</Text>}
         <Text style={s.muted}>{pushEnabled ? "Notificări activate pe acest dispozitiv. Sunt legate de sesiunea ta; reautentifică-te când expiră." : "Activează notificările pentru documente și verificări. Detaliile apar doar în aplicație."}</Text>
-        {<>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }, true)}{pushEnabled && button("Testează notificarea", async () => { await testPush(); Alert.alert("Test acceptat", "Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon; acceptarea nu confirmă recepția."); }, true)}</>}
+        {<>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", () => pushAction(async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }), true)}{pushEnabled && button("Testează notificarea", () => pushAction(async () => { await testPush(); Alert.alert("Test acceptat", "Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon; acceptarea nu confirmă recepția."); }), true)}</>}
         {button("Setările notificărilor", async () => { await Linking.openSettings(); }, true)}
       </View>
       <Text style={s.muted}>CMR/POD sunt disponibile în Acte. Interfața web rămâne disponibilă pentru celelalte opțiuni ale contului.</Text>
@@ -274,6 +279,7 @@ function Screen() {
       {!!pending && <Text style={s.muted}>Comanda de tură așteaptă internetul. Dacă te deconectezi, o reluăm la următoarea autentificare în același cont; GPS rămâne oprit.</Text>}
       {cleanupCount > 0 && <Text style={s.muted}>Oprirea notificărilor pe server așteaptă conexiunea.</Text>}
       <Pressable accessibilityRole="button" onPress={() => void signOut()} style={[s.button, s.secondary]}><Text style={s.buttonText}>Deconectare • oprește GPS</Text></Pressable>
+      {overviewProps && <DriverDetails {...overviewProps} section="account" />}
       </>}
     </>}
   </ScrollView></KeyboardAvoidingView>
