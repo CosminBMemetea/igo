@@ -87,3 +87,11 @@ console.log("smoke:auth OK");
   if (!(await verifySession(owner, SECRET))) throw new Error("owner 7-day session rejected");
   console.log("PASS admin session 12 h TTL and env-version revocation");
 }
+
+// Demo user: /api/* deny-by-default.
+{
+  const demo = { role: "user", email: "demo@querrafleet.demo", firm: "demo", exp: Math.floor(Date.now() / 1000) + 60 } as Session;
+  for (const p of ["/api/ask", "/api/live", "/api/vehicles/econ", "/api/import/preview", "/api/trips", "/api/auth/logout", "/api/leads"]) if (decide(p, demo).kind !== "allow") throw new Error(`demo denied ${p}`);
+  for (const p of ["/api/trips/new", "/api/trips/cancel", "/api/settings/truck", "/api/settings/email", "/api/trips/transcribe", "/api/docs", "/api/admin/firm/delete", "/api/some-new-route"]) if (decide(p, demo).kind !== "forbidden") throw new Error(`demo allowed ${p}`);
+  console.log("PASS demo /api deny-by-default allowlist");
+}

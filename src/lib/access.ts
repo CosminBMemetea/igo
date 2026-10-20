@@ -10,6 +10,8 @@ export const DRIVER_PATHS = [/^\/driver$/, /^\/join\/ready$/, /^\/driver\/trips\
 export const OWNER_PATHS = [/^\/trucks$/, /^\/drivers$/, /^\/api\/drivers\//,/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
 /** Demo („Intră ca demo”): poate încerca importul CSV — totul în memorie, nimic în baza de date. */
 export const DEMO_OK = [/^\/drivers$/, /^\/trucks$/, /^\/import$/, /^\/api\/import\/(preview|commit)$/];
+/** Demo („user”): /api/* is deny-by-default; only these read/demo-safe routes (no DB writes for the demo firm). */
+export const DEMO_API_OK = [/^\/api\/alerts$/, /^\/api\/ask$/, /^\/api\/feed\/(react|resolve)$/, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/live$/, /^\/api\/me\/locale$/, /^\/api\/notifications\/(read|push|settings)$/, /^\/api\/receipt\/extract$/, /^\/api\/support$/, /^\/api\/trips$/, /^\/api\/trips\/parse$/, /^\/api\/vehicles$/, /^\/api\/vehicles\/econ$/, /^\/api\/import\/(preview|commit)$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];
 /** Pagina de start a fiecărui rol după autentificare. */
 /** pagina de start: șofer → /driver, admin → /admin, patron → Fluxul flotei (/feed; firmă fără date live → /feed trimite la Acasă) */
@@ -20,6 +22,7 @@ export function decide(path: string, s: Session | null): Decision {
   if (!s) return path.startsWith("/api/") ? { kind: "unauthorized" } : { kind: "login" };
   const deny = { kind: "forbidden", home: roleHome(s.role) } as const;
   if (s.role === "driver" && !DRIVER_PATHS.some((r) => r.test(path))) return deny;
+  if (s.role === "user" && path.startsWith("/api/") && !DEMO_API_OK.some((r) => r.test(path))) return deny;
   if (OWNER_PATHS.some((r) => r.test(path)) && s.role !== "owner" && s.role !== "admin" && !(s.role === "user" && DEMO_OK.some((r) => r.test(path)))) return deny;
   if (ADMIN_PATHS.some((r) => r.test(path)) && s.role !== "admin") return deny;
   return { kind: "allow" };
