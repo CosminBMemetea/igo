@@ -127,7 +127,7 @@ export default async function TripDetail(props: { params: Promise<{ id: string }
           </div>
           {(["cmr", "pod"] as const).map((k) => (
             <div key={k} className="pwdoc"><h3>{t(loc, `pw.${k}`)}</h3>
-              <div className="thumbs">{pw.files.filter((f) => f.kind === k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer"><img src={f.src} alt={`${k.toUpperCase()} ${i + 1}`} loading="lazy" /></a>)}{!pw.files.some((f) => f.kind === k) ? <span className="hint">{t(loc, "pw.none")}</span> : null}</div>
+              <div className="thumbs">{pw.files.filter((f) => f.kind === k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer">{/\.pdf$/i.test(f.name) ? <span className="pwpdf" aria-label={`${k.toUpperCase()} ${i + 1} PDF`}>PDF</span> : <img src={f.src} alt={`${k.toUpperCase()} ${i + 1}`} loading="lazy" />}</a>)}{!pw.files.some((f) => f.kind === k) ? <span className="hint">{t(loc, "pw.none")}</span> : null}</div>
             </div>
           ))}
           {canPod ? <form action="/api/trips/pod" method="post" style={{ marginTop: 18 }}><input type="hidden" name="tripId" value={r.id} /><input type="hidden" name="received" value={pw.podReceived ? "0" : "1"} /><button className="btn sec sm">{pw.podReceived ? t(loc, "pw.podUndo") : t(loc, "pw.podMark")}</button></form> : null}
