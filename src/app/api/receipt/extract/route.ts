@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { groqChat, hasGroq } from "@/lib/groq";
 import { tenant } from "@/lib/tenant";
-import { realToday } from "@/lib/demo-time";
 import { sniffImage, MIME } from "@/lib/imgsniff";
 import { normCur } from "@/lib/fuel/fx";
 import { reportOperationFailure } from "@/lib/operation-error";
@@ -21,8 +20,6 @@ const PROMPT = `Read this fuel receipt photo. Reply ONLY with JSON:
 - currency: ISO 4217 code of the amount (RON for "lei", EUR, PLN for "zł", HUF for "Ft", CZK for "Kč", BGN for "лв", CHF, GBP, SEK, DKK, NOK...).
 Use null when not visible. Numbers use a dot as decimal separator. Do not guess.`;
 
-/** Demo: exemplu fix, folosit DOAR când apelul AI chiar eșuează; clientul îl marchează „Exemplu demo”. */
-const sample = (why: string) => NextResponse.json({ fields: { operator: "OMV", station: "Cluj-Napoca", date: realToday(), plate: null, litres: 152.4, amount: 1112.5, odometerKm: 547912, currency: "RON" }, model: "demo-sample", sample: true, why });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function POST(req: Request) {
@@ -35,9 +32,9 @@ export async function POST(req: Request) {
   const buf = Buffer.from(await photo.arrayBuffer()), kind = sniffImage(new Uint8Array(buf.subarray(0, 16)));
   if (!kind || kind === "heic") return NextResponse.json({ error: "not-image" }, { status: 415 });
   // Demo sessions are public: never spend real Groq vision calls on them.
-  if (demo) return sample("demo");
+  if (demo) return NextResponse.json({ demo: true, error: "demo" }, { headers: { "cache-control": "no-store" } });
   if (!hasGroq()) return NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
-  const limited = await checkLimits([{ key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 30, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 300, windowS: 86400 }]);
+  const limited = await checkLimits([{ key: `ocr:u10:${tn.uid ?? clientIp(req)}`, limit: 5, windowS: 600 }, { key: `ocr:u:${tn.uid ?? clientIp(req)}`, limit: 20, windowS: 3600 }, { key: `ocr:f:${tn.firm?.id ?? "none"}`, limit: 200, windowS: 86400 }]);
   if (limited) return limitResponse(limited);
   const b64 = buf.toString("base64");
   let failure: unknown;
@@ -67,5 +64,5 @@ export async function POST(req: Request) {
   }
   // JSON parser errors may embed receipt text; never send or log their message.
   const reference = reportOperationFailure("receipt-extract", failure);
-  return demo ? sample("ai-unavailable") : NextResponse.json({ error: "ai-unavailable", reference }, { status: 502, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ error: "ai-unavailable", reference }, { status: 502, headers: { "Cache-Control": "no-store" } });
 }

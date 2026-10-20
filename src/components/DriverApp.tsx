@@ -158,6 +158,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       const r = await fetch("/api/receipt/extract", { method: "POST", body: fd, cache: "no-store" });
       const j = await r.json().catch(() => ({}));
       if (version !== photoVersion.current) return;
+      if (j.demo) return manual(L["drv.demoManual"], true);
       if (r.ok && j.fields) {
         const x0 = j.fields as { currency?: string | null; operator?: string | null; station?: string | null; date?: string | null; plate?: string | null; litres?: number | null; amount?: number | null; odometerKm?: number | null };
         // operator și stație separate: „Petrom Oradea 3”, nu două rânduri lipite
@@ -169,7 +170,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
         setRPlate(x0.plate ?? ""); if (x0.currency && CURS.includes(x0.currency)) setCur(x0.currency); if (x0.date) setRDate(x0.date);
         // exemplul demo NU e etichetat ca citire AI (nici în mesaj, nici în aiRead)
         setAiOk(!j.sample); setRead(j.sample ? L["drv.sample"] : L["drv.read"]);
-      } else manual(r.status === 413 ? L["drv.tooBig"] : r.status === 415 ? L["drv.notImage"] : r.status === 422 ? L["drv.notReceipt"] : L["drv.readManual"], ![413, 415, 422].includes(r.status));
+      } else manual(r.status === 413 ? L["drv.tooBig"] : r.status === 415 ? L["drv.notImage"] : r.status === 422 ? L["drv.notReceipt"] : r.status === 429 ? L["drv.rateLimited"] : L["drv.readManual"], ![413, 415, 422].includes(r.status));
     } catch { manual(L["drv.readManual"], true); }
   }
   async function send(e: React.FormEvent) {
