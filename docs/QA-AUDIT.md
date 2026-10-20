@@ -1290,3 +1290,40 @@ finalizat, controale blocate și mesaj de verificare.
   Bufferul crash Android nu conține intrări.
 - Dovezi locale, ignorate de Git: `apps/driver/build/qa/2026-10-19-buground/`.
   Exportul iOS este o verificare a bundle-ului JS, nu un test pe iPhone fizic.
+
+## 20 octombrie 2026 — logout offline, FCM Android și regresie
+
+| ID | Rezultat | Problemă și corecție |
+| --- | --- | --- |
+| LOGOUT-OFFLINE-01 | Rezolvat în cod | Deconectarea aștepta comenzile și dezabonarea online. Oprirea GPS și ștergerea autentificării sunt locale; SecureStore păstrează doar capabilitatea restrânsă de revocare. Retry separat, inclusiv pe login, cu backoff și expirare. |
+| LOGOUT-RACE-02 | Rezolvat, teste automate | Cereri întârziate puteau actualiza starea după logout. Anulare cereri, generație de sesiune, invalidarea acțiunilor în așteptare și actualizare serializată a capabilității; un răspuns vechi nu recreează loginul. |
+| LOGOUT-RECOVERY-03 | Rezolvat, teste automate | Întreruperea în timpul deconectării putea pierde intenția. Marker persistent și reluare la pornire. GPS se oprește chiar dacă scrierea markerului eșuează; o eroare de stocare nu este prezentată ca succes. |
+| PUSH-ANDROID-01 | Implementat; activare live restantă | Transport FCM HTTP v1, OAuth cu cache/reînnoire, canal Android, token case-sensitive, activare/dezactivare/test și rotație. Permisiunile deja acordate nu sunt cerute repetat. |
+| PUSH-ACCOUNT-02 | Rezolvat, HTTP/PG | Loginurile simultane au identități distincte. Revocarea întârziată a sesiunii/abonamentului vechi nu elimină noua înregistrare de pe același telefon. Bearerul revocat este refuzat, inclusiv la reînregistrare push. |
+| PUSH-RETRY-03 | Rezolvat, teste furnizor simulate | 401 reîmprospătează OAuth o dată, 429 respectă Retry-After, UNREGISTERED elimină tokenul. 404 generic/IAM/proiect greșit nu elimină dispozitive valide. |
+| PUSH-UX-04 | Rezolvat | Testul diferențiază acceptat/în așteptare/eșuat; nu mai spune „Apple a acceptat” pentru Android sau că acceptarea dovedește recepția. Conținut generic pe ecranul blocat. |
+| MOBILE-ERROR-05 | Reprodus pe Xiaomi, corectat | Loginul fără internet afișa `UnknownHostException` și numele hostului. Mesaj de conexiune în română; operațiile locale rămân disponibile. |
+
+Verificări automate: **41/41 suite** în `check-pilot --postgres --http`, PostgreSQL
+local de unică folosință. Build web de producție, TypeScript web/native, ESLint pe
+fișierele server schimbate și `git diff --check` trecute. Testele API/acțiuni/logout/
+notificări native au fost reluate după corecțiile suplimentare de mesaje și curse
+de execuție. Build Android Release semnat trecut; proba fizică finală este notată
+mai jos după instalarea APK-ului final.
+
+Restanțe explicite:
+
+- **FCM-LIVE:** utilizatorul confirmă lipsa credențialei Firebase server. Pașii sunt
+  în `docs/NOTIFICATIONS.md`. Recepția reală FCM, inclusiv background/ecran blocat,
+  nu este certificată de simulările HTTP și nu poate fi confirmată înaintea activării.
+- **RETRY-SCHEDULER:** verificarea unui scheduler autentificat la 5 minute rămâne
+  operațională pe Vercel Hobby; codul nu schimbă abonamentul sau infrastructura.
+- **OFFLINE-CONTROL:** comenzile Privat/Încheie tura încă netrimise se păstrează și
+  se reiau la autentificarea în același cont. Logout oprește GPS local, nu încheie
+  automat tura serverului. Fotografiile/etapele locale nu se șterg.
+- **LEGACY-LOGOUT:** un build vechi trebuie să primească o dată online capabilitatea
+  nouă înainte de deconectarea offline; fără ea revocarea serverului nu poate fi
+  confirmată înainte de expirarea sesiunii (maximum 12 ore).
+- Probe de teren GPS/baterie Xiaomi, offline cu două dispozitive, Android 13+ cu
+  refuzul permisiunii și iPhone fizic/APNs rămân necesare. Xiaomi-ul disponibil
+  rulează Android 12; nu pretindem că acesta validează toate versiunile Android.

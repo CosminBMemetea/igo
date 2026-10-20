@@ -1,3 +1,5 @@
+import { logoutReceipt } from "@/lib/mobile-logout";
+import { verifyMobileSession } from "@/lib/mobile-session";
 import { notificationsFor } from "@/lib/notify";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
@@ -7,7 +9,7 @@ import { localNow } from "@/lib/validate";
 import { roadRegime, vehicleCompliance } from "@/lib/compliance";
 import { driverProgress } from "@/lib/driver-progress";
 export const dynamic = "force-dynamic";
-export async function GET() {
+export async function GET(req: Request) {
   const tn = await tenant();
   if (tn.demo || tn.role !== "driver" || !tn.uid || !tn.firm) return NextResponse.json({ error: "driver-required" }, { status: 403 });
   const s = store(), u = await s.userById(tn.uid);
@@ -24,7 +26,9 @@ export async function GET() {
     ? await s.positions(tn.firm.id, [shift.start, new Date(Date.now() - 3600000).toISOString()].sort().at(-1)!, truck.id) : [];
   const last = positions.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180 && Number.isFinite(Date.parse(p.capturedAt ?? p.at)) && Date.parse(p.capturedAt ?? p.at) <= Date.now() + 5000)
     .sort((a, b) => (b.capturedAt ?? b.at).localeCompare(a.capturedAt ?? a.at))[0];
-  return NextResponse.json({ name: u?.name, firm: tn.firm.name, truck: truck ? { id: truck.id, plate: truck.plate } : null,
+  const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
+  const mobile = token ? await verifyMobileSession(token, process.env.SESSION_SECRET) : null;
+  return NextResponse.json({ ...(mobile && token ? { logoutReceipt: await logoutReceipt(token, mobile) } : {}), name: u?.name, firm: tn.firm.name, truck: truck ? { id: truck.id, plate: truck.plate } : null,
     road: truck ? { regime: roadRegime(truck.compliance), category: truck.compliance?.category ?? null, mtmaKg: truck.compliance?.mtmaKg ?? null, euro: truck.compliance?.euro ?? null,
       documents: vehicleCompliance(truck.compliance, docs.filter(d => d.truckId === truck.id && d.scope !== "driver"), today).filter(d => d.state !== "not-applicable").map(d => ({ type: d.type, state: d.state, expires: d.doc?.expires ?? null })) } : null,
     progress: driverProgress(users, allTrips, tn.uid, today),

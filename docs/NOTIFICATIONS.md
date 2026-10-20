@@ -75,3 +75,68 @@ NOTIFICATIONS_TEST_URL=http://localhost:3107 npm run smoke:notifications:http
 - FCM nativ Android, verificarea căsuței de email la schimbarea adresei și recuperarea PIN-ului șoferului prin email rămân extensii separate. Formularul actual de resetare este pentru parola patronului; nu îl folosim pentru a înlocui un PIN cu o parolă incompatibilă.
 
 Surse tehnice: [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers), [WebKit iOS Home Screen](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/), [APNs requests](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns), [Expo APNs direct](https://docs.expo.dev/push-notifications/sending-notifications-custom/), [Resend idempotency](https://resend.com/changelog/idempotency-keys), [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+## Android FCM și deconectare offline — 20 octombrie 2026
+
+FCM nativ este implementat prin HTTP v1, separat de Web Push/VAPID. Starea
+anterioară „FCM extensie separată” este depășită pentru cod; activarea live și
+recepția pe dispozitiv rămân de verificat după configurarea credențialei.
+
+### Activare pentru proiectul `querra-fleet`
+
+1. În [Firebase Console](https://console.firebase.google.com/), deschide
+   **querra-fleet → Project settings → Cloud Messaging** și verifică activarea
+   **Firebase Cloud Messaging API (V1)**.
+2. În Google Cloud IAM, folosește preferabil un cont de serviciu dedicat trimiterii,
+   cu rolul **Firebase Cloud Messaging API Admin** pe acest proiect. Creează o
+   cheie JSON pentru acel cont. Alternativa Firebase este **Project settings →
+   Service accounts → Generate new private key**; verifică permisiunile contului.
+   Acesta este fișierul privat pentru server, diferit de `google-services.json`.
+3. În **Vercel → proiectul igo → Settings → Environment Variables**, adaugă
+   **FCM_SERVICE_ACCOUNT_JSON**, mediul **Production**, cu întregul conținut JSON.
+   Nu folosi prefix `NEXT_PUBLIC_` sau `EXPO_PUBLIC_`; nu pune fișierul în Git,
+   aplicația mobilă sau chat. Păstrează `MOBILE_DRIVER_ENABLED=1`.
+4. Fă **Redeploy** pentru deploymentul Production. Migrarea
+   `0022_mobile_logout.sql` se aplică prin comanda normală `npm run build`.
+   `notifications:check` verifică formatul credențialei, fără afișarea valorii;
+   nu poate confirma singur drepturile IAM sau livrarea.
+5. Pe APK-ul actualizat: **Cont → Activează notificările**. Aplicația verifică
+   proiectul Firebase înainte de a cere permisiunea, creează canalul **Alerte
+   Querra** și păstrează literele mari/mici ale tokenului FCM. Un proiect greșit
+   produce o eroare explicită. Nu cere din nou permisiunea deja acordată.
+6. Apasă **Testează notificarea**. Verifică recepția în prim-plan, în fundal și cu
+   ecranul blocat; deschiderea notificării trebuie să ducă la Acte. „Acceptat”
+   confirmă numai răspunsul Firebase. Testează refuzul permisiunii, reactivarea,
+   reinstalarea/tokenul rotit și dezactivarea din Cont. În setările Xiaomi verifică
+   notificările și restricțiile de baterie dacă livrarea întârzie.
+7. Configurează schedulerul autentificat de 5 minute pentru
+   `/api/cron/deliveries`, descris mai sus. Planul Hobby nu este modificat automat.
+   În lipsa lui, nu promitem retry la 5 minute în producție. Verifică în Admin
+   cel puțin două execuții și o eroare temporară reluată cu succes.
+
+Cod: `src/lib/fcm.ts`, `src/app/api/driver/push/route.ts`,
+`apps/driver/src/notifications.ts`. OAuth este memorat temporar și reînnoit;
+401 reîncearcă o dată cu token proaspăt. 429 respectă Retry-After și minimum
+60 secunde. Numai `UNREGISTERED` revocă automat un dispozitiv; erorile de proiect,
+IAM sau payload nu șterg abonamente valide. Payloadul ecranului blocat este generic.
+
+Deconectarea oprește GPS local, șterge autentificarea și salvează în SecureStore
+**numai dreptul restrâns de revocare**, fără parola/PIN-ul sau bearerul de acces.
+Retry rulează și pe ecranul de login, când aplicația este în prim-plan, cu backoff
+15 secunde–5 minute. Nu promitem execuție OS când aplicația e închisă forțat.
+Serverul invalidează exact sesiunea și abonamentele ei; o revocare întârziată nu
+șterge sesiunea nouă. Jurnalul local de fotografii/etape/comenzi rămâne izolat per
+cont. O comandă Privat/Încheie tura încă nesincronizată se reia la autentificarea
+în același cont; logoutul nu încheie automat tura pe server.
+
+Un build vechi fără capabilitatea de revocare trebuie deschis o dată online pe
+versiunea nouă înaintea probei offline. Altfel accesul local se elimină, dar nu se
+poate confirma imediat revocarea serverului; tokenul și push-ul nativ expiră la
+maximum 12 ore. Notificările deja acceptate de furnizor pot sosi după deconectare;
+conținutul lor nu include documente sau informații despre curse.
+
+Teste automate: `smoke:fcm`, `smoke:native-notifications`, `smoke:native-logout`,
+`smoke:mobile:http`, incluse în `check:pilot --postgres --http`.
+Surse: [FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api),
+[erori FCM](https://firebase.google.com/docs/cloud-messaging/error-codes),
+[Expo Notifications](https://docs.expo.dev/versions/latest/sdk/notifications/).

@@ -276,7 +276,8 @@ export const emailOutbox = pgTable("email_outbox", {
 }, (t) => [uniqueIndex("email_outbox_key_uq").on(t.key), index("email_outbox_due_ix").on(t.status, t.nextAttemptAt)]);
 
 export const pushDevices = pgTable("push_devices", {
-  transport: text("transport").$type<"web" | "apns">().notNull().default("web"),
+  nativeSessionId: text("native_session_id"),
+  transport: text("transport").$type<"web" | "apns" | "fcm">().notNull().default("web"),
   validUntil: timestamp("valid_until", { withTimezone: true }),
   id: text("id").primaryKey(),
   firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
@@ -375,3 +376,8 @@ export const notificationJobs = pgTable("notification_jobs", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull(), finishedAt: timestamp("finished_at", { withTimezone: true }),
   error: text("error"), summary: jsonb("summary").$type<Record<string, number>>(),
 });
+
+export const mobileSessionRevocations = pgTable("mobile_session_revocations", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, t => [index("mobile_session_revocations_expiry_ix").on(t.expiresAt)]);

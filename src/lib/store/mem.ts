@@ -193,6 +193,12 @@ export class MemStore implements Store {
     if (!r) return false;
     Object.assign(r, p, { providerId: p.providerId ?? null, leaseToken: null, leaseUntil: null, sentAt: p.status === "sent" ? new Date().toISOString() : null }); return true;
   }
+  private revokedMobile = new Map<string, number>();
+  async revokeMobileSession(id: string, expiresAt: string) {
+    this.revokedMobile.set(id, Date.parse(expiresAt));
+    for (const [key, exp] of this.revokedMobile) if (exp < Date.now()) this.revokedMobile.delete(key);
+  }
+  async mobileSessionRevoked(id: string) { return (this.revokedMobile.get(id) ?? 0) >= Date.now(); }
   private PD: import("./types").PushDevice[] = [];
   async savePushDevice(d: Omit<import("./types").PushDevice, "id" | "createdAt">) {
     const u = await this.userById(d.userId);

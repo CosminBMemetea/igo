@@ -1,7 +1,7 @@
 // Disposable database only. Production build required; cleans only its own firm.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomUUID, generateKeyPairSync } from "node:crypto";
 import pg from "pg";
 import sharp from "sharp";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -15,7 +15,9 @@ if (!process.env.TEST_DATABASE_URL) throw new Error("TEST_DATABASE_URL is requir
 const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }), s = new PgStore(drizzle(pool, { schema }));
 await migrate(drizzle(pool), { migrationsFolder: "drizzle" });
 const secret = randomUUID()+randomUUID(), port = 8500 + Math.floor(Math.random()*500), base = `http://localhost:${port}`;
-const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], { stdio: "ignore", env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL, SESSION_SECRET: secret, MOBILE_DRIVER_ENABLED: "1" } });
+const fcmKey = generateKeyPairSync("rsa", {modulusLength:2048}).privateKey.export({type:"pkcs8",format:"pem"});
+const fcmAccount = JSON.stringify({type:"service_account",project_id:"querra-qa",client_email:"test@querra-qa.iam.gserviceaccount.com",private_key:fcmKey});
+const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], { stdio: "ignore", env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL, SESSION_SECRET: secret, MOBILE_DRIVER_ENABLED: "1", FCM_SERVICE_ACCOUNT_JSON: fcmAccount } });
 let firmId = "";
 try {
   for (let i=0;i<60;i++) { try { await fetch(base+"/login"); break; } catch { await new Promise(r=>setTimeout(r,250)); } }
@@ -27,7 +29,7 @@ try {
   const user = await s.createUser({firmId,role:"driver",name:"Native Driver",email:login,phone:null,passwordHash:hashPassword(password),truckId:truck.id});
   const assignedTrip = await s.addTrip(firmId,{truckId:truck.id,driverId:user.id,title:"Arad → Berlin",client:"QA",date:"2026-10-17",km:100,revenue:99999,litres:30,fuelPrice:7,tolls:0,driverCost:100,other:0,planned:true});
   const auth = await fetch(base+"/api/auth/mobile", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({login,password})});
-  assert.equal(auth.status,200); const {token,uid,firm:authFirm}=await auth.json(); assert.ok(token); assert.equal(uid,user.id); assert.equal(authFirm,firmId);
+  assert.equal(auth.status,200); const {token,uid,firm:authFirm,logoutReceipt}=await auth.json(); assert.ok(token); assert.equal(uid,user.id); assert.equal(authFirm,firmId);
   assert.equal(await verifySession(token,secret),null,"mobile bearer cannot become web cookie");
   const req = (path:string,body?:unknown,bearer=token)=>fetch(base+path,{method:body===undefined?"GET":"POST",redirect:"manual",headers:{authorization:`Bearer ${bearer}`,"content-type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)});
   assert.equal((await req("/api/driver/mobile",undefined,"invalid")).status,401);
@@ -103,6 +105,28 @@ try {
   console.log("PASS stale offline commands cannot stop or privatize a newer shift; mobile shift identity is required");
   const expired=await signToken({purpose:"driver-mobile",role:"driver",firm:firmId,uid:user.id,email:login,version:0,exp:1},secret);
   assert.equal((await req("/api/driver/mobile",undefined,expired)).status,401);
+  const fcmToken = "Firebase:Test_MixedCase".repeat(8);
+  assert.equal((await (await req("/api/driver/push?transport=fcm")).json()).configured,true);
+  const registration = await (await req("/api/driver/push",{action:"on",transport:"fcm",token:fcmToken})).json();
+  assert.ok(registration.revokeReceipt);
+  assert.equal((await s.pushDevices(firmId,user.id))[0].transport,"fcm");
+  const again=await(await fetch(base+"/api/auth/mobile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({login,password})})).json();
+  assert.notEqual(again.token,token,"same-second logins have independent identities");
+  assert.equal((await req("/api/driver/push",{action:"on",transport:"fcm",token:fcmToken},again.token)).status,200);
+  const cleanup=(receipt:string)=>fetch(base+"/api/auth/mobile/logout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({receipt})});
+  assert.equal((await cleanup(token)).status,400,"login token is not revocation capability");
+  assert.equal((await req("/api/driver/mobile",undefined,logoutReceipt)).status,401,"revocation capability cannot authenticate");
+  assert.equal((await cleanup(logoutReceipt+"tampered")).status,400);
+  assert.equal((await cleanup(logoutReceipt)).status,200);
+  assert.equal((await cleanup(logoutReceipt)).status,200,"idempotent offline retry");
+  assert.equal((await req("/api/driver/mobile")).status,401);
+  assert.equal((await req("/api/driver/mobile",undefined,again.token)).status,200);
+  assert.equal((await cleanup(registration.revokeReceipt)).status,200);
+  assert.equal((await s.pushDevices(firmId,user.id)).length,1,"old logout and unsubscribe preserve new registration");
+  assert.equal((await cleanup(again.logoutReceipt)).status,200);
+  assert.equal((await s.pushDevices(firmId,user.id)).length,0);
+  assert.equal((await req("/api/driver/push",{action:"on",transport:"fcm",token:fcmToken},again.token)).status,401);
+  console.log("PASS FCM registration and durable logout: capability isolation, tamper rejection, idempotency, same-device relogin survives old cleanup, revoked bearer denied");
   await s.setUserPassword(user.id,hashPassword("Changed-2026"));
   const revoked=await req("/api/driver/mobile"); assert.ok([307,401,403].includes(revoked.status));
   console.log("PASS native revocation: expiry and password change invalidate existing sessions");

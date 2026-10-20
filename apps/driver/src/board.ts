@@ -1,5 +1,6 @@
 export type Trip = { id: string; truckId: string; title: string; date: string; client: string; cancelReason?: string | null; waitSince?: string | null; planned?: boolean; loadedAt?: string | null; deliveredAt?: string | null; cancelledAt?: string | null; podReceived?: boolean; localPending?: boolean };
 export type Board = {
+  logoutReceipt?: string;
   alerts?: { id: string; kind: string; label: string; type: string; expires: string }[];
   name: string; firm: string; truck: { id: string; plate: string } | null;
   shift: { start: string; end: string | null; privateSince?: string | null } | null;

@@ -9,6 +9,8 @@ let vapid=false;try{webpush.getVapidHeaders('https://web.push.apple.com',env.VAP
 add('Web Push key configuration',vapid);
 let apns=false;try{const key=createPrivateKey(env.APNS_PRIVATE_KEY.replace(/\\n/g,'\n'));apns=key.asymmetricKeyDetails?.namedCurve==='prime256v1' && env.APNS_TEAM_ID && env.APNS_KEY_ID && env.APNS_TOPIC && ['sandbox','production'].includes(env.APNS_ENVIRONMENT);}catch{}
 add('Native Apple Push credentials',apns);
+let fcm=false;try{const a=JSON.parse(env.FCM_SERVICE_ACCOUNT_JSON);const key=createPrivateKey(a.private_key);fcm=a.type==='service_account' && typeof a.project_id==='string' && /^[a-z][a-z0-9-]{4,62}$/.test(a.project_id) && a.client_email?.endsWith('.iam.gserviceaccount.com') && key.asymmetricKeyType==='rsa' && key.asymmetricKeyDetails.modulusLength>=2048;}catch{}
+add('Native Android FCM service account',fcm);
 add('Native pilot enabled',env.MOBILE_DRIVER_ENABLED==='1');
 let origin=false;try{const u=new URL(env.APP_URL);origin=u.protocol==='https:'&&!u.username&&!u.password&&u.pathname==='/'&&!u.search&&!u.hash;}catch{}
 add('Canonical email link origin',origin);

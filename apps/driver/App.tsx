@@ -1,8 +1,10 @@
+import { logout, recoverLogout } from "./src/logout";
+import { pendingRevocations, syncRevocations } from "./src/cleanup";
 import { enablePush, disablePush, syncPush, pushActive, testPush, listenPush } from "./src/notifications";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Alert, AppState, Keyboard, KeyboardAvoidingView, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { api, apiOrigin, ApiError, read, write, remove, type Login, type Gate, type Pending, sessionScope } from "./src/api";
+import { api, apiOrigin, ApiError, read, write, rememberLogoutReceipt, type Login, type Gate, type Pending, sessionScope } from "./src/api";
 import { startGPS, stopGPS, preparePrivateOrStop, syncPending, reconcileGPS, type GPSStatus } from "./src/tracking";
 import { pendingControl } from "./src/controls";
 import { createActions } from "./src/actions";
@@ -20,6 +22,8 @@ function Screen() {
   const [board, setBoard] = useState<Board | null>(null), [gps, setGPS] = useState<GPSStatus | null>(null), [gate, setGate] = useState<Gate | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [selected, setSelected] = useState<string[]>([]);
   const [pushEnabled, setPushEnabled] = useState(false), [pushMessage, setPushMessage] = useState("");
+  const authRevision = useRef(0), signingOut = useRef(false);
+  const [cleanupCount, setCleanupCount] = useState(0);
   const [page, setPage] = useState<Page>("today");
   const [entries, setEntries] = useState<WorkEntry[]>([]);
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
@@ -49,9 +53,11 @@ function Screen() {
   function navigate(next: Page) { setPage(next); scroll.current?.scrollTo({ y: 0, animated: false }); }
   async function refresh(force = false) {
     if (refreshing.current) return refreshing.current;
+    const revision = authRevision.current;
     const job = (async () => {
       setSyncing(true);
       const scope = await sessionScope();
+      const login = await read<Login>("login");
       try {
         // Privacy commands remain first: GPS stopping must not wait for a photo upload.
         await syncPending();
@@ -60,20 +66,23 @@ function Screen() {
         try { await workQueue.sync(scope, force); } catch (e) { workError = e; }
         if (workError instanceof ApiError && workError.status === 401) throw workError;
         const value = await api<Board>("/api/driver/mobile", undefined, { scope });
-        if (await sessionScope() !== scope) return;
+        if (revision !== authRevision.current || await sessionScope() !== scope) return;
+        if (value.logoutReceipt && login) await rememberLogoutReceipt(login.token, value.logoutReceipt);
         const active = await read<Gate>("gps-gate");
         if (active && (!value.truck || value.truck.id !== active.vehicleId || value.shift?.start !== active.shiftStart || value.shift.end || value.shift.privateSince)) await stopGPS("GPS oprit • tura s-a schimbat");
         const key = `${value.truck?.id}:${value.shift?.start}:${value.shift?.end}`;
         if (key !== workKey.current) { setSelected([]); setWithoutTrip(false); workKey.current = key; }
         await workQueue.cache(scope, value);
         await cleanConfirmedPhotos(scope);
+        if (revision !== authRevision.current) return;
         setOnline(true); setError("");
         try { await syncPush(); setPushEnabled(await pushActive()); setPushMessage(""); }
         catch { setPushMessage("Notificările nu s-au sincronizat. Reîncearcă din Cont."); }
       } catch (e) {
+        if (revision !== authRevision.current) return;
         setOnline(false);
         if (e instanceof ApiError && [401, 403].includes(e.status)) {
-          await stopGPS("Autentifică-te din nou • GPS oprit"); await remove("login"); setLogged(false); setBoard(null); setEntries([]); setReviewId(null); setSyncedAt(null); loadedDrafts.current = false;
+          await logout(); setLogged(false); setBoard(null); setEntries([]); setReviewId(null); setSyncedAt(null); loadedDrafts.current = false;
         }
         throw e;
       }
@@ -88,10 +97,21 @@ function Screen() {
     const listener = Linking.addEventListener("url", ({ url }) => accept(url));
     return () => listener.remove();
   }, [logged]);
-  useEffect(() => { void read<Login>("login").then(value => { setLogged(!!value); }).catch(() => setError("Stocarea securizată nu este disponibilă. Reîncearcă autentificarea.")).finally(() => setReady(true)); }, []);
+  useEffect(() => { void recoverLogout().then(() => read<Login>("login")).then(value => { setLogged(!!value); }).catch(() => setError("Stocarea securizată nu este disponibilă. Reîncearcă autentificarea.")).finally(() => setReady(true)); }, []);
+  useEffect(() => {
+    let disposed = false;
+    const update = async () => {
+      if (AppState.currentState !== "active") return;
+      try { await syncRevocations(); if (!disposed) setCleanupCount(await pendingRevocations()); }
+      catch { /* Durable queue remains available after storage/network recovery. */ }
+    };
+    void update(); const timer = setInterval(() => void update(), 15000);
+    const sub = AppState.addEventListener("change", state => { if (state === "active") void update(); });
+    return () => { disposed = true; clearInterval(timer); sub.remove(); };
+  }, []);
   useEffect(() => {
     if (!logged) return;
-    const update = () => { if (AppState.currentState === "active" && !actions.busy()) void refresh().catch(e => setError(e.message)); };
+    const update = () => { const revision = authRevision.current; if (AppState.currentState === "active" && !actions.busy()) void refresh().catch(e => { if (revision === authRevision.current) setError(e.message); }); };
     void run(async () => { await recoverDocument(); await refreshLocal(); await refresh(); });
     update(); const timer = setInterval(update, 15000);
     const sub = AppState.addEventListener("change", state => { if (state === "active") update(); });
@@ -116,10 +136,28 @@ function Screen() {
       if (!loadedDrafts.current) { loadedDrafts.current = true; setReviewId(local.find(e => e.status === "draft")?.id ?? null); }
     } catch { setError("Datele locale nu pot fi citite. Nu șterge aplicația; verifică spațiul disponibil sau contactează suportul."); }
   }
+  async function signOut() {
+    if (signingOut.current) return;
+    signingOut.current = true; ++authRevision.current; ++localRevision.current; actions.invalidate(); setError("");
+    try { await logout(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Deconectarea nu a putut fi salvată. Reîncearcă."); }
+    finally {
+      try {
+      if (!await read<Login>("login")) {
+        setLogged(false); setBoard(null); setEntries([]); setPending(null); setReviewId(null); setSyncedAt(null); setOnline(false);
+        setPushEnabled(false); setPushMessage(""); setGPS(null); setGate(null); setSelected([]); setWithoutTrip(false);
+        loadedDrafts.current = false; boardScope.current = ""; workKey.current = ""; navigate("today");
+        setCleanupCount(await pendingRevocations()); void syncRevocations().catch(() => {});
+      }
+      } catch { setError("Stocarea telefonului nu a confirmat deconectarea. Reîncearcă; GPS a fost oprit."); }
+      signingOut.current = false;
+    }
+  }
   async function run(fn: () => Promise<void>, prepare?: () => Promise<void>) {
+    const revision = authRevision.current;
     setError("");
     try { await actions.run(fn, prepare ? async () => { try { await prepare(); } finally { await refreshLocal(); } } : undefined); }
-    catch (e) { setError(e instanceof Error ? e.message : "Operația nu a reușit."); }
+    catch (e) { if (revision === authRevision.current) setError(e instanceof Error ? e.message : "Operația nu a reușit."); }
     finally { await refreshLocal(); }
   }
   async function localRun(fn: () => Promise<void>) {
@@ -185,9 +223,10 @@ function Screen() {
     <Text style={s.muted}>{logged ? board ? `${board.name} · ${board.firm}` : "Conectăm datele firmei…" : "Camionul, cursele și tura ta, într-un singur loc."}</Text>
     {!!error && <View accessibilityRole="alert" style={s.error}><Text style={s.text}>{error}</Text></View>}
     {!ready ? <Text style={s.text}>Se încarcă…</Text> : !logged ? <View style={s.card}>
+      {cleanupCount > 0 && <Text style={s.muted}>Ești deconectat pe acest telefon. Revocarea accesului și notificărilor pe server se confirmă când revine internetul și aplicația este deschisă.</Text>}
       <Text style={s.label}>Telefon</Text><TextInput accessibilityLabel="Telefon" onFocus={revealInput} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" style={s.input} />
       <Text style={s.label}>PIN / parolă</Text><TextInput accessibilityLabel="PIN sau parolă" onFocus={revealInput} value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
-      {button("Intră în cont", async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); await write("login", { ...login, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); })}
+      {button("Intră în cont", async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); ++authRevision.current; await write("login", { ...login, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); })}
     </View> : <>
       {!!pending && <View accessibilityRole="alert" style={s.notice}><Text style={s.text}>{pending.path === "/api/driver/shift" ? "Încheierea turei" : "Modul Privat"} așteaptă confirmarea firmei. GPS este oprit pe acest telefon. Reîncercăm automat când revii în aplicație și ai internet.</Text></View>}
       <Pressable accessibilityRole="button" onPress={() => navigate("documents")} style={s.sync}><View style={[s.dot, { backgroundColor: attention ? "#ff9ba8" : online && !pendingWork && !pending && !stale ? "#80e2c2" : "#f6cb86" }]} /><View style={{ flex: 1 }}><Text style={s.text}>{attention ? `${attention} ${attention === 1 ? "operațiune de verificat" : "operațiuni de verificat"}` : syncing ? "Sincronizare în curs…" : pendingWork ? localCount : online && !pending && !stale ? "Actualizat cu firma" : "Date salvate pe telefon"}</Text><Text style={s.muted}>{syncedAt ? `Ultima actualizare: ${new Date(syncedAt).toLocaleString("ro-RO")}` : "Prima conectare necesită internet"}</Text></View></Pressable>
@@ -224,14 +263,16 @@ function Screen() {
       {overviewProps && <DriverDetails {...overviewProps} section="account" />}
       <View style={s.card}><Text style={s.subtitle}>Notificări și acces</Text>
         {!!pushMessage && <Text style={s.muted}>{pushMessage}</Text>}
-        <Text style={s.muted}>{Platform.OS === "android" ? "Alertele se actualizează când aplicația este deschisă. Notificările push Android nu sunt încă active." : pushEnabled ? "Notificări activate pe acest dispozitiv. Sunt legate de sesiunea ta; reautentifică-te când expiră." : "Activează notificările pentru documente și verificări. Detaliile apar doar în aplicație."}</Text>
-        {Platform.OS === "ios" && <>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }, true)}{pushEnabled && button("Testează notificarea", async () => { await testPush(); Alert.alert("Test acceptat", "Apple a acceptat testul. Verifică notificările iPhone."); }, true)}</>}
+        <Text style={s.muted}>{pushEnabled ? "Notificări activate pe acest dispozitiv. Sunt legate de sesiunea ta; reautentifică-te când expiră." : "Activează notificările pentru documente și verificări. Detaliile apar doar în aplicație."}</Text>
+        {<>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }, true)}{pushEnabled && button("Testează notificarea", async () => { await testPush(); Alert.alert("Test acceptat", "Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon; acceptarea nu confirmă recepția."); }, true)}</>}
       </View>
       <Text style={s.muted}>CMR/POD sunt disponibile în Acte. Interfața web rămâne disponibilă pentru celelalte opțiuni ale contului.</Text>
       {button("Deschide interfața web", async () => { await Linking.openURL(`${apiOrigin()}/driver`); }, true)}
       {button("Reîmprospătează", () => refresh(true), true)}
       {!!pendingWork && <Text style={s.muted}>Ai {localCount}. După deconectare se păstrează pentru același cont; sincronizează înainte de a șterge aplicația.</Text>}
-      {button("Deconectare • oprește GPS", async () => { await syncPending(); await disablePush(); await remove("login"); setLogged(false); setBoard(null); setEntries([]); setReviewId(null); setSyncedAt(null); setOnline(false); loadedDrafts.current = false; navigate("today"); }, true, stopGPS)}
+      {!!pending && <Text style={s.muted}>Comanda de tură așteaptă internetul. Dacă te deconectezi, o reluăm la următoarea autentificare în același cont; GPS rămâne oprit.</Text>}
+      {cleanupCount > 0 && <Text style={s.muted}>Oprirea notificărilor pe server așteaptă conexiunea.</Text>}
+      <Pressable accessibilityRole="button" onPress={() => void signOut()} style={[s.button, s.secondary]}><Text style={s.buttonText}>Deconectare • oprește GPS</Text></Pressable>
       </>}
     </>}
   </ScrollView></KeyboardAvoidingView>

@@ -3,7 +3,7 @@ import { nextCostMonth } from "../costs";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gt, gte, lt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { notificationJobs, pushDevices, complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { mobileSessionRevocations, notificationJobs, pushDevices, complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
@@ -326,6 +326,13 @@ export class PgStore implements Store {
   async pushDevices(firmId: string, userId: string) { return (await this.d.select().from(pushDevices).where(and(eq(pushDevices.firmId, firmId), eq(pushDevices.userId, userId)))).map(r => ({ ...r, validUntil: iso(r.validUntil), createdAt: r.createdAt.toISOString() })); }
   async removePushDevice(firmId: string, userId: string, id?: string, binding?: string) {
     await this.d.delete(pushDevices).where(and(eq(pushDevices.firmId, firmId), eq(pushDevices.userId, userId), id ? eq(pushDevices.id, id) : undefined, binding ? eq(pushDevices.binding, binding) : undefined));
+  }
+  async revokeMobileSession(id: string, expiresAt: string) {
+    await this.d.insert(mobileSessionRevocations).values({ id, expiresAt: new Date(expiresAt) }).onConflictDoNothing();
+    await this.d.delete(mobileSessionRevocations).where(lt(mobileSessionRevocations.expiresAt, new Date()));
+  }
+  async mobileSessionRevoked(id: string) {
+    return (await this.d.select({ id: mobileSessionRevocations.id }).from(mobileSessionRevocations).where(and(eq(mobileSessionRevocations.id, id), gte(mobileSessionRevocations.expiresAt, new Date())))).length > 0;
   }
   async revokePushBinding(binding: string) { await this.d.delete(pushDevices).where(eq(pushDevices.binding, binding)); }
   async setEmailAlerts(firmId: string, userId: string, enabled: boolean) { await this.d.update(users).set({ emailAlerts: enabled }).where(and(eq(users.firmId, firmId), eq(users.id, userId))); }

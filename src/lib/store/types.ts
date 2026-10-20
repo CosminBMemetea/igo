@@ -34,7 +34,7 @@ export type NewNotification = Omit<NotificationRow, "id" | "firmId" | "readAt" |
 export type EmailStatus = "sent" | "queued" | "failed" | "processing" | "cancelled";
 export type DeliveryContext = { kind: "document"; userId: string; docId: string; expires: string; stage: string } | { kind: "task"; userId: string; taskId: string; status: string } | { kind: "account"; userId: string; version: number } | { kind: "test"; userId: string };
 export interface DeliveryFields { channel: "email" | "push"; context: DeliveryContext | null; subscriptionId: string | null; attempts: number; nextAttemptAt: string; leaseToken: string | null; leaseUntil: string | null; firstAttemptAt: string | null; expiresAt: string }
-export interface PushDevice { transport?: "web" | "apns"; validUntil?: string | null; id: string; firmId: string; userId: string; endpoint: string; p256dh: string; auth: string; sessionVersion: number; binding: string; createdAt: string }
+export interface PushDevice { transport?: "web" | "apns" | "fcm"; nativeSessionId?: string | null; validUntil?: string | null; id: string; firmId: string; userId: string; endpoint: string; p256dh: string; auth: string; sessionVersion: number; binding: string; createdAt: string }
 export type NewEmail = Pick<EmailRow, "firmId" | "key" | "to" | "subject" | "body"> & Partial<Pick<DeliveryFields, "channel" | "context" | "subscriptionId" | "expiresAt">>;
 export type DeliveryFinish = { status: EmailStatus; error: string | null; providerId?: string | null; nextAttemptAt?: string };
 export interface EmailRow extends DeliveryFields { id: string; firmId: string | null; key: string; to: string; subject: string; body: string; status: EmailStatus; error: string | null; providerId: string | null; createdAt: string; sentAt: string | null }
@@ -110,6 +110,8 @@ export interface Store {
   pushDevices(firmId: string, userId: string): Promise<PushDevice[]>;
   removePushDevice(firmId: string, userId: string, id?: string, binding?: string): Promise<void>;
   revokePushBinding(binding: string): Promise<void>;
+  revokeMobileSession(id: string, expiresAt: string): Promise<void>;
+  mobileSessionRevoked(id: string): Promise<boolean>;
   setEmailAlerts(firmId: string, userId: string, enabled: boolean): Promise<void>;
   addTripEvent(firmId: string, e: Omit<TripEventRow, "id" | "firmId">): Promise<TripEventRow>;
   tripEvents(firmId: string, tripId: string): Promise<TripEventRow[]>;

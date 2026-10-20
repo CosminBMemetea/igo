@@ -1,3 +1,4 @@
+import { fcmConfig, sendFcm } from "./fcm";
 import { apnsConfig, sendApns } from "./apns";
 import webpush from "web-push";
 import { ECDH, createHash } from "node:crypto";
@@ -27,8 +28,9 @@ export function pushConfig() {
 }
 export function pushProvider(): PushProvider | null {
   const vapidDetails = pushConfig();
-  if (!vapidDetails && !apnsConfig()) return null;
+  if (!vapidDetails && !apnsConfig() && !fcmConfig()) return null;
   return { async send(d, key) {
+    if (d.transport === "fcm") return sendFcm(d.endpoint.replace(/^fcm:/, ""), key);
     if (d.transport === "apns") return sendApns(d.endpoint.replace(/^apns:/, ""), key);
     if (!vapidDetails) throw new DeliveryError("webpush-not-configured", true, 300000);
     if (!validPushSubscription({ endpoint: d.endpoint, keys: d })) throw new DeliveryError("push-invalid-subscription", false, 0, true);

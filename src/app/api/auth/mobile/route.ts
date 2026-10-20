@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { logoutReceipt } from "@/lib/mobile-logout";
 import { NextResponse } from "next/server";
 import { store } from "@/lib/store";
 import { normLogin } from "@/lib/validate";
@@ -25,7 +27,8 @@ export async function POST(req: Request) {
     }
     await s.authClear(ku);
     const exp = Math.floor(Date.now() / 1000) + MOBILE_TTL_S;
-    const session: MobileSession = { purpose: "driver-mobile", role: "driver", uid: u.id, firm: u.firmId, email: u.email ?? u.phone ?? u.name, version: u.sessionVersion ?? 0, exp };
-    return reply({ uid: u.id, firm: u.firmId, token: await signToken(session, process.env.SESSION_SECRET), expiresAt: new Date(exp * 1000).toISOString() });
+    const session: MobileSession = { purpose: "driver-mobile", sid: randomUUID(), role: "driver", uid: u.id, firm: u.firmId, email: u.email ?? u.phone ?? u.name, version: u.sessionVersion ?? 0, exp };
+    const token = await signToken(session, process.env.SESSION_SECRET);
+    return reply({ uid: u.id, firm: u.firmId, token, logoutReceipt: await logoutReceipt(token, session), expiresAt: new Date(exp * 1000).toISOString() });
   } catch (e) { return reply({ error: "unavailable", reference: reportOperationFailure("mobile-login", e) }, 503); }
 }

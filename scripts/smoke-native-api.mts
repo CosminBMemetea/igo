@@ -24,5 +24,8 @@ for (const [status,code,message] of [[404,"mobile-unavailable",/nu este încă a
 const form=new FormData();form.set("tripId","trip");
 const multipart=a.api("/api/files",form,{multipart:true});await tick();assert.equal(bodies.at(-1),form);
 replies.at(-1)!(Response.json({id:"file"}));assert.equal((await multipart).id,"file");
+const late=a.api("/api/driver/mobile").catch((e:any)=>e);await tick();a.abortRequests();assert.equal((await late).code,"account-changed");
+await a.remove("login");await a.rememberLogoutReceipt(valid.token,"old-cleanup");assert.equal(data.has("login"),false,"late refresh cannot recreate removed login");
+data.set("login",JSON.stringify(valid));data.set("logout-in-progress","true");await assert.rejects(a.api("/api/driver/mobile"));data.delete("logout-in-progress");
 data.set("login","corrupt json");await assert.rejects(a.read("login"));
 console.log("PASS native API: GPS abort leaves controls alive; origin/account binding; corrupt expiry/storage; typed server errors");

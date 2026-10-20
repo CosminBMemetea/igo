@@ -8,7 +8,7 @@ if (db && !process.env.TEST_DATABASE_URL) throw new Error('Set TEST_DATABASE_URL
 if (http && !existsSync('.next/BUILD_ID')) throw new Error('Run the production build before --http');
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const base = pkg.scripts.smoke.split(' && ').map(x => x.replace('npm run ', ''));
-const extra = ['smoke:paperwork-state', 'smoke:native-confirmation', 'smoke:native-paperwork', 'smoke:native-work-storage', 'smoke:driver-start-ui', 'smoke:native-work', 'smoke:driver-experience', 'smoke:receipt-draft', 'smoke:native-tracking', 'smoke:gps-time', 'smoke:native-api', 'smoke:native-actions', 'smoke:driver-control', 'smoke:native-notifications'];
+const extra = ['smoke:fcm', 'smoke:native-logout', 'smoke:paperwork-state', 'smoke:native-confirmation', 'smoke:native-paperwork', 'smoke:native-work-storage', 'smoke:driver-start-ui', 'smoke:native-work', 'smoke:driver-experience', 'smoke:receipt-draft', 'smoke:native-tracking', 'smoke:gps-time', 'smoke:native-api', 'smoke:native-actions', 'smoke:driver-control', 'smoke:native-notifications'];
 const suites = [...base, ...extra];
 if (db) suites.push('smoke:card-periods', 'smoke:harsh', 'smoke:reliability:pg');
 if (http) suites.push('smoke:driver-integrity:http', 'smoke:truck-history:http', 'smoke:mobile:http');

@@ -4,21 +4,24 @@ import { resolve } from "node:path";
 const androidPreview = process.env.QFLEET_ANDROID_PREVIEW === "1";
 const androidPackage = androidPreview ? "com.querra.qfleet.driver.preview" : "com.querra.qfleet.driver";
 const firebaseFile = resolve(__dirname, "firebase", androidPreview ? "google-services.preview.json" : "google-services.production.json");
+let firebaseProjectId: string | undefined;
 const hasFirebase = existsSync(firebaseFile);
 if (hasFirebase) {
   const firebase = JSON.parse(readFileSync(firebaseFile, "utf8"));
+  firebaseProjectId = firebase.project_info?.project_id;
   if (!firebase.client?.some((client: { client_info?: { android_client_info?: { package_name?: string } } }) =>
     client.client_info?.android_client_info?.package_name === androidPackage)) {
     throw new Error(`Firebase configuration does not contain Android package ${androidPackage}.`);
   }
 }
 const config: ExpoConfig = {
+  extra: { firebaseProjectId },
   name: androidPreview ? "Querra Șofer Test" : "Querra Șofer", slug: "qfleet-driver", version: "0.1.0", scheme: androidPreview ? "qfleet-driver-test" : "qfleet-driver",
   orientation: "portrait", userInterfaceStyle: "dark", icon: "./assets/icon.png",
   ios: { bundleIdentifier: "com.querra.qfleet.driver", supportsTablet: true, buildNumber: "1", infoPlist: { CFBundleDevelopmentRegion: "ro" } },
   android: { package: androidPackage, ...(hasFirebase ? { googleServicesFile: firebaseFile } : {}), versionCode: 1, allowBackup: false,
     blockedPermissions: ["android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.RECORD_AUDIO", "android.permission.SYSTEM_ALERT_WINDOW"] },
-  plugins: [["expo-image-picker", { cameraPermission: "Fotografiază documentul CMR sau dovada livrării pentru cursa ta.", photosPermission: "Alege fotografia documentului pe care vrei să o trimiți firmei.", microphonePermission: false }], ["expo-notifications", { mode: process.env.EXPO_PUBLIC_APNS_ENVIRONMENT === "sandbox" ? "development" : "production" }], "./plugins/withAndroidTransport.cjs", ["expo-secure-store", { faceIDPermission: false }], ["expo-location", {
+  plugins: [["expo-image-picker", { cameraPermission: "Fotografiază documentul CMR sau dovada livrării pentru cursa ta.", photosPermission: "Alege fotografia documentului pe care vrei să o trimiți firmei.", microphonePermission: false }], ["expo-notifications", { defaultChannel: "qfleet-alerts", mode: process.env.EXPO_PUBLIC_APNS_ENVIRONMENT === "sandbox" ? "development" : "production" }], "./plugins/withAndroidTransport.cjs", ["expo-secure-store", { faceIDPermission: false }], ["expo-location", {
     isIosBackgroundLocationEnabled: true, isAndroidBackgroundLocationEnabled: true, isAndroidForegroundServiceEnabled: true,
     locationWhenInUsePermission: "Querra trimite poziția camionului către firma ta doar când activezi GPS în tură.",
     locationAlwaysAndWhenInUsePermission: "În tură, Querra trimite poziția și cu ecranul blocat. Modul Privat și Oprește GPS întrerup colectarea.",

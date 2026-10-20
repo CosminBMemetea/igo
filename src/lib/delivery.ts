@@ -18,7 +18,7 @@ export async function deliveryRecipient(s: Store, row: EmailRow, today: string, 
   let device: PushDevice | undefined;
   if (row.channel === "push") {
     device = (await s.pushDevices(u.firmId, u.id)).find(d => d.id === row.subscriptionId && d.sessionVersion === (u.sessionVersion ?? 0) && (!d.validUntil || Date.parse(d.validUntil) > now));
-    if (!device) return { valid: false };
+    if (!device || (device.nativeSessionId && await s.mobileSessionRevoked(device.nativeSessionId))) return { valid: false };
   }
   if (c.kind === "account") return { valid: (u.sessionVersion ?? 0) === c.version, device };
   if (c.kind === "test") return { valid: true, device };

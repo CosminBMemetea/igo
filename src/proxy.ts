@@ -1,3 +1,5 @@
+import { mobileSessionId } from "@/lib/mobile-logout";
+import { store } from "@/lib/store";
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { mobileRoute, verifyMobileSession } from "@/lib/mobile-session";
@@ -14,6 +16,10 @@ export async function proxy(req: NextRequest) {
     return NextResponse.json({ error: "mobile-unavailable" }, { status: 403 });
   const s = mobile ? await verifyMobileSession(bearer!.slice(7), process.env.SESSION_SECRET)
     : await verifySession(req.cookies.get(SESSION_COOKIE)?.value, process.env.SESSION_SECRET);
+  if (mobile && s) {
+    try { if (await store().mobileSessionRevoked(mobileSessionId(bearer!.slice(7)))) return NextResponse.json({ error: "unauthorized" }, { status: 401 }); }
+    catch { return NextResponse.json({ error: "unavailable" }, { status: 503 }); }
+  }
   if (s && (path === "/login" || path === "/signup") && req.method === "GET") { const u = req.nextUrl.clone(); u.pathname = roleHome(s.role); u.search = ""; return NextResponse.redirect(u); }
   const d = decide(path, s);
   if (d.kind === "unauthorized") return NextResponse.json({ error: "unauthorized" }, { status: 401 });

@@ -2,6 +2,7 @@
 export function createActions(beforeRun: () => Promise<unknown> | null, onBusy: (busy: boolean) => void) {
   let tail: Promise<unknown> = Promise.resolve(), count = 0, generation = 0;
   return {
+    invalidate: () => { ++generation; },
     busy: () => count > 0,
     async run(task: () => Promise<void>, prepare?: () => Promise<void>) {
       if (!prepare && count > 0) return;
@@ -15,7 +16,7 @@ export function createActions(beforeRun: () => Promise<unknown> | null, onBusy: 
         const failure = await preparation;
         if (failure) throw failure.error;
         await beforeRun()?.catch(() => {});
-        if (!prepare && version !== generation) return;
+        if (version !== generation) return;
         await task();
       })();
       tail = job.catch(() => {});

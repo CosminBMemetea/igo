@@ -312,3 +312,20 @@ Indicatorul de sincronizare diferențiază operațiile de verificat și drafturi
 APK verificat: SHA-256
 `272b09c62ae907cf24bf2869c115677369cc087265464c91b6e96476e1653702`.
 Rezultatele complete și restanțele sunt în `docs/QA-AUDIT.md`.
+
+### Android push și logout offline — 20 octombrie 2026
+
+Aplicația Android oferă activare, dezactivare și test FCM din Cont. Nu cere repetat
+permisiuni deja acordate; verifică proiectul Firebase din build față de server.
+Configurarea și probele de acceptanță sunt în `docs/NOTIFICATIONS.md`.
+
+Logoutul este local și nu mai așteaptă sincronizarea/rețeaua. Oprește GPS și
+păstrează o revocare restrânsă pentru retry pe server, inclusiv după restart.
+Fotografiile și comenzile netrimise rămân pentru același cont. Comenzile Privat/
+Încheie tura se reiau după reautentificare; logoutul nu încheie singur tura.
+Sesiunile expiră în continuare după 12 ore. Revocarea veche nu afectează noua
+sesiune și verificarea înaintea trimiterii blochează push-ul unei sesiuni revocate.
+
+Limită operațională: utilizatorul a confirmat că lipsește credențiala Firebase
+server; codul și buildul nu constituie dovadă de recepție live. Vezi pașii Vercel
+și lista de probe rămase în raportul QA.
