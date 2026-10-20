@@ -1327,3 +1327,43 @@ Restanțe explicite:
 - Probe de teren GPS/baterie Xiaomi, offline cu două dispozitive, Android 13+ cu
   refuzul permisiunii și iPhone fizic/APNs rămân necesare. Xiaomi-ul disponibil
   rulează Android 12; nu pretindem că acesta validează toate versiunile Android.
+
+### Închidere pe Xiaomi — 20 octombrie 2026
+
+- APK Release semnat, surse curate `b81fd4a`, construit la 08:13 UTC și instalat
+  peste aplicația existentă. Sesiunea s-a păstrat. SHA-256:
+  `d96543619722368b152d85581e6076364af845625682bf00bdd6ec59f3a88c75`.
+- Logout cu Wi-Fi și date mobile oprite, în timpul unei actualizări: ecranul de
+  autentificare a apărut fără a aștepta timeoutul rețelei. Închidere forțată și
+  relansare offline: contul a rămas deconectat, revocarea restantă a rămas vizibilă.
+  La revenirea Wi-Fi, mesajul a dispărut automat pe ecranul de login, înaintea
+  reautentificării. Serviciile aplicației nu rulau după restartul offline.
+- Limita probei GPS: șoferul era deja în afara turei, cu GPS oprit. Nu s-a pornit
+  o tură reală; oprirea unui GPS activ la logout este acoperită automat, nu
+  demonstrată de această probă fizică. Rămâne proba pe traseu.
+- Fotografia fictivă salvată ca draft a rămas în operațiile locale după logout,
+  restart și autentificare. Utilizatorul a confirmat apăsarea „Trimite CMR” după
+  autentificare; starea „Salvat pe telefon / Reîncearcă” nu demonstrează trimitere
+  automată. Operația a fost eliminată local cu rețeaua oprită. După revenirea
+  online, lista actualizată la 11:22 nu arăta documente „Primite de firmă”, iar
+  coada locală avea zero operații restante. Aceasta este verificare prin API/UI,
+  nu un audit direct al stocării de producție.
+- Cont: mesajul de configurare Firebase apare lângă buton și persistă după
+  actualizările automate. Activarea nu cere inutil permisiunea OS când serverul
+  nu este configurat. Recepția FCM nu a fost testată live.
+- Azi: „Nicio cursă în desfășurare”, fără acțiune implicită de pornire, iar
+  livrarea existentă apare corect ca „1 livrare fără POD”. Nu s-au modificat
+  etapele cursei reale în această rundă.
+- Corecții suplimentare: detectarea canalului Android dezactivat; mesajul de
+  eroare al notificărilor separat de erorile refreshului; comenzile contului
+  plasate înaintea progresului/clasamentului; singularul livrării fără POD.
+- Bufferul de crash Android a rămas gol. Exportul JS iOS Metro/Hermes final a
+  trecut; nu este IPA semnat și nu validează un iPhone fizic. TypeScript nativ a
+  trecut după ultimele modificări. Lint admin: zero erori, un avertisment
+  preexistent `react-hooks/purity` pentru `Date.now()`.
+- Dovezi locale ignorate de Git: `apps/driver/build/qa/2026-10-20/`, inclusiv
+  `offline-logout.png`, `revocation-confirmed.png`, `account-fcm.png` și
+  `final-zero-queue.png`. Jurnalele testelor sunt în `/tmp/querra-20261020-*`.
+- Copia fictivă creată pentru probă a fost eliminată din galerie. Wi-Fi a fost
+  readus la starea inițială oprit; datele mobile au rămas oprite. Contul este
+  autentificat, aplicația este în Azi.

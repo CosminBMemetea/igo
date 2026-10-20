@@ -1,6 +1,6 @@
 # Notificări — implementare și activare
 
-Actualizat: 18 octombrie 2026. Cod pregătit; configurarea serviciilor și acceptanța pe dispozitiv sunt etape separate. Utilizatorul a confirmat că nu are încă Resend/domeniu verificat sau Apple Developer.
+Actualizat: 20 octombrie 2026. Cod pregătit; configurarea serviciilor și acceptanța pe dispozitiv sunt etape separate. Utilizatorul a confirmat domeniul Resend `mail.querra.net` verificat și variabilele email adăugate în Vercel Production. Aceste confirmări nu dovedesc recepția emailurilor. Pentru FCM lipsește încă credențiala server; acceptanța Apple/APNs rămâne separată.
 
 ## Ce este implementat
 
@@ -11,7 +11,7 @@ Actualizat: 18 octombrie 2026. Cod pregătit; configurarea serviciilor și accep
 | Web Push pe Mac / desktop | Da | Da | HTTPS, VAPID, browser compatibil, activare explicită pe dispozitiv |
 | Web Push pe iPhone | Da | Da | iOS 16.4+, aplicația adăugată pe ecranul principal, deschisă de acolo, permisiune acordată |
 | Push în aplicația nativă iOS | Nu există aplicație nativă dedicată patronului | Implementat prin APNs direct | Apple Developer, App ID cu Push Notifications, semnare/provisioning, cheie APNs și server configurat |
-| Push în aplicația nativă Android | — | Nu este activat în această etapă | FCM rămâne separat; Android poate folosi Web Push prin aplicația web |
+| Push în aplicația nativă Android | — | Implementat; activare live restantă | FCM HTTP v1, retry, revocare offline; necesită credențiala server și acceptanță pe telefon |
 
 Pagina `/notifications` permite activarea, testarea și oprirea push pe dispozitiv, revocarea pe toate dispozitivele contului și configurarea emailului. O adresă nouă cere parola/PIN-ul curent. Alertele de email pot fi oprite separat. Nu există verificare automată a proprietății căsuței poștale; verificați adresa împreună cu utilizatorul la pilot.
 
@@ -25,7 +25,7 @@ Nu se cere permisiunea push la încărcarea paginii. Conținutul afișat pe ecra
 4. **Scheduler:** păstrați jobul zilnic `/api/cron/reminders` la 03:00 UTC. Programați **și** `/api/cron/deliveries` la fiecare 5 minute, cu `Authorization: Bearer <CRON_SECRET>`. Folosiți o valoare aleatorie de minimum 32 de caractere. Modelul pentru un plan Vercel care permite frecvența este în `ops/vercel-notifications-cron.example.json`. Pe Hobby, documentația Vercel limitează un job la o execuție pe zi: folosiți un plan adecvat sau un scheduler extern autentificat. Configurația implicită a proiectului păstrează jobul zilnic pentru a nu impune un upgrade plătit. **Până la configurarea schedulerului de 5 minute, retry-ul rapid nu este activ în producție.**
 5. **Admin:** verificați starea furnizorilor, ultima execuție a joburilor și coada în `/admin#emails`. Un job de livrare fără confirmare de peste 15 minute este semnalat. Joburile de documente au prag de 27 de ore. Un worker întrerupt rămâne vizibil ca neconfirmat. Nu sunt trimise automat emailuri de monitorizare dacă furnizorul însuși nu funcționează.
 6. **iOS nativ:** activați Push Notifications pentru App ID `com.querra.qfleet.driver`. Creați/folosiți o cheie Apple APNs `.p8` și configurați serverul: `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_PRIVATE_KEY`, `APNS_TOPIC`, `APNS_ENVIRONMENT`. Cheia poate folosi newline-uri reale sau `\n`. `sandbox` este pentru semnare de dezvoltare; `production` pentru TestFlight/App Store. `EXPO_PUBLIC_APNS_ENVIRONMENT` din build trebuie să corespundă serverului. Aplicația folosește tokenul Apple, fără serviciul Expo Push și fără obligația unui proiect EAS.
-7. **Semnare:** buildul de simulator este nesemnat pentru dispozitiv și nu se instalează pe un iPhone. Pentru TestFlight/iPhone sunt necesare echipa Apple, certificatul/profilul cu entitlement `aps-environment` și un build semnat. Nu activați `MOBILE_DRIVER_ENABLED=1` în producție înainte de acceptanța pilotului nativ.
+7. **Semnare:** buildul de simulator este nesemnat pentru dispozitiv și nu se instalează pe un iPhone. Pentru TestFlight/iPhone sunt necesare echipa Apple, certificatul/profilul cu entitlement `aps-environment` și un build semnat. Accesul mobil este folosit în pilotul Android autorizat; această activare nu certifică distribuția iOS sau recepția push.
 8. **Test autorizat:** dintr-un cont de test al firmei, activați push pe Mac și apăsați „Testează push”. Apoi testați patronul și șoferul pe iPhone, cu aplicația în fundal/ecranul blocat. Folosiți numai adrese și dispozitive de test autorizate. Nu generați alerte de test către șoferi/clienți reali fără acord.
 
 Comenzi:
@@ -63,7 +63,7 @@ NOTIFICATIONS_TEST_URL=http://localhost:3107 npm run smoke:notifications:http
 
 - Fișierul furnizat pentru proiectul Firebase `querra-fleet` este configurat local în `apps/driver/firebase/google-services.preview.json`, exclus din Git. Expo îl include numai pentru `QFLEET_ANDROID_PREVIEW=1`, cu pachetul `com.querra.qfleet.driver.preview`.
 - Configurația verifică potrivirea pachetului înainte de generarea proiectului nativ. Varianta de producție folosește separat `firebase/google-services.production.json`, după înregistrarea pachetului `com.querra.qfleet.driver` în Firebase. Fișierele locale trebuie furnizate separat pe alte calculatoare/în CI.
-- Configurarea Firebase în APK nu activează livrarea push Android: clientul de notificări și endpointul serverului sunt încă limitate la APNs/iOS. Urmează implementarea înregistrării tokenurilor FCM, livrarea HTTP v1 cu acreditări server, retry și testarea pe dispozitiv. `google-services.json` este configurația clientului, nu o cheie de autentificare pentru server.
+- Configurarea Firebase în APK nu activează singură livrarea push Android. Din 20 octombrie sunt implementate înregistrarea tokenurilor FCM, HTTP v1, retry și revocarea; activarea live necesită credențiala server și testul de recepție descris mai jos. `google-services.json` este configurația clientului, nu o cheie de autentificare pentru server.
 
 ## Acceptanță rămasă după configurare
 
@@ -72,7 +72,7 @@ NOTIFICATIONS_TEST_URL=http://localhost:3107 npm run smoke:notifications:http
 - iPhone: PWA instalată, aplicație nativă semnată, permisiune refuzată/reacordată, mod Focus, ecran blocat, offline/revenire online, logout și schimbarea utilizatorului pe același telefon.
 - Două dispozitive: patron + șofer, realocare camion în timp ce există retry, confirmarea sarcinii, reînnoirea documentului.
 - Token APNs real și mediu sandbox/producție. Testele de semnare JWT și buildul de simulator nu înlocuiesc această verificare.
-- FCM nativ Android, verificarea căsuței de email la schimbarea adresei și recuperarea PIN-ului șoferului prin email rămân extensii separate. Formularul actual de resetare este pentru parola patronului; nu îl folosim pentru a înlocui un PIN cu o parolă incompatibilă.
+- Recepția FCM pe telefon rămâne probă de acceptanță după configurare. Verificarea căsuței de email la schimbarea adresei și recuperarea PIN-ului șoferului prin email rămân extensii separate. Formularul actual de resetare este pentru parola patronului; nu îl folosim pentru a înlocui un PIN cu o parolă incompatibilă.
 
 Surse tehnice: [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers), [WebKit iOS Home Screen](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/), [APNs requests](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns), [Expo APNs direct](https://docs.expo.dev/push-notifications/sending-notifications-custom/), [Resend idempotency](https://resend.com/changelog/idempotency-keys), [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
 

@@ -329,3 +329,13 @@ sesiune și verificarea înaintea trimiterii blochează push-ul unei sesiuni rev
 Limită operațională: utilizatorul a confirmat că lipsește credențiala Firebase
 server; codul și buildul nu constituie dovadă de recepție live. Vezi pașii Vercel
 și lista de probe rămase în raportul QA.
+
+APK final instalat pe Xiaomi M2003J15SC / Android 12: Release semnat din surse
+curate `b81fd4a`, SHA-256
+`d96543619722368b152d85581e6076364af845625682bf00bdd6ec59f3a88c75`.
+Logoutul offline, relansarea fără reautentificare automată și reluarea revocării
+la revenirea internetului au fost verificate fizic. Operația foto locală s-a
+păstrat după reautentificare; ulterior a fost eliminată explicit. Mesajul FCM
+neconfigurat rămâne vizibil în Cont după refresh. Exportul JS iOS final a trecut.
+Rezultatele complete, limitele probelor și pașii rămași sunt în
+`docs/QA-AUDIT.md` și `docs/NOTIFICATIONS.md`.
