@@ -4,6 +4,7 @@ import { DEMO_SID } from "@/lib/demo-shift";
 import { getPrefs } from "@/lib/prefs";
 import { t, type MsgKey } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
+import { ClearDrafts } from "@/components/ClearDrafts";
 import { LT } from "@/lib/lead-i18n";
 import { ROLE_LOOK, RoleIcon, type RoleLook } from "@/lib/roles";
 
@@ -27,6 +28,7 @@ export default async function Login(
   );
   return (
     <main className={`login r-${as}`}>
+      <ClearDrafts />
       <div className="fade" style={{ color: "var(--fg)", marginBottom: 18 }}><Logo height={44} /></div>
       {as !== "admin" ? (
         <>

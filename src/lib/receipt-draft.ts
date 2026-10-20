@@ -34,3 +34,8 @@ export function saveReceiptDraft(scope: string, draft: ReceiptDraft): Promise<un
   writes = write;
   return write;
 }
+/** Called on the login screen (reached after logout): a fresh login must never see the previous session's receipt draft. */
+export function clearReceiptDrafts(): void {
+  memory.clear();
+  try { indexedDB.deleteDatabase("igo-receipt-drafts"); } catch { /* storage unavailable */ }
+}
