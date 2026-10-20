@@ -1408,3 +1408,39 @@ Nu s-au modificat datele firmei reale și nu s-a refăcut APK-ul: corecțiile ac
 runde sunt pe server. Nu am verificat din nou fizic GPS sau recepția FCM.
 Activarea FCM, schedulerul Hobby și probele de teren/iPhone rămân cele enumerate
 anterior. Jurnale locale: `/tmp/querra-20261020-security-{build,http,pilot}.log`.
+
+
+## Acceptanță FCM live pe Xiaomi — 20 octombrie 2026
+
+După revenirea internetului și redeploy, activarea din Cont a reușit fără
+reinstalare sau o nouă solicitare de permisiune OS. Server verificat: `5d73f95`;
+APK Release preview din `b81fd4a`, SHA-256
+`d96543619722368b152d85581e6076364af845625682bf00bdd6ec59f3a88c75`.
+Dispozitiv: Xiaomi M2003J15SC, Android 12. Wi-Fi activ, utilizator autentificat.
+
+Probe trecute:
+- Prim-plan: test acceptat de Firebase, apoi notificare reală în Android,
+  canal `qfleet-alerts`, importanță HIGH, vizibilitate PRIVATE.
+- Conținut generic: „Querra Fleet / Ai o notificare nouă. Deschide aplicația
+  pentru detalii.” Fără informații despre curse în notificare.
+- Apăsare: deschide „Acte și sincronizare”; dialogul testului a trebuit închis
+  pentru a vedea destinația. Nu confundăm acceptarea furnizorului cu recepția.
+- Fundal: Home confirmat prin `mCurrentFocus` pe launcherul MIUI la
+  epoch `1792503072232`; noua notificare înregistrată la `1792503072796` ms.
+- Ecran stins: imediat după al treilea test s-a trimis Sleep; PowerManager
+  confirma `mWakefulness=Dozing`, iar o notificare nouă a fost înregistrată la
+  `1792503195491` ms. După Wake, mesajul generic era vizibil pe ecranul blocat.
+  Aceasta este o probă scurtă, NU certifică Android Doze după inactivitate lungă.
+
+Au fost trimise trei teste manuale, la minute diferite. Nu s-au modificat cursa,
+tura sau serviciul GPS și nu s-a făcut logout. Telefonul rămâne cu Wi-Fi și push
+activate; după ultima probă ecranul a fost trezit, fără ocolirea blocării.
+Dovezi locale: XML `/tmp/querra-push-*.xml`, `/tmp/push-current.xml`,
+`/tmp/push-final.xml` și înregistrările Android filtrate după pachet/canal.
+
+Restanțe: livrarea automată a unei alerte reale de document/sarcină, retry live
+prin scheduler (inclusiv două execuții pe Hobby cu scheduler extern), notificare
+trimisă cât telefonul este offline și recepție după reconectare, economisire
+agresivă MIUI/Doze prelungit, alte dispozitive și APNs/iPhone. Recepția FCM de azi
+nu certifică emailul, Web Push sau aceste scenarii. Nu a fost necesară corecție
+în cod; această rundă actualizează doar documentația de acceptanță.

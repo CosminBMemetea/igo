@@ -326,9 +326,11 @@ Fotografiile și comenzile netrimise rămân pentru același cont. Comenzile Pri
 Sesiunile expiră în continuare după 12 ore. Revocarea veche nu afectează noua
 sesiune și verificarea înaintea trimiterii blochează push-ul unei sesiuni revocate.
 
-Limită operațională: utilizatorul a confirmat că lipsește credențiala Firebase
-server; codul și buildul nu constituie dovadă de recepție live. Vezi pașii Vercel
-și lista de probe rămase în raportul QA.
+Actualizare live, 20 octombrie: după configurarea Firebase pe server și redeploy,
+Xiaomi a primit notificări în prim-plan, în fundal și imediat după stingerea
+ecranului; apăsarea notificării a
+deschis Acte și sincronizare. Doze prelungit și schedulerul de retry rămân
+probe separate. Vezi raportul QA pentru dovezi și limite.
 
 APK final instalat pe Xiaomi M2003J15SC / Android 12: Release semnat din surse
 curate `b81fd4a`, SHA-256

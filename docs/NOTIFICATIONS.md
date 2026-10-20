@@ -1,6 +1,6 @@
 # Notificări — implementare și activare
 
-Actualizat: 20 octombrie 2026. Cod pregătit; configurarea serviciilor și acceptanța pe dispozitiv sunt etape separate. Utilizatorul a confirmat domeniul Resend `mail.querra.net` verificat și variabilele email adăugate în Vercel Production. Aceste confirmări nu dovedesc recepția emailurilor. Pentru FCM lipsește încă credențiala server; acceptanța Apple/APNs rămâne separată.
+Actualizat: 20 octombrie 2026. Cod pregătit; configurarea serviciilor și acceptanța pe dispozitiv sunt etape separate. Utilizatorul a confirmat domeniul Resend `mail.querra.net` verificat și variabilele email adăugate în Vercel Production. Aceste confirmări nu dovedesc recepția emailurilor. FCM live a fost verificat pe Xiaomi pe 20 octombrie: activare, recepție în prim-plan, în fundal și la stingerea ecranului, deschidere în Acte. Acceptanța Apple/APNs rămâne separată.
 
 ## Ce este implementat
 
@@ -11,7 +11,7 @@ Actualizat: 20 octombrie 2026. Cod pregătit; configurarea serviciilor și accep
 | Web Push pe Mac / desktop | Da | Da | HTTPS, VAPID, browser compatibil, activare explicită pe dispozitiv |
 | Web Push pe iPhone | Da | Da | iOS 16.4+, aplicația adăugată pe ecranul principal, deschisă de acolo, permisiune acordată |
 | Push în aplicația nativă iOS | Nu există aplicație nativă dedicată patronului | Implementat prin APNs direct | Apple Developer, App ID cu Push Notifications, semnare/provisioning, cheie APNs și server configurat |
-| Push în aplicația nativă Android | — | Implementat; activare live restantă | FCM HTTP v1, retry, revocare offline; necesită credențiala server și acceptanță pe telefon |
+| Push în aplicația nativă Android | — | Live verificat pe Xiaomi | FCM HTTP v1; recepție în prim-plan/fundal și navigare verificate. Retry periodic și Doze prelungit rămân de validat |
 
 Pagina `/notifications` permite activarea, testarea și oprirea push pe dispozitiv, revocarea pe toate dispozitivele contului și configurarea emailului. O adresă nouă cere parola/PIN-ul curent. Alertele de email pot fi oprite separat. Nu există verificare automată a proprietății căsuței poștale; verificați adresa împreună cu utilizatorul la pilot.
 
@@ -72,15 +72,16 @@ NOTIFICATIONS_TEST_URL=http://localhost:3107 npm run smoke:notifications:http
 - iPhone: PWA instalată, aplicație nativă semnată, permisiune refuzată/reacordată, mod Focus, ecran blocat, offline/revenire online, logout și schimbarea utilizatorului pe același telefon.
 - Două dispozitive: patron + șofer, realocare camion în timp ce există retry, confirmarea sarcinii, reînnoirea documentului.
 - Token APNs real și mediu sandbox/producție. Testele de semnare JWT și buildul de simulator nu înlocuiesc această verificare.
-- Recepția FCM pe telefon rămâne probă de acceptanță după configurare. Verificarea căsuței de email la schimbarea adresei și recuperarea PIN-ului șoferului prin email rămân extensii separate. Formularul actual de resetare este pentru parola patronului; nu îl folosim pentru a înlocui un PIN cu o parolă incompatibilă.
+- Recepția FCM în prim-plan/fundal și deschiderea în Acte sunt confirmate pe Xiaomi; rămân Doze prelungit, revenirea online după o notificare trimisă offline și livrarea automată a alertelor reale. Verificarea căsuței de email la schimbarea adresei și recuperarea PIN-ului șoferului prin email rămân extensii separate. Formularul actual de resetare este pentru parola patronului; nu îl folosim pentru a înlocui un PIN cu o parolă incompatibilă.
 
 Surse tehnice: [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers), [WebKit iOS Home Screen](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/), [APNs requests](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns), [Expo APNs direct](https://docs.expo.dev/push-notifications/sending-notifications-custom/), [Resend idempotency](https://resend.com/changelog/idempotency-keys), [Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
 
 ## Android FCM și deconectare offline — 20 octombrie 2026
 
 FCM nativ este implementat prin HTTP v1, separat de Web Push/VAPID. Starea
-anterioară „FCM extensie separată” este depășită pentru cod; activarea live și
-recepția pe dispozitiv rămân de verificat după configurarea credențialei.
+anterioară „FCM extensie separată” este depășită. Activarea live și recepția pe
+Xiaomi au fost confirmate pe 20 octombrie după configurare și redeploy; vezi
+proba de acceptanță FCM din `docs/QA-AUDIT.md`.
 
 ### Activare pentru proiectul `querra-fleet`
 
