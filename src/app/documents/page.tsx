@@ -59,7 +59,7 @@ export default async function Documents(
   const drivers = canEdit ? (await store().users(tn.firm!.id)).filter((u) => u.role === "driver") : [];
   const tab = ["overview", "vehicles", "drivers", "trips", "service"].includes(searchParams.tab ?? "") ? searchParams.tab! : searchParams.view === "cal" ? "vehicles" : "overview";
   const today = todayFor(tn.demo);
-  if (!tn.demo && !docs.length && !vehicles.length && !searchParams.add) return <main><EmptyState kind="docs" loc={loc} canSetup={canEdit} />{canEdit ? <p style={{ textAlign: "center" }}><Link className="btn pri" href="/documents?add=1">{t(loc, "dc.add")}</Link></p> : null}</main>;
+  if (!tn.demo && !docs.length && !vehicles.length && !searchParams.add) return <main><EmptyState kind="docs" loc={loc} canSetup={canEdit} hideCta={canEdit} />{canEdit ? <p style={{ textAlign: "center" }}><Link className="btn pri" href="/documents?add=1">{t(loc, "dc.add")}</Link></p> : null}</main>;
   const dated = docs.filter(d => d.expires && !(d.type === "vignette" && roadRegime(vehicles.find(v => v.id === d.ownerId)?.compliance) === "tollro") && currentDocument(docs.filter(other => other.scope === d.scope && other.ownerId === d.ownerId && other.userId === d.userId && other.type === d.type), today)?.id === d.id);
   const vname = (id: string) => vehicles.find((v) => v.id === id)?.name ?? id;
   const label = (d: Doc) => (d.scope === "vehicle" ? vname(d.ownerId) : d.scope === "trip" ? d.ownerId.replace(/-(\d+)$/, " · $1 oct") : d.ownerId);

@@ -48,7 +48,9 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
     if (!f) return;
     if (input.current) input.current.value = ""; // același fișier poate fi ales din nou
     if (f.size > 3 * 1024 * 1024) { setMsg({ ok: false, text: l.big }); return; }
+    if (/\.(pdf|xlsx?|docx?|png|jpe?g|heic|webp|zip)$/i.test(f.name)) { setMsg({ ok: false, text: l.notCsv }); return; }
     const buf = await f.arrayBuffer();
+    if (new Uint8Array(buf.slice(0, 2000)).includes(0)) { setMsg({ ok: false, text: l.notCsv }); return; } // binary, not text
     // UTF-8, altfel Windows-1250/1252 (exporturi vechi din Excel)
     let text = new TextDecoder("utf-8").decode(buf);
     let e = "UTF-8";
@@ -146,6 +148,13 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
             </div>
           ) : null}
           {sum.conflicts.length ? <div className="msg err" role="alert"><p>{tri(l.loc as Locale, "Import oprit: plăcuța din CSV contrazice istoricul cardului. Verifică perioada cardului sau corectează fișierul, apoi reîncarcă-l.|Import blocked: the CSV registration conflicts with the card history. Check the card period or correct the file, then reload it.|Import zablokowany: rejestracja w CSV jest sprzeczna z historią karty. Sprawdź okres karty lub popraw plik i wczytaj go ponownie.")}</p><ul>{sum.conflicts.slice(0, 8).map((x, i) => <li key={i}>{x.card} · {x.at.replace("T", " ")} · {x.plate} ≠ {x.expected}</li>)}</ul></div> : null}
+          {sum.future || sum.total - sum.valid > 0 || sum.unknown.length ? (
+            <ul className="impwarn" role="status">
+              {sum.future ? <li>{fmt(l.warnFuture, { n: sum.future })}</li> : null}
+              {sum.total - sum.valid > 0 ? <li>{fmt(l.warnSkipped, { n: sum.total - sum.valid })}</li> : null}
+              {sum.unknown.length ? <li>{fmt(l.warnUnknown, { n: sum.unknown.reduce((a, u) => a + u.n, 0) })}</li> : null}
+            </ul>
+          ) : null}
           {sum.unknown.length ? (
             <div style={{ marginTop: 20 }}>
               <div className="eyebrow">{l.unknown}</div>

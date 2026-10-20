@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 const SAMPLES = (an: string): [string, string][] => [["dkv", "DKV"], ["dkv-europa", "DKV Europa (HUF, EUR, PLN, TRY, CHF)"], ["omv-routex", "OMV / Routex"], ["mol", "MOL"], ["shell", "Shell"], ["e100", "E100"], ["generic", "CSV generic"], ["anomalii", an], ["manual-mapare", "CSV manual (cp1250)"]];
-const LKEYS = ["drop", "eur", "eur1", "peg", "otherCur", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id", "try", "demoDone", "demoReport", "demoAlerts", "demoNoAlerts", "again"] as const;
+const LKEYS = ["notCsv", "warnFuture", "warnSkipped", "warnUnknown", "drop", "eur", "eur1", "peg", "otherCur", "dropHint", "reading", "detected", "rows", "sure", "unsure", "new", "dupes", "matched", "skipped", "period", "nonfuel", "showMap", "hideMap", "missing", "check", "unknown", "unknownHint", "unknownMeta", "card", "assign", "addTruck", "go", "done", "err", "big", "delim", "enc", "cols", "saved", "savedHint", "prev", "saveNote", "errs", "line", "more", "why_date", "why_litres", "why_nonfuel", "why_id", "try", "demoDone", "demoReport", "demoAlerts", "demoNoAlerts", "again"] as const;
 export default async function Import(
   props: { searchParams: Promise<{ e?: string; assigned?: string; card?: string }> }
 ) {

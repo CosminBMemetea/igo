@@ -50,7 +50,7 @@ export async function analyze(s: Store, firmId: string, text: string, mapping?: 
     summary: {
       source: p.source, sourceName: SOURCE_NAME[p.source], headers: p.headers, mapping: p.mapping, confident: p.confident || (saved && !p.missing.length), missing: p.missing,
       conflicts, total: p.total, valid: p.rows.length, skipped: p.skipped, preview: p.preview, errors: p.errors, delimiter: p.delimiter, savedMapping: saved, newRows: p.rows.length - dupes, dupes, fx: [...fxSum.values()],
-      matched: rows.filter((x) => x.truckId).length, unknown: [...unknownMap.values()], from: ats[0] ?? null, to: ats[ats.length - 1] ?? null,
+      future: p.rows.filter((r) => r.at.slice(0, 10) > new Date(Date.now() + 86400000).toISOString().slice(0, 10)).length, matched: rows.filter((x) => x.truckId).length, unknown: [...unknownMap.values()], from: ats[0] ?? null, to: ats[ats.length - 1] ?? null,
       trucks: trucks.filter((t) => !t.archivedAt).map((t) => ({ id: t.id, plate: t.plate })),
     },
   };

@@ -1702,3 +1702,6 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 .compliance-export {margin:16px 0;}
 /* Allow for both compact and owner account controls in the desktop header. */
 @media(min-width:761px) {.trial {top:112px;} body.has-trial main {padding-top:184px;}}
+/* signup consent + CSV import warnings (ported from the r27 UI review) */
+.consent{display:flex;gap:12px;align-items:flex-start;margin:14px 0 6px;font-size:13px;color:var(--fg2);line-height:1.45;cursor:pointer}.consent input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--acc)}.consent .lnk{text-decoration:underline}
+.impwarn{list-style:none;margin:14px 0 0;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--warn,#f5a524) 14%,transparent);display:grid;gap:6px;font-size:13px}

@@ -15,14 +15,15 @@ const CFG: Record<EmptyKind, { href: string | null; icon: string }> = {
   driverOwner: { href: "/setup?step=2", icon: "M3 7h11v9H3zM14 10h4l3 3v3h-7" },
 };
 /** Ecran gol care spune ce va apărea aici și are un singur buton cu pasul următor. */
-export function EmptyState({ kind, loc, canSetup = true }: { kind: EmptyKind; loc: Locale; canSetup?: boolean }) {
+/** hideCta: the page renders its own single primary action below. */
+export function EmptyState({ kind, loc, canSetup = true, hideCta }: { kind: EmptyKind; loc: Locale; canSetup?: boolean; hideCta?: boolean }) {
   const c = CFG[kind];
   return (
     <div className="empty fade">
       <span className="ill"><svg viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d={c.icon} /></svg></span>
       <h2>{t(loc, `empty.${kind}.title` as MsgKey)}</h2>
       <p>{t(loc, `empty.${kind}.text` as MsgKey)}</p>
-      {c.href && canSetup ? <Link className="btn pri" href={c.href}>{t(loc, `empty.${kind}.cta` as MsgKey)}</Link> : !canSetup ? <p style={{ fontSize: 13 }}>{t(loc, "empty.askOwner")}</p> : null}
+      {hideCta ? null : c.href && canSetup ? <Link className="btn pri" href={c.href}>{t(loc, `empty.${kind}.cta` as MsgKey)}</Link> : !canSetup ? <p style={{ fontSize: 13 }}>{t(loc, "empty.askOwner")}</p> : null}
     </div>
   );
 }
