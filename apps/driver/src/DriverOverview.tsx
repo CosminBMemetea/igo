@@ -35,7 +35,7 @@ export function TripOverview({ board, busy, onEvent, onDocument, blockedTrips, c
     {(groups.running?.length ?? 0) > 1 && <Text style={s.warn}>Mai multe curse sunt marcate încărcate. Verifică situația cu patronul.</Text>}
     {!compact && <View style={s.tabs}>{[["now", "Acum", (groups.running?.length ?? 0) + (groups.ready?.length ?? 0)], ["next", "Urmează", groups.upcoming?.length ?? 0], ["past", "Istoric", (groups.documents?.length ?? 0) + (groups.finished?.length ?? 0) + (groups.cancelled?.length ?? 0)]].map(([key, label, count]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: tab === key }} style={[s.tab, tab === key && s.selected]} onPress={() => setTab(String(key))}><Text style={s.text}>{label} · {count}</Text></Pressable>)}</View>}
     {keys.flatMap(key => (groups[key] ?? []).filter(trip => !compact || trip.id === (current ?? next)?.id).map(trip => card(trip, key)))}
-    {compact && <Pressable accessibilityRole="button" style={s.secondary} onPress={onShowTrips}><Text style={s.text}>Toate cursele · {(groups.documents?.length ?? 0) > 0 ? `${groups.documents.length} livrări fără POD` : "program și istoric"} →</Text></Pressable>}
+    {compact && <Pressable accessibilityRole="button" style={s.secondary} onPress={onShowTrips}><Text style={s.text}>Toate cursele · {(groups.documents?.length ?? 0) > 0 ? `${groups.documents.length} ${groups.documents.length === 1 ? "livrare" : "livrări"} fără POD` : "program și istoric"} →</Text></Pressable>}
     {!keys.some(key => groups[key]?.length) && <Text style={s.muted}>{tab === "now" ? "Nu ai curse de făcut acum." : tab === "next" ? "Nu ai curse viitoare." : "Nu ai încă un istoric de curse."}</Text>}
   </View>;
 }

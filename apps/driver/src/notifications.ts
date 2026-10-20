@@ -12,7 +12,10 @@ Notifications.setNotificationHandler({ handleNotification: async () => {
 } });
 export async function pushActive() {
   const value = await read<Registration>("push-registration");
-  return !!value && value.scope === await sessionScope() && Date.parse(value.validUntil) > Date.now();
+  if (!value || value.scope !== await sessionScope() || Date.parse(value.validUntil) <= Date.now()) return false;
+  if (!(await Notifications.getPermissionsAsync()).granted) return false;
+  const currentChannel = Platform.OS === "android" ? await Notifications.getNotificationChannelAsync("qfleet-alerts") : null;
+  return Platform.OS !== "android" || (!!currentChannel && currentChannel.importance !== Notifications.AndroidImportance.NONE);
 }
 async function register(token: string, scope: string) {
   const version = generation, login = await read<Login>("login"), previous = await read<Registration>("push-registration");
@@ -27,6 +30,8 @@ async function channel() {
   if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("qfleet-alerts", {
     name: "Alerte Querra", importance: Notifications.AndroidImportance.HIGH, sound: "default",
   });
+  if (Platform.OS === "android" && (await Notifications.getNotificationChannelAsync("qfleet-alerts"))?.importance === Notifications.AndroidImportance.NONE)
+    throw new Error("Canalul Alerte Querra este oprit. Reactivează-l în Setările notificărilor.");
 }
 export async function enablePush() {
   const version = generation, login = await read<Login>("login");

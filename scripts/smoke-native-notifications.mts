@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 const storage=new Map<string,any>(),scope='origin:firm:driver';
-let currentScope=scope,configured=false,permission=true,tokenCalls=0,permissionCalls=0,networkError=false,channelCalls=0,testStatus='accepted';
+let currentScope=scope,configured=false,permission=true,tokenCalls=0,permissionCalls=0,networkError=false,channelCalls=0,testStatus='accepted',blockedChannel=false;
 const requests:any[]=[],revocations:string[]=[],listeners:Record<string,Function>={};const platform={OS:'ios'};
 const expiry=new Date(Date.now()+3600000).toISOString();storage.set('login',{token:'session-one',expiresAt:expiry});
 let delay:((value:unknown)=>void)|undefined,holdRegistration=false;
@@ -11,7 +11,7 @@ const api={read:async(k:string)=>storage.get(k)??null,write:async(k:string,v:unk
  if(body?.action==='on'&&holdRegistration)return new Promise(resolve=>delay=resolve);
  return body===undefined?{configured,environment:'production',projectId:'querra-fleet'}:body.action==='test'?{status:testStatus}:body.action==='status'?{active:true,registered:true}:{validUntil:expiry,revokeReceipt:'revoke-'+body.token};
 }};
-const notifications={AndroidImportance:{HIGH:4},setNotificationHandler(){},setNotificationChannelAsync:async()=>{channelCalls++},dismissAllNotificationsAsync:async()=>{},requestPermissionsAsync:async()=>{permissionCalls++;return{granted:permission}},getPermissionsAsync:async()=>({granted:permission}),getDevicePushTokenAsync:async()=>{tokenCalls++;if(platform.OS==='android')assert.ok(channelCalls);return{type:platform.OS,data:platform.OS==='ios'?'a'.repeat(64):'Firebase:Token_With_Case'.repeat(8)}},addNotificationResponseReceivedListener:(f:Function)=>{listeners.tap=f;return{remove(){delete listeners.tap}}},addPushTokenListener:(f:Function)=>{listeners.rotate=f;return{remove(){delete listeners.rotate}}},getLastNotificationResponseAsync:async()=>null,clearLastNotificationResponseAsync:async()=>{}};
+const notifications={AndroidImportance:{HIGH:4,NONE:0},getNotificationChannelAsync:async()=>({importance:blockedChannel?0:4}),setNotificationHandler(){},setNotificationChannelAsync:async()=>{channelCalls++},dismissAllNotificationsAsync:async()=>{},requestPermissionsAsync:async()=>{permissionCalls++;return{granted:permission}},getPermissionsAsync:async()=>({granted:permission}),getDevicePushTokenAsync:async()=>{tokenCalls++;if(platform.OS==='android')assert.ok(channelCalls);return{type:platform.OS,data:platform.OS==='ios'?'a'.repeat(64):'Firebase:Token_With_Case'.repeat(8)}},addNotificationResponseReceivedListener:(f:Function)=>{listeners.tap=f;return{remove(){delete listeners.tap}}},addPushTokenListener:(f:Function)=>{listeners.rotate=f;return{remove(){delete listeners.rotate}}},getLastNotificationResponseAsync:async()=>null,clearLastNotificationResponseAsync:async()=>{}};
 const source=ts.transpileModule(fs.readFileSync('apps/driver/src/notifications.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
 const m={exports:{} as any};new Function('require','module','exports','process',source)((name:string)=>name==='expo-notifications'?notifications:name==='expo-constants'?{default:{expoConfig:{extra:{firebaseProjectId:'querra-fleet'}}}}:name==='react-native'?{Platform:platform}:name==='./cleanup'?{queueRevocation:async(r:string)=>revocations.push(r),syncRevocations:async()=>{}}:api,m,m.exports,{env:{EXPO_PUBLIC_APNS_ENVIRONMENT:'production'}});const n=m.exports;
 await assert.rejects(n.enablePush(),/așteaptă configurarea/);assert.equal(permissionCalls,0);assert.equal(tokenCalls,0);
@@ -23,7 +23,8 @@ await n.enablePush();currentScope='another-account';assert.equal(await n.pushAct
 const dispose=n.listenPush(()=>{},()=>{});const previousTokens=tokenCalls;listeners.rotate({type:'ios',data:'b'.repeat(64)});await new Promise(r=>setTimeout(r,0));assert.equal(tokenCalls,previousTokens);assert.equal(requests.at(-1).body.previousToken,'a'.repeat(64));dispose();assert.equal(Object.keys(listeners).length,0);
 permission=false;await n.syncPush();assert.equal(storage.has('push-registration'),false);
 platform.OS='android';permission=true;await n.enablePush();assert.equal(requests.at(-1).body.transport,'fcm');assert.match(storage.get('push-registration').token,/With_Case/);
-testStatus='queued';await assert.rejects(n.testPush(),/așteptare/);testStatus='accepted';await n.testPush();
+testStatus='queued';await assert.rejects(n.testPush(),/așteptare/);testStatus='accepted',blockedChannel=false;await n.testPush();
+blockedChannel=true;assert.equal(await n.pushActive(),false);await assert.rejects(n.enablePush(),/Canalul/);blockedChannel=false;
 holdRegistration=true;const late=n.enablePush();while(!delay)await new Promise(r=>setTimeout(r,0));await n.forgetPush();storage.delete('login');delay({validUntil:expiry,revokeReceipt:'late-registration'});await late;
 assert.equal(storage.has('push-registration'),false);assert.ok(revocations.includes('late-registration'));
 console.log('PASS native notifications: APNs/FCM, channel before token, case preservation, permissions, offline revocation, token rotation, delayed registration after logout, honest queued test');

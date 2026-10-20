@@ -77,7 +77,7 @@ function Screen() {
         if (revision !== authRevision.current) return;
         setOnline(true); setError("");
         try { await syncPush(); setPushEnabled(await pushActive()); setPushMessage(""); }
-        catch { setPushMessage("Notificările nu s-au sincronizat. Reîncearcă din Cont."); }
+        catch (e) { setPushEnabled(await pushActive().catch(() => false)); setPushMessage(e instanceof Error ? e.message : "Notificările nu s-au sincronizat. Reîncearcă din Cont."); }
       } catch (e) {
         if (revision !== authRevision.current) return;
         setOnline(false);
@@ -265,6 +265,7 @@ function Screen() {
         {!!pushMessage && <Text style={s.muted}>{pushMessage}</Text>}
         <Text style={s.muted}>{pushEnabled ? "Notificări activate pe acest dispozitiv. Sunt legate de sesiunea ta; reautentifică-te când expiră." : "Activează notificările pentru documente și verificări. Detaliile apar doar în aplicație."}</Text>
         {<>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }, true)}{pushEnabled && button("Testează notificarea", async () => { await testPush(); Alert.alert("Test acceptat", "Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon; acceptarea nu confirmă recepția."); }, true)}</>}
+        {button("Setările notificărilor", async () => { await Linking.openSettings(); }, true)}
       </View>
       <Text style={s.muted}>CMR/POD sunt disponibile în Acte. Interfața web rămâne disponibilă pentru celelalte opțiuni ale contului.</Text>
       {button("Deschide interfața web", async () => { await Linking.openURL(`${apiOrigin()}/driver`); }, true)}
