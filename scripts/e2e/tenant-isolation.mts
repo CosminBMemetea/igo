@@ -96,7 +96,7 @@ for (const t of Object.keys(before)) if (before[t] !== after[t]) leaks.push(`fir
 // driver must not reach owner-only routes
 for (const r of ["/api/drivers/assign", "/api/drivers/reinvite", "/api/setup/truck", "/api/setup/invite", "/api/trips/new", "/api/trips/cancel", "/api/trips/complete", "/api/settings/truck", "/api/settings/email", "/api/docs", "/api/docs/delete", "/api/import/commit", "/api/vehicles/econ", "/api/feed/resolve", "/api/admin/firm/delete", "/api/firm/demo", "/api/trips/pod", "/api/receipts/manage", "/api/files/delete"]) {
   const res = await req(A.d, "POST", r, form({ id: A.tripId, uid: A.driverId, truck: A.truckId, vid: A.truckId, action: "archive", reason: "role test" }));
-  const ok = res.status === 401 || res.status === 403 || (res.status >= 300 && res.status < 400 && /\/(driver|login)/.test(res.loc));
+  const ok = res.status === 401 || res.status === 403 || (res.status >= 300 && res.status < 400 && /\/(driver|login)|[?&]e=nofirm/.test(res.loc));
   if (!ok) roleLeaks.push(`driver POST ${r} → ${res.status} ${res.loc}`);
 }
 // positive controls for the new owner write routes: A can edit/delete its own receipt and trip file

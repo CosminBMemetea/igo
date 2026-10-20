@@ -6,7 +6,7 @@ import { deleteStoredFile } from "@/lib/files";
 export const dynamic = "force-dynamic";
 /** Owner removes an uploaded CMR/POD file from a trip of their firm. */
 export async function POST(req: Request) {
-  const f = await writableFirm(), fd = await req.formData(), id = clip(fd.get("id"), 60), trip = clip(fd.get("tripId"), 60);
+  const f = await writableFirm(), fd = await req.formData(), id = clip(fd.get("id"), 120), trip = clip(fd.get("tripId"), 60);
   const dest = `/trips/${encodeURIComponent(trip)}`;
   if (!f) return formReply(req, dest, "nofirm", 403);
   const s = store(), meta = await s.file(f.id, id);
