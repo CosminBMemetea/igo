@@ -6,6 +6,8 @@ import type { Store, EmailRow, DeliveryContext } from "../src/lib/store/types";
 import { drainDeliveries, deliveryRecipient, MAX_ATTEMPTS } from "../src/lib/delivery";
 import { queueEmail, ResendProvider } from "../src/lib/email";
 import { DeliveryError, retryAfter } from "../src/lib/delivery-errors";
+// tsx can load ESM and CJS copies of one module; compare by shape, not class identity.
+const isDE = (e: unknown): e is DeliveryError => !!e && typeof (e as DeliveryError).code === "string" && typeof (e as DeliveryError).retryable === "boolean";
 import { validPushEndpoint, validPushSubscription, pushProvider } from "../src/lib/push";
 import { apnsFailure, apnsJWT } from "../src/lib/apns";
 import { PUSH_WORKER } from "../src/lib/push-worker";
@@ -27,11 +29,11 @@ try{
  await new ResendProvider("synthetic-key","qa@example.test").send({to:"driver@example.test",subject:"S",text:"T"},"qfleet/fixed");
  assert.equal((request!.headers as Record<string,string>)["Idempotency-Key"],"qfleet/fixed");assert.ok(request!.signal);assert.equal(request!.redirect,"error");
  globalThis.fetch=async()=>Response.json({}, {status:429,headers:{"retry-after":"120"}});
- await assert.rejects(new ResendProvider("x","x").send({to:"x",subject:"s",text:"t"}),e=>e instanceof DeliveryError&&e.retryable&&e.retryAfterMs===120000);
+ await assert.rejects(new ResendProvider("x","x").send({to:"x",subject:"s",text:"t"}),e=>isDE(e)&&e.retryable&&e.retryAfterMs===120000);
  globalThis.fetch=async()=>Response.json({}, {status:422});
- await assert.rejects(new ResendProvider("x","x").send({to:"x",subject:"s",text:"t"}),e=>e instanceof DeliveryError&&!e.retryable);
+ await assert.rejects(new ResendProvider("x","x").send({to:"x",subject:"s",text:"t"}),e=>isDE(e)&&!e.retryable);
  globalThis.fetch=async()=>Response.json({});
- await assert.rejects(new ResendProvider("x","x").send({to:"x",subject:"s",text:"t"}),e=>e instanceof DeliveryError&&e.retryable);
+ await assert.rejects(new ResendProvider("x","x").send({to:"x",subject:"s",text:"t"}),e=>isDE(e)&&e.retryable);
 }finally{globalThis.fetch=originalFetch;}
 pass("Resend stable idempotency, request timeout, no redirect, 429/422/malformed acceptance");
 const {privateKey,publicKey}=generateKeyPairSync("ec",{namedCurve:"prime256v1"});

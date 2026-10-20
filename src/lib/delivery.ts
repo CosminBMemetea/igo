@@ -1,7 +1,7 @@
 import type { Store, EmailRow, PushDevice } from "./store/types";
 import { emailProvider, type EmailProvider } from "./email-provider";
 import { pushProvider, type PushProvider } from "./push";
-import { DeliveryError } from "./delivery-errors";
+import { DeliveryError, isDeliveryError } from "./delivery-errors";
 import { reminderDocuments } from "./compliance-reminders";
 import { daysLeft, stageFor } from "./docs";
 import { localNow } from "./validate";
@@ -52,7 +52,7 @@ export async function deliverClaim(s: Store, row: EmailRow, providers: DeliveryP
     await finish("sent", null, accepted.id);
     return "sent" as const;
   } catch (e) {
-    const err = e instanceof DeliveryError ? e : new DeliveryError("delivery-temporary-error", true);
+    const err = isDeliveryError(e) ? e : new DeliveryError("delivery-temporary-error", true);
     if (err.removeDevice && row.firmId && row.context) await s.removePushDevice(row.firmId, row.context.userId, row.subscriptionId ?? undefined);
     const retry = err.retryable && row.attempts < MAX_ATTEMPTS;
     const next = now + Math.max(retryDelay(row.attempts, row.id), err.retryAfterMs);
