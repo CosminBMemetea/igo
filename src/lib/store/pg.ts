@@ -411,12 +411,29 @@ export class PgStore implements Store {
     if (!lock && Date.now() - r.firstAt.getTime() > 3600e3) return { fails: 0, lockedUntil: null }; // fereastra de 1 h a expirat
     return { fails: r.fails, lockedUntil: lock };
   }
+  /** Atomic: one INSERT … ON CONFLICT DO UPDATE … RETURNING, so concurrent guesses cannot share one count. 1 h window unless locked. */
   async authFail(key: string, lockAfter: number, lockMin: number) {
-    const cur = await this.authFails(key), fails = cur.fails + 1;
-    const lock = fails >= lockAfter ? new Date(Date.now() + lockMin * 60e3 * 2 ** Math.min(4, fails - lockAfter)) : null;
-    const first = cur.fails ? undefined : new Date();
-    await this.d.insert(authThrottle).values({ key, fails, firstAt: first ?? new Date(), lockedUntil: lock }).onConflictDoUpdate({ target: authThrottle.key, set: { fails, lockedUntil: lock, ...(first ? { firstAt: first } : {}) } });
-    return { fails, lockedUntil: lock?.toISOString() ?? null };
+    const t = sql.raw("auth_throttle");
+    const expired = sql`(${t}.first_at < now() - interval '1 hour' and (${t}.locked_until is null or ${t}.locked_until <= now()))`;
+    const next = sql`(case when ${expired} then 1 else ${t}.fails + 1 end)`;
+    const lockFor = (n: unknown) => sql`(case when ${n} >= ${lockAfter} then now() + make_interval(secs => ${lockMin * 60} * power(2, least(4, ${n} - ${lockAfter}))) else null end)`;
+    const result = await this.d.execute(sql`insert into auth_throttle(key, fails, first_at, locked_until) values (${key}, 1, now(), ${lockFor(sql`1`)})
+      on conflict (key) do update set fails = ${next}, first_at = case when ${expired} then now() else ${t}.first_at end, locked_until = ${lockFor(next)}
+      returning fails, locked_until`);
+    const r = result.rows[0] as { fails: number | string; locked_until: Date | string | null };
+    const lock = r.locked_until ? new Date(r.locked_until) : null;
+    return { fails: Number(r.fails), lockedUntil: lock && lock.getTime() > Date.now() ? lock.toISOString() : null };
+  }
+  /** Fixed-window rate limit, atomic in one statement. Returns ok=false once more than `limit` hits fall in the window. */
+  async rateHit(key: string, limit: number, windowS: number) {
+    const t = sql.raw("auth_throttle");
+    const expired = sql`(${t}.first_at < now() - make_interval(secs => ${windowS}))`;
+    const result = await this.d.execute(sql`insert into auth_throttle(key, fails, first_at) values (${key}, 1, now())
+      on conflict (key) do update set fails = case when ${expired} then 1 else ${t}.fails + 1 end, first_at = case when ${expired} then now() else ${t}.first_at end
+      returning fails, first_at`);
+    const r = result.rows[0] as { fails: number | string; first_at: Date | string };
+    const retryAfterS = Math.max(1, Math.ceil((new Date(r.first_at).getTime() + windowS * 1000 - Date.now()) / 1000));
+    return { ok: Number(r.fails) <= limit, retryAfterS };
   }
   async authClear(key: string) { await this.d.delete(authThrottle).where(eq(authThrottle.key, key)); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { await this.ownTruck(firmId, e.truckId); await this.d.insert(driverEvents).values({ ...e, kind: e.kind, at: new Date(e.at), id: newId("de"), firmId }); }

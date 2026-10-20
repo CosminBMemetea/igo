@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history && npm run smoke:compliance && npm run smoke:notifications",
+    "smoke": "npm run smoke:calc && npm run smoke:i18n && npm run smoke:rules && npm run smoke:ask && npm run smoke:auth && npm run smoke:throttle && npm run smoke:tenant && npm run smoke:fuel && npm run smoke:docs && npm run smoke:demo && npm run smoke:fx && npm run smoke:reliability && npm run smoke:trip-workflow && npm run smoke:outbox && npm run smoke:fuel-evidence && npm run smoke:driver-trips && npm run smoke:driver-integrity && npm run smoke:truck-history && npm run smoke:compliance && npm run smoke:notifications",
     "smoke:auth": "tsx scripts/smoke-auth.mts",
     "hash-password": "node scripts/hash-password.mjs",
     "smoke:calc": "tsx scripts/smoke-calc.mts",
@@ -58,7 +58,8 @@
     "smoke:native-paperwork": "tsx scripts/smoke-native-paperwork.mts",
     "smoke:security": "tsx scripts/smoke-security.mts",
     "smoke:fcm": "tsx scripts/smoke-fcm.mts",
-    "smoke:native-logout": "tsx scripts/smoke-native-logout.mts"
+    "smoke:native-logout": "tsx scripts/smoke-native-logout.mts",
+    "smoke:throttle": "tsx scripts/smoke-throttle.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

@@ -282,6 +282,12 @@ export class MemStore implements Store {
   private atGet(key: string) { const r = this.AT.get(key); if (!r) return null; if (Date.now() - r.first > 3600e3 && !(r.lock && r.lock > Date.now())) { this.AT.delete(key); return null; } return r; }
   async authFails(key: string) { const r = this.atGet(key); return { fails: r?.fails ?? 0, lockedUntil: r?.lock && r.lock > Date.now() ? new Date(r.lock).toISOString() : null }; }
   async authFail(key: string, lockAfter: number, lockMin: number) { const r = this.atGet(key) ?? { fails: 0, first: Date.now(), lock: null }; r.fails++; if (r.fails >= lockAfter) r.lock = Date.now() + lockMin * 60e3 * 2 ** Math.min(4, r.fails - lockAfter); this.AT.set(key, r); return this.authFails(key); }
+  async rateHit(key: string, limit: number, windowS: number) {
+    const now = Date.now(), k = key, r = this.AT.get(k);
+    const cur = r && now - r.first < windowS * 1000 ? r : { fails: 0, first: now, lock: null };
+    cur.fails++; this.AT.set(k, cur);
+    return { ok: cur.fails <= limit, retryAfterS: Math.max(1, Math.ceil((cur.first + windowS * 1000 - now) / 1000)) };
+  }
   async authClear(key: string) { this.AT.delete(key); }
   async addDriverEvent(firmId: string, e: Omit<DriverEventRow, "id">) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); this.DE.push({ ...e, id: newId("de"), firmId }); if (this.DE.length > 20000) this.DE.shift(); }
   async driverEvents(firmId: string, sinceIso: string) { return this.DE.filter((x) => x.firmId === firmId && x.at >= sinceIso).map(({ firmId: _f, ...x }) => x).sort((a, b) => b.at.localeCompare(a.at)); }

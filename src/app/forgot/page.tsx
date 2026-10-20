@@ -3,7 +3,7 @@ import { getPrefs } from "@/lib/prefs";
 import { t } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 export const dynamic = "force-dynamic";
-export default async function Forgot(props: { searchParams: Promise<{ sent?: string }> }) {
+export default async function Forgot(props: { searchParams: Promise<{ sent?: string; e?: string }> }) {
   const searchParams = await props.searchParams;
   const { loc } = (await getPrefs());
   return (
@@ -11,6 +11,7 @@ export default async function Forgot(props: { searchParams: Promise<{ sent?: str
       <div className="fade" style={{ color: "var(--fg)", marginBottom: 18 }}><Logo height={44} /></div>
       <h1 className="h1 fade">{t(loc, "rst.title")}</h1>
       <p className="sub fade d1">{t(loc, "rst.sub")}</p>
+      {searchParams.e === "unavailable" ? <p className="msg err" role="alert">{t(loc, "rst.unavailable")}</p> : null}
       {searchParams.sent ? <p className="msg ok" role="status">{t(loc, "rst.sent")}</p> : (
         <form className="sheet fade d1" action="/api/auth/forgot" method="post">
           <label className="lf"><span>{t(loc, "rl.email")}</span><input name="email" type="email" inputMode="email" autoComplete="username" required /></label>

@@ -13,7 +13,10 @@ export async function POST(req: Request) {
   if ((secret?.length ?? 0) < 32) return back(req, "/login?e=nosecret");
   const fd = await req.formData().catch(() => null), email = normLogin(String(fd?.get("email") ?? "").trim().slice(0, 200));
   const s = store(), ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
-  const [a, b] = await Promise.all([s.authFail(`fp:${ip}`, 10, 30), s.authFail(`fe:${email}`, 3, 30)]).catch(() => [{ lockedUntil: null }, { lockedUntil: null }]);
+  let a: { lockedUntil: string | null }, b: { lockedUntil: string | null };
+  // Fail closed: if the limiter cannot be recorded, send nothing (no unthrottled reset emails).
+  try { [a, b] = await Promise.all([s.authFail(`fp:${ip}`, 10, 30), s.authFail(`fe:${email}`, 3, 30)]); }
+  catch { return back(req, "/forgot?e=unavailable"); }
   if (!a.lockedUntil && !b.lockedUntil && email.includes("@")) {
     const u = await s.userByLogin(email);
     if (u && u.role === "owner" && !u.disabledAt && u.email) {
