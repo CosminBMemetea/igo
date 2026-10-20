@@ -2,6 +2,8 @@
 // Vercel Blob dacă există BLOB_READ_WRITE_TOKEN; altfel în Postgres (bytea, max ~2 MB după compresie) — adminul vede recomandarea Blob.
 import type { FileKind, FileMeta, Store } from "./store/types";
 import { createHash } from "node:crypto";
+import sharp from "sharp";
+import { PDFDocument } from "pdf-lib";
 import { reportOperationFailure } from "./operation-error";
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 export const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
@@ -46,7 +48,6 @@ export async function validateFileContent(bytes: Buffer, mime: string): Promise<
   try {
     if (mime === "application/pdf") {
       if (!bytes.subarray(0, 8).toString().startsWith("%PDF-") || !bytes.subarray(-1024).includes(Buffer.from("%%EOF"))) throw new Error("pdf");
-      const { PDFDocument } = await import("pdf-lib");
       const document = await PDFDocument.load(bytes, { throwOnInvalidObject: true });
       if (document.getPageCount() < 1) throw new Error("pdf");
     } else {
@@ -54,13 +55,17 @@ export async function validateFileContent(bytes: Buffer, mime: string): Promise<
         : mime === "image/jpeg" ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
         : mime === "image/webp" && bytes.subarray(0, 4).toString() === "RIFF" && bytes.subarray(8, 12).toString() === "WEBP";
       if (!matches) throw new Error("signature");
-      const { default: sharp } = await import("sharp");
       const image = sharp(bytes, { limitInputPixels: 25_000_000, failOn: "warning" });
       const meta = await image.metadata();
       if (`image/${meta.format}` !== mime || !meta.width || !meta.height) throw new Error("mime");
       await image.resize(1, 1).raw().toBuffer();
     }
-  } catch { throw new Error("type"); }
+  } catch (e) {
+    // Static imports above: dynamic import() of bare specifiers broke under tsx/Node 20 and was silently reported as "type".
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!["pdf", "signature", "mime"].includes(msg)) console.warn("[file-validate]", mime, msg.slice(0, 200));
+    throw new Error("type");
+  }
 }
 export async function readFile(s: Store, firmId: string, id: string): Promise<{ meta: FileMeta; bytes: Buffer } | null> {
   const f = await s.file(firmId, id);
