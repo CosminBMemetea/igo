@@ -59,7 +59,8 @@
     "smoke:security": "tsx scripts/smoke-security.mts",
     "smoke:fcm": "tsx scripts/smoke-fcm.mts",
     "smoke:native-logout": "tsx scripts/smoke-native-logout.mts",
-    "smoke:throttle": "tsx scripts/smoke-throttle.mts"
+    "smoke:throttle": "tsx scripts/smoke-throttle.mts",
+    "e2e:tenant": "tsx scripts/e2e/tenant-isolation.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
