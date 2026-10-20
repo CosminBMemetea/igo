@@ -82,7 +82,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
         const at = new Date().toISOString();
         await enqueue({ id: crypto.randomUUID(), scope: queueScope, actorId, kind: "event", label: `${title} · ${L[`pw.ev.${kind}`]}`, payload: { tripId, kind, occurredAt: at } });
         setPending(true);
-        setSt((s) => kind === "loaded" ? { ...s, loadedAt: at } : kind === "unloaded" ? { ...s, unloadedAt: at } : kind === "wait_start" ? { ...s, waitSince: at } : { ...s, waitSince: null, waitMin: s.waitMin + Math.max(0, Math.round((Date.parse(at) - Date.parse(s.waitSince ?? at)) / 60000)) });
+        setSt((s) => kind === "loaded" ? { ...s, loadedAt: at } : kind === "unloaded" ? { ...s, unloadedAt: at } : kind === "wait_start" ? { ...s, waitSince: at } : { ...s, waitSince: null, waitMin: s.waitMin + Math.max(0, (Date.parse(at) - Date.parse(s.waitSince ?? at)) / 60000) });
         setMsg({ t: tri(loc as Locale, "Salvat pe telefon · în așteptarea sincronizării.|Saved on device · waiting for sync.|Zapisano na urządzeniu · oczekuje na synchronizację."), k: "warn", event: true });
         if (navigator.onLine) void flushOutbox(queueScope).catch(() => {});
       } catch { setMsg({ t: L["pw.err"], k: "err" }); }
@@ -94,7 +94,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
     setBusy(""); eventLock.current = false;
     if (!r?.ok) { setMsg({ t: L["pw.err"], k: "err" }); return; }
     const { at } = (await r.json()) as { at: string };
-    setSt((s) => kind === "loaded" ? { ...s, loadedAt: at } : kind === "unloaded" ? { ...s, unloadedAt: at } : kind === "wait_start" ? { ...s, waitSince: at } : { ...s, waitSince: null, waitMin: s.waitMin + Math.round((Date.parse(at) - Date.parse(s.waitSince ?? at)) / 60000) });
+    setSt((s) => kind === "loaded" ? { ...s, loadedAt: at } : kind === "unloaded" ? { ...s, unloadedAt: at } : kind === "wait_start" ? { ...s, waitSince: at } : { ...s, waitSince: null, waitMin: s.waitMin + Math.max(0, (Date.parse(at) - Date.parse(s.waitSince ?? at)) / 60000) });
     if (kind === "loaded" || kind === "unloaded") notify(kind, at);
     setMsg({ t: `${L[`pw.ev.${kind}`]} · ${hhmm(at)}${p.lat ? " · 📍" : ""}`, k: "ok" });
   }
@@ -123,8 +123,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
       setMsg({ t: parts.join(" · "), k: result.failed.length || result.skipped ? "warn" : "ok" });
     } catch { setMsg({ t: L["pw.err"], k: "err" }); } finally { setBusy(""); eventLock.current = false; }
   }
-  const waitSec = st.waitMin * 60 + (st.waitSince ? Math.max(0, Math.floor((now - Date.parse(st.waitSince)) / 1000)) : 0);
-  const waitNow = st.waitMin + (st.waitSince ? Math.max(0, Math.round((now - Date.parse(st.waitSince)) / 60000)) : 0);
+  const waitSec = Math.round(st.waitMin * 60) + (st.waitSince ? Math.max(0, Math.floor((now - Date.parse(st.waitSince)) / 1000)) : 0);
   const files = (k: "cmr" | "pod") => mergePaperFiles(st.files, uploaded).filter((f) => f.kind === k);
   return (
     <section className="pw">
@@ -138,8 +137,8 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
       {/* card ca „Am încărcat / Am descărcat”: stare clară (nepornit / în curs), cronometru care rulează, buton explicit Pornește/Oprește */}
       <div className={`pwwait${st.waitSince ? " on" : ""}`} role="group" aria-label={L["pw.wait"]}>
         <i className="pwi" aria-hidden>{st.waitSince ? <span className="pwdot" /> : "⏳"}</i>
-        <div className="pwwt"><b>{L["pw.wait"]}</b><span suppressHydrationWarning>{st.waitSince ? L["pw.wSince"].replace("{t}", hhmm(st.waitSince)) : waitNow ? `${L["pw.wTotal"]} · ${fmtWait(waitNow * 60)}` : L["pw.wIdle"]}</span></div>
-        {st.waitSince || waitNow ? <time className="pwclock" suppressHydrationWarning>{fmtWait(st.waitSince ? waitSec : waitNow * 60, !!st.waitSince)}</time> : null}
+        <div className="pwwt"><b>{L["pw.wait"]}</b><span suppressHydrationWarning>{st.waitSince ? L["pw.wSince"].replace("{t}", hhmm(st.waitSince)) : waitSec > 0 ? `${L["pw.wTotal"]} · ${fmtWait(Math.max(60, Math.ceil(waitSec / 60) * 60))}` : L["pw.wIdle"]}</span></div>
+        {st.waitSince || waitSec > 0 ? <time className="pwclock" suppressHydrationWarning>{fmtWait(st.waitSince ? waitSec : Math.max(60, Math.ceil(waitSec / 60) * 60), !!st.waitSince)}</time> : null}
         <button className={`btn ${st.waitSince ? "pri pwstop" : "sec"} sm`} disabled={!!busy || readOnly || !queueReady || blocked || !!st.unloadedAt} aria-pressed={!!st.waitSince} onClick={() => event(st.waitSince ? "wait_end" : "wait_start")}>{st.waitSince ? L["pw.wStop"] : L["pw.wStart"]}</button>
       </div>
       <p className="hint">{L["pw.waitHint"]}</p></>}
