@@ -28,9 +28,15 @@ export async function POST(req: Request) {
   const transport = b?.transport ?? "apns", validToken = transport === "fcm" ? validFcmToken : validApnsToken;
   if (!b || (transport !== "apns" && transport !== "fcm") || !validToken(b.token)) return Response.json({ error: "token" }, { status: 400 });
   const binding = `${transport}:${createHash("sha256").update(b.token).digest("hex")}`;
-  if (b.action === "off") { await s.removePushDevice(u.firmId, u.id, undefined, binding); return Response.json({ ok: true }); }
   const sessionId = mobileSessionId(req.headers.get("authorization")!.slice(7));
-  const existing = (await s.pushDevices(u.firmId, u.id)).find(d => d.binding === binding && d.sessionVersion === session.version && d.nativeSessionId === sessionId);
+  const devices = await s.pushDevices(u.firmId, u.id);
+  const existing = devices.find(d => d.binding === binding && d.sessionVersion === session.version && d.nativeSessionId === sessionId);
+  if (b.action === "off") {
+    if (existing) await s.removePushDevice(u.firmId, u.id, existing.id);
+    else if (devices.some(d => d.binding === binding && !d.nativeSessionId))
+      return Response.json({ error: "registration-upgrade-required" }, { status: 409 });
+    return Response.json({ ok: true });
+  }
   if (b.action === "status") return Response.json({ registered: !!existing, active: !!existing && (!existing.validUntil || Date.parse(existing.validUntil) > Date.now()) });
   if (!(transport === "fcm" ? fcmConfig() : apnsConfig())) return Response.json({ error: "push-not-configured" }, { status: 503 });
   if (b.action === "test") {
@@ -48,6 +54,11 @@ export async function POST(req: Request) {
   if ((await s.authFail(`native-push:${u.id}`, 20, 10)).lockedUntil) return Response.json({ error: "rate-limit" }, { status: 429 });
   if (!existing && (await s.pushDevices(u.firmId, u.id)).length >= 10) return Response.json({ error: "device-limit" }, { status: 409 });
   const device = await s.savePushDevice({ firmId: u.firmId, userId: u.id, binding, endpoint: `${transport}:${b.token}`, p256dh: "", auth: "", transport, nativeSessionId: sessionId, sessionVersion: session.version, validUntil: expires });
-  if (validToken(b.previousToken) && b.previousToken !== b.token) await s.removePushDevice(u.firmId, u.id, undefined, `${transport}:${createHash("sha256").update(b.previousToken).digest("hex")}`);
+  if (validToken(b.previousToken) && b.previousToken !== b.token) {
+    const previousBinding = `${transport}:${createHash("sha256").update(b.previousToken).digest("hex")}`;
+    const previous = devices.find(d => d.binding === previousBinding && d.nativeSessionId === sessionId);
+    // Delete by immutable row identity: a new login may have rebound the token meanwhile.
+    if (previous) await s.removePushDevice(u.firmId, u.id, previous.id);
+  }
   return response(device.id);
 }

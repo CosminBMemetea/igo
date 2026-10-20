@@ -4,6 +4,7 @@ import { tenant } from "@/lib/tenant";
 import { realToday } from "@/lib/demo-time";
 import { sniffImage, MIME } from "@/lib/imgsniff";
 import { normCur } from "@/lib/fuel/fx";
+import { reportOperationFailure } from "@/lib/operation-error";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30; // loc pentru o reîncercare după limita de rată Groq
 // Llama 4 Scout a fost oprit de Groq (17.07.2026, „groq-404”): modelele de viziune curente, în ordine.
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
   if (!kind || kind === "heic") return NextResponse.json({ error: "not-image" }, { status: 415 });
   if (!hasGroq()) return demo ? sample("no-key") : NextResponse.json({ error: "ai-unavailable" }, { status: 503 });
   const b64 = buf.toString("base64");
-  let last = "groq"; const errs: string[] = [];
+  let failure: unknown;
   for (const m of MODELS) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -51,14 +52,15 @@ export async function POST(req: Request) {
         if (fields.litres == null && fields.amount == null && fields.odometerKm == null) return NextResponse.json({ error: "not-receipt" }, { status: 422 });
         return NextResponse.json({ fields, model: m, sample: false }, { headers: { "cache-control": "no-store" } });
       } catch (e) {
-        last = e instanceof Error ? e.message : "error"; errs.push(`${m}:${last}`);
+        failure = e;
         // limită de rată (429, des la poze trimise una după alta) / pană scurtă: așteptăm cât cere Groq (max 8 s) și reîncercăm
         const ra = (e as { retryAfter?: number }).retryAfter;
-        if (/429|5\d\d|abort/i.test(last) && attempt < 2) { await sleep(Math.min(8000, Math.max(1500, (ra ?? 2) * 1000))); continue; }
+        if (e instanceof Error && (/^groq-(429|5\d\d)$/.test(e.message) || e.name === "AbortError") && attempt < 2) { await sleep(Math.min(8000, Math.max(1500, (ra ?? 2) * 1000))); continue; }
         break; // 404/400 (model indisponibil) sau a doua eroare: următorul model
       }
     }
   }
-  console.error("receipt-extract failed:", errs.join(" "));
-  return demo ? sample(errs.join(" ")) : NextResponse.json({ error: last }, { status: 502 });
+  // JSON parser errors may embed receipt text; never send or log their message.
+  const reference = reportOperationFailure("receipt-extract", failure);
+  return demo ? sample("ai-unavailable") : NextResponse.json({ error: "ai-unavailable", reference }, { status: 502, headers: { "Cache-Control": "no-store" } });
 }

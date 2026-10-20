@@ -135,6 +135,13 @@ poate confirma imediat revocarea serverului; tokenul și push-ul nativ expiră l
 maximum 12 ore. Notificările deja acceptate de furnizor pot sosi după deconectare;
 conținutul lor nu include documente sau informații despre curse.
 
+Verificarea suplimentară din 20 octombrie limitează și dezabonarea directă /
+curățarea tokenului anterior la sesiunea care le-a creat. Cererile întârziate
+nu șterg înregistrarea unui login nou. Un abonament foarte vechi, fără identitatea
+sesiunii, trebuie reînregistrat online de versiunea actualizată înaintea
+dezabonării directe; serverul cere actualizarea în loc să confirme o ștergere
+nesigură.
+
 Teste automate: `smoke:fcm`, `smoke:native-notifications`, `smoke:native-logout`,
 `smoke:mobile:http`, incluse în `check:pilot --postgres --http`.
 Surse: [FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send/v1-api),

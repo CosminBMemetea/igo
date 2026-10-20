@@ -18,7 +18,7 @@ const secret = randomUUID()+randomUUID(), port = 8500 + Math.floor(Math.random()
 const fcmKey = generateKeyPairSync("rsa", {modulusLength:2048}).privateKey.export({type:"pkcs8",format:"pem"});
 const fcmAccount = JSON.stringify({type:"service_account",project_id:"querra-qa",client_email:"test@querra-qa.iam.gserviceaccount.com",private_key:fcmKey});
 const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], { stdio: "ignore", env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL, SESSION_SECRET: secret, MOBILE_DRIVER_ENABLED: "1", FCM_SERVICE_ACCOUNT_JSON: fcmAccount } });
-let firmId = "";
+let firmId = "", foreignFirmId = "";
 try {
   for (let i=0;i<60;i++) { try { await fetch(base+"/login"); break; } catch { await new Promise(r=>setTimeout(r,250)); } }
   const firm = await s.createFirm({name:"Native QA",cui:null}); firmId=firm.id;
@@ -36,6 +36,20 @@ try {
   assert.equal((await req("/api/live")).status,403);
   const web = await signSession({role:"driver",firm:firmId,uid:user.id,email:login,exp:Math.floor(Date.now()/1000)+3600},secret);
   assert.equal((await req("/api/driver/mobile",undefined,web)).status,401);
+  for (const origin of ["https://attacker.example.test", "http://sibling.localhost", "null"]) {
+    const blocked = await fetch(base+"/api/driver/shift", {method:"POST", headers:{
+      cookie:`igo-session=${web}`, origin, "sec-fetch-site":"same-site", "content-type":"application/json",
+    },body:JSON.stringify({vehicleId:truck.id,action:"start",checklist:SHIFT_CHECKS})});
+    assert.equal(blocked.status,403,"cross-origin browser requests cannot mutate an authenticated driver's shift");
+  }
+  assert.equal(await s.shift(firmId,truck.id),null);
+  const sameOrigin = await fetch(base+"/api/driver/private",{method:"POST",headers:{
+    cookie:`igo-session=${web}`,origin:base,"sec-fetch-site":"same-origin","content-type":"application/json",
+  },body:JSON.stringify({vehicleId:truck.id,on:false})});
+  assert.equal(sameOrigin.status,409,"same-origin reaches the no-shift domain check");
+  const forgedHeaders=await fetch(base+"/api/driver/mobile",{headers:{"x-igo-role":"driver","x-igo-firm":firmId,"x-igo-uid":user.id}});
+  assert.equal(forgedHeaders.status,401,"client identity headers cannot bypass authentication");
+  console.log("PASS HTTP origin/identity boundary: cross-origin mutations blocked; native/same-origin work; spoofed headers denied");
   const board=await (await req("/api/driver/mobile")).json();
   assert.equal(board.truck.id,truck.id); assert.equal(JSON.stringify(board).includes("99999"),false); assert.equal(JSON.stringify(board).includes("revenue"),false);
   assert.equal(board.road.regime,"unknown"); assert.ok(board.road.documents.some((d:{type:string})=>d.type==="classification"));
@@ -79,6 +93,16 @@ try {
   const ownerFile=await fetch(base+"/api/files/"+receipts[0].id,{headers:{cookie:`igo-session=${ownerSession}`},redirect:"manual"});
   assert.equal(ownerFile.status,200,"owner receives the same uploaded document");
   assert.equal(Buffer.compare(Buffer.from(await ownerFile.arrayBuffer()),photo),0);
+  assert.match(ownerFile.headers.get("cache-control")??"",/no-store/);
+  const unassigned = await s.createUser({firmId,role:"driver",name:"Other QA Driver",email:randomUUID()+"@example.test",phone:null,passwordHash:hashPassword(password),truckId:other.id});
+  const unassignedSession=await signSession({role:"driver",firm:firmId,uid:unassigned.id,email:unassigned.email!,exp:Math.floor(Date.now()/1000)+3600},secret);
+  assert.equal((await fetch(base+"/api/files/"+receipts[0].id,{headers:{cookie:`igo-session=${unassignedSession}`},redirect:"manual"})).status,403,"other driver in the same firm cannot read this trip's photo");
+  assert.equal((await fetch(base+"/api/files/"+receipts[0].id,{redirect:"manual"})).status,401,"document bytes are not public");
+  const foreignFirm = await s.createFirm({name:"Foreign security QA",cui:null}); foreignFirmId=foreignFirm.id;
+  await s.updateFirm(foreignFirmId,{demoMode:false});
+  const foreignOwner=await s.createUser({firmId:foreignFirmId,role:"owner",name:"Foreign QA Owner",email:randomUUID()+"@example.test",phone:null,passwordHash:hashPassword(password),truckId:null});
+  const foreignSession=await signSession({role:"owner",firm:foreignFirmId,uid:foreignOwner.id,email:foreignOwner.email!,exp:Math.floor(Date.now()/1000)+3600},secret);
+  assert.equal((await fetch(base+"/api/files/"+receipts[0].id,{headers:{cookie:`igo-session=${foreignSession}`},redirect:"manual"})).status,404,"another firm's owner cannot read the photo or confirm its existence");
   console.log("PASS native paperwork: authenticated multipart, decoded images, size cap, concurrent retry dedupe, cancelled/foreign rejection, driver status and owner bytes agree");
   const positions=await s.positions(firmId,"",truck.id); assert.ok(positions[0].capturedAt?.endsWith("Z"));assert.ok(positions[0].receivedAt?.endsWith("Z"));assert.equal(positions[0].accuracy,10);
   assert.equal((await ping({capturedAt:"2020-01-01T00:00:00Z"})).status,400);
@@ -113,6 +137,13 @@ try {
   const again=await(await fetch(base+"/api/auth/mobile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({login,password})})).json();
   assert.notEqual(again.token,token,"same-second logins have independent identities");
   assert.equal((await req("/api/driver/push",{action:"on",transport:"fcm",token:fcmToken},again.token)).status,200);
+  assert.equal((await req("/api/driver/push",{action:"off",transport:"fcm",token:fcmToken})).status,200);
+  assert.equal((await s.pushDevices(firmId,user.id)).length,1,"old session's off request cannot revoke the new session's device");
+  const rotatedToken = "OtherFirebase:MixedCase".repeat(8);
+  assert.equal((await req("/api/driver/push",{action:"on",transport:"fcm",token:rotatedToken,previousToken:fcmToken})).status,200);
+  assert.equal((await s.pushDevices(firmId,user.id)).length,2,"old token rotation preserves another session's registration");
+  assert.equal((await req("/api/driver/push",{action:"off",transport:"fcm",token:rotatedToken})).status,200);
+  assert.equal((await s.pushDevices(firmId,user.id)).length,1,"current session can remove its own device");
   const cleanup=(receipt:string)=>fetch(base+"/api/auth/mobile/logout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({receipt})});
   assert.equal((await cleanup(token)).status,400,"login token is not revocation capability");
   assert.equal((await req("/api/driver/mobile",undefined,logoutReceipt)).status,401,"revocation capability cannot authenticate");
@@ -130,4 +161,4 @@ try {
   await s.setUserPassword(user.id,hashPassword("Changed-2026"));
   const revoked=await req("/api/driver/mobile"); assert.ok([307,401,403].includes(revoked.status));
   console.log("PASS native revocation: expiry and password change invalidate existing sessions");
-} finally { if(firmId) await s.deleteFirm(firmId);server.kill("SIGTERM");await pool.end(); }
+} finally { if(foreignFirmId) await s.deleteFirm(foreignFirmId);if(firmId) await s.deleteFirm(firmId);server.kill("SIGTERM");await pool.end(); }

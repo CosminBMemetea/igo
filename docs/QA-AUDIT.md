@@ -1367,3 +1367,44 @@ Restanțe explicite:
 - Copia fictivă creată pentru probă a fost eliminată din galerie. Wi-Fi a fost
   readus la starea inițială oprit; datele mobile au rămas oprite. Contul este
   autentificat, aplicația este în Azi.
+
+## 20 octombrie 2026 — verificare suplimentară de securitate și scurgeri
+
+| ID | Prioritate | Problemă confirmată și remediere |
+| --- | --- | --- |
+| SECURITY-ORIGIN-01 | P1 | API-urile de modificare fără control propriu de origine acceptau o cerere cu cookie valid și origine străină, inclusiv de pe un subdomeniu vecin. Proba HTTP pe firma sintetică a întors 200 și a pornit tura înaintea corecției. Proxy verifică acum originea exactă și Fetch Metadata înainte de autentificare/operație; răspuns 403. Cererile native fără antetele browserului păstrează verificarea bearerului. |
+| SECURITY-HEALTH-02 | P2 | `/api/health`, public, includea mesajul excepției bazei de date, cu filtrare insuficientă. Testul cu un mesaj sensibil sintetic a eșuat înaintea corecției. Acum trimite doar cod neutru/referință și `no-store`. Timerul de 8 secunde este eliberat și când interogarea se termină mai devreme. |
+| SECURITY-ERROR-03 | P2 | Erorile parserului JSON din citirea bonului puteau include fragmente din bon în răspuns/loguri, inclusiv în demo. Erorile testului email puteau intra în URL și istoricul browserului. Acum folosesc coduri neutre și referințe; loggerul acceptă numai coduri SQLSTATE cu format limitat. |
+| PUSH-SESSION-04 | P2 | `action: off` și curățarea `previousToken` ștergeau după token, fără identitatea sesiunii. O cerere întârziată dintr-o sesiune încă validă putea elimina abonamentul unui login nou. Ștergerea este acum limitată la sesiune și ID-ul imuabil al rândului; HTTP verifică dezabonarea veche, rotația veche și dezabonarea proprie. |
+
+Verificări:
+
+- Build web de producție, TypeScript și lint pe fișierele modificate: trecute.
+- **42/42 suite** trecute, inclusiv PostgreSQL și HTTP pe baza locală de test.
+  `smoke-security` a fost reluat cu probe suplimentare pentru JSON OCR invalid
+  și URL-ul erorii email. Nu au fost trimise emailuri/push de test către clienți.
+- Cereri cu origine străină, subdomeniu diferit și `Origin: null`: 403.
+  Cererea web cu aceeași origine și aplicația mobilă funcționează. Antetele de
+  identitate `x-igo-*` trimise fără sesiune nu oferă acces.
+- CMR/POD: proprietarul autorizat primește aceiași octeți; alt șofer al firmei
+  primește 403, proprietarul altei firme 404, iar lipsa sesiunii 401. Răspunsul
+  autorizat este `private, no-store`; metadatele mobile nu expun URL-ul Blob.
+- Scanare cu tipare de chei, fără afișarea valorilor: fișierele urmărite și
+  1.904 bloburi din istoricul Git accesibil nu au produs rezultate. Niciun fișier
+  de credențiale identificat după nume în istoricul accesibil.
+- Scanate 138 chunkuri JavaScript web și bundle-ul Android existent. Cele două
+  potriviri brute din Hermes provin din concatenarea numelor ExpoModulesCore /
+  require; cele 728 module sursă nu conțin cheile căutate. Aceasta este o scanare
+  de tipare, nu dovada absenței oricărui tip posibil de secret.
+- Audit npm producție web: **0** vulnerabilități cunoscute raportate. Arborele
+  Expo: **15 high**, provenite din două advisories propagate în dependențe.
+  [braces](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) și
+  [node-forge](https://github.com/advisories/GHSA-86w9-cpqp-85rv) încă nu au
+  versiuni corectate publicate la verificare. Aceste module nu apar în cele
+  728 module ale bundle-ului Android Release inspectat, dar riscul instrumentelor
+  de build rămâne deschis. Nu s-au aplicat downgrade-uri Expo/React Native.
+
+Nu s-au modificat datele firmei reale și nu s-a refăcut APK-ul: corecțiile acestei
+runde sunt pe server. Nu am verificat din nou fizic GPS sau recepția FCM.
+Activarea FCM, schedulerul Hobby și probele de teren/iPhone rămân cele enumerate
+anterior. Jurnale locale: `/tmp/querra-20261020-security-{build,http,pilot}.log`.

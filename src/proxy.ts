@@ -4,12 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { mobileRoute, verifyMobileSession } from "@/lib/mobile-session";
 import { canSwitchPlan, decide, roleHome } from "@/lib/access";
+import { trustedMutationOrigin } from "@/lib/request-origin";
 
 // ?lang= / ?theme= pentru toți; ?plan= / ?view= doar pentru admin. Antetele x-igo-* se setează aici (cele venite din afară se șterg).
 const PUBLIC_PARAMS: [string, string, RegExp][] = [["lang", "igo-locale", /^(ro|en|pl)$/], ["theme", "igo-theme", /^(dark|light)$/]];
 const ADMIN_PARAMS: [string, string, RegExp][] = [["plan", "igo-plan", /^(trial|start|pro|business)$/], ["view", "igo-view", /^(admin|user)$/]];
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  if (path.startsWith("/api/") && !trustedMutationOrigin(req))
+    return NextResponse.json({ error: "origin" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const bearer = req.headers.get("authorization");
   const mobile = bearer?.startsWith("Bearer ") && !path.startsWith("/api/cron/");
   if (mobile && (process.env.MOBILE_DRIVER_ENABLED !== "1" || !mobileRoute(path, req.method)))

@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { back } from "@/lib/auth-cookie";
 import { emailProvider } from "@/lib/email";
 import { clip } from "@/lib/validate";
+import { reportOperationFailure } from "@/lib/operation-error";
 export const dynamic = "force-dynamic";
 const g = globalThis as unknown as { __qfTestMail?: number };
 /** Admin: trimite un email de test prin furnizorul configurat (Resend). Nu intră în coada de reamintiri. */
@@ -17,5 +18,5 @@ export async function POST(req: Request) {
   try {
     const r = await p.send({ to, subject: "Querra Fleet – email de test", text: "Salut,\n\nAcesta este un email de test trimis din pagina de admin Querra Fleet. Dacă îl vezi, trimiterea prin Resend funcționează.\n\nQuerra Fleet" });
     return q({ te: "sent", id: r.id });
-  } catch (e) { return q({ te: "err", msg: String((e as Error).message).slice(0, 200) }); }
+  } catch (e) { return q({ te: "err", msg: reportOperationFailure("admin-test-email", e) }); }
 }
