@@ -383,6 +383,17 @@ export class PgStore implements Store {
     return { added, dupes: rows.length - added };
   }
   async fuelByHash(firmId: string, hash: string) { const [r] = await this.d.select().from(fuelTransactions).where(and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.hash, hash))).limit(1); return r ? txOut(r) : null; }
+  async updateDriverFuel(firmId: string, id: string, p: { litres: number; amount: number | null; odometer: number | null; station: string }) {
+    const w = and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.id, id), eq(fuelTransactions.source, "driver"));
+    const [old] = await this.d.select().from(fuelTransactions).where(w).limit(1); if (!old) return null;
+    const amountRon = p.amount != null && old.fxRate ? Math.round(p.amount * old.fxRate * 100) / 100 : null;
+    const [r] = await this.d.update(fuelTransactions).set({ litres: p.litres, amount: p.amount, amountRon: old.fxRate ? amountRon : old.amountRon == null ? null : p.amount, odometer: p.odometer, station: p.station }).where(w).returning();
+    return r ? txOut(r) : null;
+  }
+  async deleteDriverFuel(firmId: string, id: string) {
+    const [r] = await this.d.delete(fuelTransactions).where(and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.id, id), eq(fuelTransactions.source, "driver"))).returning();
+    return r ? txOut(r) : null;
+  }
   async fuel(firmId: string, o: { truckId?: string; source?: string; limit?: number } = {}) {
     const w = [eq(fuelTransactions.firmId, firmId)];
     if (o.truckId) w.push(eq(fuelTransactions.truckId, o.truckId));

@@ -5,7 +5,8 @@ import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
 import { load } from "@/lib/data";
 import { demoReceipts, monthSummary } from "@/lib/query";
-import { fmtDate, fmtMoney, fmtNum, t } from "@/lib/i18n";
+import { fmtDate, fmtMoney, fmtNum, t, tri } from "@/lib/i18n";
+import { ActionForm } from "@/components/ActionForm";
 import { Gate } from "@/components/Gate";
 import { leiOf, isRon } from "@/lib/fuel/lei";
 import { demoFills } from "@/lib/demo-shift";
@@ -18,6 +19,7 @@ export default async function Receipts() {
   if (!d.demo) {
     const tx = d.tn.firm ? await store().fuel(d.tn.firm.id, { limit: 80 }) : [];
     if (!tx.length) return <main><EmptyState kind="receipts" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
+    const canEdit = d.tn.role === "owner" || d.tn.role === "admin", tr = (x: string) => tri(loc, x);
     const lei = tx.reduce((a, x) => a + (leiOf(x) ?? 0), 0), L = tx.reduce((a, x) => a + x.litres, 0);
     return (
       <Gate feature="receipts" prefs={prefs}>
@@ -34,6 +36,12 @@ export default async function Receipts() {
                   <div className="v">{fmtNum(loc, x.litres, 1)} L</div>
                   <div className="v">{leiOf(x) != null ? fmtMoney(loc, leiOf(x)!) : "—"}{x.amount != null && !isRon(x.currency) ? <small className="fxo" title={x.fxRate ? t(loc, "rc.fx", { rate: fmtNum(loc, x.fxRate, 4), cur: x.currency ?? "", date: fmtDate(loc, x.fxDate ?? "") }) : t(loc, "rc.fxNo")}>{fmtNum(loc, x.amount, 2)} {x.currency}{x.fxRate ? ` · ${fmtNum(loc, x.fxRate, 4)}` : " · ?"}</small> : null}</div>
                   <div style={{ textAlign: "right" }}>{v ? <span className={`badge ${x.source === "driver" ? "acc" : "ok"}`}>{x.source === "driver" ? t(loc, "rc.fromDriver") : t(loc, "rc.fromCard")}</span> : <Link href="/import" className="badge warn">{t(loc, "imp.unknown")}</Link>}</div>
+                  {canEdit && x.source === "driver" ? <details className="rcedit"><summary className="btn sec sm">{tr("Editează / șterge|Edit / delete|Edytuj / usuń")}</summary>
+                    <ActionForm action="/api/receipts/manage" returnTo="/receipts" loc={loc}><input type="hidden" name="id" value={x.id} /><input type="hidden" name="action" value="save" />
+                      <div className="rcgrid"><label className="lf"><span>{tr("Litri|Litres|Litry")}</span><input name="litres" inputMode="decimal" required defaultValue={x.litres} /></label><label className="lf"><span>{tr("Sumă|Amount|Kwota")}{x.currency ? ` (${x.currency})` : ""}</span><input name="amount" inputMode="decimal" defaultValue={x.amount ?? ""} /></label><label className="lf"><span>{tr("Kilometraj|Odometer|Przebieg")}</span><input name="odometer" inputMode="numeric" defaultValue={x.odometer ?? ""} /></label><label className="lf"><span>{tr("Stație|Station|Stacja")}</span><input name="station" maxLength={80} defaultValue={x.station} /></label></div>
+                      <button className="btn pri sm" type="submit">{t(loc, "stg.save")}</button></ActionForm>
+                    <details className="rcdel"><summary className="btn sec sm danger">{tr("Șterge bonul|Delete receipt|Usuń paragon")}</summary><ActionForm action="/api/receipts/manage" returnTo="/receipts" loc={loc}><input type="hidden" name="id" value={x.id} /><input type="hidden" name="action" value="delete" /><p>{tr("Bonul și poza lui se șterg definitiv. Alertele de carburant se recalculează fără el.|The receipt and its photo are deleted permanently. Fuel alerts are recalculated without it.|Paragon i jego zdjęcie zostaną trwale usunięte. Alerty paliwowe zostaną przeliczone bez niego.")}</p><button className="btn pri sm danger" type="submit">{tr("Da, șterge|Yes, delete|Tak, usuń")}</button></ActionForm></details>
+                  </details> : null}
                 </div>
               );
             })}

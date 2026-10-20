@@ -267,6 +267,15 @@ export class MemStore implements Store {
     return { added, dupes };
   }
   async fuelByHash(firmId: string, hash: string) { const r = this.X.find((x) => x.firmId === firmId && x.hash === hash); return r ? { ...r } : null; }
+  async updateDriverFuel(firmId: string, id: string, p: { litres: number; amount: number | null; odometer: number | null; station: string }) {
+    const r = this.X.find((x) => x.firmId === firmId && x.id === id && x.source === "driver"); if (!r) return null;
+    const amountRon = r.fxRate ? (p.amount != null ? Math.round(p.amount * r.fxRate * 100) / 100 : null) : r.amountRon == null ? null : p.amount;
+    Object.assign(r, { litres: p.litres, amount: p.amount, amountRon, odometer: p.odometer, station: p.station }); return { ...r };
+  }
+  async deleteDriverFuel(firmId: string, id: string) {
+    const i = this.X.findIndex((x) => x.firmId === firmId && x.id === id && x.source === "driver"); if (i < 0) return null;
+    return { ...this.X.splice(i, 1)[0] };
+  }
   async fuel(firmId: string, o: { truckId?: string; source?: string; limit?: number } = {}) {
     return this.X.filter((x) => x.firmId === firmId && (!o.truckId || x.truckId === o.truckId) && (!o.source || x.source === o.source)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, o.limit ?? 5000);
   }

@@ -135,6 +135,10 @@ export interface Store {
   /** Inserează cu deduplicare pe (firm_id, hash). */
   addFuel(firmId: string, rows: NewFuelTx[]): Promise<{ added: number; dupes: number }>;
   fuelByHash(firmId: string, hash: string): Promise<FuelTxRow | null>;
+  /** Owner correction of a driver-entered receipt; only source "driver" rows of the firm. */
+  updateDriverFuel(firmId: string, id: string, p: { litres: number; amount: number | null; odometer: number | null; station: string }): Promise<FuelTxRow | null>;
+  /** Deletes a driver-entered receipt of the firm; returns the deleted row (to remove its photo). Alerts are derived, so they recompute. */
+  deleteDriverFuel(firmId: string, id: string): Promise<FuelTxRow | null>;
   fuel(firmId: string, o?: { truckId?: string; source?: string; limit?: number }): Promise<FuelTxRow[]>;
   addImport(firmId: string, i: Omit<ImportRow, "id" | "firmId" | "createdAt"> & { id?: string }): Promise<ImportRow>;
   imports(firmId: string): Promise<ImportRow[]>;
