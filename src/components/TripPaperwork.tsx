@@ -146,8 +146,8 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
       {(["cmr", "pod"] as const).map((k) => (
         <div key={k} className="pwdoc">
           <div className="head"><h3>{L[`pw.${k}`]}</h3><button className="btn sec sm" disabled={!!busy || readOnly} onClick={() => (k === "cmr" ? cmr : pod).current?.click()}>{busy === k ? "…" : `+ ${L["pw.photo"]}`}</button></div>
-          <input ref={k === "cmr" ? cmr : pod} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => { upload(k, e.target.files); e.target.value = ""; }} />
-          <div className="thumbs">{files(k).length ? files(k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer"><img src={f.src} alt={`${L[`pw.${k}`]} ${i + 1}`} loading="lazy" /></a>) : <span className="hint">{L["pw.none"]}</span>}</div>
+          <input ref={k === "cmr" ? cmr : pod} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden onChange={(e) => { upload(k, e.target.files); e.target.value = ""; }} />
+          <div className="thumbs">{files(k).length ? files(k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer">{/\.pdf$/i.test(f.name) ? <span className="pwpdf" aria-label={`${L[`pw.${k}`]} ${i + 1} PDF`}>PDF</span> : <img src={f.src} alt={`${L[`pw.${k}`]} ${i + 1}`} loading="lazy" />}</a>) : <span className="hint">{L["pw.none"]}</span>}</div>
         </div>
       ))}
       {!queueScope && !demo ? <label className="pwgeo"><input type="checkbox" checked={geo && onShift} disabled={!onShift} onChange={(e) => { setGeo(e.target.checked); try { localStorage.setItem("qf-geo", e.target.checked ? "1" : "0"); } catch { /* The preference remains valid for this page. */ } }} /> <span>{onShift ? L["pw.geo"] : L["pw.geoOff"]}</span></label> : null}
