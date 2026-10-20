@@ -5,6 +5,10 @@ export const ROLES: Role[] = ["admin", "owner", "driver", "user"];
 export interface Session { role: Role; email: string; firm: string; exp: number; uid?: string; trial?: string; version?: number; purpose?: string }
 export const SESSION_COOKIE = "igo-session";
 export const SESSION_TTL_S = 60 * 60 * 24 * 7;
+/** Admin sessions are not backed by a DB user: short TTL, and bumping ADMIN_SESSION_VERSION in env revokes every admin cookie. */
+export const ADMIN_SESSION_TTL_S = 60 * 60 * 12;
+export const adminSessionVersion = () => { const n = Number(process.env.ADMIN_SESSION_VERSION ?? 0); return Number.isInteger(n) && n >= 0 ? n : 0; };
+export const sessionTtl = (role: Role) => (role === "admin" ? ADMIN_SESSION_TTL_S : SESSION_TTL_S);
 
 const enc = new TextEncoder();
 const b64u = (b: ArrayBuffer | Uint8Array) => {
@@ -27,7 +31,10 @@ export async function signToken(payload: object, secret: string): Promise<string
 }
 export async function verifySession(token: string | undefined, secret: string | undefined, nowS = Math.floor(Date.now() / 1000)): Promise<Session | null> {
   const s = await verifyToken<Session>(token, secret, nowS);
-  return s && !s.purpose && ROLES.includes(s.role) && typeof s.firm === "string" ? s : null;
+  if (!s || s.purpose || !ROLES.includes(s.role) || typeof s.firm !== "string") return null;
+  // Older 7-day admin cookies (exp further out than 12 h) and cookies from a previous admin version are rejected.
+  if (s.role === "admin" && (s.exp - nowS > ADMIN_SESSION_TTL_S || (s.version ?? 0) !== adminSessionVersion())) return null;
+  return s;
 }
 export async function verifyToken<T extends { exp: number }>(token: string | undefined, secret: string | undefined, nowS = Math.floor(Date.now() / 1000)): Promise<T | null> {
   if (!token || !hasSecret(secret)) return null;

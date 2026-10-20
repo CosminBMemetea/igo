@@ -4,14 +4,14 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { store } from "./store";
 import { decide } from "./access";
-import { SESSION_COOKIE, SESSION_TTL_S, signSession, type Session } from "./session";
+import { SESSION_COOKIE, adminSessionVersion, sessionTtl, signSession, type Session } from "./session";
 export async function withSession(res: NextResponse, s: Omit<Session, "exp">) {
   const binding = (await cookies()).get(PUSH_COOKIE)?.value;
   if (binding) { await store().revokePushBinding(binding); res.cookies.delete(PUSH_COOKIE); }
   const secret = process.env.SESSION_SECRET!;
-  const version = s.uid ? (await store().userById(s.uid))?.sessionVersion ?? 0 : 0;
-  const token = await signSession({ ...s, version, exp: Math.floor(Date.now() / 1000) + SESSION_TTL_S }, secret);
-  res.cookies.set(SESSION_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: SESSION_TTL_S });
+  const version = s.role === "admin" ? adminSessionVersion() : s.uid ? (await store().userById(s.uid))?.sessionVersion ?? 0 : 0, ttl = sessionTtl(s.role);
+  const token = await signSession({ ...s, version, exp: Math.floor(Date.now() / 1000) + ttl }, secret);
+  res.cookies.set(SESSION_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: ttl });
   return res;
 }
 /** Doar redirecționări relative, pe același site. */

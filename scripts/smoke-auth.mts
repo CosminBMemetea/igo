@@ -72,3 +72,18 @@ ok("demo poate deschide /replay", decide("/replay", user).kind === "allow");
   ok("replay: nicio poziție în porțiunea privată", !rp.path.some((p) => p[2] > pv.km + 0.01 && p[2] < pv.km + 1));
 }
 console.log("smoke:auth OK");
+
+// Admin sessions: 12 h max, revocable by bumping ADMIN_SESSION_VERSION.
+{
+  const SECRET = "x".repeat(40), now = Math.floor(Date.now() / 1000);
+  const adm = (exp: number, version?: number) => signSession({ role: "admin", email: "a@x.ro", firm: "demo", exp, ...(version === undefined ? {} : { version }) } as Session, SECRET);
+  if (!(await verifySession(await adm(now + 3600), SECRET))) throw new Error("fresh admin session rejected");
+  if (await verifySession(await adm(now + 7 * 86400), SECRET)) throw new Error("7-day admin session accepted");
+  process.env.ADMIN_SESSION_VERSION = "2";
+  if (await verifySession(await adm(now + 3600, 1), SECRET)) throw new Error("old admin version accepted");
+  if (!(await verifySession(await adm(now + 3600, 2), SECRET))) throw new Error("current admin version rejected");
+  delete process.env.ADMIN_SESSION_VERSION;
+  const owner = await signSession({ role: "owner", email: "o@x.ro", firm: "f1", uid: "u1", exp: now + 7 * 86400 } as Session, SECRET);
+  if (!(await verifySession(owner, SECRET))) throw new Error("owner 7-day session rejected");
+  console.log("PASS admin session 12 h TTL and env-version revocation");
+}
