@@ -464,7 +464,7 @@ export const en: Record<MsgKey, string> = {
   "pw.geoOff": "Location is not sent right now (off shift or on a private break)",
   "pw.err": "Not saved. Try again.",
   "pw.tooBig": "The file is too large (max 2 MB).",
-  "pw.uploaded": "{n} photos uploaded",
+  "pw.uploaded": "{n} files uploaded",
   "pw.demo": "Demo: confirmations and photos here are temporary and reset on page reload. Real GPS is not used.",
   "pw.ev.loaded": "Loading saved",
   "pw.ev.unloaded": "Unloading saved",

@@ -464,7 +464,7 @@ export const pl: Record<MsgKey, string> = {
   "pw.geoOff": "Lokalizacja nie jest teraz wysyłana (poza zmianą lub w przerwie prywatnej)",
   "pw.err": "Nie zapisano. Spróbuj ponownie.",
   "pw.tooBig": "Plik jest za duży (maks. 2 MB).",
-  "pw.uploaded": "Przesłano zdjęć: {n}",
+  "pw.uploaded": "Przesłano plików: {n}",
   "pw.demo": "Demo: potwierdzenia i zdjęcia tutaj są tymczasowe i resetują się po odświeżeniu. Prawdziwy GPS nie jest używany.",
   "pw.ev.loaded": "Załadunek zapisany",
   "pw.ev.unloaded": "Rozładunek zapisany",

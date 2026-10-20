@@ -464,7 +464,7 @@ export const ro = {
   "pw.geoOff": "Locația nu se trimite acum (în afara turei sau în pauză privată)",
   "pw.err": "Nu s-a salvat. Încearcă din nou.",
   "pw.tooBig": "Fișierul e prea mare (max 2 MB).",
-  "pw.uploaded": "{n} poze încărcate",
+  "pw.uploaded": "{n} fișiere încărcate",
   "pw.demo": "Demo: confirmările și pozele de aici sunt temporare; se resetează la reîncărcarea paginii. GPS-ul real nu este folosit.",
   "pw.ev.loaded": "Încărcare salvată",
   "pw.ev.unloaded": "Descărcare salvată",
