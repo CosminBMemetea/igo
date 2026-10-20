@@ -80,6 +80,7 @@ for (const r of routes()) {
     const path = concrete.replace("__ID__", bid);
     const bag: Record<string, string> = {}; for (const k of FIELDS) bag[k] = bid;
     const variants: [string, FormData | object | undefined, string][] = [["GET", undefined, `${path}?${new URLSearchParams(bag)}`], ["POST", form({ ...bag, action: "archive", reason: "isolation test", confirm: "x", type: "rca", scope: "vehicle", expires: "2027-01-01", kind: "cmr" }), path], ["POST", { ...bag, action: "start", checklist: ["chk.tyres", "chk.fluids", "chk.docs"], from: "X", to: "Y", date: "2026-10-21", reason: "isolation" }, path]];
+    for (const m of ["PATCH", "PUT", "DELETE"]) variants.push([m, form({ ...bag, action: "delete" }), path]);
     for (const [m, body, url] of variants) {
       const res = await req(who, m, url, body); calls++;
       const hit = bMarkers.find((x) => res.text.includes(x) && !url.includes(x) );
@@ -89,15 +90,25 @@ for (const r of routes()) {
   }
 }
 // second pass: every B id in every field for body routes (cheap: only POST form)
-for (const r of routes()) { if (SKIP.test(r) || r.includes("[id]")) continue; for (const bid of bIds) for (const k of FIELDS) { await req(A.o, "POST", r, form({ [k]: bid, action: "archive", reason: "isolation test" })); calls++; } }
+for (const r of routes()) { if (SKIP.test(r) || r.includes("[id]")) continue; for (const bid of bIds) for (const k of FIELDS) for (const action of ["archive", "delete", "save"]) { await req(A.o, "POST", r, form({ [k]: bid, action, reason: "isolation test", litres: "1", tripId: k === "id" ? Bf.tripId : bid })); calls++; } }
 const after = await snapshot(Bf.firmId);
 for (const t of Object.keys(before)) if (before[t] !== after[t]) leaks.push(`firm B table ${t} changed by firm A requests`);
 // driver must not reach owner-only routes
-for (const r of ["/api/drivers/assign", "/api/drivers/reinvite", "/api/setup/truck", "/api/setup/invite", "/api/trips/new", "/api/trips/cancel", "/api/trips/complete", "/api/settings/truck", "/api/settings/email", "/api/docs", "/api/docs/delete", "/api/import/commit", "/api/vehicles/econ", "/api/feed/resolve", "/api/admin/firm/delete", "/api/firm/demo", "/api/trips/pod"]) {
+for (const r of ["/api/drivers/assign", "/api/drivers/reinvite", "/api/setup/truck", "/api/setup/invite", "/api/trips/new", "/api/trips/cancel", "/api/trips/complete", "/api/settings/truck", "/api/settings/email", "/api/docs", "/api/docs/delete", "/api/import/commit", "/api/vehicles/econ", "/api/feed/resolve", "/api/admin/firm/delete", "/api/firm/demo", "/api/trips/pod", "/api/receipts/manage", "/api/files/delete"]) {
   const res = await req(A.d, "POST", r, form({ id: A.tripId, uid: A.driverId, truck: A.truckId, vid: A.truckId, action: "archive", reason: "role test" }));
   const ok = res.status === 401 || res.status === 403 || (res.status >= 300 && res.status < 400 && /\/(driver|login)/.test(res.loc));
   if (!ok) roleLeaks.push(`driver POST ${r} → ${res.status} ${res.loc}`);
 }
+// positive controls for the new owner write routes: A can edit/delete its own receipt and trip file
+const own: string[] = [];
+{ const [fx] = await q("select id from fuel_transactions where firm_id=$1 and source='driver' limit 1", [A.firmId]);
+  if (fx) { await req(A.o, "POST", "/api/receipts/manage", form({ id: fx.id, action: "save", litres: "77", amount: "500", odometer: "1000", station: "Edit" }));
+    if ((await q("select litres from fuel_transactions where id=$1", [fx.id]))[0]?.litres !== 77) own.push("owner edit receipt failed");
+    await req(A.o, "POST", "/api/receipts/manage", form({ id: fx.id, action: "delete" }));
+    if ((await q("select 1 from fuel_transactions where id=$1", [fx.id])).length) own.push("owner delete receipt failed"); } else own.push("no A receipt to control");
+  const [fl] = await q("select id, trip_id from files where firm_id=$1 and trip_id is not null limit 1", [A.firmId]);
+  if (fl) { await req(A.o, "POST", "/api/files/delete", form({ id: fl.id, tripId: fl.trip_id })); if ((await q("select 1 from files where id=$1", [fl.id])).length) own.push("owner delete file failed"); } else own.push("no A file to control"); }
+if (own.length) leaks.push(...own.map((x) => "control: " + x));
 console.log(JSON.stringify({ calls, bIds: bIds.length, counts, leaks, roleLeaks }, null, 1));
 await pool.end();
 process.exit(leaks.length || roleLeaks.length ? 1 : 0);
