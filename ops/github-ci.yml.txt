@@ -1,4 +1,4 @@
-# Copy to .github/workflows/ci.yml from an account with the GitHub "workflow" scope (the automation token cannot push workflows).
+# Copy to .github/workflows/ci.yml (steps in ops/CI-PASI.md) from an account with the GitHub "workflow" scope (the automation token cannot push workflows).
 name: CI
 on:
   push:
@@ -40,6 +40,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm run smoke
-      # `npm run build` runs migrations first; without DATABASE_URL it skips them.
+      # Build first: smoke:tenant / smoke:isolation start `next start` against the CI Postgres.
+      # `npx next build` skips migrations (no DATABASE_URL); the smoke scripts migrate the throwaway DB themselves.
       - run: npx next build --webpack
+      - run: npm run smoke
