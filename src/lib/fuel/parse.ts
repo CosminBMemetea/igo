@@ -1,3 +1,4 @@
+import { clipChars } from "@/lib/validate";
 import { normalizeCard, validCardId } from "./cards";
 // Querra Fleet: import CSV card carburant. Pur (fără I/O), testat în smoke:fuel.
 // Detectează separatorul, formatul (DKV, OMV/Routex, MOL, Shell, E100, generic) și coloanele; numere și date RO/PL/EN.
@@ -15,9 +16,11 @@ export function detectDelimiter(text: string): string {
   const lines = text.split(/\r?\n/).filter((l) => l.trim()).slice(0, 10);
   let best = ",", score = -1;
   for (const d of [";", ",", "\t", "|"]) {
-    const counts = lines.map((l) => splitLine(l, d).length);
-    const min = Math.min(...counts);
-    const s = min > 1 && counts.every((c) => c === counts[0]) ? min * 10 : min;
+    // cel mai frecvent număr de câmpuri (>1), ponderat cu câte linii îl au; antetul contează dublu. Rândurile stricate nu mai schimbă separatorul.
+    const counts = lines.map((l) => splitLine(l, d).length), freq = new Map<number, number>();
+    counts.forEach((c, i) => { if (c > 1) freq.set(c, (freq.get(c) ?? 0) + (i === 0 ? 2 : 1)); });
+    const [n, f] = [...freq.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0] ?? [1, 0];
+    const s = f * 100 + n;
     if (s > score) { score = s; best = d; }
   }
   return best;
@@ -186,7 +189,7 @@ export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
     if (card && !validCardId(card)) { bad(i, "id", get(r, "card")); continue; }
     if (!card && !plate) { bad(i, "id", ""); continue; }
     const odo = num(r, "odometer");
-    out.push({ at, card, plate, station: roFix((get(r, "station") ?? "").trim()).slice(0, 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });
+    out.push({ at, card, plate, station: clipChars(roFix(get(r, "station") ?? ""), 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });
   }
   const confident = !missing.length && (source !== "generic" || (mapping.date != null && mapping.litres != null && (mapping.card != null || mapping.plate != null) && out.length >= Math.max(1, rows.length * 0.8)));
   return { source, delimiter, headers, mapping, confident, missing, rows: out, skipped, total: rows.length, preview: rows.slice(0, 5), errors };

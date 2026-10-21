@@ -7,10 +7,17 @@ import { useEffect, useRef, useState } from "react";
 import type { PaperFile } from "@/lib/paperwork";
 import { projectPaperwork, mergePaperFiles, type PaperworkAck, type PaperworkState } from "@/lib/paperwork-state";
 import { uploadPaperworkPhotos } from "@/lib/paperwork-upload";
+import { sniffImage } from "@/lib/imgsniff";
 
 type Ev = "loaded" | "unloaded" | "wait_start" | "wait_end";
 const MAX = 2 * 1024 * 1024;
 /** Comprimă poza în telefon: max 1600 px, JPEG; coboară calitatea până intră sub 2 MB. */
+/** Tip real după primii octeți (nu după extensie): poze JPEG/PNG/WebP/HEIC sau PDF. */
+async function fileKind(f: File): Promise<string | null> {
+  const b = new Uint8Array(await f.slice(0, 16).arrayBuffer());
+  if (b.length >= 5 && String.fromCharCode(...b.slice(0, 5)) === "%PDF-") return "pdf";
+  return sniffImage(b);
+}
 async function compress(f: File): Promise<Blob> {
   if (!f.type.startsWith("image/")) return f;
   const img = await createImageBitmap(f).catch(() => null);
@@ -39,7 +46,8 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
   const [pending, setPending] = useState(false), [blocked, setBlocked] = useState(false), [queueReady, setQueueReady] = useState(!queueScope);
   const accepted = useRef<PaperworkAck[]>([]);
   const [uploaded, setUploaded] = useState<PaperFile[]>([]);
-  const eventLock = useRef(false);
+  const eventLock = useRef(false), msgRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (msg.t && msg.k !== "ok") msgRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [msg]);
   const cmr = useRef<HTMLInputElement>(null), pod = useRef<HTMLInputElement>(null);
   useEffect(() => { try { setGeo(localStorage.getItem("qf-geo") !== "0"); } catch { setGeo(false); } const h = (e: Event) => setOnShift((e as CustomEvent<boolean>).detail); window.addEventListener("qf-shift", h); return () => window.removeEventListener("qf-shift", h); }, []);
   useEffect(() => { setNow(Date.now() + clockOffset); }, [clockOffset]);
@@ -104,11 +112,13 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
     setBusy(kind); setMsg({ t: "", k: "" });
     try {
       const result = await uploadPaperworkPhotos(Array.from(list), async f => {
+        const kindOf = await fileKind(f);
+        if (!kindOf) throw new Error(tri(loc as Locale, "tip nepermis: doar poze JPG, PNG, WebP, HEIC sau PDF|file type not allowed: only JPG, PNG, WebP, HEIC photos or PDF|niedozwolony typ: tylko zdjęcia JPG, PNG, WebP, HEIC lub PDF"));
         const b = await compress(f);
         if (b.size > MAX) throw new Error(L["pw.tooBig"]);
         const fd = new FormData(); fd.append("file", b, b.type === "image/jpeg" ? f.name.replace(/\.\w+$/, "") + ".jpg" : f.name); fd.append("kind", kind); fd.append("tripId", tripId);
         const r = await fetch("/api/files", { method: "POST", body: fd, signal: AbortSignal.timeout(45000) });
-        if (!r.ok) throw new Error(r.status === 413 ? L["pw.tooBig"] : L["pw.err"]);
+        if (!r.ok) throw new Error(r.status === 413 ? L["pw.tooBig"] : r.status === 415 ? tri(loc as Locale, "tip nepermis: doar poze JPG, PNG, WebP, HEIC sau PDF|file type not allowed: only JPG, PNG, WebP, HEIC photos or PDF|niedozwolony typ: tylko zdjęcia JPG, PNG, WebP, HEIC lub PDF") : L["pw.err"]);
         const j = (await r.json()) as { id?: string };
         if (!j.id && !demo) throw new Error(L["pw.err"]);
         return { id: j.id ?? `local-${crypto.randomUUID()}`, kind, src: j.id ? `/api/files/${j.id}` : URL.createObjectURL(b), name: f.name };
@@ -142,15 +152,15 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
         <button className={`btn ${st.waitSince ? "pri pwstop" : "sec"} sm`} disabled={!!busy || readOnly || !queueReady || blocked || !!st.unloadedAt} aria-pressed={!!st.waitSince} onClick={() => event(st.waitSince ? "wait_end" : "wait_start")}>{st.waitSince ? L["pw.wStop"] : L["pw.wStart"]}</button>
       </div>
       <p className="hint">{L["pw.waitHint"]}</p></>}
+      {msg.t && !(blocked && msg.event) ? <p ref={msgRef} role={msg.k === "ok" ? "status" : "alert"} style={{ overflowWrap: "anywhere" }} className={`msg ${msg.k}`}>{msg.t}</p> : null}
       {(["cmr", "pod"] as const).map((k) => (
         <div key={k} className="pwdoc">
           <div className="head"><h3>{L[`pw.${k}`]}</h3><button className="btn sec sm" disabled={!!busy || readOnly} onClick={() => (k === "cmr" ? cmr : pod).current?.click()}>{busy === k ? "…" : `+ ${L["pw.photo"]}`}</button></div>
-          <input ref={k === "cmr" ? cmr : pod} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden onChange={(e) => { upload(k, e.target.files); e.target.value = ""; }} />
+          <input ref={k === "cmr" ? cmr : pod} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" multiple hidden onChange={(e) => { upload(k, e.target.files); e.target.value = ""; }} />
           <div className="thumbs">{files(k).length ? files(k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer">{/\.pdf$/i.test(f.name) ? <span className="pwpdf" aria-label={`${L[`pw.${k}`]} ${i + 1} PDF`}>PDF</span> : <img src={f.src} alt={`${L[`pw.${k}`]} ${i + 1}`} loading="lazy" />}</a>) : <span className="hint">{L["pw.none"]}</span>}</div>
         </div>
       ))}
       {!queueScope && !demo ? <label className="pwgeo"><input type="checkbox" checked={geo && onShift} disabled={!onShift} onChange={(e) => { setGeo(e.target.checked); try { localStorage.setItem("qf-geo", e.target.checked ? "1" : "0"); } catch { /* The preference remains valid for this page. */ } }} /> <span>{onShift ? L["pw.geo"] : L["pw.geoOff"]}</span></label> : null}
-      {msg.t && !(blocked && msg.event) ? <p role="status" style={{ overflowWrap: "anywhere" }} className={`msg ${msg.k}`}>{msg.t}</p> : null}
       {demo ? <p className="hint" style={{ marginTop: 10 }}>{L["pw.demo"]}</p> : null}
     </section>
   );

@@ -19,7 +19,8 @@ export default async function Login(
   const err = searchParams.e && ERR[searchParams.e];
   // ?next= se păstrează prin formulare; serverul îl validează (cale relativă, permisă rolului)
   const next = typeof searchParams.next === "string" && /^\/(?![/\\])/.test(searchParams.next) ? searchParams.next.slice(0, 200) : "";
-  const nx = next ? <input type="hidden" name="next" value={next} /> : null;
+  const picked = (await cookies()).get("igo-locale")?.value; // limba aleasă înainte de login câștigă față de cea salvată pe cont
+  const nx = <>{next ? <input type="hidden" name="next" value={next} /> : null}{picked === loc ? <input type="hidden" name="loc" value={loc} /> : null}</>;
   const as: RoleLook = searchParams.as === "driver" ? "driver" : searchParams.as === "admin" ? "admin" : "owner";
   const tab = (k: RoleLook) => (
     <Link key={k} href={`/login?as=${k}${next ? `&next=${encodeURIComponent(next)}` : ""}`} className={`rtab r-${k}${as === k ? " on" : ""}`} aria-current={as === k ? "page" : undefined}>

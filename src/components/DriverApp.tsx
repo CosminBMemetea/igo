@@ -1,10 +1,10 @@
 "use client";
+import { decNum, clipChars, AMOUNT_MAX, localNow } from "@/lib/validate";
 import { postDriverControl } from "@/lib/driver-control";
 import { useDriverTracking } from "./DriverTracking";
 import { SHIFT_CHECKS as CHECKS } from "@/lib/shift-checklist";
 import { loadReceiptDraft, saveReceiptDraft } from "@/lib/receipt-draft";
 import { enqueue, flushOutbox, outboxItems } from "@/lib/outbox";
-import { localNow } from "@/lib/validate";
 import { tri } from "@/lib/i18n";
 import { saveThumb } from "./ReceiptThumb";
 import { useEffect, useRef, useState } from "react";
@@ -177,16 +177,17 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     e.preventDefault();
     if (!draftReady || receiptLock.current || busy || read === L["drv.reading"]) return; // lock before the first asynchronous write
     if (receiptVehicle.current !== vehicleId) { setFormErr(tri(loc, "Camionul atribuit s-a schimbat. Bonul este păstrat în formular; verifică alocarea înainte de trimitere.|Assigned truck changed. Your receipt stays in the form; check the assignment before sending.|Przypisany pojazd zmienił się. Paragon pozostaje w formularzu; sprawdź przypisanie przed wysłaniem.")); return; }
-    const litres = Number(f.litres.replace(",", ".")), odoS = f.odo.replace(/[\s.]/g, ""), odo = Number(odoS);
+    const litres = decNum(f.litres), odoS = f.odo.replace(/[\s.]/g, ""), odo = Number(odoS);
     if (!(litres >= 1 && litres <= 2000)) { setFormErr(L["drv.litresRange"]); return; }
     if (!/^\d+$/.test(odoS) || !(odo >= 1 && odo <= 5_000_000)) { setFormErr(L["drv.odoRange"]); return; }
-    const amount = f.amount.trim() ? Number(f.amount.replace(",", ".")) : null;
-    if (amount !== null && (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000)) { setFormErr(tri(loc, "Verifică suma bonului: trebuie să fie un număr pozitiv.|Check the receipt amount: enter a positive number.|Sprawdź kwotę paragonu: wpisz liczbę dodatnią.")); return; }
+    const amount = f.amount.trim() ? decNum(f.amount) : null;
+    if (amount !== null && amount > AMOUNT_MAX) { setFormErr(tri(loc, "Suma e prea mare (maximum 10.000.000). Verifică cifrele de pe bon.|Amount is too large (maximum 10,000,000). Check the digits on the receipt.|Kwota jest za duża (maksymalnie 10 000 000). Sprawdź cyfry na paragonie.")); return; }
+    if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) { setFormErr(tri(loc, "Verifică suma bonului: trebuie să fie un număr pozitiv.|Check the receipt amount: enter a positive number.|Sprawdź kwotę paragonu: wpisz liczbę dodatnią.")); return; }
     receiptLock.current = true;
     setFormErr(""); setBusy(true);
     try {
       const fd = new FormData();
-      fd.append("vehicleId", vehicleId); if (rPlate && aiOk) fd.append("plate", rPlate.slice(0, 20)); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", f.station.trim().slice(0, 80)); fd.append("amount", f.amount.replace(",", ".")); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current); fd.append("currency", cur); if (rDate) fd.append("date", rDate);
+      fd.append("vehicleId", vehicleId); if (rPlate && aiOk) fd.append("plate", rPlate.slice(0, 20)); fd.append("litres", String(litres)); fd.append("odometerKm", String(odo)); fd.append("station", clipChars(f.station, 80)); fd.append("amount", amount === null ? "" : String(amount)); fd.append("aiRead", String(aiOk)); fd.append("key", idem.current); fd.append("currency", cur); if (rDate) fd.append("date", rDate);
       if (photo) fd.append("photo", photo);
       if (queueScope && actorId && !demo && !preview) {
         if (!rDate) fd.set("date", localNow().slice(0,10));
@@ -200,7 +201,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       const j = r ? await r.json().catch(() => ({})) : {};
       if (r?.ok) { photoVersion.current++; idem.current = newKey(); const fid = (j.id ?? j.fill?.id) as string | undefined; if (photo && fid && !j.dup) void saveThumb(fid, photo); const fx = j.fx as { currency: string; amountRon: number | null; fxRate: number | null; fxDate: string | null; ok: boolean } | null;
         const fxT = fx ? (fx.ok && fx.amountRon != null ? " " + L["drv.fxOk"].replace("{ron}", fmtNum(loc, fx.amountRon, 2)).replace("{rate}", fmtNum(loc, fx.fxRate ?? 0, 4)).replace(/\{cur\}/g, fx.currency).replace("{date}", (fx.fxDate ?? "").split("-").reverse().join(".")) : " " + L["drv.fxNo"].replace("{cur}", fx.currency)) : "";
-        setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${f.station.trim().slice(0, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
+        setMsg({ t: (j.dup ? L["drv.dup"] : L["drv.sent"]) + fxT, k: fx && !fx.ok ? "warn" : "ok" }); setCur("RON"); setRDate(""); setLast(`${fmtNum(loc, litres, litres % 1 ? 1 : 0)} L · ${clipChars(f.station, 80) || "—"}`); setForm(false); setF({ litres: "", odo: "", amount: "", station: "" }); setPhoto(null); setRead(""); setAiOk(false); }
       else { if (r?.status === 409) setMsg({ t: "", k: "" }); setFormErr(r?.status === 409 ? L["drv.role"] : r?.status === 413 ? L["drv.tooBig"] : L["drv.invalid"]); }
     } catch { setFormErr(tri(loc, "Bonul nu a putut fi păstrat pe telefon. Nu închide formularul; încearcă din nou.|Could not save the receipt on this device. Keep the form open and retry.|Nie udało się zapisać paragonu. Nie zamykaj formularza i spróbuj ponownie.")); } finally { receiptLock.current = false; setBusy(false); }
   }

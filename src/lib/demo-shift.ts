@@ -1,3 +1,4 @@
+import { clipChars } from "@/lib/validate";
 // Demo: tura și pauza privată se țin într-un cookie (depozitul demo e în memorie, per instanță serverless),
 // ca „Privat” să nu se piardă la reîncărcare (GDPR: pauza privată trebuie să rămână privată).
 import { cookies } from "next/headers";
@@ -24,7 +25,7 @@ export const demoLastFill = async (vehicleId: string): Promise<{ litres: number;
 export async function saveDemoFill(res: NextResponse, vehicleId: string, litres: number, station: string) {
   let m: Record<string, { litres: number; station: string }> = {};
   try { m = (await jget(F)); } catch {}
-  m[vehicleId] = { litres, station: station.slice(0, 60) };
+  m[vehicleId] = { litres, station: clipChars(station, 60) };
   res.cookies.set(F, jset(m), { path: "/", maxAge: 60 * 60 * 24, sameSite: "lax", httpOnly: true });
   return res;
 }
@@ -46,7 +47,7 @@ export async function addDemoFill(res: NextResponse, f: Omit<DemoFill, "id">): P
   const cur = (await demoFills());
   if (cur.some((x) => x.v === f.v && x.l === f.l && x.o === f.o)) return { dup: true };
   const id = `df-${Date.now().toString(36)}`;
-  const list = [...cur, { ...f, s: f.s.slice(0, 50), id, ...(f.p ? { p: 1 } : {}) }].slice(-12);
+  const list = [...cur, { ...f, s: clipChars(f.s, 50), id, ...(f.p ? { p: 1 } : {}) }].slice(-12);
   res.cookies.set(FILLS, jset({ sid, f: list }), { path: "/", maxAge: DEMO_TTL_S, sameSite: "lax", httpOnly: true });
   return { dup: false, id };
 }

@@ -1,6 +1,6 @@
 import { store } from "@/lib/store";
 import { writableFirm, tenant } from "@/lib/tenant";
-import { clip, optNum } from "@/lib/validate";
+import { clip, clipChars, optNum, decNum, LITRES_MIN, LITRES_MAX, AMOUNT_MAX } from "@/lib/validate";
 import { formReply } from "@/lib/form-response";
 import { deleteStoredFile } from "@/lib/files";
 export const dynamic = "force-dynamic";
@@ -15,9 +15,11 @@ export async function POST(req: Request) {
     console.info(JSON.stringify({ audit: "receipt.delete", firm: f.id, by: who, id, litres: r.litres, amount: r.amount, at: r.at }));
     return formReply(req, `${dest}?ok=1`);
   }
-  const litres = optNum(fd.get("litres"), 0.1, 2000), amount = optNum(fd.get("amount"), 0, 1_000_000), odometer = optNum(fd.get("odometer"), 0, 5_000_000);
-  if (litres == null || litres === undefined || amount === undefined || odometer === undefined) return formReply(req, dest, "num");
-  const r = await s.updateDriverFuel(f.id, id, { litres, amount, odometer: odometer == null ? null : Math.round(odometer), station: clip(fd.get("station"), 80) });
+  const litres = optNum(fd.get("litres"), LITRES_MIN, LITRES_MAX), amountS = String(fd.get("amount") ?? "").trim(), amount = optNum(amountS, 0, AMOUNT_MAX), odometer = optNum(fd.get("odometer"), 0, 5_000_000);
+  if (litres == null) return formReply(req, dest, "litres");
+  if (amount === undefined) return formReply(req, dest, decNum(amountS) > AMOUNT_MAX ? "amount-big" : "amount");
+  if (odometer === undefined) return formReply(req, dest, "num");
+  const r = await s.updateDriverFuel(f.id, id, { litres, amount, odometer: odometer == null ? null : Math.round(odometer), station: clipChars(String(fd.get("station") ?? ""), 80) });
   if (!r) return formReply(req, dest, "missing", 404);
   console.info(JSON.stringify({ audit: "receipt.edit", firm: f.id, by: who, id, litres, amount, odometer }));
   return formReply(req, `${dest}?ok=1`);

@@ -20,9 +20,9 @@ export function normPlate(s: string): string | null {
 export const normVin = (s: string) => { const v = s.toUpperCase().replace(/[^A-Z0-9]/g, ""); return v === "" ? null : /^[A-HJ-NPR-Z0-9]{17}$/.test(v) ? v : undefined; };
 /** Număr opțional: "" → null; invalid/în afara intervalului → undefined. */
 export function optNum(v: FormDataEntryValue | null, min: number, max: number): number | null | undefined {
-  const s = String(v ?? "").trim().replace(",", ".");
+  const s = String(v ?? "").trim();
   if (!s) return null;
-  const n = Number(s);
+  const n = decNum(s);
   return Number.isFinite(n) && n >= min && n <= max ? n : undefined;
 }
 export const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s;
@@ -42,4 +42,14 @@ export const weakPin = (s: string) => {
 export function localNow(d = new Date(), tz = "Europe/Bucharest"): string {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+/** Zecimal strict: cifre, opțional „,” sau „.” + zecimale, opțional minus. Respinge „1e2”, „0x10”, „Infinity”, „1.234,5”. → NaN dacă nu e valid. */
+export const DEC_RE = /^-?\d{1,15}(?:[.,]\d{1,6})?$/;
+export const decNum = (v: string) => { const s = v.trim(); return DEC_RE.test(s) ? Number(s.replace(",", ".")) : NaN; };
+export const LITRES_MIN = 1, LITRES_MAX = 2000, AMOUNT_MAX = 10_000_000;
+/** Taie la `n` caractere întregi (graf­eme), fără surogate orfane; adaugă „…” când a tăiat. */
+export function clipChars(v: string, n: number): string {
+  const s = v.trim();
+  const parts = typeof Intl !== "undefined" && "Segmenter" in Intl ? Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s), (x) => x.segment) : Array.from(s);
+  return parts.length <= n ? s : parts.slice(0, Math.max(1, n - 1)).join("").trimEnd() + "…";
 }

@@ -46,7 +46,7 @@ const vehiclesOf = async (a: Agent) => { const r = await a.go("/api/vehicles"); 
 try {
   // 1. înscriere → firmă goală
   const A = new Agent();
-  const s1 = await A.go("/api/auth/signup", { firm: "Trans Test A SRL", cui: "RO123456", email: "Owner.A@Test.ro", password: "parola-lunga-1" });
+  const s1 = await A.go("/api/auth/signup", { firm: "Trans Test A SRL", cui: "RO123456", email: "Owner.A@Test.ro", password: "parola-lunga-1", consent: "on" });
   ok("înscriere → /trucks + cookie de sesiune", s1.status === 303 && s1.loc.endsWith("/trucks") && A.jar.has("igo-session"), `${s1.status} ${s1.loc}`);
   const firmA = (await db.query("select f.* from firms f join users u on u.firm_id=f.id where u.email='owner.a@test.ro'")).rows[0];
   ok("firmă creată în DB, pe probă, fără date demo", !!firmA && firmA.demo_mode === false && !!firmA.trial_start);
@@ -198,7 +198,7 @@ try {
   ok("tonajul și venitul zero rămân zero", emptyRun.status === 200 && emptyRow.tonnes === 0 && emptyRow.revenue === 0);
   // 5. izolare între firme
   const B = new Agent();
-  await B.go("/api/auth/signup", { firm: "Firma B", email: "b@test.ro", password: "parola-lunga-2" });
+  await B.go("/api/auth/signup", { firm: "Firma B", email: "b@test.ro", password: "parola-lunga-2", consent: "on" });
   const vb = await vehiclesOf(B);
   ok("firma B nu vede camioanele lui A", vb?.length === 0);
   ok("B nu poate pune document pe camionul lui A", (await B.go("/api/setup/doc", { truck: tA[0].id, type: "rca", expires: "2027-01-01" })).loc.includes("e=doc"));

@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (u && !u.disabledAt && verifyPassword(password, u.passwordHash)) {
     await s.authClear(kU).catch(() => {});
     const f = await store().firm(u.firmId);
-    if (f) { const sess = { role: u.role, email: u.email ?? u.phone ?? u.name, firm: f.id, uid: u.id, trial: f.trialStart }; const res = back(req, safeNext(next, sess) ?? (u.role === "driver" ? "/driver" : "/feed")); if (u.locale) res.cookies.set("igo-locale", u.locale, { path: "/", maxAge: 31536000, sameSite: "lax" }); clearDemo(res); return withSession(res, sess); }
+    if (f) { const sess = { role: u.role, email: u.email ?? u.phone ?? u.name, firm: f.id, uid: u.id, trial: f.trialStart }; const res = back(req, safeNext(next, sess) ?? (u.role === "driver" ? "/driver" : "/feed")); const fl = fd?.get("loc"), pick = fl === "ro" || fl === "en" || fl === "pl" ? fl : null, lc = pick ?? u.locale; if (lc) res.cookies.set("igo-locale", lc, { path: "/", maxAge: 31536000, sameSite: "lax" }); if (pick && pick !== u.locale) await s.setUserLocale(u.id, pick).catch(() => {}); clearDemo(res); return withSession(res, sess); }
   }
   let lk: string | null = null;
   if (login) { const [a, b] = await Promise.all([s.authFail(kU, 5, 15), s.authFail(kI, 30, 15)]); lk = a.lockedUntil ?? b.lockedUntil; }
