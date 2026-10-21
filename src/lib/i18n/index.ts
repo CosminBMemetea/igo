@@ -34,6 +34,8 @@ export const tri = (loc: Locale, s: string) => s.split("|")[LOCALES.indexOf(loc)
 
 // ---------- formatare manuală (identică pe server și în browser, fără diferențe Intl) ----------
 const SEP: Record<Locale, { th: string; dec: string }> = { ro: { th: ".", dec: "," }, pl: { th: "\u00a0", dec: "," }, en: { th: ",", dec: "." } };
+/** Litri: până la 2 zecimale, fără zerouri inutile (1,5 · 412,25 · 410). */
+export const fmtLitres = (loc: Locale, n: number) => { const r = Math.round(n * 100) / 100; return fmtNum(loc, r, r % 1 === 0 ? 0 : Math.round(r * 10) === r * 10 ? 1 : 2); };
 export function fmtNum(loc: Locale, n: number, d = 0): string {
   const [i, f] = Math.abs(n).toFixed(d).split(".");
   const grouped = loc === "pl" && i.length <= 4 ? i : i.replace(/\B(?=(\d{3})+(?!\d))/g, SEP[loc].th);

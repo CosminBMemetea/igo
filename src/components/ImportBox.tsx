@@ -66,7 +66,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
     setBusy(false);
     const j = r ? await r.json().catch(() => null) : null;
     if (!r || !r.ok || !j?.ok) {
-      if (j?.summary) setSum(j.summary);
+      if (j?.summary) { setSum(j.summary); setMapping(j.summary.mapping); }
       setMsg({ ok: false, text: j?.error === "card-mapping-changed" ? tri(l.loc as Locale, "Asocierea cardului s-a schimbat. Reîncarcă fișierul pentru o previzualizare nouă.|The card mapping changed. Reload the file for a fresh preview.|Przypisanie karty się zmieniło. Wczytaj plik ponownie, aby odświeżyć podgląd.") : l.err }); return;
     }
     setMsg({ ok: true, text: fmt(demo ? l.demoDone : l.done, { added: j.added, dupes: j.dupes }) });
@@ -80,7 +80,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
     const r = await fetch(`/samples/${k}.csv`).catch(() => null); if (!r || !r.ok) { setMsg({ ok: false, text: l.err }); return; }
     const b = await r.blob(); await pick(new File([b], `${k}.csv`, { type: "text/csv" })); void n;
   }
-  const setField = (f: Field, v: string) => { const m = { ...mapping }; if (v === "") delete m[f]; else m[f] = +v; setMapping(m); if (file) preview(file.text, m); };
+  const setField = (f: Field, v: string) => { const m = { ...(sum?.mapping ?? mapping) }; if (v === "") delete m[f]; else m[f] = +v; setMapping(m); if (file) preview(file.text, m); };
   return (
     <div className="imp">
       <label className={`drop${drag ? " on" : ""}`} onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={(e) => { e.preventDefault(); setDrag(false); pick(e.dataTransfer.files[0]); }}>
@@ -113,7 +113,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
             {sum.savedMapping ? <span className="badge ok" title={l.savedHint}>✓ {l.saved}</span> : null}
           </div>
           <div className="eyebrow" style={{ marginTop: 14 }}>{l.prev}</div>
-          <div className="ptable hsx"><table><thead><tr><th>#</th>{sum.headers.map((h, i) => { const f = FIELDS.find((x) => mapping?.[x] === i); return <th key={i} className={f ? "mapped" : ""}>{h}{f ? <small>→ {fieldLabels[f]}</small> : null}</th>; })}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}><td>{i + 2}</td>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
+          <div className="ptable hsx"><table><thead><tr><th>#</th>{sum.headers.map((h, i) => { const f = FIELDS.find((x) => sum.mapping?.[x] === i); return <th key={i} className={f ? "mapped" : ""}>{h}{f ? <small>→ {fieldLabels[f]}</small> : null}</th>; })}</tr></thead><tbody>{sum.preview.map((r, i) => <tr key={i}><td>{i + 2}</td>{r.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody></table></div>
           <div className="istats">
             <div><b>{sum.newRows}</b><span>{l.new}</span></div>
             <div><b>{sum.dupes}</b><span>{l.dupes}</span></div>
@@ -128,7 +128,7 @@ export function ImportBox({ labels: l, fieldLabels, demo }: { labels: L; fieldLa
               <div className="mgrid">
                 {FIELDS.map((f) => (
                   <label key={f} className="lf"><span>{fieldLabels[f]}{REQUIRED.includes(f) ? " *" : ""}</span>
-                    <select value={mapping?.[f] ?? ""} onChange={(e) => setField(f, e.target.value)}>
+                    <select value={sum.mapping?.[f] ?? ""} onChange={(e) => setField(f, e.target.value)}>
                       <option value="">—</option>
                       {sum.headers.map((h, i) => <option key={i} value={i}>{h || `#${i + 1}`}</option>)}
                     </select>

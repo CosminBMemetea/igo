@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PaperFile } from "@/lib/paperwork";
 import { projectPaperwork, mergePaperFiles, type PaperworkAck, type PaperworkState } from "@/lib/paperwork-state";
 import { uploadPaperworkPhotos } from "@/lib/paperwork-upload";
-import { sniffImage } from "@/lib/imgsniff";
+import { sniffImage, MAX_PHOTO_IN } from "@/lib/imgsniff";
 
 type Ev = "loaded" | "unloaded" | "wait_start" | "wait_end";
 const MAX = 2 * 1024 * 1024;
@@ -113,6 +113,8 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
     try {
       const result = await uploadPaperworkPhotos(Array.from(list), async f => {
         const kindOf = await fileKind(f);
+        // mărimea înaintea tipului: doar pozele recunoscute se pot micșora sub 2 MB
+        if (f.size > MAX_PHOTO_IN || (f.size > MAX && (!kindOf || kindOf === "pdf"))) throw new Error(L["pw.tooBig"]);
         if (!kindOf) throw new Error(tri(loc as Locale, "tip nepermis: doar poze JPG, PNG, WebP, HEIC sau PDF|file type not allowed: only JPG, PNG, WebP, HEIC photos or PDF|niedozwolony typ: tylko zdjęcia JPG, PNG, WebP, HEIC lub PDF"));
         const b = await compress(f);
         if (b.size > MAX) throw new Error(L["pw.tooBig"]);

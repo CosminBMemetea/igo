@@ -191,7 +191,7 @@ export function parseFuelCsv(text: string, override?: Mapping): ParseResult {
     const odo = num(r, "odometer");
     out.push({ at, card, plate, station: clipChars(roFix(get(r, "station") ?? ""), 120), country: get(r, "country")?.trim().slice(0, 3).toUpperCase() || null, product, litres: Math.round(litres * 100) / 100, amount: num(r, "amount"), currency: get(r, "currency")?.trim().toUpperCase().slice(0, 3) || null, odometer: odo != null && odo > 0 && odo < 10_000_000 ? Math.round(odo) : null, lat: num(r, "lat"), lng: num(r, "lng") });
   }
-  const confident = !missing.length && (source !== "generic" || (mapping.date != null && mapping.litres != null && (mapping.card != null || mapping.plate != null) && out.length >= Math.max(1, rows.length * 0.8)));
+  const confident = !missing.length && (source !== "generic" || (mapping.date != null && mapping.litres != null && (mapping.card != null || mapping.plate != null)));
   return { source, delimiter, headers, mapping, confident, missing, rows: out, skipped, total: rows.length, preview: rows.slice(0, 5), errors };
 }
 

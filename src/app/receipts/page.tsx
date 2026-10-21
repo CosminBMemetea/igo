@@ -5,7 +5,7 @@ import { getPrefs } from "@/lib/prefs";
 import { tenant } from "@/lib/tenant";
 import { load } from "@/lib/data";
 import { demoReceipts, monthSummary } from "@/lib/query";
-import { fmtDate, fmtMoney, fmtNum, t, tri } from "@/lib/i18n";
+import { fmtDate, fmtLitres, fmtMoney, fmtNum, t, tri } from "@/lib/i18n";
 import { ActionForm } from "@/components/ActionForm";
 import { Gate } from "@/components/Gate";
 import { leiOf, isRon } from "@/lib/fuel/lei";
@@ -26,14 +26,14 @@ export default async function Receipts() {
         <main>
           <div className="eyebrow fade">{t(loc, "rc.title")}</div>
           <h1 className="h1 fade">{fmtMoney(loc, lei)}</h1>
-          <p className="sub fade d1">{t(loc, tx.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: tx.length, litres: fmtNum(loc, L) })}</p>
+          <p className="sub fade d1">{t(loc, tx.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: tx.length, litres: fmtLitres(loc, L) })}</p>
           <section className="section"><div className="receipt-list">
             {tx.map((x) => {
               const v = d.vehicles.find((y) => y.id === x.truckId);
               return (
                 <div key={x.id} className="row r4 rcrow" style={{ cursor: "default" }}>
                   <div className="rcmain">{x.photoName?.startsWith("file:") ? <ReceiptThumb id={x.id} has url={`/api/files/${x.photoName.slice(5)}`} label={t(loc, "drv.photo")} /> : null}<div><div className="t">{x.station || "—"}</div><div className="m">{fmtDate(loc, x.at)} · {v?.name ?? x.card ?? "—"}{x.plate && x.source === "driver" && v && x.plate.replace(/[^A-Z0-9]/gi, "").toUpperCase() !== v.name.replace(/[^A-Z0-9]/gi, "").toUpperCase() ? <b className="rc-plate"> · ⚠ {x.plate}</b> : null}</div></div></div>
-                  <div className="v">{fmtNum(loc, x.litres, 1)} L</div>
+                  <div className="v">{fmtLitres(loc, x.litres)} L</div>
                   <div className="v">{leiOf(x) != null ? fmtMoney(loc, leiOf(x)!) : "—"}{x.amount != null && !isRon(x.currency) ? <small className="fxo" title={x.fxRate ? t(loc, "rc.fx", { rate: fmtNum(loc, x.fxRate, 4), cur: x.currency ?? "", date: fmtDate(loc, x.fxDate ?? "") }) : t(loc, "rc.fxNo")}>{fmtNum(loc, x.amount, 2)} {x.currency}{x.fxRate ? ` · ${fmtNum(loc, x.fxRate, 4)}` : " · ?"}</small> : null}</div>
                   <div style={{ textAlign: "right" }}>{v ? <span className={`badge ${x.source === "driver" ? "acc" : "ok"}`}>{x.source === "driver" ? t(loc, "rc.fromDriver") : t(loc, "rc.fromCard")}</span> : <Link href="/import" className="badge warn">{t(loc, "imp.unknown")}</Link>}</div>
                   {canEdit && x.source === "driver" ? <details className="rcedit"><summary className="btn sec sm">{tr("Editează / șterge|Edit / delete|Edytuj / usuń")}</summary>
@@ -63,7 +63,7 @@ export default async function Receipts() {
       <main>
         <div className="eyebrow fade">{t(loc, "rc.title")}</div>
         <h1 className="h1 fade">{t(loc, "rc.sub")}</h1>
-        <p className="sub fade d1">{t(loc, fills.length + driver.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: fills.length + driver.length, litres: fmtNum(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, fuel)}</p>
+        <p className="sub fade d1">{t(loc, fills.length + driver.length === 1 ? "rc.firmSub1" : "rc.firmSub", { n: fills.length + driver.length, litres: fmtLitres(loc, m.litres + driver.reduce((a, x) => a + x.litres, 0)) })} · {fmtMoney(loc, fuel)}</p>
         <section className="section">
           <div className="head"><h2>{t(loc, "rc.byCat")}</h2></div>
           <div className="wf">
@@ -76,7 +76,7 @@ export default async function Receipts() {
             return (
               <div key={f.id} className="row r4 rcrow" style={{ cursor: "default" }}>
                 <div className="rcmain">{"photo" in f ? <ReceiptThumb id={f.id} has={!!f.photo} url={(f as { file?: string | null }).file ? `/api/files/${(f as { file?: string | null }).file}` : null} label={t(loc, "drv.photo")} /> : null}<div><div className="t">{f.station}</div><div className="m">{fmtDate(loc, f.time)} · {v?.name}</div></div></div>
-                <div className="v">{fmtNum(loc, f.litres)} L</div>
+                <div className="v">{fmtLitres(loc, f.litres)} L</div>
                 <div className="v">{f.amount ? fmtMoney(loc, f.amount) : "—"}{"orig" in f && f.orig ? <small className="fxo">{fmtNum(loc, (f.orig as { amount: number }).amount, 2)} {(f.orig as { cur: string }).cur}</small> : null}</div>
                 <div style={{ textAlign: "right" }}>{"drv" in f && f.drv ? <span className="badge acc">{t(loc, "rc.fromDriver")}</span> : f.ok ? <span className="badge ok">{t(loc, "rc.matched")} {v?.name}</span> : <Link href="/alerts" className="badge bad">{t(loc, "rule.card-fara-camion")}</Link>}</div>
               </div>

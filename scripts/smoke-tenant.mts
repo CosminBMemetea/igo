@@ -233,6 +233,29 @@ try {
   const disabled = (await db.query("select truck_id, disabled_at, session_version from users where id=$1", [drv[0].id])).rows[0];
   ok("dezactivarea eliberează camionul", disabled.truck_id === null && !!disabled.disabled_at && disabled.session_version > 0);
   // 6. asistență
+  // bon șofer: editare cu valori invalide → eroare specifică, nimic schimbat; valid → salvat
+  const tq = (await db.query("select id from trucks where firm_id=$1 and archived_at is null order by created_at limit 1", [firmA.id])).rows[0].id;
+  await db.query("insert into users (id, firm_id, role, name, password_hash, truck_id) values ('u_smoke_drv', $1, 'driver', 'Șofer Smoke', 'x', $2)", [firmA.id, tq]);
+  await db.query("insert into truck_assignments (id, firm_id, user_id, truck_id) values ('ta_smoke_1', $1, 'u_smoke_drv', $2)", [firmA.id, tq]);
+  await db.query("insert into fuel_transactions (id, firm_id, truck_id, source, hash, at, station, litres, amount) values ('fx_smoke_1', $1, $2, 'driver', 'h-smoke-1', '2026-10-12T10:00', 'OMV', 1.5, 12)", [firmA.id, tq]);
+  const rl = await A.go("/api/receipts/manage", { id: "fx_smoke_1", action: "save", litres: "-5", amount: "12" });
+  ok("bon: litri -5 → e=litres", rl.status === 303 && rl.loc.includes("e=litres"), rl.loc);
+  ok("bon: 1e2 → e=litres", (await A.go("/api/receipts/manage", { id: "fx_smoke_1", action: "save", litres: "1e2" })).loc.includes("e=litres"));
+  ok("bon: sumă uriașă → e=amount-big", (await A.go("/api/receipts/manage", { id: "fx_smoke_1", action: "save", litres: "10", amount: "99999999999" })).loc.includes("e=amount-big"));
+  ok("bon: sumă negativă → e=amount", (await A.go("/api/receipts/manage", { id: "fx_smoke_1", action: "save", litres: "10", amount: "-3" })).loc.includes("e=amount"));
+  ok("bon neschimbat după erori", (await db.query("select litres from fuel_transactions where id='fx_smoke_1'")).rows[0].litres === 1.5);
+  ok("bon: valid → salvat", (await A.go("/api/receipts/manage", { id: "fx_smoke_1", action: "save", litres: "40,5", amount: "300", station: "Lukoil" })).loc.includes("ok=1") && (await db.query("select litres from fuel_transactions where id='fx_smoke_1'")).rows[0].litres === 40.5);
+  const rcp = await A.go("/receipts");
+  ok("bonuri: 40,5 L afișat cu zecimale", rcp.status === 200 && rcp.text.includes("40,5"));
+  // dezactivare → camion eliberat; reactivare → camionul revine dacă e liber
+  await A.go("/api/setup/driver", { uid: "u_smoke_drv", off: "1", ret: "/drivers" });
+  ok("dezactivare: camion dezalocat", (await db.query("select truck_id, disabled_at from users where id='u_smoke_drv'")).rows[0].truck_id === null);
+  const re = await A.go("/api/setup/driver", { uid: "u_smoke_drv", off: "0", ret: "/drivers" });
+  ok("reactivare: camionul revine", re.loc.includes("truck=1") && (await db.query("select truck_id from users where id='u_smoke_drv'")).rows[0].truck_id === tq, re.loc);
+  await A.go("/api/setup/driver", { uid: "u_smoke_drv", off: "1", ret: "/drivers" });
+  await db.query("insert into users (id, firm_id, role, name, password_hash, truck_id) values ('u_smoke_drv2', $1, 'driver', 'Alt Șofer', 'x', $2)", [firmA.id, tq]);
+  const re2 = await A.go("/api/setup/driver", { uid: "u_smoke_drv", off: "0", ret: "/drivers" });
+  ok("reactivare: camion ocupat → rămâne fără camion", re2.loc.includes("ok=1") && !re2.loc.includes("truck=1") && (await db.query("select truck_id from users where id='u_smoke_drv'")).rows[0].truck_id === null, re2.loc);
   await A.go("/api/support", { name: "Owner A", phone: "0744999888", slot: "morning", message: "ajutor" });
   ok("cerere Asistență Querra salvată", (await db.query("select * from support_requests where firm_id=$1", [firmA.id])).rows.length === 1);
 } finally { stop(); await db.end(); speechMock.close(); }

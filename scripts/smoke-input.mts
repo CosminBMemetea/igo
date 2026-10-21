@@ -14,7 +14,7 @@ ok("scurt rămâne neschimbat", clipChars("OMV Arad", 50) === "OMV Arad");
 const csv = "data,ora,nr auto,litri,suma,moneda\n2026-10-01,10:00,B 01 ABC,100,700,RON\nfoo,bar,baz,qux,1,2\n01.10.2026,x,CJ 12 XYZ,abc,1,RON\n!!!,,,,,\n2026-10-02,11:00,B 02 ABC,50,350,RON\nzzz";
 const r = parseFuelCsv(csv);
 ok("antete RO mapate", r.delimiter === "," && r.mapping.date === 0 && r.mapping.plate === 2 && r.mapping.litres === 3 && r.mapping.amount === 4 && r.missing.length === 0);
-ok("doar rândurile bune", r.rows.length === 2 && !r.confident);
+ok("doar rândurile bune; maparea RO e sigură", r.rows.length === 2 && r.confident);
 const g = parseFuelCsv("a;b;c\n1;2;3\nx;y;z");
 ok("format necunoscut → 0 valide", g.missing.length > 0 && g.rows.length === 0);
 console.log(fail ? `smoke:input: ${fail} eșec(uri)` : "smoke:input OK");
