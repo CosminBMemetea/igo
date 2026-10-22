@@ -272,6 +272,17 @@ export class MemStore implements Store {
     const amountRon = r.fxRate ? (p.amount != null ? Math.round(p.amount * r.fxRate * 100) / 100 : null) : r.amountRon == null ? null : p.amount;
     Object.assign(r, { litres: p.litres, amount: p.amount, amountRon, odometer: p.odometer, station: p.station }); return { ...r };
   }
+  async deleteTrip(firmId: string, id: string) {
+    const i = this.R.findIndex((r) => r.firmId === firmId && r.id === id); if (i < 0) return false;
+    this.R.splice(i, 1); this.V = this.V.filter((v) => !(v.firmId === firmId && v.tripId === id)); return true;
+  }
+  async deleteImportedFuel(firmId: string, o: { id?: string; importId?: string }) {
+    if (!o.id && !o.importId) return 0;
+    const hit = (x: FuelTxRow) => x.firmId === firmId && x.source !== "driver" && (o.id ? x.id === o.id : x.importId === o.importId);
+    const n = this.X.filter(hit).length; this.X = this.X.filter((x) => !hit(x));
+    if (o.importId) this.M = this.M.filter((m) => !(m.firmId === firmId && m.id === o.importId));
+    return n;
+  }
   async deleteDriverFuel(firmId: string, id: string) {
     const i = this.X.findIndex((x) => x.firmId === firmId && x.id === id && x.source === "driver"); if (i < 0) return null;
     return { ...this.X.splice(i, 1)[0] };

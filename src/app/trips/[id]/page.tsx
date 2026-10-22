@@ -138,6 +138,7 @@ export default async function TripDetail(props: { params: Promise<{ id: string }
         <Link className="btn sec" href={`/vehicles/${r.vehicleId}`}>{r.vehicle.name}</Link>
         {r.invoiceNo ? <Link className="btn sec" href={`/invoices?trip=${r.id}`}>{t(loc, "trip.invoice")} {r.invoiceNo}</Link> : null}
       </section>
+      {raw && !(raw.loadedAt && !raw.deliveredAt && !raw.cancelledAt) ? <details className="sheet trip-del"><summary className="btn sec danger">{tri(loc, "Șterge cursa|Delete trip|Usuń kurs")}</summary><ActionForm action="/api/trips/delete" loc={loc}><input type="hidden" name="id" value={raw.id} /><p><b>{tri(loc, "Ștergi definitiv cursa? Nu se poate anula.|Delete this trip permanently? This cannot be undone.|Usunąć kurs na stałe? Tej operacji nie można cofnąć.")}</b></p><p className="hint">{tri(loc, "Se șterg și pozele/PDF-urile CMR și POD, orele de încărcare, descărcare și așteptare. Pentru istoric, folosește mai bine „Anulează cursa”.|CMR and POD photos/PDFs and the loading, unloading and waiting times are deleted too. To keep history, use “Cancel trip” instead.|Usunięte zostaną też zdjęcia/PDF CMR i POD oraz czasy załadunku, rozładunku i oczekiwania. Aby zachować historię, użyj „Anuluj kurs”.")}</p><button className="btn pri danger" type="submit">{tri(loc, "Da, șterge definitiv|Yes, delete permanently|Tak, usuń na stałe")}</button></ActionForm></details> : null}
     </main>
   );
 }

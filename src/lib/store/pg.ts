@@ -390,6 +390,17 @@ export class PgStore implements Store {
     const [r] = await this.d.update(fuelTransactions).set({ litres: p.litres, amount: p.amount, amountRon: old.fxRate ? amountRon : old.amountRon == null ? null : p.amount, odometer: p.odometer, station: p.station }).where(w).returning();
     return r ? txOut(r) : null;
   }
+  async deleteTrip(firmId: string, id: string) {
+    await this.d.delete(tripEvents).where(and(eq(tripEvents.firmId, firmId), eq(tripEvents.tripId, id)));
+    return (await this.d.delete(trips).where(and(eq(trips.firmId, firmId), eq(trips.id, id))).returning({ id: trips.id })).length === 1;
+  }
+  async deleteImportedFuel(firmId: string, o: { id?: string; importId?: string }) {
+    if (!o.id && !o.importId) return 0;
+    const w = [eq(fuelTransactions.firmId, firmId), sql`${fuelTransactions.source} <> 'driver'`, o.id ? eq(fuelTransactions.id, o.id) : eq(fuelTransactions.importId, o.importId!)];
+    const n = (await this.d.delete(fuelTransactions).where(and(...w)).returning({ id: fuelTransactions.id })).length;
+    if (o.importId) await this.d.delete(fuelImports).where(and(eq(fuelImports.firmId, firmId), eq(fuelImports.id, o.importId)));
+    return n;
+  }
   async deleteDriverFuel(firmId: string, id: string) {
     const [r] = await this.d.delete(fuelTransactions).where(and(eq(fuelTransactions.firmId, firmId), eq(fuelTransactions.id, id), eq(fuelTransactions.source, "driver"))).returning();
     return r ? txOut(r) : null;

@@ -160,6 +160,39 @@ try {
   }
   const after = await snap(Bf.firmId);
   for (const t of Object.keys(before)) ok(`tabela ${t} a firmei B neschimbată`, before[t] === after[t]);
+  // ---------- 3. ștergeri proprii (patron), refuzate pentru șofer ----------
+  {
+    const plate = (await q("select plate from trucks where id=$1", [A.truckId]))[0].plate as string, day = new Date().toISOString().slice(0, 10).split("-").reverse().join(".");
+    await req(A.o, "POST", "/api/import/commit", { text: `Data;Nr. inmatriculare;Litri;Valoare\n${day} 08:00;${plate};120;900\n${day} 09:00;${plate};80;600\n${day} 10:00;${plate};60;450\n`, filename: "a.csv" });
+    const rows = await q("select id, import_id from fuel_transactions where firm_id=$1 and source<>'driver'", [A.firmId]);
+    ok("import A: 3 rânduri", rows.length === 3, String(rows.length));
+    ok("șofer nu poate șterge rânduri importate", denied((await req(A.d, "POST", "/api/import/delete", form({ id: rows[0].id }))).status, "") && (await q("select 1 from fuel_transactions where id=$1", [rows[0].id])).length === 1);
+    const one = await req(A.o, "POST", "/api/import/delete", form({ id: rows[0].id, ret: "/receipts" }));
+    ok("patron șterge un rând importat", one.loc.includes("deleted=1") && (await q("select 1 from fuel_transactions where id=$1", [rows[0].id])).length === 0, one.loc);
+    const drvFill = (await q("select id from fuel_transactions where firm_id=$1 and source='driver'", [A.firmId])).length;
+    ok("ștergerea unui bon de șofer prin /api/import/delete e refuzată", (await req(A.o, "POST", "/api/import/delete", form({ id: (await q("select id from fuel_transactions where firm_id=$1 and source='driver'", [A.firmId]))[0].id }))).loc.includes("e=missing"));
+    const lot = await req(A.o, "POST", "/api/import/delete", form({ importId: rows[0].import_id }));
+    ok("patron șterge lotul importului", lot.loc.includes("deleted=2") && (await q("select 1 from fuel_transactions where import_id=$1", [rows[0].import_id])).length === 0 && (await q("select 1 from fuel_imports where id=$1", [rows[0].import_id])).length === 0, lot.loc);
+    ok("bonurile șoferului rămân", (await q("select id from fuel_transactions where firm_id=$1 and source='driver'", [A.firmId])).length === drvFill);
+    ok("alertele se recalculează (pagina merge)", (await req(A.o, "GET", "/alerts")).status === 200);
+    // cursă cu fișier + evenimente
+    const tp = await req(A.o, "POST", "/api/trips/new", { from: "Cluj", to: "Deva", date: new Date().toISOString().slice(0, 10), driverId: A.driverId, truckId: A.truckId });
+    const tid = JSON.parse(tp.text).id as string;
+    await req(A.d, "POST", "/api/files", form({ kind: "cmr", tripId: tid, file: new Blob([JPEG], { type: "image/jpeg" }) }));
+    await req(A.d, "POST", "/api/trips/event", { tripId: tid, kind: "wait_start", key: randomBytes(8).toString("hex") });
+    await req(A.d, "POST", "/api/trips/event", { tripId: tid, kind: "wait_end", key: randomBytes(8).toString("hex") });
+    const fl = await q("select id, url from files where trip_id=$1", [tid]), ev = await q("select 1 from trip_events where trip_id=$1", [tid]);
+    ok("cursă de test: fișier + evenimente", fl.length === 1 && ev.length >= 1, `${fl.length}/${ev.length}`);
+    ok("șofer nu poate șterge cursa", denied((await req(A.d, "POST", "/api/trips/delete", form({ id: tid }))).status, (await req(A.d, "POST", "/api/trips/delete", form({ id: tid }))).loc) && (await q("select 1 from trips where id=$1", [tid])).length === 1);
+    const objs = blob.objects.size, del = await req(A.o, "POST", "/api/trips/delete", form({ id: tid }));
+    ok("patron șterge cursa → /trips?deleted=1", del.loc.includes("/trips?deleted=1"), del.loc);
+    ok("cascadă: cursă, evenimente, rând fișier, obiect Blob", (await q("select 1 from trips where id=$1", [tid])).length === 0 && (await q("select 1 from trip_events where trip_id=$1", [tid])).length === 0 && (await q("select 1 from files where trip_id=$1", [tid])).length === 0 && blob.objects.size === objs - 1);
+    ok("după ștergere: pagina cursei 404", (await req(A.o, "GET", `/trips/${tid}`)).status === 404);
+    await req(A.d, "POST", "/api/trips/event", { tripId: A.tripId, kind: "loaded", key: randomBytes(8).toString("hex") });
+    const loaded = (await q("select loaded_at from trips where id=$1", [A.tripId]))[0]?.loaded_at;
+    const running = await req(A.o, "POST", "/api/trips/delete", form({ id: A.tripId }));
+    ok("cursă în desfășurare (încărcată) → e=running, păstrată", !!loaded && running.loc.includes("e=running") && (await q("select 1 from trips where id=$1", [A.tripId])).length === 1, `${loaded} ${running.loc}`);
+  }
   for (const r of routes.filter(isFirm)) for (const m of r.methods) ok(`acoperire: ${r.path} ${m}`, covered.has(`${r.path} ${m}`));
   ok("acoperire: rute de firmă găsite", routes.filter(isFirm).length >= 60, String(routes.filter(isFirm).length));
   console.log(`smoke:isolation: ${routes.length} rute (${routes.filter(isFirm).length} de firmă), ${calls} cereri, ${bIds.length} id-uri B`);

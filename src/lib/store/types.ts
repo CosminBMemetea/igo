@@ -139,6 +139,10 @@ export interface Store {
   updateDriverFuel(firmId: string, id: string, p: { litres: number; amount: number | null; odometer: number | null; station: string }): Promise<FuelTxRow | null>;
   /** Deletes a driver-entered receipt of the firm; returns the deleted row (to remove its photo). Alerts are derived, so they recompute. */
   deleteDriverFuel(firmId: string, id: string): Promise<FuelTxRow | null>;
+  /** Șterge definitiv cursa firmei și evenimentele ei (încărcat/descărcat/așteptare). Fișierele se șterg separat (Blob). */
+  deleteTrip(firmId: string, id: string): Promise<boolean>;
+  /** Rânduri de carburant importate (nu bonuri de șofer): unul după id sau tot lotul unui import. Întoarce câte s-au șters. */
+  deleteImportedFuel(firmId: string, o: { id?: string; importId?: string }): Promise<number>;
   fuel(firmId: string, o?: { truckId?: string; source?: string; limit?: number }): Promise<FuelTxRow[]>;
   addImport(firmId: string, i: Omit<ImportRow, "id" | "firmId" | "createdAt"> & { id?: string }): Promise<ImportRow>;
   imports(firmId: string): Promise<ImportRow[]>;

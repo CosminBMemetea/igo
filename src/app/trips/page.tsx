@@ -14,7 +14,7 @@ import { TripRows } from "../TripRows";
 
 export const dynamic = "force-dynamic";
 export default async function Trips(
-  props: { searchParams: Promise<{ new?: string; status?: string; q?: string; truck?: string; month?: string }> }
+  props: { searchParams: Promise<{ deleted?: string; new?: string; status?: string; q?: string; truck?: string; month?: string }> }
 ) {
   const searchParams = await props.searchParams;
   const { loc } = (await getPrefs());
@@ -33,7 +33,7 @@ export default async function Trips(
   const filtered = !!q || status !== "all" || !!searchParams.truck || !!month;
   const rows = allRows.filter((v) => (status === "all" || tripStage(v) === (status === "done" ? "completed" : status)) && (!searchParams.truck || v.vehicleId === searchParams.truck) && (!month || v.date.startsWith(month)) && (!q || `${v.title} ${d.clients.find((c) => c.id === v.clientId)?.name ?? ""} ${v.driverName ?? v.vehicle.driver} ${v.vehicle.name}`.toLocaleLowerCase().includes(q))).sort((a, b) => status === "planned" ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
   return (
-    <main>
+    <main>{searchParams.deleted ? <p className="msg ok" role="status">{tri(loc, "Cursa a fost ștearsă definitiv.|The trip was deleted permanently.|Kurs został trwale usunięty.")}</p> : null}
       <div className="eyebrow fade">{t(loc, "nav.trips")}</div>
       <div className="thead-row"><h1 className="h1 fade">{t(loc, "trips.title")}</h1>{nt}</div>
       <p className="sub fade d1" dangerouslySetInnerHTML={{ __html: t(loc, "trips.sub", { n: m.n, total: fmtMoney(loc, m.profit) }) }} />

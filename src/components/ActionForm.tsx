@@ -20,6 +20,7 @@ const ERR: Record<string, string> = {
   phone: "Introdu telefonul cu prefix de țară, de exemplu +407…|Enter the phone with country code, e.g. +407…|Wpisz telefon z prefiksem kraju, np. +48…",
   dupphone: "Telefonul este deja folosit. Verifică șoferii existenți.|This phone is already in use. Check existing drivers.|Telefon jest już używany. Sprawdź kierowców.",
   assignment: "Camionul este ocupat, în tură sau indisponibil. Încheie tura înainte de schimbare.|Truck is assigned, on shift or unavailable. End the shift before changing.|Pojazd jest przypisany, na zmianie lub niedostępny. Zakończ zmianę przed zmianą pojazdu.",
+  running: "Cursa e în desfășurare (încărcată, nelivrată). Încheie sau anulează cursa înainte de ștergere.|The trip is in progress (loaded, not delivered). Complete or cancel it before deleting.|Kurs jest w trakcie (załadowany, niedostarczony). Zakończ lub anuluj go przed usunięciem.",
   missing: "Înregistrarea nu mai este disponibilă. Reîncarcă pagina.|Record no longer available. Reload the page.|Wpis nie jest już dostępny. Odśwież stronę.",
 };
 export function ActionForm({ action, returnTo, loc, children, reset = false }: { action: string; returnTo?: string; loc: Locale; children: React.ReactNode; reset?: boolean }) {

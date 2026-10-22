@@ -1718,3 +1718,4 @@ summary.btn::after{content:'⌄';font-size:16px}details[open]>summary.btn::after
 body:has(details.acct[open]) .tinv{display:none}
 /* Long user text (truck model, names) wraps instead of widening the page. */
 .sheet .sub,.sheet h2,.sheet .t,.sheet .m{overflow-wrap:anywhere;min-width:0}
+.it:has(>.imp-del){flex-wrap:wrap}.it>.imp-del{flex:1 0 100%;margin-top:8px;min-width:0}.it>.imp-del>summary{width:fit-content}.it>.imp-del .sheet{max-width:100%}
