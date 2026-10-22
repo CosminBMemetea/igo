@@ -1,0 +1,46 @@
+# Copy to .github/workflows/ci.yml (steps in ops/CI-PASI.md) from an account with the GitHub "workflow" scope (the automation token cannot push workflows).
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: igo_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Throwaway CI database only. Never point CI at Neon/production.
+      TEST_DATABASE_URL: postgres://postgres:ci@localhost:5432/igo_test
+      SESSION_SECRET: ci-only-session-secret-0123456789abcdef
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      # Build first: smoke:tenant / smoke:isolation start `next start` against the CI Postgres.
+      # `npx next build` skips migrations (no DATABASE_URL); the smoke scripts migrate the throwaway DB themselves.
+      - run: npx next build --webpack
+      - run: npm run smoke
