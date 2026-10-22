@@ -13,6 +13,7 @@ import { RealFeed } from "@/components/RealFeed";
 import { store } from "@/lib/store";
 import { dayStartIso } from "@/lib/driver-log";
 import { Feed } from "@/components/Feed";
+import { feedUI } from "@/lib/feed-ui-i18n";
 
 export const dynamic = "force-dynamic";
 export default async function FeedPage() {
@@ -21,10 +22,10 @@ export default async function FeedPage() {
   if (!d.demo) {
     // firmă reală: jurnalul șoferilor din ultimele ~2 zile + starea live (reîmprospătat la 30 s)
     if (!d.tn.firm) redirect("/");
-    const [ev, lv] = await Promise.all([store().driverEvents(d.tn.firm.id, new Date(Date.parse(dayStartIso()) - 86400000).toISOString()).catch(() => []), d.live()]);
+    const [ev, lv, us] = await Promise.all([store().driverEvents(d.tn.firm.id, new Date(Date.parse(dayStartIso()) - 86400000).toISOString()).catch(() => []), d.live(), store().users(d.tn.firm.id).catch(() => [])]);
     const names = Object.fromEntries(d.allVehicles.map((v) => [v.id, { plate: v.name, driver: v.driver }]));
-    const people = Object.fromEntries((await store().users(d.tn.firm.id).catch(() => [])).map((u) => [u.id, u.name]));
-    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} people={people} /></>;
+    const people = Object.fromEntries(us.map((u) => [u.id, u.name]));
+    return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} people={people} stamp={new Date().toISOString()} /></>;
   }
   const today = todayFor(d.demo), live = (await d.live());
   const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo);
@@ -38,7 +39,7 @@ export default async function FeedPage() {
         <h1 className="h1 fade">{F.title}</h1>
         <p className="sub fade d1">{F.sub}</p>
         <div className="fecon-m"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>
-        <Feed data={{ pinned: f.pinned, events: f.events, queue: f.queue, stories: f.stories, now: f.now }} F={F} reacted={(await demoReactions()).map((r) => r.id)} demo={d.demo} resolved={Object.fromEntries(Object.entries(rs).map(([k, v]) => [k, { a: v.a, ...(v.n ? { n: v.n } : {}) }]))} />
+        <Feed U={feedUI(loc)} day={today} stamp={new Date().toISOString()} data={{ pinned: f.pinned, events: f.events, queue: f.queue, stories: f.stories, now: f.now }} F={F} reacted={(await demoReactions()).map((r) => r.id)} demo={d.demo} resolved={Object.fromEntries(Object.entries(rs).map(([k, v]) => [k, { a: v.a, ...(v.n ? { n: v.n } : {}) }]))} />
       </div>
       <aside className="fside">
         <div className="fecon-d"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>

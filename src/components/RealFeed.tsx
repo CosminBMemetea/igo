@@ -1,5 +1,9 @@
+"use client";
 // Fluxul patronului pentru firmele reale: jurnalul șoferilor (tură, pauză privată, încărcat/descărcat, așteptare, alimentare).
 import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { feedUI } from "@/lib/feed-ui-i18n";
+import { FeedChips, FeedEmpty, LiveNow, QuickActions } from "./FeedBits";
 import type { Locale } from "@/lib/i18n";
 import type { DriverEventRow } from "@/lib/store/types";
 import type { LiveVehicle } from "@/lib/query";
@@ -15,10 +19,26 @@ const L = {
 } as const;
 const IC: Record<DriverEventRow["kind"], string> = { truck_switch: "⇄", shift_start: "▶", shift_end: "■", private_on: "☾", private_off: "☀", loaded: "⬆", unloaded: "⬇", wait_start: "⏳", wait_end: "✓", fill: "⛽" };
 
-export function RealFeed({ loc, events, live, names, people = {} }: { people?: Record<string, string>; loc: Locale; events: DriverEventRow[]; live: LiveVehicle[]; names: Record<string, { plate: string; driver: string }> }) {
-  const T = L[loc] ?? L.ro, today = localNow().slice(0, 10);
+const GROUP: Record<DriverEventRow["kind"], "shift" | "brk" | "cargo" | "fuel"> = { truck_switch: "shift", shift_start: "shift", shift_end: "shift", private_on: "brk", private_off: "brk", loaded: "cargo", unloaded: "cargo", wait_start: "cargo", wait_end: "cargo", fill: "fuel" };
+
+export function RealFeed({ loc, events, live, names, people = {}, stamp = "" }: { people?: Record<string, string>; loc: Locale; events: DriverEventRow[]; live: LiveVehicle[]; names: Record<string, { plate: string; driver: string }>; stamp?: string }) {
+  const T = L[loc] ?? L.ro, U = feedUI(loc), today = localNow().slice(0, 10);
   const on = live.filter((x) => x.onShift).length, priv = live.filter((x) => x.status === "private").length, km = live.reduce((a, x) => a + x.today, 0);
-  let lastDay = "";
+  const [kind, setKind] = useState("all"), [truck, setTruck] = useState(""), [open, setOpen] = useState<string | null>(null);
+  // evenimentele noi (după reîmprospătarea de 15 s) intră animat
+  const seen = useRef<Set<string> | null>(null), [fresh, setFresh] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const ids = events.map((e) => e.id);
+    if (seen.current) { const n = ids.filter((id) => !seen.current!.has(id)); if (n.length) setFresh(new Set(n)); }
+    seen.current = new Set(ids);
+  }, [events]);
+  const kinds = useMemo(() => {
+    const c = { shift: 0, brk: 0, cargo: 0, fuel: 0 }; for (const e of events) if (!truck || e.truckId === truck) c[GROUP[e.kind]]++;
+    return [{ id: "all", label: U.all, n: 0 }, { id: "shift", label: U.shift, n: c.shift }, { id: "cargo", label: U.cargo, n: c.cargo }, { id: "fuel", label: U.fuel, n: c.fuel }, { id: "brk", label: U.brk, n: c.brk }];
+  }, [events, truck, U]);
+  const trucks = useMemo(() => [...new Set(events.map((e) => e.truckId))].map((id) => ({ id, label: names[id]?.plate ?? "—" })).sort((a, b) => a.label.localeCompare(b.label)), [events, names]);
+  const shown = events.filter((e) => (kind === "all" || GROUP[e.kind] === kind) && (!truck || e.truckId === truck));
+  const nowMs = Date.parse(stamp) || 0;
   return (
     <main className="fpage">
       <div className="fcol">
@@ -30,15 +50,24 @@ export function RealFeed({ loc, events, live, names, people = {} }: { people?: R
           <div><b>{Math.round(km)}</b><span>{T.km}</span></div>
           <div><b>{priv}</b><span>{T.priv}</span></div>
         </div>
-        {events.length ? <ol className="rfeed fade d2">{events.map((e) => {
-          const l = localNow(new Date(e.at)), day = l.slice(0, 10), n = names[e.truckId];
-          const head = day !== lastDay ? (lastDay = day, <li className="rfday" key={"d" + day}>{day === today ? T.today : T.yday}</li>) : null;
-          return [head, <li key={e.id} className={`rfe k-${e.kind}`}>
-            <i aria-hidden>{IC[e.kind]}</i>
-            <div><b>{(e.userId && people[e.userId]) || n?.driver || n?.plate || "—"}</b> {T.k[e.kind]}{e.note ? (e.kind === "truck_switch" ? <b> {e.note}</b> : <span className="rfn"> · {e.note}</span>) : null}<small>{n?.plate}</small></div>
-            <time>{l.slice(11, 16)}</time>
+        <LiveNow U={U} stamp={stamp} />
+        {events.length ? <FeedChips U={U} kinds={kinds} kind={kind} setKind={setKind} trucks={trucks} truck={truck} setTruck={setTruck} /> : null}
+        {!events.length ? <div className="rfempty fade d2"><span aria-hidden>🚚</span><p>{T.empty}</p></div>
+          : !shown.length ? <FeedEmpty U={U} onReset={() => { setKind("all"); setTruck(""); }} />
+          : <ol className="rfeed">{shown.map((e, ix) => {
+          const l = localNow(new Date(e.at)), day = l.slice(0, 10), n = names[e.truckId], isOpen = open === e.id;
+          const recent = nowMs && nowMs - Date.parse(e.at) < 15 * 60000;
+          const prev = ix ? localNow(new Date(shown[ix - 1].at)).slice(0, 10) : "";
+          const head = day !== prev ? (<li className="rfday" key={"d" + day}>{day === today ? T.today : T.yday}</li>) : null;
+          return [head, <li key={e.id} className={`rfe k-${e.kind}${fresh.has(e.id) ? " fresh" : ""}${isOpen ? " open" : ""}`}>
+            <button type="button" className="rfrow" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : e.id)}>
+              <i aria-hidden>{IC[e.kind]}</i>
+              <div><b>{(e.userId && people[e.userId]) || n?.driver || n?.plate || "—"}</b> {T.k[e.kind]}{e.note ? (e.kind === "truck_switch" ? <b> {e.note}</b> : <span className="rfn"> · {e.note}</span>) : null}<small>{n?.plate}</small></div>
+              <time>{recent ? <em className="rfnow">{U.now}</em> : null}{l.slice(11, 16)}</time>
+            </button>
+            {isOpen ? <QuickActions U={U} truckId={e.truckId} day={day} /> : null}
           </li>];
-        })}</ol> : <p className="rfempty fade d2">{T.empty}</p>}
+        })}</ol>}
         <Link className="link" href="/live" style={{ display: "inline-block", marginTop: 18 }}>{T.map} →</Link>
       </div>
     </main>
