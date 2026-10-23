@@ -2,7 +2,7 @@
 import type { Session } from "./session";
 import type { PlanState } from "./features";
 
-export const PUBLIC_PATHS = [/^\/login$/, /^\/privacy$/, /^\/visibility$/, /^\/terms$/, /^\/robots\.txt$/, /^\/sw\.js$/, /^\/signup$/, /^\/incearca$/, /^\/api\/leads$/, /^\/join$/, /^\/forgot$/, /^\/reset$/, /^\/api\/auth\/forgot$/, /^\/api\/auth\/reset$/, /^\/api\/auth\//, /^\/api\/cron\//];
+export const PUBLIC_PATHS = [/^\/login$/, /^\/privacy$/, /^\/subprocessors$/, /^\/visibility$/, /^\/terms$/, /^\/robots\.txt$/, /^\/sw\.js$/, /^\/signup$/, /^\/incearca$/, /^\/api\/leads$/, /^\/join$/, /^\/forgot$/, /^\/reset$/, /^\/api\/auth\/forgot$/, /^\/api\/auth\/reset$/, /^\/api\/auth\//, /^\/api\/cron\//];
 export const isPublic = (path: string) => PUBLIC_PATHS.some((r) => r.test(path));
 /** Șoferul vede doar interfața lui (+ asistență). */
 export const DRIVER_PATHS = [/^\/driver$/, /^\/join\/ready$/, /^\/driver\/trips\/[\w-]+$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/, /^\/notifications$/, /^\/api\/notifications\//, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/trips\/event$/, /^\/api\/me\/locale$/];

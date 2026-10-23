@@ -321,5 +321,6 @@ export class MemStore implements Store {
     this.P.push({ ...p, firmId, receivedAt: new Date().toISOString() }); return true;
   }
   async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }
+  async purgePositions(beforeAt: string) { let n = 0; for (let i = this.P.length - 1; i >= 0; i--) if (this.P[i].at < beforeAt) { this.P.splice(i, 1); n++; } return n; }
   async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string) { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt && (!truckId || p.truckId === truckId) && (!untilAt || p.at < untilAt)).map(({ firmId: _f, ...p }) => p); }
 }

@@ -1751,3 +1751,7 @@ body:has(details.acct[open]) .tinv{display:none}
 .fskel .fsk-card{height:150px;border-radius:22px;margin-bottom:12px}
 @media (prefers-reduced-motion:reduce){.fqa,.fnow.tick,.rfe.fresh{animation:none}}
 @media (max-width:900px){.fecon-m .ekpis.compact{grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 14px}.fecon-m .ekpi{padding:10px 12px}.fecon-m .ekpi small,.fecon-m .ekpi .ebar{display:none}.fecon-m .ekpi b{font-size:18px}.fecon-m .ekpi .k{font-size:10px}}
+.demo-badge{white-space:nowrap}
+.demo-badge.float{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.hsav-note{margin:8px 0 0;max-width:46ch}
+.rk-note{margin-top:6px}

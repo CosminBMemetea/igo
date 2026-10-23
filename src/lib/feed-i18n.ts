@@ -1,7 +1,7 @@
 import type { Locale } from "./i18n";
 // Textele „Fluxul flotei” (RO / EN / PL). Ținute separat ca să nu umfle catalogul principal.
 const RO = {
-  title: "Fluxul flotei", eyebrow: "Azi · în timp real", sub: "Doar ce contează: treceri de graniță, alimentări, opriri lungi, livrări și momentele bune ale șoferilor.",
+  title: "Fluxul flotei", eyebrow: "Azi · actualizat la 15 s", sub: "Doar ce contează: treceri de graniță, alimentări, opriri lungi, livrări și momentele bune ale șoferilor.",
   pinned: "Necesită atenție", now: "acum", ago: "acum {n} min", agoH: "acum {h} h", earlier: "Mai devreme", newPill: "{n} noi", new1: "1 nou",
   upToDate: "Ești la zi ✓", upToDateSub: "Ai văzut tot ce s-a întâmplat azi. Te anunțăm când apare ceva nou.", pull: "Trage pentru actualizare", release: "Eliberează", refreshing: "Se actualizează…", nothingNew: "Nimic nou deocamdată",
   border: "A intrat în {country} {flag}", borderSub: "Lângă {place} · ETA {dest} {eta}",
@@ -22,7 +22,7 @@ const RO = {
 };
 type F = typeof RO;
 const EN: F = {
-  title: "Fleet feed", eyebrow: "Today · live", sub: "Only what matters: border crossings, fill-ups, long stops, deliveries and your drivers' good moments.",
+  title: "Fleet feed", eyebrow: "Today · updated every 15 s", sub: "Only what matters: border crossings, fill-ups, long stops, deliveries and your drivers' good moments.",
   pinned: "Needs attention", now: "now", ago: "{n} min ago", agoH: "{h} h ago", earlier: "Earlier", newPill: "{n} new", new1: "1 new",
   upToDate: "You're all caught up ✓", upToDateSub: "You've seen everything that happened today. We'll let you know when something new comes in.", pull: "Pull to refresh", release: "Release", refreshing: "Refreshing…", nothingNew: "Nothing new yet",
   border: "Entered {country} {flag}", borderSub: "Near {place} · ETA {dest} {eta}",
@@ -42,7 +42,7 @@ const EN: F = {
   demoPhone: "Demo number — calls no one", liveTag: "LIVE", empty: "The feed appears once you connect GPS and fuel cards.",
 };
 const PL: F = {
-  title: "Strumień floty", eyebrow: "Dziś · na żywo", sub: "Tylko to, co ważne: przejścia graniczne, tankowania, długie postoje, dostawy i dobre chwile kierowców.",
+  title: "Strumień floty", eyebrow: "Dziś · aktualizacja co 15 s", sub: "Tylko to, co ważne: przejścia graniczne, tankowania, długie postoje, dostawy i dobre chwile kierowców.",
   pinned: "Wymaga uwagi", now: "teraz", ago: "{n} min temu", agoH: "{h} h temu", earlier: "Wcześniej", newPill: "{n} nowe", new1: "1 nowe",
   upToDate: "Jesteś na bieżąco ✓", upToDateSub: "Widziałeś wszystko z dzisiaj. Damy znać, gdy pojawi się coś nowego.", pull: "Pociągnij, aby odświeżyć", release: "Puść", refreshing: "Odświeżam…", nothingNew: "Na razie nic nowego",
   border: "Wjechał do: {country} {flag}", borderSub: "Okolice: {place} · ETA {dest} {eta}",

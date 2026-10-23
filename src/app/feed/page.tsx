@@ -14,6 +14,7 @@ import { store } from "@/lib/store";
 import { dayStartIso } from "@/lib/driver-log";
 import { Feed } from "@/components/Feed";
 import { feedUI } from "@/lib/feed-ui-i18n";
+import { DemoBadge } from "@/components/DemoBadge";
 
 export const dynamic = "force-dynamic";
 export default async function FeedPage() {
@@ -35,7 +36,7 @@ export default async function FeedPage() {
   return (
     <main className="fpage">
       <div className="fcol">
-        <div className="eyebrow fade"><span className="flive" />{F.eyebrow}</div>
+        <div className="eyebrow fade"><span className="flive" />{F.eyebrow} <DemoBadge loc={loc} /></div>
         <h1 className="h1 fade">{F.title}</h1>
         <p className="sub fade d1">{F.sub}</p>
         <div className="fecon-m"><EconKpis vehicles={d.vehicles} views={d.views} loc={loc} compact /></div>

@@ -470,6 +470,7 @@ export class PgStore implements Store {
     return result.rows[0]?.accepted === true;
   }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
+  async purgePositions(beforeAt: string) { const r = await this.d.delete(positions).where(lt(positions.at, beforeAt)).returning({ id: positions.id }); return r.length; }
   async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string): Promise<PosRow[]> {
     const result: PosRow[] = [];
     let cursor: { at: string; id: string } | undefined;

@@ -3,6 +3,7 @@ import { drainDeliveries } from "@/lib/delivery";
 import { NextResponse } from "next/server";
 import { dbConfigured, store } from "@/lib/store";
 import { runReminders } from "@/lib/reminders";
+import { purgeOldPositions } from "@/lib/retention";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 /** Vercel Cron: daily 03:00 UTC (05:00/06:00 Bucharest). CRON_SECRET is mandatory; User-Agent never authorizes a request. */
@@ -13,5 +14,6 @@ export async function GET(req: Request) {
   if (!dbConfigured()) return NextResponse.json({ skipped: "no database" });
   const reminders = await notificationJob(store(), "reminders", () => runReminders(store(), undefined, null, "ro", { defer: true }));
   const delivery = await notificationJob(store(), "deliveries", () => drainDeliveries(store()));
-  return NextResponse.json({ ...reminders, delivery });
+  const retention = await purgeOldPositions(store()).catch(() => ({ positionsDeleted: -1 }));
+  return NextResponse.json({ ...reminders, delivery, retention });
 }

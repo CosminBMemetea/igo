@@ -153,6 +153,8 @@ export interface Store {
   addDriverPosition(firmId: string, userId: string, p: PosRow): Promise<boolean>;
   addPosition(firmId: string, p: PosRow): Promise<void>;
   positions(firmId: string, sinceAt?: string, truckId?: string, untilAt?: string): Promise<PosRow[]>;
+  /** GDPR retention: deletes GPS points older than `beforeAt` (all firms). Trips keep their own km/summary. */
+  purgePositions(beforeAt: string): Promise<number>;
   /** jurnalul șoferului (tură, pauză privată, încărcat/descărcat, alimentare) — pentru fluxul patronului și orele de azi */
   /** anti-brute-force: încercări greșite de autentificare pe cheie (login / IP) */
   authFails(key: string): Promise<{ fails: number; lockedUntil: string | null }>;

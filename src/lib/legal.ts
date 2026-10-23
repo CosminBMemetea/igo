@@ -3,40 +3,40 @@ import type { Locale } from "./i18n";
 export interface LegalDoc { title: string; updated: string; intro: string; sections: [string, string][] }
 export const PRIVACY: Record<Locale, LegalDoc> = {
   ro: {
-    title: "Confidențialitate și GDPR", updated: "Ultima actualizare: 12.10.2026",
+    title: "Confidențialitate și GDPR", updated: "Ultima actualizare: 23.10.2026",
     intro: `Aici explicăm ce date prelucrăm, unde sunt stocate și ce drepturi ai.`,
     sections: [
       ["Roluri: operator și persoană împuternicită", "Firma de transport care folosește Querra Fleet este operatorul datelor despre șoferii și camioanele sale. Querra Fleet este persoană împuternicită: prelucrăm datele doar la instrucțiunile firmei, pentru a furniza serviciul. Pentru datele contului (email, firmă, facturare) Querra Fleet este operator."],
-      ["Ce date prelucrăm", "Datele firmei și ale utilizatorilor (nume, email, telefon), camioane, curse, alimentări și bonuri, documente cu expirare (ITP, RCA, rovinietă etc.) și, doar în timpul turei, poziția GPS trimisă din telefonul șoferului sau din GPS-ul conectat."],
-      ["Unde sunt stocate datele", "În Uniunea Europeană: aplicația rulează pe Vercel în regiunea Frankfurt (fra1), iar baza de date este Neon Postgres în Frankfurt. Nu transferăm datele în afara UE pentru funcționarea serviciului."],
+      ["Ce date prelucrăm", "Datele firmei și ale utilizatorilor (nume, email, telefon), camioane, curse, alimentări și bonuri, documente cu expirare (ITP, RCA, rovinietă etc.) și, doar în timpul turei, poziția GPS trimisă din telefonul șoferului."],
+      ["Unde sunt stocate datele", "Aplicația rulează pe Vercel în regiunea Frankfurt (fra1), iar baza de date este Neon Postgres în Frankfurt. Câțiva furnizori pot prelucra date în afara UE, doar pentru funcția lor (de exemplu citirea pozei unui bon, notificările push sau trimiterea emailurilor). Pentru aceste transferuri folosim clauzele contractuale standard (SCC) aprobate de Comisia Europeană. Lista completă este în pagina Persoane împuternicite."],
       ["Modul privat al șoferului", "Poziția se colectează doar cât șoferul este în tură. În afara turei sau în pauza privată nu colectăm, nu stocăm și nu afișăm nicio poziție; patronul vede doar „Privat”."],
-      ["Cât păstrăm datele", "Cât timp firma are cont activ. La închiderea contului ștergem datele firmei, cu excepția celor pe care legea ne obligă să le păstrăm (de exemplu facturile)."],
+      ["Cât păstrăm datele", "Pozițiile GPS se păstrează 90 de zile; zilnic ștergem automat punctele mai vechi. Cursele (km, costuri, stare) rămân. Restul datelor se păstrează cât timp firma are cont activ. La închiderea contului ștergem datele firmei, cu excepția celor pe care legea ne obligă să le păstrăm (de exemplu facturile)."],
       ["Drepturile tale", "Ai dreptul de acces, rectificare, ștergere, restricționare, portabilitate și opoziție, precum și dreptul de a depune plângere la ANSPDCP. Șoferii își exercită drepturile prin firma lor (operatorul); te ajutăm și noi."],
       ["Contact", "Scrie-ne din pagina Asistență din aplicație."],
     ],
   },
   en: {
-    title: "Privacy and GDPR", updated: "Last updated: 12 Oct 2026",
+    title: "Privacy and GDPR", updated: "Last updated: 23 Oct 2026",
     intro: `This page explains what data we process, where it is stored and what your rights are.`,
     sections: [
       ["Roles: controller and processor", "The transport company using Querra Fleet is the controller of the data about its drivers and trucks. Querra Fleet is the processor: we process that data only on the company's instructions, to provide the service. For account data (email, company, billing) Querra Fleet is the controller."],
-      ["What data we process", "Company and user data (name, email, phone), trucks, trips, fuel fills and receipts, expiring documents (inspection, insurance, vignette etc.) and, only during a shift, the GPS position sent from the driver's phone or a connected GPS device."],
-      ["Where data is stored", "In the European Union: the app runs on Vercel in the Frankfurt region (fra1) and the database is Neon Postgres in Frankfurt. We do not transfer data outside the EU to run the service."],
+      ["What data we process", "Company and user data (name, email, phone), trucks, trips, fuel fills and receipts, expiring documents (inspection, insurance, vignette etc.) and, only during a shift, the GPS position sent from the driver's phone."],
+      ["Where data is stored", "The app runs on Vercel in the Frankfurt region (fra1) and the database is Neon Postgres in Frankfurt. A few providers may process data outside the EU, only for their own function (for example reading a receipt photo, push notifications or sending emails). For these transfers we rely on the European Commission's standard contractual clauses (SCC). The full list is on the Sub-processors page."],
       ["Driver private mode", "Positions are collected only while the driver is on shift. Off shift or during a private break we do not collect, store or display any position; the owner only sees “Private”."],
-      ["How long we keep data", "As long as the company has an active account. When the account is closed we delete the company's data, except what the law requires us to keep (e.g. invoices)."],
+      ["How long we keep data", "GPS positions are kept for 90 days; older points are deleted automatically every day. Trips (km, costs, status) remain. Other data is kept while the company has an active account. When the account is closed we delete the company's data, except what the law requires us to keep (e.g. invoices)."],
       ["Your rights", "You have the right of access, rectification, erasure, restriction, portability and objection, and the right to complain to the Romanian supervisory authority (ANSPDCP). Drivers exercise their rights through their company (the controller); we help too."],
       ["Contact", "Write to us from the Support page in the app."],
     ],
   },
   pl: {
-    title: "Prywatność i RODO", updated: "Ostatnia aktualizacja: 12.10.2026",
+    title: "Prywatność i RODO", updated: "Ostatnia aktualizacja: 23.10.2026",
     intro: `Wyjaśniamy, jakie dane przetwarzamy, gdzie są przechowywane i jakie masz prawa.`,
     sections: [
       ["Role: administrator i podmiot przetwarzający", "Firma transportowa korzystająca z Querra Fleet jest administratorem danych swoich kierowców i ciężarówek. Querra Fleet jest podmiotem przetwarzającym: przetwarzamy dane wyłącznie na polecenie firmy, aby świadczyć usługę. Dla danych konta (email, firma, rozliczenia) administratorem jest Querra Fleet"],
-      ["Jakie dane przetwarzamy", "Dane firmy i użytkowników (imię i nazwisko, email, telefon), ciężarówki, kursy, tankowania i paragony, dokumenty z terminem ważności (przegląd, OC, winieta itd.) oraz — tylko w trakcie zmiany — pozycję GPS z telefonu kierowcy lub podłączonego urządzenia GPS."],
-      ["Gdzie przechowujemy dane", "W Unii Europejskiej: aplikacja działa na Vercel w regionie Frankfurt (fra1), a baza danych to Neon Postgres we Frankfurcie. Do działania usługi nie przekazujemy danych poza UE."],
+      ["Jakie dane przetwarzamy", "Dane firmy i użytkowników (imię i nazwisko, email, telefon), ciężarówki, kursy, tankowania i paragony, dokumenty z terminem ważności (przegląd, OC, winieta itd.) oraz — tylko w trakcie zmiany — pozycję GPS z telefonu kierowcy."],
+      ["Gdzie przechowujemy dane", "Aplikacja działa na Vercel w regionie Frankfurt (fra1), a baza danych to Neon Postgres we Frankfurcie. Kilku dostawców może przetwarzać dane poza UE, wyłącznie w ramach swojej funkcji (np. odczyt zdjęcia paragonu, powiadomienia push lub wysyłka e-maili). Dla tych transferów stosujemy standardowe klauzule umowne (SCC) Komisji Europejskiej. Pełna lista jest na stronie Podmioty przetwarzające."],
       ["Tryb prywatny kierowcy", "Pozycję zbieramy tylko w trakcie zmiany. Poza zmianą lub w prywatnej przerwie nie zbieramy, nie przechowujemy i nie pokazujemy żadnej pozycji; właściciel widzi tylko „Prywatnie”."],
-      ["Jak długo przechowujemy dane", "Dopóki firma ma aktywne konto. Po zamknięciu konta usuwamy dane firmy, z wyjątkiem tych, które musimy przechowywać z mocy prawa (np. faktury)."],
+      ["Jak długo przechowujemy dane", "Pozycje GPS przechowujemy 90 dni; starsze punkty usuwamy automatycznie codziennie. Kursy (km, koszty, status) zostają. Pozostałe dane przechowujemy, dopóki firma ma aktywne konto. Po zamknięciu konta usuwamy dane firmy, z wyjątkiem tych, które musimy przechowywać z mocy prawa (np. faktury)."],
       ["Twoje prawa", "Masz prawo dostępu, sprostowania, usunięcia, ograniczenia, przenoszenia i sprzeciwu oraz prawo do skargi do organu nadzorczego. Kierowcy realizują swoje prawa przez swoją firmę (administratora); my również pomagamy."],
       ["Kontakt", "Napisz do nas ze strony Pomoc w aplikacji."],
     ],
@@ -83,3 +83,13 @@ export const TERMS: Record<Locale, LegalDoc> = {
     ],
   },
 };
+
+/** Persoane împuternicite (sub-processors). Text: "ro|en|pl". DPA: placeholder, de revizuit de avocat. */
+export const SUBPROCESSORS: { name: string; role: string; where: string; transfer: string }[] = [
+  { name: "Vercel Inc.", role: "Găzduirea aplicației|App hosting|Hosting aplikacji", where: "UE (Frankfurt, fra1)|EU (Frankfurt, fra1)|UE (Frankfurt, fra1)", transfer: "SCC pentru suport și operare din SUA|SCC for support and operations from the US|SCC dla wsparcia i obsługi z USA" },
+  { name: "Neon Inc.", role: "Baza de date Postgres|Postgres database|Baza danych Postgres", where: "UE (Frankfurt)|EU (Frankfurt)|UE (Frankfurt)", transfer: "SCC pentru suport și operare din SUA|SCC for support and operations from the US|SCC dla wsparcia i obsługi z USA" },
+  { name: "Groq Inc.", role: "Citirea pozei unui bon (doar imaginea bonului)|Reading a receipt photo (receipt image only)|Odczyt zdjęcia paragonu (tylko obraz paragonu)", where: "SUA|US|USA", transfer: "SCC|SCC|SCC" },
+  { name: "Apple Inc. (APNs)", role: "Notificări push pe iPhone|Push notifications on iPhone|Powiadomienia push na iPhone", where: "SUA|US|USA", transfer: "SCC|SCC|SCC" },
+  { name: "Google LLC (FCM, Web Push)", role: "Notificări push pe Android și în browser|Push notifications on Android and in the browser|Powiadomienia push na Androidzie i w przeglądarce", where: "SUA|US|USA", transfer: "SCC|SCC|SCC" },
+  { name: "Resend Inc.", role: "Trimiterea emailurilor (cont, alerte)|Sending emails (account, alerts)|Wysyłka e-maili (konto, alerty)", where: "SUA|US|USA", transfer: "SCC|SCC|SCC" },
+];

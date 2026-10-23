@@ -7,6 +7,7 @@ import { splitRank, rankings, type Comp } from "@/lib/ranking";
 import { todayFor } from "@/lib/today";
 import { EmptyState } from "@/components/EmptyState";
 import { DriverCard, ScoreRing, TruckBars } from "@/components/Ranking";
+import { DemoBadge } from "@/components/DemoBadge";
 
 export const dynamic = "force-dynamic";
 const COLS: Comp[] = ["cons", "harsh", "speed", "idle", "ontime", "alerts"];
@@ -27,12 +28,13 @@ export default async function Ranking() {
   }
   if (!R.drivers.length) return <main><EmptyState kind="home" loc={loc} canSetup={d.tn.role === "owner" || d.tn.role === "admin"} /></main>;
   const { top, help, few } = splitRank(R.drivers);
-  const cols = COLS.filter((c) => R.telematics || c === "cons" || c === "alerts");
+  const cols = COLS.filter((c) => (d.demo && R.telematics) || c === "cons" || c === "alerts");
   return (
     <main className="rk-page">
-      <div className="eyebrow fade">{t(loc, "rk.eyebrow")}</div>
+      <div className="eyebrow fade">{t(loc, "rk.eyebrow")} {d.demo ? <DemoBadge loc={loc} /> : null}</div>
       <h1 className="h1 fade">{t(loc, "rk.title")}</h1>
       <p className="sub fade d1">{t(loc, R.telematics ? "rk.sub" : "rk.subReal")}</p>
+      {d.demo && R.telematics ? <p className="hint rk-note fade d1">{tri(loc, "Exemplu demo. Necesită GPS cu senzori (cutie CAN) sau date de la producătorul camionului.|Demo example. Requires GPS with sensors (CAN box) or data from the truck manufacturer.|Przykład demo. Wymaga GPS z czujnikami (moduł CAN) lub danych od producenta ciężarówki.")}</p> : null}
       {few ? <p className="rk-few fade d1">{t(loc, "rk.few")}</p> : null}
       <div className="rk-two fade d1">
         {top.length ? <section><div className="eyebrow rk-h pos">★ {t(loc, "rk.top")}</div><div className="rk-cards">{top.map((x, i) => <DriverCard key={x.id} d={x} loc={loc} rank={i + 1} />)}</div></section> : null}

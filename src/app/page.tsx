@@ -74,6 +74,10 @@ export default async function Home() {
   // economie pe lună: aceeași perioadă ca pe /savings (demo: 15 zile de istoric)
   const savDays = d.demo ? 15 : Number(localNow().slice(8, 10));
   const perMonth = Math.round(m.savings.savedLei / (savDays / 30));
+  // proiecția lunară: doar cu ≥ 30 de zile de istoric și ≥ 1.000 km (conturi reale); demo = date fictive
+  const hist = d.views.filter((v) => !v.cancelledAt), first = hist.reduce((x, v) => (v.date < x ? v.date : x), today);
+  const histDays = Math.floor((Date.parse(today) - Date.parse(first)) / 86400000) + 1, histKm = hist.reduce((x, v) => x + v.km, 0);
+  const projOk = d.demo || (histDays >= 30 && histKm >= 1000);
   // alerta de furt cea mai gravă (card plătit departe de camion) — prima pe ecran, deasupra economiei
   const theft = d.alerts.find((a) => a.rule === "card-fara-camion") ?? d.alerts.find((a) => a.theft) ?? null;
   const theftV = theft ? d.vehicles.find((v) => v.id === theft.vehicleId) : null;
@@ -98,10 +102,11 @@ export default async function Home() {
           <div className="eyebrow">{t(loc, "home.savings")}</div>
           {enoughData(km, hours) ? (
             <>
-              <div className="big hsav-lei"><span>≈ </span><CountUp value={perMonth} loc={loc} /><small>{t(loc, "cur")} {EL[loc].perMonth}</small></div>
+              {projOk ? <div className="big hsav-lei"><span>≈ </span><CountUp value={perMonth} loc={loc} /><small>{t(loc, "cur")} {EL[loc].perMonth}</small></div> : null}
               <span className="hsav-chip">▼ {ef(EL[loc].savLess, { p: fmtPct(loc, m.savings.pct, 1) })}</span>
+              <p className="hint hsav-note">{t(loc, "home.savingsNote")}</p>
               <ul className="hben">
-                <li><i aria-hidden="true">⛽</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b1, { l: fmtNum(loc, Math.round(m.savings.savedLitres / (savDays / 30))) }) }} /></li>
+                {projOk ? <li><i aria-hidden="true">⛽</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b1, { l: fmtNum(loc, Math.round(m.savings.savedLitres / (savDays / 30))) }) }} /></li> : null}
                 {anomalyCount ? <li><i aria-hidden="true">🛡</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b2, { n: anomalyCount }) }} /></li> : null}
                 {fe.km ? <li><i aria-hidden="true">↩</i><span dangerouslySetInnerHTML={{ __html: ef(EL[loc].b3, { km: fmtNum(loc, fe.emptyKm), p: fmtPct(loc, fe.emptyKm / fe.km, 0) }) }} /></li> : null}
               </ul>
