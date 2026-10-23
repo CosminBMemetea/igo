@@ -6,7 +6,9 @@ import { queueRevocation, syncRevocations } from "./cleanup";
 type Registration = { token: string; scope: string; validUntil: string; revokeReceipt?: string; transport?: "fcm" | "apns" };
 const transport = () => Platform.OS === "android" ? "fcm" : "apns";
 let generation = 0;
-Notifications.setNotificationHandler({ handleNotification: async () => {
+Notifications.setNotificationHandler({ handleNotification: async (n) => {
+  // Local speed warnings are generated on the phone and must show even without server push.
+  if (n.request.content.data?.kind === "speed-local") return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false };
   const active = await pushActive().catch(() => false);
   return { shouldShowBanner: active, shouldShowList: active, shouldPlaySound: active, shouldSetBadge: false };
 } });

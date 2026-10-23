@@ -32,7 +32,7 @@ export type NewFile = Omit<FileMeta, "id" | "firmId" | "createdAt"> & { data: Bu
 export interface NotificationRow { id: string; firmId: string; userId: string | null; key: string; kind: string; docId: string | null; params: Record<string, string | number>; readAt: string | null; createdAt: string }
 export type NewNotification = Omit<NotificationRow, "id" | "firmId" | "readAt" | "createdAt">;
 export type EmailStatus = "sent" | "queued" | "failed" | "processing" | "cancelled";
-export type DeliveryContext = { kind: "document"; userId: string; docId: string; expires: string; stage: string } | { kind: "task"; userId: string; taskId: string; status: string } | { kind: "account"; userId: string; version: number } | { kind: "test"; userId: string };
+export type DeliveryContext = { kind: "document"; userId: string; docId: string; expires: string; stage: string } | { kind: "task"; userId: string; taskId: string; status: string } | { kind: "account"; userId: string; version: number } | { kind: "test"; userId: string } | { kind: "speed"; userId: string; eventId: string };
 export interface DeliveryFields { channel: "email" | "push"; context: DeliveryContext | null; subscriptionId: string | null; attempts: number; nextAttemptAt: string; leaseToken: string | null; leaseUntil: string | null; firstAttemptAt: string | null; expiresAt: string }
 export interface PushDevice { transport?: "web" | "apns" | "fcm"; nativeSessionId?: string | null; validUntil?: string | null; id: string; firmId: string; userId: string; endpoint: string; p256dh: string; auth: string; sessionVersion: number; binding: string; createdAt: string }
 export type NewEmail = Pick<EmailRow, "firmId" | "key" | "to" | "subject" | "body"> & Partial<Pick<DeliveryFields, "channel" | "context" | "subscriptionId" | "expiresAt">>;
@@ -155,6 +155,15 @@ export interface Store {
   positions(firmId: string, sinceAt?: string, truckId?: string, untilAt?: string): Promise<PosRow[]>;
   /** GDPR retention: deletes GPS points older than `beforeAt` (all firms). Trips keep their own km/summary. */
   purgePositions(beforeAt: string): Promise<number>;
+  speedSettings(firmId: string): Promise<import("../speed").SpeedSettings>;
+  setSpeedSettings(firmId: string, s: import("../speed").SpeedSettings): Promise<void>;
+  openSpeedEvent(firmId: string, truckId: string): Promise<import("../speed").SpeedEventRow | null>;
+  /** Insert or update by id; the truck must belong to the firm. */
+  saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow): Promise<void>;
+  deleteSpeedEvent(firmId: string, id: string): Promise<void>;
+  speedEvents(firmId: string, o?: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number }): Promise<import("../speed").SpeedEventRow[]>;
+  /** Retention: deletes speeding events that started before `beforeIso` (all firms). */
+  purgeSpeedEvents(beforeIso: string): Promise<number>;
   /** jurnalul șoferului (tură, pauză privată, încărcat/descărcat, alimentare) — pentru fluxul patronului și orele de azi */
   /** anti-brute-force: încercări greșite de autentificare pe cheie (login / IP) */
   authFails(key: string): Promise<{ fails: number; lockedUntil: string | null }>;

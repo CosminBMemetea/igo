@@ -1,9 +1,10 @@
 import { validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
+import { SPEED_DEFAULTS } from "../speed";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
 import { and, count, desc, eq, gt, gte, lt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { mobileSessionRevocations, notificationJobs, pushDevices, complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, supportRequests, trips, trucks, users } from "@/db/schema";
+import { mobileSessionRevocations, notificationJobs, pushDevices, complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, speedEvents, speedSettings, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 
 const iso = (d: Date | string | null) => (d == null ? null : d instanceof Date ? d.toISOString() : d);
@@ -40,7 +41,7 @@ export class PgStore implements Store {
   async userByLogin(login: string) { const [r] = await this.d.select().from(users).where(or(eq(users.email, login), eq(users.phone, login))).limit(1); return r ? userOut(r) : null; }
   async setUserPassword(id: string, passwordHash: string) { await this.d.update(users).set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, id)); }
   private firmTables() {
-    return { pushDevices, complianceTasks, users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments } as const;
+    return { pushDevices, complianceTasks, users, invites, trucks, documents, trips, supportRequests, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, shifts, positions, files, notifications, emailOutbox, tripEvents, importMappings, driverEvents, truckAssignments, speedEvents, speedSettings } as const;
   }
   async firmCounts(firmId: string) {
     const out: Record<string, number> = {};
@@ -52,7 +53,7 @@ export class PgStore implements Store {
     const counts = await this.firmCounts(firmId);
     const blobUrls = (await this.d.select({ url: files.url }).from(files).where(and(eq(files.firmId, firmId), eq(files.storage, "blob")))).map((r) => r.url).filter((u): u is string => !!u);
     // o singură tranzacție: întâi tabelele fără FK spre firms, apoi copiii, la final firma (restul cade în cascadă)
-    const T = this.firmTables(), order = [T.pushDevices, T.complianceTasks, T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
+    const T = this.firmTables(), order = [T.speedEvents, T.speedSettings, T.pushDevices, T.complianceTasks, T.driverEvents, T.tripEvents, T.positions, T.shifts, T.notifications, T.files, T.fuelTransactions, T.fuelImports, T.fuelCardPeriods, T.fuelCards, T.importMappings, T.documents, T.trips, T.invites, T.users, T.trucks, T.supportRequests, T.emailOutbox, T.truckAssignments];
     const d = this.d as unknown as { batch?: (q: unknown[]) => Promise<unknown>; transaction?: (f: (tx: Db) => Promise<void>) => Promise<void> };
     const build = (db: Db) => [...order.map((tb) => db.delete(tb).where(eq((tb as typeof users).firmId, firmId))), db.delete(firms).where(eq(firms.id, firmId))];
     if (typeof d.batch === "function") await d.batch(build(this.d));
@@ -471,6 +472,33 @@ export class PgStore implements Store {
   }
   async addPosition(firmId: string, p: PosRow) { await this.ownTruck(firmId, p.truckId); await this.d.insert(positions).values({ ...p, id: newId("p"), firmId }); }
   async purgePositions(beforeAt: string) { const r = await this.d.delete(positions).where(lt(positions.at, beforeAt)).returning({ id: positions.id }); return r.length; }
+  async speedSettings(firmId: string) {
+    const [r] = await this.d.select().from(speedSettings).where(eq(speedSettings.firmId, firmId));
+    return r ? { limitKmh: r.limitKmh, truckLimits: { ...(r.truckLimits ?? {}) }, ownerOverKmh: r.ownerOverKmh, ownerAfterS: r.ownerAfterS, ownerAlerts: r.ownerAlerts } : { ...SPEED_DEFAULTS, truckLimits: {} };
+  }
+  async setSpeedSettings(firmId: string, v: import("../speed").SpeedSettings) {
+    for (const id of Object.keys(v.truckLimits)) await this.ownTruck(firmId, id);
+    const row = { limitKmh: v.limitKmh, truckLimits: v.truckLimits, ownerOverKmh: v.ownerOverKmh, ownerAfterS: v.ownerAfterS, ownerAlerts: v.ownerAlerts, updatedAt: new Date() };
+    await this.d.insert(speedSettings).values({ firmId, ...row }).onConflictDoUpdate({ target: speedSettings.firmId, set: row });
+  }
+  async openSpeedEvent(firmId: string, truckId: string) {
+    const [r] = await this.d.select().from(speedEvents).where(and(eq(speedEvents.firmId, firmId), eq(speedEvents.truckId, truckId), eq(speedEvents.open, true))).orderBy(desc(speedEvents.lastAt)).limit(1);
+    if (!r) return null; const { firmId: _f, ...e } = r; return e;
+  }
+  async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) {
+    await this.ownTruck(firmId, e.truckId);
+    const { id, ...rest } = e;
+    const r = await this.d.insert(speedEvents).values({ ...e, firmId }).onConflictDoUpdate({ target: speedEvents.id, set: rest, setWhere: eq(speedEvents.firmId, firmId) }).returning({ id: speedEvents.id });
+    if (!r.length) throw new Error("event");
+    void id;
+  }
+  async deleteSpeedEvent(firmId: string, id: string) { await this.d.delete(speedEvents).where(and(eq(speedEvents.firmId, firmId), eq(speedEvents.id, id))); }
+  async speedEvents(firmId: string, o: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number } = {}) {
+    const rs = await this.d.select().from(speedEvents).where(and(eq(speedEvents.firmId, firmId), o.sinceAt ? gte(speedEvents.startAt, o.sinceAt) : undefined, o.untilAt ? lt(speedEvents.startAt, o.untilAt) : undefined,
+      o.truckId ? eq(speedEvents.truckId, o.truckId) : undefined, o.userId ? eq(speedEvents.userId, o.userId) : undefined)).orderBy(desc(speedEvents.startAt)).limit(o.limit ?? 2000);
+    return rs.map(({ firmId: _f, ...e }) => e);
+  }
+  async purgeSpeedEvents(beforeIso: string) { const r = await this.d.delete(speedEvents).where(lt(speedEvents.startAt, beforeIso)).returning({ id: speedEvents.id }); return r.length; }
   async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string): Promise<PosRow[]> {
     const result: PosRow[] = [];
     let cursor: { at: string; id: string } | undefined;

@@ -22,6 +22,7 @@ export async function deliveryRecipient(s: Store, row: EmailRow, today: string, 
   }
   if (c.kind === "account") return { valid: (u.sessionVersion ?? 0) === c.version, device };
   if (c.kind === "test") return { valid: true, device };
+  if (c.kind === "speed") return { valid: u.role === "owner" && (await s.speedEvents(u.firmId, { limit: 500 })).some(e => e.id === c.eventId), device };
   const [docs, trucks, users] = await Promise.all([s.docs(u.firmId), s.trucks(u.firmId), s.users(u.firmId)]);
   if (c.kind === "document") {
     const d = reminderDocuments(docs, trucks, users, today).find(d => d.id === c.docId && d.expires === c.expires);

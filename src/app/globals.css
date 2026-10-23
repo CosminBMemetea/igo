@@ -1755,3 +1755,11 @@ body:has(details.acct[open]) .tinv{display:none}
 .demo-badge.float{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.18)}
 .hsav-note{margin:8px 0 0;max-width:46ch}
 .rk-note{margin-top:6px}
+/* r20: speeding report + driver speed banner */
+.sp-map{height:300px;border-radius:16px;overflow:hidden;margin:16px 0;background:var(--bg2)}
+.sp-filter{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end;margin-top:14px}.sp-filter .invrow{grid-column:1/-1}
+.sp-filter select{width:100%;min-width:0}
+.sp-row{display:flex;justify-content:space-between;gap:10px;align-items:center}.sp-row b{white-space:nowrap;font-variant-numeric:tabular-nums}.sp-row b.neg{color:var(--neg,#ef4444)}.sp-row small{color:var(--fg2);font-weight:400}
+.spd-banner{position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:90;background:#b91c1c;color:#fff;border-radius:16px;padding:14px 16px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;justify-content:space-between}
+.spd-banner b{font-size:28px;font-variant-numeric:tabular-nums;white-space:nowrap}.spd-banner span{min-width:0}
+.rk-speed td,.rk-speed th{padding:6px 8px;text-align:left}.rk-speed{width:100%;border-collapse:collapse;font-size:14px}

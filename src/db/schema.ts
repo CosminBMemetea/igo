@@ -220,6 +220,37 @@ export const positions = pgTable("positions", {
   lng: doublePrecision("lng").notNull(),
 }, (t) => [index("positions_firm_truck_at_ix").on(t.firmId, t.truckId, t.at)]);
 
+/** Limita de viteză setată de patron (implicit + pe camion) și pragul alertei către patron. */
+export const speedSettings = pgTable("speed_settings", {
+  firmId: text("firm_id").primaryKey().references(() => firms.id, { onDelete: "cascade" }),
+  limitKmh: integer("limit_kmh").notNull().default(90),
+  truckLimits: jsonb("truck_limits").$type<Record<string, number>>().notNull().default({}),
+  ownerOverKmh: integer("owner_over_kmh").notNull().default(10),
+  ownerAfterS: integer("owner_after_s").notNull().default(60),
+  ownerAlerts: boolean("owner_alerts").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+/** Depășiri ale limitei setate (din GPS-ul telefonului șoferului). */
+export const speedEvents = pgTable("speed_events", {
+  id: text("id").primaryKey(),
+  firmId: text("firm_id").notNull().references(() => firms.id, { onDelete: "cascade" }),
+  truckId: text("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  userId: text("user_id"),
+  startAt: text("start_at").notNull(),
+  endAt: text("end_at").notNull(),
+  lastAt: text("last_at").notNull(),
+  limitKmh: integer("limit_kmh").notNull(),
+  maxKmh: real("max_kmh").notNull(),
+  durationS: integer("duration_s").notNull().default(0),
+  samples: integer("samples").notNull().default(1),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  highSince: text("high_since"),
+  highS: integer("high_s").notNull().default(0),
+  open: boolean("open").notNull().default(true),
+  ownerNotified: boolean("owner_notified").notNull().default(false),
+}, (t) => [index("speed_events_firm_start_ix").on(t.firmId, t.startAt), index("speed_events_firm_truck_open_ix").on(t.firmId, t.truckId, t.open)]);
+
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 /** Fișiere (poze CMR/POD, scanuri de documente). storage = blob (Vercel Blob, url) sau db (bytea, max ~2 MB). */
 export const files = pgTable("files", {

@@ -7,9 +7,9 @@ export const isPublic = (path: string) => PUBLIC_PATHS.some((r) => r.test(path))
 /** Șoferul vede doar interfața lui (+ asistență). */
 export const DRIVER_PATHS = [/^\/driver$/, /^\/join\/ready$/, /^\/driver\/trips\/[\w-]+$/, /^\/api\/driver\//, /^\/api\/receipt\//, /^\/support$/, /^\/api\/support$/, /^\/notifications$/, /^\/api\/notifications\//, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/trips\/event$/, /^\/api\/me\/locale$/];
 /** Doar proprietar/admin. */
-export const OWNER_PATHS = [/^\/trucks$/, /^\/drivers$/, /^\/api\/drivers\//,/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/];
+export const OWNER_PATHS = [/^\/trucks$/, /^\/drivers$/, /^\/api\/drivers\//,/^\/setup$/, /^\/api\/setup\//, /^\/api\/firm\//, /^\/import$/, /^\/api\/import\//, /^\/api\/docs(\/|$)/, /^\/api\/trips\/pod$/, /^\/speeding$/, /^\/api\/speeding\//, /^\/api\/settings\//];
 /** Demo („Intră ca demo”): poate încerca importul CSV — totul în memorie, nimic în baza de date. */
-export const DEMO_OK = [/^\/drivers$/, /^\/trucks$/, /^\/import$/, /^\/api\/import\/(preview|commit)$/];
+export const DEMO_OK = [/^\/speeding$/, /^\/drivers$/, /^\/trucks$/, /^\/import$/, /^\/api\/import\/(preview|commit)$/];
 /** Demo („user”): /api/* is deny-by-default; only these read/demo-safe routes (no DB writes for the demo firm). */
 export const DEMO_API_OK = [/^\/api\/alerts$/, /^\/api\/ask$/, /^\/api\/feed\/(react|resolve)$/, /^\/api\/files(\/[\w-]+)?$/, /^\/api\/live$/, /^\/api\/me\/locale$/, /^\/api\/notifications\/(read|push|settings)$/, /^\/api\/receipt\/extract$/, /^\/api\/support$/, /^\/api\/trips$/, /^\/api\/trips\/parse$/, /^\/api\/vehicles$/, /^\/api\/vehicles\/econ$/, /^\/api\/import\/(preview|commit)$/];
 export const ADMIN_PATHS = [/^\/admin$/, /^\/api\/admin\//];

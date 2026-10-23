@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import { PermissionsAndroid, Platform } from "react-native";
 import { api, ApiError, read, write, remove, abortGPSRequests, sessionScope, type Gate, type Pending } from "./api";
 import { pendingControl, queueControl, syncPending } from "./controls";
+import { checkSpeed, speedChannel } from "./speed-alert";
 export { syncPending } from "./controls";
 export const TASK = "qfleet-driver-location-v1";
 export type GPSStatus = { message: string; lastAck?: string };
@@ -17,7 +18,7 @@ export async function stopGPS(message = "GPS oprit pe acest telefon") {
   try { await remove("gps-gate"); }
   finally {
     // A failed status/storage write must not leave the native location service running.
-    try { if (await Location.hasStartedLocationUpdatesAsync(TASK)) await Location.stopLocationUpdatesAsync(TASK); }
+    try { await write("speed-warning", null).catch(() => {}); if (await Location.hasStartedLocationUpdatesAsync(TASK)) await Location.stopLocationUpdatesAsync(TASK); }
     finally { await status(message); }
   }
 }
@@ -56,6 +57,7 @@ export async function startGPS() {
   // Permission dialogs can stay open while the owner changes the truck/shift.
   const latest = await api<typeof state>("/api/driver/tracking", undefined, { gps: true, scope }); current();
   if (!latest.enabled || latest.vehicleId !== state.vehicleId || latest.shiftStart !== state.shiftStart) throw new Error("Tura sau camionul s-a schimbat. Reîmprospătează înainte de a activa GPS.");
+  await speedChannel().catch(() => {});
   await write("gps-gate", { vehicleId: state.vehicleId, shiftStart: state.shiftStart, enabledAt: Date.now(), scope } satisfies Gate);
   try {
     current(); locallyStopped = false;
@@ -82,11 +84,13 @@ TaskManager.defineTask<{ locations: Location.LocationObject[] }>(TASK, async ({ 
       && Number.isFinite(p.coords.latitude) && Math.abs(p.coords.latitude) <= 90 && Number.isFinite(p.coords.longitude) && Math.abs(p.coords.longitude) <= 180
       && p.coords.accuracy != null && Number.isFinite(p.coords.accuracy) && p.coords.accuracy >= 0 && p.coords.accuracy <= 65).sort((a,b) => b.timestamp - a.timestamp)[0];
     if (!point) { await status("Așteptăm o poziție precisă"); return; }
-    const state = await api<{ enabled: boolean; vehicleId: string; shiftStart: string }>("/api/driver/tracking", undefined, { gps: true, scope: gate.scope });
+    const state = await api<{ enabled: boolean; vehicleId: string; shiftStart: string; speedLimitKmh?: number }>("/api/driver/tracking", undefined, { gps: true, scope: gate.scope });
     const current = await read<Gate>("gps-gate");
     if (locallyStopped || version !== generation || !current || current.enabledAt !== gate.enabledAt || current.scope !== gate.scope) return;
     if (!state.enabled || state.vehicleId !== gate.vehicleId || state.shiftStart !== gate.shiftStart) { await stopGPS("Tura sau camionul s-a schimbat • GPS oprit"); return; }
-    await api("/api/driver/ping", { vehicleId: gate.vehicleId, lat: point.coords.latitude, lng: point.coords.longitude, capturedAt: new Date(point.timestamp).toISOString(), accuracy: point.coords.accuracy }, { gps: true, scope: gate.scope });
+    await api("/api/driver/ping", { vehicleId: gate.vehicleId, lat: point.coords.latitude, lng: point.coords.longitude, capturedAt: new Date(point.timestamp).toISOString(), accuracy: point.coords.accuracy,
+      ...(point.coords.speed != null && Number.isFinite(point.coords.speed) && point.coords.speed >= 0 ? { speed: point.coords.speed } : {}) }, { gps: true, scope: gate.scope });
+    await checkSpeed(point.coords.speed, point.coords.accuracy, state.speedLimitKmh).catch(() => {});
     if (!locallyStopped && version === generation && (await read<Gate>("gps-gate"))?.enabledAt === gate.enabledAt) await status("Poziție confirmată de server", new Date().toISOString());
   } catch (e) {
     if (e instanceof ApiError && [401,403,409].includes(e.status)) await stopGPS("GPS oprit • verifică sesiunea și tura");

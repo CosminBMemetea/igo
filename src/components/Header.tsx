@@ -27,7 +27,7 @@ export function Header({ prefs, firm }: { prefs: Prefs; firm: FirmCtx }) {
     </span>
   ) : null;
   const seg = "/" + ((firm.path ?? "/").split("/")[1] ?? "");
-  const PT: Record<string, Parameters<typeof t>[1]> = { "/": "nav.home", "/live": "nav.live", "/trips": "nav.trips", "/replay": "nav.trips", "/vehicles": "kind.truck", "/alerts": "nav.alerts", "/documents": "nav.docs", "/import": "nav.import", "/driver": "nav.driver", "/savings": "nav.savings", "/settings": "stg.title", "/ranking": "nav.ranking", "/feed": "nav.feed", "/crm": "nav.crm", "/receipts": "nav.receipts", "/invoices": "nav.invoices", "/features": "nav.features", "/notifications": "ntf.title", "/support": "sup.title", "/setup": "set.title", "/admin": "adm.title" };
+  const PT: Record<string, Parameters<typeof t>[1]> = { "/": "nav.home", "/live": "nav.live", "/trips": "nav.trips", "/replay": "nav.trips", "/vehicles": "kind.truck", "/alerts": "nav.alerts", "/documents": "nav.docs", "/import": "nav.import", "/driver": "nav.driver", "/savings": "nav.savings", "/settings": "stg.title", "/ranking": "nav.ranking", "/speeding": "nav.speeding", "/feed": "nav.feed", "/crm": "nav.crm", "/receipts": "nav.receipts", "/invoices": "nav.invoices", "/features": "nav.features", "/notifications": "ntf.title", "/support": "sup.title", "/setup": "set.title", "/admin": "adm.title" };
   const ptitle = <PageTitle titles={{ ...Object.fromEntries(Object.entries(PT).map(([k, v]) => [k, t(loc, v)])), "/trucks": tri(loc, "Camioane|Trucks|Pojazdy"), "/drivers": tri(loc, "Șoferi|Drivers|Kierowcy") }} />; void seg;
   const onAdmin = role === "admin" && (firm.path ?? "").startsWith("/admin");
   const notices = (

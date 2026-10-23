@@ -4,11 +4,15 @@ export function distanceKm(a: [number, number], b: [number, number]) {
   return 12742 * Math.asin(Math.sqrt(Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2));
 }
 /** One collector per mounted app, independent of the current route. Cleanup rejects late callbacks. */
-export function startWebTracking(geo: Geolocation, vehicleId: string, report: (status: TrackingStatus) => void, rejected: () => void, send: typeof fetch = fetch) {
+/** `onSpeed` gets every fix's GPS speed (km/h, null if unusable) before ping throttling, so the driver alert is live. */
+export function startWebTracking(geo: Geolocation, vehicleId: string, report: (status: TrackingStatus) => void, rejected: () => void, send: typeof fetch = fetch, onSpeed?: (kmh: number | null) => void) {
   let alive = true, busy = false, last: { at: [number, number]; time: number } | null = null;
   let request: AbortController | null = null;
   const id = geo.watchPosition(p => {
-    if (!alive || busy) return;
+    if (!alive) return;
+    const speed = typeof p.coords.speed === "number" && Number.isFinite(p.coords.speed) && p.coords.speed >= 0 && p.coords.accuracy <= 30 ? p.coords.speed : null;
+    onSpeed?.(speed == null ? null : speed * 3.6);
+    if (busy) return;
     if (!Number.isFinite(p.coords.accuracy) || p.coords.accuracy > 65) { report({ gps: "wait", lastAck: null }); return; }
     const at: [number, number] = [p.coords.latitude, p.coords.longitude], time = Date.now();
     // Do not present a cached old fix as a new live position.
@@ -17,7 +21,7 @@ export function startWebTracking(geo: Geolocation, vehicleId: string, report: (s
     busy = true;
     const controller = new AbortController(); request = controller;
     const timeout = setTimeout(() => controller.abort(), 15000);
-    void send("/api/driver/ping", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: at[0], lng: at[1], capturedAt: new Date(p.timestamp).toISOString(), accuracy: p.coords.accuracy }) })
+    void send("/api/driver/ping", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify({ vehicleId, lat: at[0], lng: at[1], capturedAt: new Date(p.timestamp).toISOString(), accuracy: p.coords.accuracy, ...(speed != null ? { speed } : {}) }) })
       .then(r => {
         if (!alive) return;
         if (r.status !== 204 || r.redirected) {

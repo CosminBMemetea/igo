@@ -1,0 +1,8 @@
+{
+  "CFBundleDisplayName": "Querra Kierowca",
+  "NSLocationWhenInUseUsageDescription": "Querra wysyła pozycję ciężarówki do Twojej firmy tylko wtedy, gdy włączysz GPS podczas zmiany.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "Podczas zmiany Querra wysyła pozycję także przy zablokowanym ekranie – dla mapy firmy i ostrzeżenia o przekroczeniu limitu prędkości ustawionego przez firmę. Tryb prywatny i Zatrzymaj GPS wstrzymują zbieranie.",
+  "NSLocationAlwaysUsageDescription": "Querra używa lokalizacji w tle dopiero po włączeniu GPS podczas zmiany. Możesz zatrzymać zbieranie w aplikacji.",
+  "NSCameraUsageDescription": "Zrób zdjęcie CMR lub potwierdzenia dostawy dla swojego kursu.",
+  "NSPhotoLibraryUsageDescription": "Wybierz zdjęcie dokumentu, które chcesz wysłać firmie."
+}

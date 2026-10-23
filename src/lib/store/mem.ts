@@ -1,6 +1,7 @@
 import { sameProfile } from "../compliance-csv";
 import { cardAt, plateKey, validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
+import { SPEED_DEFAULTS } from "../speed";
 // Fallback fără DATABASE_URL: totul în memorie (se pierde la repornire; adminul vede bannerul).
 import { newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type DriverEventRow, type ShiftRow, type DocRow, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
 export class MemStore implements Store {
@@ -322,5 +323,14 @@ export class MemStore implements Store {
   }
   async addPosition(firmId: string, p: PosRow) { if (!this.own(firmId, p.truckId)) throw new Error("truck"); this.P.push({ ...p, firmId }); if (this.P.length > 50000) this.P.shift(); }
   async purgePositions(beforeAt: string) { let n = 0; for (let i = this.P.length - 1; i >= 0; i--) if (this.P[i].at < beforeAt) { this.P.splice(i, 1); n++; } return n; }
+  private SE: (import("../speed").SpeedEventRow & { firmId: string })[] = [];
+  private SS: (import("../speed").SpeedSettings & { firmId: string })[] = [];
+  async speedSettings(firmId: string) { const r = this.SS.find(x => x.firmId === firmId); if (!r) return { ...SPEED_DEFAULTS, truckLimits: {} }; const { firmId: _f, ...v } = r; return { ...v, truckLimits: { ...v.truckLimits } }; }
+  async setSpeedSettings(firmId: string, v: import("../speed").SpeedSettings) { for (const id of Object.keys(v.truckLimits)) if (!this.own(firmId, id)) throw new Error("truck"); this.SS = this.SS.filter(x => x.firmId !== firmId); this.SS.push({ ...v, truckLimits: { ...v.truckLimits }, firmId }); }
+  async openSpeedEvent(firmId: string, truckId: string) { const r = this.SE.filter(x => x.firmId === firmId && x.truckId === truckId && x.open).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]; if (!r) return null; const { firmId: _f, ...e } = r; return { ...e }; }
+  async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); const i = this.SE.findIndex(x => x.id === e.id); if (i >= 0 && this.SE[i].firmId !== firmId) throw new Error("event"); if (i >= 0) this.SE[i] = { ...e, firmId }; else this.SE.push({ ...e, firmId }); }
+  async deleteSpeedEvent(firmId: string, id: string) { this.SE = this.SE.filter(x => !(x.id === id && x.firmId === firmId)); }
+  async speedEvents(firmId: string, o: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number } = {}) { return this.SE.filter(x => x.firmId === firmId && (!o.sinceAt || x.startAt >= o.sinceAt) && (!o.untilAt || x.startAt < o.untilAt) && (!o.truckId || x.truckId === o.truckId) && (!o.userId || x.userId === o.userId)).sort((a, b) => b.startAt.localeCompare(a.startAt)).slice(0, o.limit ?? 2000).map(({ firmId: _f, ...e }) => ({ ...e })); }
+  async purgeSpeedEvents(beforeIso: string) { const n = this.SE.length; this.SE = this.SE.filter(x => x.startAt >= beforeIso); return n - this.SE.length; }
   async positions(firmId: string, sinceAt = "", truckId?: string, untilAt?: string) { return this.P.filter((p) => p.firmId === firmId && p.at >= sinceAt && (!truckId || p.truckId === truckId) && (!untilAt || p.at < untilAt)).map(({ firmId: _f, ...p }) => p); }
 }

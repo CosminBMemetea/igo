@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { t, tri, fmtNum, type MsgKey } from "@/lib/i18n";
@@ -8,6 +9,7 @@ import { todayFor } from "@/lib/today";
 import { EmptyState } from "@/components/EmptyState";
 import { DriverCard, ScoreRing, TruckBars } from "@/components/Ranking";
 import { DemoBadge } from "@/components/DemoBadge";
+import { speedRanking, SPEED_MIN_KM } from "@/lib/speed";
 
 export const dynamic = "force-dynamic";
 const COLS: Comp[] = ["cons", "harsh", "speed", "idle", "ontime", "alerts"];
@@ -18,11 +20,19 @@ export default async function Ranking() {
   if (!d.demo && d.tn.firm) {
     const [users, trips] = await Promise.all([store().users(d.tn.firm.id), store().trips(d.tn.firm.id)]);
     const activity = driverActivity(users, trips, todayFor(false));
+    const events = await store().speedEvents(d.tn.firm.id, { sinceAt: new Date(Date.parse(activity.since)).toISOString(), limit: 5000 });
+    const speedRows = speedRanking(users.filter(u => u.role === "driver" && !u.disabledAt), trips, events, activity.since);
     return <main className="rk-page"><h1 className="h1">{tri(loc, "Activitatea șoferilor|Driver activity|Aktywność kierowców")}</h1>
       <p className="sub">{tri(loc, "Livrări cu POD în ultimele 30 de zile, atribuite șoferului cursei. Egalitățile au același loc. Nu este un scor de siguranță; volumul depinde și de alocările firmei.|Deliveries with POD in the last 30 days, attributed to each trip's driver. Ties share a rank. This is not a safety score; volume also depends on company assignments.|Dostawy z POD w ostatnich 30 dniach, przypisane kierowcy kursu. Remisy mają wspólne miejsce. To nie ocena bezpieczeństwa; liczba zależy też od przydziałów firmy.")}</p>
       {activity.participants < 3 ? <p className="hint">{tri(loc, "Locurile apar de la 3 șoferi cu livrări documentate în această perioadă.|Ranks appear from 3 drivers with documented deliveries in this period.|Miejsca pojawiają się od 3 kierowców z udokumentowanymi dostawami w tym okresie.")}</p> : null}
       <div className="list">{activity.rows.map(row => <section className="sheet" key={row.id}><div className="head"><h2>{row.rank ? `#${row.rank} · ` : ""}{row.name}</h2><strong>{row.completed} POD</strong></div><p className="hint">{row.lifetime} {tri(loc, "livrări documentate în total · distincții la 1, 5, 10 și 25|documented deliveries overall · badges at 1, 5, 10 and 25|udokumentowanych dostaw łącznie · odznaki przy 1, 5, 10 i 25")}</p></section>)}</div>
       {!activity.rows.length ? <p className="sub">{tri(loc, "Nu ai încă șoferi cu acces activ.|No drivers with active access yet.|Brak kierowców z aktywnym dostępem.")}</p> : null}
+      <section className="section" id="speed"><h2>{tri(loc, "Depășiri ale limitei setate|Set-limit warnings|Przekroczenia ustawionego limitu")}</h2>
+        <p className="hint">{tri(loc, `Evenimente la 100 km, ultimele 30 de zile, din GPS-ul telefonului. Apare doar pentru șoferii cu cel puțin ${SPEED_MIN_KM} km în curse finalizate. Mai puțin = mai bine.|Events per 100 km, last 30 days, from the phone GPS. Shown only for drivers with at least ${SPEED_MIN_KM} km on finished trips. Lower is better.|Zdarzenia na 100 km, ostatnie 30 dni, z GPS telefonu. Tylko dla kierowców z co najmniej ${SPEED_MIN_KM} km w zakończonych kursach. Mniej = lepiej.`)}</p>
+        {speedRows.length ? <div className="sheet" style={{ overflowX: "auto" }}><table className="rk-speed"><thead><tr><th>{tri(loc, "Șofer|Driver|Kierowca")}</th><th>km</th><th>{tri(loc, "Ev.|Ev.|Zd.")}</th><th>/100 km</th></tr></thead><tbody>{speedRows.map(r => <tr key={r.id}><td>{r.name}</td><td>{fmtNum(loc, r.km)}</td><td>{r.ex!.events}</td><td>{fmtNum(loc, r.ex!.per100, 1)}</td></tr>)}</tbody></table></div>
+          : <p className="sub">{tri(loc, "Încă nu sunt destule date.|Not enough data yet.|Za mało danych.")}</p>}
+        <Link className="link" href="/speeding">{tri(loc, "Vezi raportul|Open the report|Otwórz raport")} →</Link>
+      </section>
       <section className="section"><h2>{t(loc, "rk.trucks")}</h2><p className="hint">{tri(loc, "Rate declarate/estimate pe camion. Nu le atribuim automat șoferului curent.|Declared/estimated rates by truck. We do not automatically attribute them to the current driver.|Zadeklarowane/szacowane zużycie pojazdu. Nie przypisujemy go automatycznie obecnemu kierowcy.")}</p><TruckBars rows={R.trucks} avg={R.fleetAvg} loc={loc} /></section>
     </main>;
   }

@@ -1,0 +1,8 @@
+{
+  "CFBundleDisplayName": "Querra Șofer",
+  "NSLocationWhenInUseUsageDescription": "Querra trimite poziția camionului către firma ta doar când activezi GPS în tură.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "În tură, Querra trimite poziția și cu ecranul blocat, pentru harta firmei și avertizarea la depășirea limitei de viteză setate de firmă. Modul Privat și Oprește GPS întrerup colectarea.",
+  "NSLocationAlwaysUsageDescription": "Querra folosește locația în fundal numai după activarea GPS în tură. Poți opri colectarea din aplicație.",
+  "NSCameraUsageDescription": "Fotografiază documentul CMR sau dovada livrării pentru cursa ta.",
+  "NSPhotoLibraryUsageDescription": "Alege fotografia documentului pe care vrei să o trimiți firmei."
+}
