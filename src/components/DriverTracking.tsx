@@ -18,8 +18,8 @@ export function DriverTracking({ enabled, scope, loc, children }: { enabled: boo
   const onSpeed = useRef((kmh: number | null) => {
     const r = driverAlert(alertSt.current, kmh, limitRef.current, Date.now()); alertSt.current = r.st;
     if (!r.over) { setSpeedWarn(null); return; }
-    if (!r.alert) return;
-    setSpeedWarn({ kmh: Math.round(kmh!), limit: limitRef.current });
+    setSpeedWarn({ kmh: Math.round(kmh!), limit: limitRef.current }); // banner live on every over reading
+    if (!r.alert) return; // only sound/vibration are throttled
     try { navigator.vibrate?.([400, 150, 400]); } catch {}
     try {
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;

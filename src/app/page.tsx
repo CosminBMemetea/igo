@@ -1,4 +1,5 @@
 import { localNow } from "@/lib/validate";
+import { realSpeedParts } from "@/lib/speed-report";
 import { DemoFleet } from "@/components/DemoFleet";
 import { DemoSwitcher } from "@/components/DemoSwitcher";
 import { EL, ef } from "@/lib/econ-i18n";
@@ -70,7 +71,7 @@ export default async function Home() {
   const priv = live.filter((x) => x.status === "private").length, stopped = live.length - moving - priv;
   const kmToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => a + x.today, 0));
   const saveToday = Math.round(live.filter((x) => x.todayUnit === "km").reduce((a, x) => { const v = d.vehicles.find((y) => y.id === x.id); return a + (v ? ((v.baselineRate - x.rate) * x.today) / 100 * FUEL_PRICE : 0); }, 0));
-  const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo), rkSplit = splitRank(rk.drivers, 2), rkHelp = rkSplit.help[0] ?? null;
+  const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo, await realSpeedParts(store(), d.tn.firm?.id, d.demo)), rkSplit = splitRank(rk.drivers, 2), rkHelp = rkSplit.help[0] ?? null;
   // economie pe lună: aceeași perioadă ca pe /savings (demo: 15 zile de istoric)
   const savDays = d.demo ? 15 : Number(localNow().slice(8, 10));
   const perMonth = Math.round(m.savings.savedLei / (savDays / 30));

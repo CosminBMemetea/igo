@@ -1,4 +1,5 @@
 import { EconKpis } from "@/components/Econ";
+import { realSpeedParts } from "@/lib/speed-report";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
@@ -29,7 +30,7 @@ export default async function FeedPage() {
     return <><RealFeed loc={loc} events={ev.slice(0, 120)} live={lv} names={names} people={people} stamp={new Date().toISOString()} /></>;
   }
   const today = todayFor(d.demo), live = (await d.live());
-  const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo);
+  const rk = rankings(d.vehicles, d.views, d.alerts, today, d.demo, await realSpeedParts(store(), d.tn.firm?.id, d.demo));
   const f = buildFeed({ loc, vehicles: d.vehicles, views: d.views, clients: d.clients, alerts: d.alerts, live, drivers: rk.drivers });
   const s = f.summary, rs = (await demoResolved());
   const openN = [...f.pinned, ...f.events.filter((e) => e.kind === "idle")].filter((e) => !rs[e.id]).length;

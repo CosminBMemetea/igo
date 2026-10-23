@@ -13,11 +13,13 @@ export const MAX_PLAUSIBLE_KMH = 140;
 export const GAP_S = 90;
 /** Single-sample events shorter than this are discarded as noise. */
 export const MIN_EVENT_S = 10;
+/** A dip below limit+over shorter than this does not reset the owner 60 s timer (the event itself closes only below limit+tolerance). */
+export const HIGH_GRACE_S = 10;
 export const limitFor = (s: SpeedSettings, truckId: string) => s.truckLimits[truckId] ?? s.limitKmh;
 const sec = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 1000;
 /** Validates owner input. Returns null when any value is out of range. */
 export function parseSpeedSettings(i: { limit?: unknown; over?: unknown; after?: unknown; alerts?: unknown; trucks?: Record<string, unknown> }, truckIds: string[]): SpeedSettings | null {
-  const int = (v: unknown, lo: number, hi: number) => { const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v.trim()) : NaN; return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };
+  const int = (v: unknown, lo: number, hi: number) => { const n = typeof v === "number" ? v : typeof v === "string" && /^(0|[1-9][0-9]{0,3})$/.test(v) ? Number(v) : NaN; return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };
   const limitKmh = int(i.limit, 30, 130), ownerOverKmh = int(i.over, 1, 50), ownerAfterS = int(i.after, 10, 600);
   if (limitKmh == null || ownerOverKmh == null || ownerAfterS == null) return null;
   const truckLimits: Record<string, number> = {};
@@ -54,12 +56,14 @@ export function speedStep(open: SpeedEventRow | null, cur: SpeedSample, kmh: num
   if (kmh == null) return out;
   const limit = ev?.limitKmh ?? limitFor(cfg, truckId);
   const over = kmh > limit + SPEED_TOLERANCE_KMH, high = kmh > limit + cfg.ownerOverKmh;
+  if (ev && sec(ev.lastAt, cur.at) <= 0) return out; // duplicate (dt = 0) or out-of-order reading
+  // last moment the driver was above limit+over (highSince + highS), for the grace window
+  const lastHigh = ev?.highSince ? Date.parse(ev.highSince) + ev.highS * 1000 : null, inGrace = lastHigh != null && (Date.parse(cur.at) - lastHigh) / 1000 < HIGH_GRACE_S;
   if (!over) { if (ev) close(ev); return out; }
-  if (sec(ev?.lastAt ?? cur.at, cur.at) < 0) return out; // out-of-order reading
   const next: SpeedEventRow = ev
     ? { ...ev, endAt: cur.at, lastAt: cur.at, durationS: Math.round(sec(ev.startAt, cur.at)), samples: ev.samples + 1, maxKmh: Math.max(ev.maxKmh, kmh), ...(kmh > ev.maxKmh ? { lat: cur.lat, lng: cur.lng } : {}) }
     : { id: newId(), truckId, userId, startAt: cur.at, endAt: cur.at, lastAt: cur.at, limitKmh: limit, maxKmh: kmh, durationS: 0, samples: 1, lat: cur.lat, lng: cur.lng, highSince: null, highS: 0, open: true, ownerNotified: false };
-  if (high) { next.highSince = next.highSince ?? cur.at; next.highS = Math.max(next.highS, Math.round(sec(next.highSince, cur.at))); } else next.highSince = null;
+  if (high) { next.highSince = next.highSince ?? cur.at; next.highS = Math.max(next.highS, Math.round(sec(next.highSince, cur.at))); } else if (!inGrace) { next.highSince = null; next.highS = 0; }
   if (cfg.ownerAlerts && !next.ownerNotified && next.highS > cfg.ownerAfterS) { next.ownerNotified = true; out.notify = next; }
   out.save.push(next);
   return out;
@@ -72,9 +76,16 @@ export function speedExposure(events: Pick<SpeedEventRow, "durationS" | "open" |
   const overS = real.reduce((a, e) => a + e.durationS, 0);
   return { events: real.length, per100: Math.round((real.length / km) * 1000) / 10, pctTime: drivingS > 0 ? Math.round((overS / drivingS) * 1000) / 10 : null, score: Math.round(Math.max(0, Math.min(1, 1 - (real.length / km) * 100 / 2)) * 100) };
 }
-export function speedCsv(rows: { plate: string; driver: string; e: SpeedEventRow }[], fmt: (iso: string) => string) {
-  const q = (v: string | number) => { const s = String(v); return /[",;\n\r]/.test(s) || /^[=+\-@]/.test(s) ? `"${(/^[=+\-@]/.test(s) ? "'" : "") + s.replace(/"/g, '""')}"` : s; };
-  const head = ["start", "end", "truck", "driver", "limit_kmh", "max_kmh", "over_kmh", "duration_s", "lat", "lng"];
+const NUM = /^-?[0-9]+(\.[0-9]+)?$/;
+/** CSV cell: numbers (incl. negative longitudes) pass as-is; text starting with = + - @ or a tab/CR is neutralised with '. */
+export const csvCell = (v: string | number) => { const s = String(v); if (typeof v === "number" || NUM.test(s)) return s; const inj = /^[=+\-@\t\r]/.test(s); return inj || /[",;\n\r]/.test(s) ? `"${(inj ? "'" : "") + s.replace(/"/g, '""')}"` : s; };
+export const SPEED_CSV_HEAD = {
+  ro: ["Început (ora României)", "Sfârșit (ora României)", "Camion", "Șofer", "Limită km/h", "Maxim km/h", "Peste limită km/h", "Durată s", "Lat", "Lng"],
+  en: ["Start (Romania time)", "End (Romania time)", "Truck", "Driver", "Limit km/h", "Max km/h", "Over limit km/h", "Duration s", "Lat", "Lng"],
+  pl: ["Początek (czas Rumunii)", "Koniec (czas Rumunii)", "Ciężarówka", "Kierowca", "Limit km/h", "Maks. km/h", "Ponad limit km/h", "Czas s", "Lat", "Lng"],
+} as const;
+export function speedCsv(rows: { plate: string; driver: string; e: SpeedEventRow }[], fmt: (iso: string) => string, loc: "ro" | "en" | "pl" = "ro") {
+  const q = csvCell, head = SPEED_CSV_HEAD[loc].map(h => q(h));
   return [head.join(","), ...rows.map(({ plate, driver, e }) => [fmt(e.startAt), fmt(e.endAt), plate, driver, e.limitKmh, e.maxKmh, Math.round((e.maxKmh - e.limitKmh) * 10) / 10, e.durationS, e.lat.toFixed(5), e.lng.toFixed(5)].map(q).join(","))].join("\r\n") + "\r\n";
 }
 /** Driver-side alert gate (web + native copy): alert after `holdS` seconds over limit+tolerance, then at most once per `everyS`. */
@@ -88,10 +99,26 @@ export function driverAlert(st: DriverAlertState, kmh: number | null, limit: num
   return { st: { overSince, lastAlert: alert ? now : st.lastAlert }, alert, over };
 }
 /** Real-firm ranking input: per driver, events per 100 km over the last 30 days. km = completed trips attributed to the driver. */
-export function speedRanking(drivers: { id: string; name: string }[], trips: { driverId?: string | null; km: number; date: string; cancelledAt?: string | null }[], events: Pick<SpeedEventRow, "userId" | "durationS" | "open" | "samples" | "startAt">[], sinceDay: string) {
+export const bucharestDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+type RTrip = { driverId?: string | null; truckId?: string; km: number; date: string; cancelledAt?: string | null; deliveredAt?: string | null; planned?: boolean };
+/** Finished = delivered, not cancelled, not a plan; the day is the delivery day in Europe/Bucharest. */
+const finishedSince = (trips: RTrip[], sinceDay: string) => trips.filter(t => !t.cancelledAt && !t.planned && !!t.deliveredAt && Number.isFinite(Date.parse(t.deliveredAt)) && bucharestDay(t.deliveredAt) >= sinceDay);
+const sumKm = (ts: RTrip[]) => ts.reduce((a, t) => a + (Number.isFinite(t.km) && t.km > 0 ? t.km : 0), 0);
+type REvent = Pick<SpeedEventRow, "userId" | "truckId" | "durationS" | "open" | "samples" | "startAt">;
+/** Real-firm score input per truck (the ranking row is per truck): 0..1, only with enough km on finished trips. */
+export function speedParts(trips: RTrip[], events: REvent[], sinceDay: string): Record<string, number> {
+  const done = finishedSince(trips, sinceDay), out: Record<string, number> = {};
+  for (const id of new Set(done.map(t => t.truckId).filter((x): x is string => !!x))) {
+    const ex = speedExposure(events.filter(e => e.truckId === id && bucharestDay(e.startAt) >= sinceDay), sumKm(done.filter(t => t.truckId === id)), 0);
+    if (ex) out[id] = ex.score / 100;
+  }
+  return out;
+}
+export function speedRanking(drivers: { id: string; name: string }[], trips: RTrip[], events: Pick<SpeedEventRow, "userId" | "durationS" | "open" | "samples" | "startAt">[], sinceDay: string) {
+  const done = finishedSince(trips, sinceDay);
   return drivers.map(d => {
-    const km = trips.filter(t => t.driverId === d.id && !t.cancelledAt && t.date >= sinceDay).reduce((a, t) => a + (Number.isFinite(t.km) ? t.km : 0), 0);
-    const ex = speedExposure(events.filter(e => e.userId === d.id && e.startAt.slice(0, 10) >= sinceDay), km, 0);
+    const km = sumKm(done.filter(t => t.driverId === d.id));
+    const ex = speedExposure(events.filter(e => e.userId === d.id && bucharestDay(e.startAt) >= sinceDay), km, 0);
     return { id: d.id, name: d.name, km: Math.round(km), ex };
   }).filter(r => r.ex).sort((a, b) => a.ex!.per100 - b.ex!.per100 || a.name.localeCompare(b.name));
 }

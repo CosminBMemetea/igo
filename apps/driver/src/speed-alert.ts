@@ -18,9 +18,9 @@ export async function checkSpeed(speedMs: number | null | undefined, accuracy: n
   const r = driverAlert(st, kmh, limit, Date.now());
   await write("speed-alert", r.st);
   if (!r.over) { await write("speed-warning", null); return; }
-  if (!r.alert) return;
   const warning: SpeedWarning = { kmh: Math.round(kmh!), limit, at: Date.now() };
-  await write("speed-warning", warning);
+  await write("speed-warning", warning); // banner live on every over reading
+  if (!r.alert) return; // only the sound/vibration notification is throttled
   await Notifications.scheduleNotificationAsync({
     content: { title: `Încetinește: ${warning.kmh} km/h`, body: `Ai depășit limita setată de firmă (${limit} km/h).`, sound: "default", data: { kind: "speed-local" },
       ...(Platform.OS === "android" ? { channelId: SPEED_CHANNEL, vibrate: [0, 400, 150, 400] } : { interruptionLevel: "timeSensitive" as const }) },

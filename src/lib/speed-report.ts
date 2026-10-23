@@ -17,3 +17,10 @@ export async function speedReport(s: Store, firmId: string, f: SpeedFilter, now 
   return { rows, trucks: trucks.filter(t => !t.archivedAt), drivers: users.filter(u => u.role === "driver") };
 }
 export const fmtLocal = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(iso));
+import { speedParts, bucharestDay } from "./speed";
+/** Real firm only: per-truck speed component (0..1) for the driver score; {} for demo or too little data. */
+export async function realSpeedParts(s: Store, firmId: string | null | undefined, demo: boolean, now = Date.now()): Promise<Record<string, number>> {
+  if (demo || !firmId) return {};
+  const sinceAt = new Date(now - 29 * 86400_000), [trips, events] = await Promise.all([s.trips(firmId), s.speedEvents(firmId, { sinceAt: new Date(sinceAt.getTime() - 86400_000).toISOString(), limit: 5000 })]);
+  return speedParts(trips, events, bucharestDay(sinceAt.toISOString()));
+}

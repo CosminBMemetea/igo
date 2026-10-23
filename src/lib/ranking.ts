@@ -1,6 +1,6 @@
 // Querra Fleet: clasamentul șoferilor și compararea camioanelor după consum.
 // Scor 0–100 din: consum față de normă, frânări/accelerări bruște, viteză, mers în gol, livrări la timp, alerte.
-// Firmele reale au deocamdată doar consum + alerte (fără telematică) → ponderile se renormalizează pe ce există.
+// Firmele reale: consum + alerte + (cu destui km pe curse finalizate) depășirile limitei setate, din GPS-ul telefonului → ponderile se renormalizează pe ce există.
 import { mulberry32 } from "./fleet/data";
 import type { Vehicle } from "./fleet/seed";
 import type { TripView } from "./query";
@@ -32,7 +32,7 @@ function l100(views: TripView[]) {
   const km = views.reduce((a, v) => a + v.km, 0), L = views.reduce((a, v) => a + (v.km * v.actualRate) / 100, 0);
   return km > 0 ? { l100: Math.round((L / km) * 1000) / 10, km } : { l100: null, km: 0 };
 }
-export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehicleId: string }[], today: string, demo: boolean) {
+export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehicleId: string }[], today: string, demo: boolean, realSpeed: Record<string, number> = {}) {
   const trucks = vehicles.filter((v) => v.kind === "truck" && v.per100);
   const day = (d: string) => Math.round((Date.parse(today) - Date.parse(d)) / 864e5);
   const done = views.filter((v) => !v.active && v.km > 0 && day(v.date) >= 0 && day(v.date) < 30);
@@ -47,6 +47,7 @@ export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehic
     if (vsBase != null) parts.cons = clamp(0.8 - vsBase * 4); // la normă = 80 (ok), −5% → 1, +8% → 0,48 (de ajutor), +20% → 0
     if (tele.harsh != null) parts.harsh = clamp(1 - tele.harsh / 4);
     if (tele.speeding != null) parts.speed = clamp(1 - tele.speeding / 10);
+    else if (!demo && Number.isFinite(realSpeed[v.id])) parts.speed = clamp(realSpeed[v.id]); // phone-GPS set-limit warnings, only with enough km (speedParts)
     if (tele.idle != null) parts.idle = clamp(1 - (tele.idle - 3) / 20);
     if (tele.onTime != null) parts.ontime = clamp((tele.onTime - 70) / 30);
     parts.alerts = clamp(1 - nAl / 4);

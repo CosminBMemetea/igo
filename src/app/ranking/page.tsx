@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { realSpeedParts } from "@/lib/speed-report";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
 import { t, tri, fmtNum, type MsgKey } from "@/lib/i18n";
@@ -16,11 +17,11 @@ const COLS: Comp[] = ["cons", "harsh", "speed", "idle", "ontime", "alerts"];
 export default async function Ranking() {
   const { loc } = (await getPrefs());
   const d = await load();
-  const R = rankings(d.vehicles, d.views, d.alerts, todayFor(d.demo), d.demo);
+  const R = rankings(d.vehicles, d.views, d.alerts, todayFor(d.demo), d.demo, await realSpeedParts(store(), d.tn.firm?.id, d.demo));
   if (!d.demo && d.tn.firm) {
     const [users, trips] = await Promise.all([store().users(d.tn.firm.id), store().trips(d.tn.firm.id)]);
     const activity = driverActivity(users, trips, todayFor(false));
-    const events = await store().speedEvents(d.tn.firm.id, { sinceAt: new Date(Date.parse(activity.since)).toISOString(), limit: 5000 });
+    const events = await store().speedEvents(d.tn.firm.id, { sinceAt: new Date(Date.parse(activity.since) - 86400_000).toISOString() /* speedRanking filters by Bucharest day */, limit: 5000 });
     const speedRows = speedRanking(users.filter(u => u.role === "driver" && !u.disabledAt), trips, events, activity.since);
     return <main className="rk-page"><h1 className="h1">{tri(loc, "Activitatea șoferilor|Driver activity|Aktywność kierowców")}</h1>
       <p className="sub">{tri(loc, "Livrări cu POD în ultimele 30 de zile, atribuite șoferului cursei. Egalitățile au același loc. Nu este un scor de siguranță; volumul depinde și de alocările firmei.|Deliveries with POD in the last 30 days, attributed to each trip's driver. Ties share a rank. This is not a safety score; volume also depends on company assignments.|Dostawy z POD w ostatnich 30 dniach, przypisane kierowcy kursu. Remisy mają wspólne miejsce. To nie ocena bezpieczeństwa; liczba zależy też od przydziałów firmy.")}</p>
