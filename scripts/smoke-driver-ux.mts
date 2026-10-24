@@ -1,5 +1,6 @@
 // r23: ecranele șoferului — checklist per cursă, secțiuni Acum/Următoarele/Terminate, acte lipsă, randare RO/EN/PL fără date străine.
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
@@ -60,13 +61,34 @@ const home = render(React.createElement(DriverTrips, { ...props, loc: "ro", vari
 assert.ok(home.includes("Continuă cursa") && !home.includes("Următoarele"), "Acasă: doar cursa de acum");
 assert.match(home, /href="\/driver\?v=t1&amp;trip=now#pw-cmr"/);
 
-// tura: Start/Stop mare + Privat lângă el + o frază despre ce vede patronul
-const shift = { vehicleId: "t1", vehicleName: "BH 21 QRT", hello: "Salut", labels: { "drv.start": "Pornește tura", "drv.stop": "Termină tura", "priv.resume": "Reiau tura" }, lastFill: "—", loc: "ro" as const, serverNow: Date.now(), hasWork: true };
-const off = render(React.createElement(DriverApp, shift));
-assert.match(off, /class="drv-go"/); assert.match(off, /class="drv-priv"[^>]*disabled=""/); assert.ok(off.includes("În afara turei nu se trimite nicio poziție."));
-const on = render(React.createElement(DriverApp, { ...shift, initial: { start: new Date().toISOString(), priv: false } }));
-assert.match(on, /class="drv-go stop"/); assert.ok(on.includes("Patronul vede camionul pe hartă"));
-assert.ok(!/class="drv-priv"[^>]*disabled/.test(on), "Privat activ într-o atingere în tură");
-const priv = render(React.createElement(DriverApp, { ...shift, initial: { start: new Date().toISOString(), priv: true } }));
-assert.match(priv, /drv-priv on/); assert.ok(priv.includes("Reiau tura") && priv.includes("fără poziție"));
-console.log("PASS driver UX: checklist states, Acum/Următoarele/Terminate (30 zile), acte lipsă cu acțiune foto, RO/EN/PL, Start/Stop + Privat");
+// tura (r24): Start/Stop + Privat într-o bară fixă deasupra meniului de jos, nu în card (fără scroll)
+const shift = { vehicleId: "t1", vehicleName: "BH 21 QRT", hello: "Salut", labels: { "drv.start": "Pornește tura", "drv.stop": "Termină tura", "drv.checkNeeded": "Bifează verificarea" }, lastFill: "—", loc: "ro" as const, serverNow: Date.now(), hasWork: true };
+const bar = (html: string) => html.match(/<div class="dsb s-(\w+)"[\s\S]*?<\/button><\/div>/)?.[0] ?? "";
+const off = render(React.createElement(DriverApp, shift)), offBar = bar(off);
+assert.ok(offBar.startsWith('<div class="dsb s-off"'), "Acasă: bara de tură există");
+assert.match(offBar, /class="dsb-go"/); assert.ok(offBar.includes("Pornește tura") && offBar.includes("Verificare 0/4"), "Start + progresul verificării");
+assert.match(offBar, /class="dsb-priv"[^>]*disabled=""/); assert.match(offBar, /aria-pressed="false"/);
+assert.ok(!/<section[^>]*drv-shift[\s\S]*?<\/section>/.exec(off)![0].includes("<button"), "cardul de tură nu mai dublează butoanele");
+assert.ok(off.includes('id="drv-check"') && off.includes("În afara turei nu se trimite nicio poziție."));
+const t0 = new Date(Date.now() - (2 * 60 + 14) * 60000 - 5000).toISOString();
+const on = render(React.createElement(DriverApp, { ...shift, initial: { start: t0, priv: false } })), onBar = bar(on);
+assert.match(onBar, /class="dsb-go stop"/); assert.ok(onBar.includes("Termină tura") && onBar.includes("În tură 2h 14m"), onBar);
+assert.ok(!/class="dsb-priv"[^>]*disabled/.test(onBar), "Privat activ într-o atingere în tură"); assert.ok(on.includes("Patronul vede camionul pe hartă"));
+const priv = render(React.createElement(DriverApp, { ...shift, initial: { start: t0, priv: true } })), privBar = bar(priv);
+assert.match(privBar, /class="dsb s-priv"/); assert.match(privBar, /dsb-priv on/); assert.match(privBar, /aria-pressed="true"/); assert.ok(privBar.includes("Privat: pornit") && privBar.includes("fără poziție"));
+// celelalte taburi: aceeași bară, pornirea trece prin verificarea de pe Acasă
+const { ShiftBar } = await import("../src/components/DriverShiftBar");
+for (const [loc, start, chk] of [["en", "Start shift", "On shift 2h 14m"], ["pl", "Zacznij zmianę", "Na zmianie 2h 14m"]] as const) {
+  const h = render(React.createElement(ShiftBar, { state: "on", start: t0, now: Date.now(), loc, startLabel: start, stopLabel: "x", offSub: "", onGo() {}, onPriv() {} }));
+  assert.ok(h.includes(chk), `${loc}: ${h}`);
+}
+const { RemoteShiftBar } = await import("../src/components/DriverShiftBar");
+const rl = { start: "Pornește tura", stop: "Termină tura", endQ: "?", endTxt: "", endYes: "Da", endNo: "Nu" };
+const rOff = render(React.createElement(RemoteShiftBar, { vehicleId: "t1", initial: null, serverNow: Date.now(), loc: "ro", labels: rl }));
+assert.ok(rOff.includes("Întâi verificarea") && /class="dsb-priv"[^>]*disabled=""/.test(rOff), rOff);
+const rPriv = render(React.createElement(RemoteShiftBar, { vehicleId: "t1", initial: { start: t0, priv: true }, serverNow: Date.now(), loc: "ro", labels: rl }));
+assert.ok(rPriv.includes("dsb s-priv") && rPriv.includes("Termină tura"));
+const remote = await readFile("src/components/DriverShiftBar.tsx", "utf8");
+assert.ok(remote.includes('"/driver?check=1"') && remote.includes("setAsk(true)"), "Start → verificarea pe Acasă, Stop → confirmare");
+for (const p of ["src/app/driver/trips/(list)/page.tsx", "src/app/driver/docs/page.tsx", "src/app/driver/profile/page.tsx", "src/app/driver/trips/[id]/page.tsx"]) assert.ok((await readFile(p, "utf8")).includes("<DriverShiftDock />"), `bara de tură pe ${p}`);
+console.log("PASS driver UX: checklist states, Acum/Următoarele/Terminate (30 zile), acte lipsă cu acțiune foto, RO/EN/PL, bara fixă Start/Stop + Privat pe toate taburile");

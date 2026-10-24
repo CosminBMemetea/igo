@@ -88,7 +88,7 @@ export function DriverTracking({ enabled, scope, loc, children }: { enabled: boo
     {enabled && active && speedWarn ? <div className="spd-banner" role="alert" aria-live="assertive">
       <span>{tri(loc, "Depășești limita setată de firmă|You are over the company's set limit|Przekraczasz limit ustawiony przez firmę")} ({speedWarn.limit} km/h)</span><b>{speedWarn.kmh}</b>
     </div> : null}
-    {enabled && active && path !== "/driver" ? <div className="driver-tracking-banner" role="status">
+    {enabled && active && !/^\/driver(?:\/|$)/.test(path) ? <div className="driver-tracking-banner" role="status">
       <span>{status.gps === "ok" ? tri(loc, "GPS trimis · tură activă|GPS sent · on shift|GPS wysłany · aktywna zmiana") : tri(loc, "Tură activă · GPS neconfirmat|On shift · GPS unconfirmed|Aktywna zmiana · GPS niepotwierdzony")}</span>
       <Link href="/driver" className="btn sec sm">{tri(loc, "Tură și confidențialitate|Shift & privacy|Zmiana i prywatność")}</Link>
     </div> : null}

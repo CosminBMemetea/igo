@@ -9,12 +9,15 @@ import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared
 const render = (node: React.ReactNode) => renderToStaticMarkup(React.createElement(AppRouterContext.Provider, {value: {refresh(){},push(){},replace(){},back(){},forward(){},prefetch(){}} as any}, node));
 const shiftProps = {vehicleId:"truck",vehicleName:"BH QA",hello:"Salut",labels:{"drv.start":"Pornește tura","drv.stop":"Termină tura"},lastFill:"—",loc:"ro" as const,serverNow:Date.now()};
 const noWork = render(React.createElement(DriverApp, {...shiftProps,hasWork:false}));
-assert.equal(noWork.includes("Pornește tura"),false); assert.equal(noWork.includes("Lucrez fără cursă alocată"),true);
-assert.equal(render(React.createElement(DriverApp, {...shiftProps,hasWork:true})).includes("Pornește tura"),true);
+// r24: butonul stă mereu în bara fixă, dar fără cursă/telefon neverificat e blocat (aria-disabled) și explică motivul
+const blockedGo = /class="dsb-go blocked"[^>]*aria-disabled="true"/;
+assert.match(noWork, blockedGo); assert.equal(noWork.includes("Nicio cursă de pornit"),true); assert.equal(noWork.includes("Lucrez fără cursă alocată"),true);
+const ready = render(React.createElement(DriverApp, {...shiftProps,hasWork:true}));
+assert.equal(ready.includes("Pornește tura"),true); assert.doesNotMatch(ready, blockedGo);
 const restoring = render(React.createElement(DriverApp, {...shiftProps,hasWork:true,queueScope:"qa-driver"}));
-assert.equal(restoring.includes("Pornește tura"),false);assert.equal(restoring.includes("Verificăm operațiunile"),true);
+assert.match(restoring, blockedGo);assert.equal(restoring.includes("Verificăm operațiunile"),true);
 const active = render(React.createElement(DriverApp, {...shiftProps,hasWork:false,initial:{start:new Date().toISOString(),priv:false}}));
-assert.equal(active.includes("Pornește tura"),false);assert.equal(active.includes("Termină tura"),true);
+assert.equal(active.includes("Pornește tura"),false);assert.equal(active.includes("Termină tura"),true);assert.doesNotMatch(active, blockedGo);
 const trip = {id:"trip",truckId:"truck",title:"Oradea → Viena",date:"2026-10-19",client:"QA",planned:true,loadedAt:"2026-10-19T08:00:00Z"};
 const tripsProps = {today:"2026-10-19",truckId:"truck",trucks:[{id:"truck",name:"BH QA"}],loc:"ro" as const};
 for (const trips of [[], [{...trip,truckId:"other"}], [{...trip,deliveredAt:"2026-10-19T09:00:00Z"}], [{...trip,cancelledAt:"2026-10-19T09:00:00Z"}], [{...trip,loadedAt:null,date:"2026-10-20"}]]) {

@@ -1,3 +1,4 @@
+import { DriverShiftDock } from "@/components/DriverShiftDock";
 import Link from "next/link";
 import { ComplianceCard } from "@/components/ComplianceDashboard";
 import { ComplianceTasks } from "@/components/ComplianceTasks";
@@ -38,5 +39,5 @@ export default async function DriverDocsPage(props: { searchParams: Promise<{ v?
     </section>
     {dv.tasks.length ? <ComplianceTasks tasks={dv.tasks} vehicles={dv.vehicles} today={dv.today} loc={loc} driver /> : null}
     {dv.vehicle ? <section id="docs" className="fade d2"><ComplianceCard vehicle={dv.vehicle} docs={dv.vehicleDocs} today={dv.today} loc={loc} driver demo={tn.demo} /></section> : null}
-  </main></Gate>;
+  <DriverShiftDock /></main></Gate>;
 }

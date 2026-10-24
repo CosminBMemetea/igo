@@ -1,3 +1,4 @@
+import { DriverShiftDock } from "@/components/DriverShiftDock";
 import { DriverProgress } from "@/components/DriverProgress";
 import { DemoSwitcher } from "@/components/DemoSwitcher";
 import { Gate } from "@/components/Gate";
@@ -30,5 +31,5 @@ export default async function DriverProfilePage(props: { searchParams: Promise<{
     <p className="sub drv-consent">{t(loc, "drv.consent")}</p>
     {tn.demo && tn.role === "driver" ? <DemoSwitcher loc={loc} driver /> : null}
     {!tn.demo ? <form action="/api/auth/logout" method="post" className="dprof-out"><button className="btn sec start" type="submit">{tri(loc, "Ieși din cont|Sign out|Wyloguj")}</button></form> : null}
-  </main></Gate>;
+  <DriverShiftDock /></main></Gate>;
 }

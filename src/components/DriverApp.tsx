@@ -12,6 +12,7 @@ import { shrinkImage } from "@/lib/shrink";
 import { sniffImage, MAX_PHOTO_IN } from "@/lib/imgsniff";
 import { fmtNum, type Locale } from "@/lib/i18n";
 import { Icon } from "./icons";
+import { ShiftBar, shiftControlError } from "./DriverShiftBar";
 
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 /** Poză aproape uniformă (albă/neagră/goală) → nu e bon; nu o trimitem la AI. */
@@ -80,16 +81,15 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   const pauseWork = (t = Date.now()) => { const w = work.current; if (w.since !== null) { w.ms += Math.max(0, t - w.since); w.since = null; } };
   useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
 
-  const shiftBusy = useRef(false), shiftStart = useRef(initial?.start);
+  const shiftBusy = useRef(false), shiftStart = useRef(initial?.start), [startAt, setStartAt] = useState(initial?.start), [barMsg, setBarMsg] = useState("");
+  useEffect(() => { if (!barMsg) return; const i = setTimeout(() => setBarMsg(""), 6000); return () => clearTimeout(i); }, [barMsg]);
   const [askEnd, setAskEnd] = useState(false);
   const { gps, lastAck, held } = useDriverTracking();
-  const controlError = (status: number) => [401, 403, 409].includes(status)
-    ? tri(loc, "Tura, camionul sau sesiunea s-a schimbat. Reîncarcă pagina și verifică starea înainte să reîncerci.|The shift, truck or session changed. Reload and check the current state before retrying.|Zmiana, pojazd lub sesja uległy zmianie. Odśwież i sprawdź stan przed ponowieniem.")
-    : tri(loc, "Operația nu este confirmată. Verifică internetul și reîncearcă.|Action not confirmed. Check your connection and retry.|Operacja niepotwierdzona. Sprawdź połączenie i spróbuj ponownie.");
+  const controlError = (status: number) => shiftControlError(loc, status);
   // Ignore snapshots racing a local action briefly; do not compare phone and server clocks.
   useEffect(() => {
     if (shiftBusy.current || Date.now() - mutationAt.current < 5000) return;
-    shiftStart.current = initial?.start;
+    shiftStart.current = initial?.start; setStartAt(initial?.start);
     setOn(!!initial); setPriv(!!initial?.priv);
     setKm(today?.km ?? 0);
     work.current = { ms: (today?.hours ?? 0) * 3600000, since: initial && !initial.priv ? serverNow : null };
@@ -99,36 +99,55 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   const shiftTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (!askEnd) return; const dialog = endDialog.current, trigger = shiftTrigger.current; dialog?.showModal(); document.documentElement.classList.add("msheet-open"); return () => { dialog?.close(); document.documentElement.classList.remove("msheet-open"); trigger?.focus(); }; }, [askEnd]);
   // „Termină tura”: întâi confirmare (foaie proprie), abia apoi oprim tura
+  const [needCheck, setNeedCheck] = useState(false);
+  const checkBox = useRef<HTMLDivElement>(null), shiftCard = useRef<HTMLElement>(null);
+  // bara de jos: dacă lipsește verificarea de dimineață, o aducem în ecran și o evidențiem
+  function showCheck() {
+    setNeedCheck(true);
+    const el = checkBox.current ?? shiftCard.current;
+    el?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    (checkBox.current?.querySelector('[aria-checked="false"]') as HTMLElement | null)?.focus({ preventScroll: true });
+  }
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("check")) return;
+    const u = new URL(window.location.href); u.searchParams.delete("check"); window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
+    if (!on) setTimeout(showCheck, 150);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  function onGo() {
+    if (on || preview) { toggle(); return; }
+    if (!queueReady || !hasWork && !withoutTrip) { shiftCard.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setNeedCheck(true); return; }
+    toggle();
+  }
   function toggle() { if (on && !preview) { setAskEnd(true); return; } void doToggle(); }
   async function doToggle() {
     if (!on && (!queueReady || !hasWork && !withoutTrip)) return;
-    if (!on && checks.length < 3) { setMsg({ t: L["drv.checkNeeded"], k: "err" }); return; }
-    if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
+    if (!on && checks.length < 3) { showCheck(); return; }
+    if (preview) { setBarMsg(L["drv.previewNo"]); return; }
     if (shiftBusy.current) return;
     shiftBusy.current = true;
     const next = !on;
     if (!next) window.dispatchEvent(new Event("qf-tracking-pause"));
-    const rs = await postDriverControl("/api/driver/shift", { vehicleId, action: next ? "start" : "stop", checklist: checks, ...(!next && shiftStart.current ? { expectedShiftStart: shiftStart.current } : {}) });
+    const rs = await postDriverControl("/api/driver/shift", { vehicleId, action: next ? "start" : "stop", checklist: checks, ...(!next && !demo && shiftStart.current ? { expectedShiftStart: shiftStart.current } : {}) });
     shiftBusy.current = false;
-    if (!rs.ok) { if (next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg({ t: controlError(rs.status), k: "err" }); return; }
+    if (!rs.ok) { if (next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setBarMsg(controlError(rs.status)); return; }
     mutationAt.current = Date.now();
-    shiftStart.current = next ? rs.data?.shift?.start : undefined;
+    shiftStart.current = next ? rs.data?.shift?.start : undefined; setStartAt(shiftStart.current);
     setPriv(false);
     if (!next) setChecks([]); window.dispatchEvent(new Event("qf-tracking-resume"));
-    setOn(next); setMsg({ t: "", k: "" }); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
+    setOn(next); setMsg({ t: "", k: "" }); setNeedCheck(false); window.dispatchEvent(new CustomEvent("qf-shift", { detail: next }));
     if (next) { work.current.since = Date.now(); }
     else pauseWork();
     window.dispatchEvent(new Event("qf-refresh"));
   }
   async function togglePriv() {
-    if (preview) { setMsg({ t: L["drv.previewNo"], k: "warn" }); return; }
+    if (preview) { setBarMsg(L["drv.previewNo"]); return; }
     if (shiftBusy.current) return;
     shiftBusy.current = true;
     const next = !priv;
     if (next) window.dispatchEvent(new Event("qf-tracking-pause"));
-    const r = await postDriverControl("/api/driver/private", { vehicleId, on: next, ...(shiftStart.current ? { expectedShiftStart: shiftStart.current } : {}) });
+    const r = await postDriverControl("/api/driver/private", { vehicleId, on: next, ...(!demo && shiftStart.current ? { expectedShiftStart: shiftStart.current } : {}) });
     shiftBusy.current = false;
-    if (!r.ok) { if (!next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg({ t: controlError(r.status), k: "err" }); return; }
+    if (!r.ok) { if (!next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setBarMsg(controlError(r.status)); return; }
     mutationAt.current = Date.now();
     if (next) pauseWork(); else if (on) work.current.since = Date.now();
     window.dispatchEvent(new Event("qf-tracking-resume"));
@@ -226,26 +245,26 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
         </div>
       ) : null}
       {held && !demo ? <div className="msg warn driver-gps-hold" role="status"><span>{tri(loc, "GPS rămâne oprit pe acest dispozitiv. Reîncearcă operația neconfirmată sau reia GPS explicit.|GPS remains stopped on this device. Retry the unconfirmed action or explicitly resume GPS.|GPS pozostaje wyłączony. Ponów niepotwierdzoną operację lub wznów GPS.")}</span><button type="button" className="btn sec sm" onClick={() => window.dispatchEvent(new Event("qf-tracking-resume"))}>{tri(loc, "Reia GPS|Resume GPS|Wznów GPS")}</button></div> : null}
-      <section className={`drv-shift fade d1 s-${state}`} aria-label={tri(loc, "Tura|Shift|Zmiana")}>
+      <section ref={shiftCard} id="drv-shift" className={`drv-shift fade d1 s-${state}${needCheck ? " need" : ""}`} aria-label={tri(loc, "Tura|Shift|Zmiana")}>
         <div className="drv-shift-stats">
           <div><b suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</b><span>{L["drv.kmToday"]}</span></div>
           <div><b suppressHydrationWarning>{fmtNum(loc, hours, 1)}<small>h</small></b><span>{L["drv.hoursToday"]}</span></div>
         </div>
         {!on && queueReady && (hasWork || withoutTrip) ? (
-          <div className="drv-check">
-            <div className="eyebrow">{L["drv.check"]}</div>
+          <div className="drv-check" id="drv-check" ref={checkBox}>
+            <div className="eyebrow">{L["drv.check"]} <span className="drv-check-n">{Math.min(checks.length, CHECKS.length)}/{CHECKS.length}</span></div>
+            {needCheck && checks.length < 3 ? <p className="msg err drv-check-need" role="alert">{L["drv.checkNeeded"]}</p> : null}
             {CHECKS.map((c) => <div key={c} className="chkrow" role="checkbox" aria-checked={checks.includes(c)} tabIndex={0} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.currentTarget.click(); } }} onClick={() => setChecks((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))}><span>{L[c]}</span><span className={`chkbox${checks.includes(c) ? " on" : ""}`}>{checks.includes(c) ? <Icon name="check" /> : null}</span></div>)}
           </div>
         ) : null}
         {!on && !queueReady && <p role="status" className="sub">{tri(loc, queueError ? "Operațiunile locale nu pot fi citite. Reîncarcă pagina înainte de a începe tura.|Local actions could not be read. Reload before starting the shift.|Nie można odczytać operacji lokalnych. Odśwież stronę przed rozpoczęciem zmiany." : "Verificăm operațiunile salvate pe telefon…|Checking actions saved on this device…|Sprawdzanie operacji zapisanych na urządzeniu…")}</p>}
         {!on && queueReady && !hasWork && !withoutTrip ? <><p className="sub">{tri(loc, "Nicio cursă de pornit pe acest camion.|No trip to start on this truck.|Brak kursu do rozpoczęcia tym pojazdem.")}</p><button className="btn sec start" onClick={() => setWithoutTrip(true)}>{tri(loc, "Lucrez fără cursă alocată|Work without an assigned trip|Praca bez przypisanego kursu")}</button></> : null}
-        <div className="drv-shift-row">
-          {on || queueReady && (hasWork || withoutTrip) ? <button ref={shiftTrigger} className={`drv-go${on ? " stop" : ""}`} onClick={toggle}><Icon name={on ? "pause" : "play"} size={22} /><span>{on ? L["drv.stop"] : L["drv.start"]}</span></button> : null}
-          <button className={`drv-priv${priv ? " on" : ""}`} onClick={togglePriv} disabled={!on} aria-pressed={priv} title={on ? L["priv.toggle"] : tri(loc, "Privat merge doar în timpul turei|Private works only during a shift|Tryb prywatny działa tylko w trakcie zmiany")}><svg viewBox="0 0 24 24" aria-hidden="true">{priv ? <path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /> : <><path d="M3 12c0-2 4-7 9-7s9 5 9 7-4 7-9 7-9-5-9-7z" /><circle cx="12" cy="12" r="3" /></>}</svg><span>{priv ? L["priv.resume"] : tri(loc, "Privat|Private|Prywatnie")}</span></button>
-        </div>
         <p className="drv-owner-line">{ownerLine}</p>
         {gpsIssue ? <p className="drv-gps-line" role="status">{gps === "error" ? tri(loc, "Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : L[gps === "off" ? "priv.trackingOff" : "priv.trackingWait"]}{gps === "off" ? <small>{L["priv.trackingOffHint"]}</small> : null}</p> : null}
       </section>
+      <ShiftBar state={state} blocked={!on && (!queueReady || (!hasWork && !withoutTrip))} start={on ? startAt : null} msg={barMsg} now={now} loc={loc} startLabel={L["drv.start"]} stopLabel={L["drv.stop"]} goRef={shiftTrigger}
+        offSub={!queueReady ? tri(loc, "Se verifică telefonul…|Checking this device…|Sprawdzanie urządzenia…") : !hasWork && !withoutTrip ? tri(loc, "Nicio cursă de pornit|No trip to start|Brak kursu") : checks.length >= 3 ? tri(loc, "Verificare gata ✓|Check done ✓|Kontrola gotowa ✓") : tri(loc, `Verificare ${checks.length}/${CHECKS.length}|Check ${checks.length}/${CHECKS.length}|Kontrola ${checks.length}/${CHECKS.length}`)}
+        onGo={onGo} onPriv={() => void togglePriv()} />
       {askEnd ? <dialog ref={endDialog} className="msheet-bg any" aria-labelledby="endq" onCancel={() => setAskEnd(false)} onClick={(e) => { if (e.target === e.currentTarget) setAskEnd(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
         <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
         <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>

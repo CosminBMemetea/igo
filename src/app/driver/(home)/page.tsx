@@ -8,7 +8,8 @@ import { DemoSwitcher } from "@/components/DemoSwitcher";
 import { activeFleet } from "@/lib/econ-store";
 import { liveFleet, tripViews } from "@/lib/query";
 import { DEMO_NOW_MIN } from "@/lib/fleet/data";
-import { demoLastFill, demoReactions, demoShift } from "@/lib/demo-shift";
+import { demoLastFill, demoReactions } from "@/lib/demo-shift";
+import { currentShift } from "@/lib/driver-shift";
 import { FT } from "@/lib/feed-i18n";
 import { EmptyState } from "@/components/EmptyState";
 import { getPrefs } from "@/lib/prefs";
@@ -56,11 +57,8 @@ export default async function Driver(props: { searchParams: Promise<{ v?: string
   const stage = selected ? driverTripStage(selected, today) : null;
   const heading = tri(loc, stage === "running" ? "Cursa în desfășurare · acțiuni|Current trip · actions|Bieżący kurs · działania" : stage === "upcoming" ? "Cursă viitoare · planificată|Upcoming trip · scheduled|Nadchodzący kurs · zaplanowany" : stage === "documents" || stage === "finished" ? "Cursă livrată · documente|Delivered trip · documents|Dostarczony kurs · dokumenty" : stage === "cancelled" ? "Cursă anulată|Cancelled trip|Anulowany kurs" : "De încărcat · acțiuni|Ready for loading · actions|Do załadunku · działania");
   const pw = trip ? await paperworkFor(tn, trip.id) : null;
-  const shift0 = (tn.demo ? (await demoShift(v.id)) : null) ?? (await r.shift(v.id));
-  // demo: o tură nu durează peste 12 h și nu începe în viitor (cookie de ieri / noaptea înainte de 05:30) → tură proaspătă, realistă (~2,5 h)
   const nowMs = Date.now();
-  const age = shift0 && !shift0.end ? nowMs - Date.parse(shift0.start) : 0;
-  const shift = tn.demo && shift0 && !shift0.end && (age < 0 || age > 12 * 3600e3 || Number.isNaN(age)) ? (() => { const st = new Date(nowMs - 2.5 * 3600e3).toISOString(); return { ...shift0, start: st, privateSince: shift0.privateSince ? st : null }; })() : shift0;
+  const shift = await currentShift(tn, v.id, nowMs);
   // demo: aceeași sursă ca harta live (liveFleet la minutul demo)
   const liveKm = tn.demo ? (liveFleet(vehicles, tripViews((await activeFleet(tn.demo, vehicles, await r.trips())).trips, vehicles), await r.parcels(), await r.zones(), DEMO_NOW_MIN).find((x) => x.id === v.id)?.today ?? 0) : null;
   // firmă reală: km din pozițiile GPS filtrate de azi, ore = tură ∩ azi (Europe/Bucharest) minus pauzele private

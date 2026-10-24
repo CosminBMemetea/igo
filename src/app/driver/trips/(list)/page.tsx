@@ -1,3 +1,4 @@
+import { DriverShiftDock } from "@/components/DriverShiftDock";
 import { DriverTrips } from "@/components/DriverTrips";
 import { DriverOutbox } from "@/components/DriverOutbox";
 import { Gate } from "@/components/Gate";
@@ -17,5 +18,5 @@ export default async function DriverTripsPage(props: { searchParams: Promise<{ v
     {queueScope ? <DriverOutbox scope={queueScope} loc={loc} /> : null}
     <h1 className="dpage-h fade">{tri(loc, "Cursele mele|My trips|Moje kursy")}</h1>
     <DriverTrips queueScope={queueScope} trips={dv.trips} docs={dv.docs} today={dv.today} truckId={dv.vehicle?.id ?? dv.me?.truckId} trucks={dv.allVehicles.map(x => ({ id: x.id, name: x.name }))} loc={loc} embedded={tn.demo || tn.role !== "driver"} demo={tn.demo} />
-  </main></Gate>;
+  <DriverShiftDock /></main></Gate>;
 }
