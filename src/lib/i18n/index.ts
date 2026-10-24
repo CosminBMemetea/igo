@@ -1,6 +1,7 @@
 import { ro, type MsgKey } from "./ro";
 import { en } from "./en";
 import { pl } from "./pl";
+import { pluralForm } from "./plural";
 
 export type Locale = "ro" | "en" | "pl";
 export const LOCALES: Locale[] = ["ro", "en", "pl"];
@@ -9,10 +10,20 @@ export const CATALOGS: Record<Locale, Record<MsgKey, string>> = { ro, en, pl };
 export type { MsgKey };
 
 export type Vars = Record<string, string | number>;
+/** Înlocuiește {k} cu valoarea și {k:unu/câțiva/mulți} cu „N formă” (plural CLDR pe limba dată). */
+export function fill(loc: Locale, s: string, vars: Vars): string {
+  return s.replace(/\{(\w+)(?::([^}]+))?\}/g, (m, k, forms?: string) => {
+    if (!(k in vars)) return m;
+    const v = vars[k];
+    return forms ? `${typeof v === "number" ? fmtNum(loc, v) : v} ${pluralForm(loc, typeof v === "number" ? v : Number(String(v).replace(/[^\d-]/g, "")), forms.replace(/\//g, "|"))}` : String(v);
+  });
+}
 export function t(loc: Locale, key: MsgKey, vars?: Vars): string {
   const s = CATALOGS[loc][key] ?? CATALOGS.ro[key] ?? key;
-  return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
+  return vars ? fill(loc, s, vars) : s;
 }
+/** „N formă” dintr-un șir inline „ro1/ro2/ro3|en1/en2|pl1/pl2/pl3” (aceeași ordine ca tri). */
+export const countTri = (loc: Locale, n: number, s: string) => `${fmtNum(loc, n)} ${pluralForm(loc, n, tri(loc, s).replace(/\//g, "|"))}`;
 export const isLocale = (x: unknown): x is Locale => x === "ro" || x === "en" || x === "pl";
 export function pickLocale(acceptLanguage: string | null | undefined): Locale {
   for (const part of (acceptLanguage ?? "").split(",")) {
@@ -23,10 +34,7 @@ export function pickLocale(acceptLanguage: string | null | undefined): Locale {
 }
 /** Forma de plural: cheia are „unu|câțiva|mulți” (ro: 1 cursă, 2 curse, 20 de curse). */
 export function plural(loc: Locale, n: number, key: MsgKey): string {
-  const [one, few, many = few] = t(loc, key).split("|");
-  const a = Math.abs(n), m100 = a % 100, m10 = a % 10;
-  const f = a === 1 ? one : loc === "ro" ? (a === 0 || (m100 >= 1 && m100 <= 19) ? few : many) : loc === "pl" ? (m10 >= 2 && m10 <= 4 && !(m100 >= 12 && m100 <= 14) ? few : many) : few;
-  return `${fmtNumP(loc, n)} ${f}`;
+  return `${fmtNumP(loc, n)} ${pluralForm(loc, n, t(loc, key))}`;
 }
 const fmtNumP = (loc: Locale, n: number) => fmtNum(loc, n);
 /** Text inline „ro|en|pl” (folosit pentru matricea de funcții din features.ts). */

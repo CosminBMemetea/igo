@@ -127,7 +127,8 @@ try {
   const j = await D.go("/api/auth/join", { t: decodeURIComponent(link!), phone: "0744 123 456", pin: "493827", pin2: "493827" });
   ok("invitație acceptată → /join/ready", j.status === 303 && j.loc.endsWith("/join/ready"), `${j.status} ${j.loc}`);
   ok("QR generat local pentru invitație", s3.text.includes("data:image/png;base64,"));
-  ok("activare → deschidere aplicație fără PIN în link", (await D.go("/join/ready")).text.includes("qfleet-driver-test://login?phone="));
+  { const ready = (await D.go("/join/ready")).text; // r26: șoferii reali instalează aplicația web (PWA), nu aplicația de test
+    ok("activare → pași de instalare PWA, fără scheme native/aplicație de test", ready.includes("Adaugă pe ecranul principal") && ready.includes("Instalează aplicația") && !ready.includes("qfleet-driver") && !ready.includes("de test"), ready.slice(0, 200)); }
   const drv = (await db.query("select * from users where firm_id=$1 and role='driver'", [firmA.id])).rows;
   ok("șofer în DB, telefon normalizat, invitație consumată", drv.length === 1 && drv[0].phone === "+40744123456" && (await db.query("select used_at from invites where firm_id=$1", [firmA.id])).rows[0].used_at != null);
   ok("pagina de șofer vede camionul firmei", (await D.go("/driver")).text.includes("BH 21 QRT"));

@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
-import { tri, type Locale } from "@/lib/i18n";
+import { fill, tri, type Locale } from "@/lib/i18n";
 import { enqueue, flushOutbox, outboxItems } from "@/lib/outbox";
 import { useEffect, useRef, useState } from "react";
 import type { PaperFile } from "@/lib/paperwork";
@@ -129,7 +129,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
         setUploaded(files => mergePaperFiles(files, result.added));
         if (kind === "pod") notify("pod", new Date().toISOString()); else if (!demo) router.refresh();
       }
-      const parts = [result.added.length === 1 ? tri(loc as Locale, "1 fișier încărcat|1 file uploaded|1 plik przesłany") : L["pw.uploaded"].replace("{n}", String(result.added.length))];
+      const parts = [result.added.length === 1 ? tri(loc as Locale, "1 fișier încărcat|1 file uploaded|1 plik przesłany") : fill(loc as Locale, L["pw.uploaded"], { n: result.added.length })];
       if (result.failed.length) parts.push(tri(loc as Locale, "Fișiere netrimise|Files not sent|Niewysłane pliki") + `: ${result.failed.map(f => `${f.name} (${f.reason})`).join("; ")}`);
       if (result.skipped) parts.push(tri(loc as Locale, "Maximum 8 fotografii odată. Selectează din nou restul|Maximum 8 photos at a time. Select the remaining photos again|Maksymalnie 8 zdjęć naraz. Wybierz pozostałe ponownie") + ` (${result.skipped}).`);
       setMsg({ t: parts.join(" · "), k: result.failed.length || result.skipped ? "warn" : "ok" });

@@ -6,6 +6,9 @@ import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
 import { localNow } from "@/lib/validate";
 import { reportOperationFailure } from "@/lib/operation-error";
+import { checkLimits, limitResponse } from "@/lib/rate-limit";
+/** Server-side backstop for the client cap (1 ping / 5 s on web, ~30 s native): a looping or old cached client gets 429, not a DB write. */
+const PING_LIMIT = { limit: 30, windowS: 60 };
 export const dynamic = "force-dynamic";
 /** Poziția din telefonul șoferului (doar în tură). Firmă reală: se salvează (folosită de regula „departe de camion”). */
 export async function POST(req: Request) {
@@ -20,9 +23,16 @@ export async function POST(req: Request) {
   if (tn.role !== "driver") return NextResponse.json({ error: "role", role: tn.role }, { status: 409 });
   if (!(await driverTruck(store(), tn, b.vehicleId as string))) return NextResponse.json({ error: "assignment" }, { status: 403 });
   if (!tn.demo && tn.firm) {
+    const limited = await checkLimits([{ key: `ping:${tn.uid}`, ...PING_LIMIT }]);
+    if (limited) return limitResponse(limited);
     try {
       const accepted = await store().addDriverPosition(tn.firm.id, tn.uid!, { truckId: b.vehicleId as string, at: localNow(new Date(capturedAt)), capturedAt: new Date(capturedAt).toISOString(), accuracy: typeof b.accuracy === "number" ? b.accuracy : null, lat: b.lat as number, lng: b.lng as number });
-      if (!accepted) return NextResponse.json({ error: "tracking-inactive" }, { status: 409 });
+      if (!accepted) {
+        // A fix older than the active shift is a client-side stale reading, not a stopped shift: 422 so clients drop it instead of restarting tracking.
+        const sh = await store().shift(tn.firm.id, b.vehicleId as string);
+        if (sh && !sh.end && !sh.privateSince && Date.parse(capturedAt) < Date.parse(sh.start)) return NextResponse.json({ error: "before-shift" }, { status: 422 });
+        return NextResponse.json({ error: "tracking-inactive" }, { status: 409 });
+      }
       // Speeding is derived data: a failure here must never reject the position itself.
       try {
         const r = await recordSpeed(store(), tn.firm.id, tn.uid!, b.vehicleId as string, { at: new Date(capturedAt).toISOString(), lat: b.lat as number, lng: b.lng as number, accuracy: typeof b.accuracy === "number" ? b.accuracy : null, speedMs: typeof b.speed === "number" && b.speed >= 0 ? b.speed : null });

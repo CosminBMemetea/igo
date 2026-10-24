@@ -18,7 +18,7 @@ function metric(loc: Locale, k: Comp, d: DriverRank): string | null {
   switch (k) {
     case "cons": return d.l100 != null ? `${t(loc, "rk.m.l100", { v: fmtNum(loc, d.l100, 1) })} · ${t(loc, "rk.m.vsBase", { v: pct(loc, d.vsBase ?? 0) })}` : null;
     case "harsh": return d.harsh != null ? t(loc, "rk.m.harsh", { v: fmtNum(loc, d.harsh, 1) }) : null;
-    case "speed": return d.speeding != null ? t(loc, "rk.m.speed", { v: fmtNum(loc, d.speeding, 1) }) : null;
+    case "speed": return d.speedPer100 != null ? t(loc, "rk.m.speed", { v: fmtNum(loc, d.speedPer100, 1) }) : null;
     case "idle": return d.idle != null ? t(loc, "rk.m.idle", { v: fmtNum(loc, d.idle, 1) }) : null;
     case "ontime": return d.onTime != null ? t(loc, "rk.m.ontime", { v: d.onTime }) : null;
     case "alerts": return t(loc, "rk.m.alerts", { n: d.alerts });

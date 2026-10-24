@@ -222,6 +222,56 @@ try {
     const running = await req(A.o, "POST", "/api/trips/delete", form({ id: A.tripId }));
     ok("cursă în desfășurare (încărcată) → e=running, păstrată", !!loaded && running.loc.includes("e=running") && (await q("select 1 from trips where id=$1", [A.tripId])).length === 1, `${loaded} ${running.loc}`);
   }
+  // ---------- 4. r26: răspunsuri corecte (nu 500 / „ok” fals) ----------
+  {
+    const J = async (j: Jar | null, path: string, body: FormData | object, accept = "application/json") => {
+      const headers: Record<string, string> = { origin: B, accept }; if (j?.cookie) headers.cookie = j.cookie;
+      let payload: BodyInit; if (body instanceof FormData) payload = body; else { payload = JSON.stringify(body); headers["content-type"] = "application/json"; }
+      const r = await fetch(B + path, { method: "POST", headers, body: payload, redirect: "manual" }); return { status: r.status, loc: r.headers.get("location") ?? "", text: await r.text() };
+    };
+    const raw = async (j: Jar, path: string, body: string, type: string) => { const r = await fetch(B + path, { method: "POST", headers: { origin: B, cookie: j.cookie, "content-type": type }, body, redirect: "manual" }); return r.status; };
+    // /api/settings/speed: JSON acceptat, corp stricat → 400 (înainte: 500)
+    const sj = await J(A.o, "/api/settings/speed", { limit: 90, over: 10, after: 30, alerts: true, trucks: { [A.truckId]: 85 } });
+    ok("r26 speed: JSON valid → 200", sj.status === 200 && JSON.parse(sj.text).ok === true, `${sj.status} ${sj.text.slice(0, 80)}`);
+    ok("r26 speed: JSON salvat", (await q("select limit_kmh from speed_settings where firm_id=$1", [A.firmId]))[0]?.limit_kmh === 90);
+    ok("r26 speed: JSON invalid (limit 500) → 400", (await J(A.o, "/api/settings/speed", { limit: 500, over: 10, after: 30 })).status === 400);
+    ok("r26 speed: JSON stricat → 400", (await raw(A.o, "/api/settings/speed", "{nu e json", "application/json")) === 400);
+    ok("r26 speed: corp text/plain → 4xx/redirect, nu 500", (await raw(A.o, "/api/settings/speed", "limit=90", "text/plain")) !== 500);
+    ok("r26 speed: camion al firmei B → 400", (await J(A.o, "/api/settings/speed", { limit: 90, over: 10, after: 30, trucks: { [Bf.truckId]: 80 } })).status === 400);
+    ok("r26 speed: șofer → 403", (await J(A.d, "/api/settings/speed", { limit: 90, over: 10, after: 30 })).status === 403);
+    // /api/docs/delete: id al altei firme → not-found, niciodată ok=1; documentul lui B rămâne
+    const bDoc = (await q("select id from documents where firm_id=$1 limit 1", [Bf.firmId]))[0]?.id as string;
+    ok("r26 docs/delete: există un document B", !!bDoc);
+    ok("r26 docs/delete: id B (JSON) → 404", (await J(A.o, "/api/docs/delete", form({ id: bDoc }))).status === 404);
+    const dPlain = await req(A.o, "POST", "/api/docs/delete", form({ id: bDoc }));
+    ok("r26 docs/delete: id B (formular) → e=missing, nu ok=1", dPlain.status === 303 && dPlain.loc.includes("e=missing") && !dPlain.loc.includes("ok=1"), `${dPlain.status} ${dPlain.loc}`);
+    ok("r26 docs/delete: documentul B neatins", (await q("select 1 from documents where id=$1", [bDoc])).length === 1);
+    const aDoc = (await q("select id from documents where firm_id=$1 and scope='vehicle' limit 1", [A.firmId]))[0]?.id as string;
+    const dOwn = await req(A.o, "POST", "/api/docs/delete", form({ id: aDoc }));
+    ok("r26 docs/delete: propriul document → ok=1, șters", dOwn.loc.includes("ok=1") && (await q("select 1 from documents where id=$1", [aDoc])).length === 0, dOwn.loc);
+    // /api/files/delete apelat de șofer → 403 curat (și pe formular, și pe JSON), fișierul rămâne
+    const aFile = (await q("select id, trip_id from files where firm_id=$1 and trip_id is not null limit 1", [A.firmId]))[0];
+    const fd1 = await req(A.d, "POST", "/api/files/delete", form({ id: aFile.id, tripId: aFile.trip_id }));
+    ok("r26 files/delete: șofer (formular) → 403", fd1.status === 403 && fd1.text.includes("forbidden"), `${fd1.status} ${fd1.loc}`);
+    ok("r26 files/delete: șofer (JSON) → 403", (await J(A.d, "/api/files/delete", form({ id: aFile.id, tripId: aFile.trip_id }))).status === 403);
+    ok("r26 files/delete: fișierul rămâne", (await q("select 1 from files where id=$1", [aFile.id])).length === 1);
+    ok("r26 files: șoferul încă își vede fișierul", (await req(A.d, "GET", `/api/files/${aFile.id}`)).status === 200);
+    // /apple-touch-icon.png public (iOS îl cere fără sesiune)
+    for (const p of ["/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/icons/apple-touch-icon.png"]) {
+      const r = await req(null, "GET", p); ok(`r26 ${p}: public 200 image/png`, r.status === 200 && r.type.startsWith("image/png"), `${r.status} ${r.loc} ${r.type}`);
+    }
+    // /api/driver/ping: fix mai vechi decât tura → 422 (clientul îl aruncă, nu repornește); rafală → 429
+    await req(A.d, "POST", "/api/driver/shift", { vehicleId: A.truckId, action: "stop" });
+    const st = await req(A.d, "POST", "/api/driver/shift", { vehicleId: A.truckId, action: "start", checklist: ["chk.tyres", "chk.fluids", "chk.docs", "chk.damage"] });
+    ok("r26 ping: tura repornită", st.status === 200, `${st.status} ${st.text.slice(0, 80)}`);
+    const pre = await req(A.d, "POST", "/api/driver/ping", { vehicleId: A.truckId, lat: 47.05, lng: 21.93, accuracy: 10, capturedAt: new Date(Date.now() - 4000).toISOString() });
+    ok("r26 ping: fix dinaintea turei → 422 before-shift", pre.status === 422 && pre.text.includes("before-shift"), `${pre.status} ${pre.text.slice(0, 80)}`);
+    const codes: number[] = [];
+    for (let i = 0; i < 36; i++) codes.push((await req(A.d, "POST", "/api/driver/ping", { vehicleId: A.truckId, lat: 47.05 + i / 1e4, lng: 21.93, accuracy: 10, capturedAt: new Date().toISOString() })).status);
+    ok("r26 ping: primul fix proaspăt → 2xx", codes[0] >= 200 && codes[0] < 300, codes.slice(0, 5).join(","));
+    ok("r26 ping: rafală → 429 (plafon server)", codes.includes(429) && codes.filter(c => c >= 200 && c < 300).length <= 31, codes.join(","));
+    ok("r26 ping: niciun 500 în rafală", !codes.includes(500), codes.join(","));
+  }
   for (const r of routes.filter(isFirm)) for (const m of r.methods) ok(`acoperire: ${r.path} ${m}`, covered.has(`${r.path} ${m}`));
   ok("acoperire: rute de firmă găsite", routes.filter(isFirm).length >= 60, String(routes.filter(isFirm).length));
   console.log(`smoke:isolation: ${routes.length} rute (${routes.filter(isFirm).length} de firmă), ${calls} cereri, ${bIds.length} id-uri B`);

@@ -12,7 +12,7 @@ import type { Store } from "../src/lib/store/types";
 import { saveFile, validateFileContent } from "../src/lib/files";
 import { operationCode } from "../src/lib/operation-error";
 import { SHIFT_CHECKS, validShiftChecklist } from "../src/lib/shift-checklist";
-import { startWebTracking } from "../src/lib/web-tracking";
+import { startWebTracking, newPingGate, PING_MIN_INTERVAL_MS, pingBackoffMs } from "../src/lib/web-tracking";
 import { summarizeTrip } from "../src/lib/paperwork";
 
 for (const invalid of [null, [], ["chk.tyres"], ["chk.tyres", "chk.tyres", "chk.docs"], ["chk.tyres", "chk.docs", "unknown"]]) assert.equal(validShiftChecklist(invalid), false);
@@ -45,6 +45,36 @@ stop(); assert.equal((signal as unknown as AbortSignal).aborted, true);
 resolveFetch(new Response(null, { status: 204 })); await tick(); callback(position());
 assert.equal(cleared, 1); assert.equal(calls, 1); assert.equal(reports.includes("ok"), false);
 console.log("PASS GPS stale fix, accuracy, in-flight guard, cleanup, abort and late response isolation");
+
+{ // r26 regression: cached pre-shift fix → 409 → restart → same fix produced 70-110 req/s.
+  let clock = Date.parse("2026-10-24T18:00:00Z"); const shiftStart = clock;
+  let cb: PositionCallback = () => {}, options: PositionOptions | undefined, pings = 0, restarts = 0;
+  const g = { watchPosition: (c: PositionCallback, _e: unknown, o?: PositionOptions) => { cb = c; options = o; return 1; }, clearWatch: () => {} } as unknown as Geolocation;
+  const gate = newPingGate();
+  const always409 = (async () => { pings++; return new Response(null, { status: 409 }); }) as typeof fetch;
+  let stopCurrent = () => {};
+  const start = () => { stopCurrent = startWebTracking(g, "truck", () => {}, () => { restarts++; stopCurrent(); start(); }, always409, undefined, { shiftStart, gate, now: () => clock }); };
+  start();
+  assert.equal(options?.maximumAge, 0, "never reuse a cached fix");
+  const fix = (timestamp: number) => ({ timestamp, coords: { latitude: 46 + Math.random() / 10, longitude: 22, accuracy: 10 } }) as GeolocationPosition;
+  cb(fix(shiftStart - 8000)); await tick(); assert.equal(pings, 0, "fix taken before shift start is dropped client-side");
+  // 10 minutes of fixes every 10 ms (far faster than any GPS), each 409 restarting the watch.
+  for (let t = 0; t < 600000; t += 10) { clock = shiftStart + t; cb(fix(clock)); await tick(); }
+  // backoff 10 s, 20 s … 120 s: well under one ping per 5 s, nowhere near a storm.
+  assert.ok(pings <= 12, `pings under backoff: ${pings}`); assert.ok(pings >= 5); assert.equal(restarts, pings);
+  assert.equal(pingBackoffMs(0), PING_MIN_INTERVAL_MS); assert.equal(pingBackoffMs(1), 10000); assert.equal(pingBackoffMs(20), 120000);
+  // Healthy server: hard cap of one ping per 5 s even when the truck moves fast.
+  let ok = 0; const g2 = newPingGate(); clock = shiftStart;
+  startWebTracking(g, "truck", () => {}, () => {}, (async () => { ok++; return new Response(null, { status: 204 }); }) as typeof fetch, undefined, { shiftStart, gate: g2, now: () => clock });
+  for (let t = 0; t < 60000; t += 10) { clock = shiftStart + t; cb(fix(clock)); await tick(); }
+  assert.ok(ok <= 12 && ok >= 10, `capped pings in 60 s: ${ok}`);
+  // Network failure backs off too.
+  let net = 0; const g3 = newPingGate(); clock = shiftStart;
+  startWebTracking(g, "truck", () => {}, () => {}, (async () => { net++; throw new Error("offline"); }) as typeof fetch, undefined, { shiftStart, gate: g3, now: () => clock });
+  for (let t = 0; t < 60000; t += 10) { clock = shiftStart + t; cb(fix(clock)); await tick(); }
+  assert.ok(net <= 4, `offline pings in 60 s: ${net}`);
+  console.log(`PASS ping storm: pre-shift fix dropped, maximumAge 0, 409 backoff (${pings} pings/10 min), 1 ping/5 s cap (${ok}/min), offline backoff (${net}/min)`);
+}
 
 async function verify(s: Store, pool?: pg.Pool) {
   const firm = await s.createFirm({ name: "Integrity " + randomUUID(), cui: null });

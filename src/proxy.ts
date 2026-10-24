@@ -57,4 +57,5 @@ export async function proxy(req: NextRequest) {
   for (const [k, v] of set) res.cookies.set(k, v, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   return res;
 }
-export const config = { matcher: ["/((?!_next|favicon|icon|icons/|demo/|apple-icon|manifest|api/health).*)"] };
+// iOS cere singur /apple-touch-icon(-precomposed).png din rădăcină, fără sesiune: trebuie să fie public (nu redirect la /login)
+export const config = { matcher: ["/((?!_next|favicon|icon|icons/|demo/|apple-icon|apple-touch-icon|manifest|api/health).*)"] };

@@ -103,7 +103,7 @@ export default async function Home() {
           <div className="eyebrow">{t(loc, "home.savings")}</div>
           {enoughData(km, hours) ? (
             <>
-              {projOk ? <div className="big hsav-lei"><span>≈ </span><CountUp value={perMonth} loc={loc} /><small>{t(loc, "cur")} {EL[loc].perMonth}</small></div> : null}
+              {projOk ? <div className="big hsav-lei"><span>≈ </span><CountUp value={perMonth} loc={loc} /><small className="cur">{"\u00a0"}{t(loc, "cur")} {EL[loc].perMonth}</small></div> : null}
               <span className="hsav-chip">▼ {ef(EL[loc].savLess, { p: fmtPct(loc, m.savings.pct, 1) })}</span>
               <p className="hint hsav-note">{t(loc, "home.savingsNote")}</p>
               <ul className="hben">
@@ -117,7 +117,7 @@ export default async function Home() {
         </div>
         <div className="fade d1">
           <div className="eyebrow">{t(loc, "home.profit")}</div>
-          <div className="big"><CountUp value={Math.round(m.avgProfit)} loc={loc} /><small>{t(loc, "cur")}</small></div>
+          <div className="big"><CountUp value={Math.round(m.avgProfit)} loc={loc} /><small className="cur">{"\u00a0"}{t(loc, "cur")}</small></div>
           <p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "home.profitSub", { n: m.n, total: fmtMoney(loc, m.profit) }) }} />
         </div>
       </section>

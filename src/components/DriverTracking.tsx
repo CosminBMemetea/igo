@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { trackingHold } from "@/lib/tracking-hold";
 import { usePathname } from "next/navigation";
-import { startWebTracking, type TrackingStatus } from "@/lib/web-tracking";
+import { startWebTracking, newPingGate, PING_MIN_INTERVAL_MS, type TrackingStatus } from "@/lib/web-tracking";
 import { tri, type Locale } from "@/lib/i18n";
 import { driverAlert, type DriverAlertState } from "@/lib/speed";
 
@@ -32,7 +32,9 @@ export function DriverTracking({ enabled, scope, loc, children }: { enabled: boo
     const hold = trackingHold(safeStorage, scope);
     setStatus({ ...WAIT, held: hold.held() });
     let disposed = false, version = 0, key = "", lastState = 0;
-    let stop: (() => void) | null = null, request: AbortController | null = null;
+    let stop: (() => void) | null = null, request: AbortController | null = null, retry: ReturnType<typeof setTimeout> | null = null;
+    // Survives watch restarts within one shift: a rejected ping cannot reset the rate cap or the backoff.
+    let gate = newPingGate(), gateKey = "";
     const pause = () => { stop?.(); stop = null; key = ""; setSpeedWarn(null); setStatus({ ...WAIT, held: hold.held() }); };
     const read = async () => {
       if (hold.held()) return;
@@ -52,7 +54,12 @@ export function DriverTracking({ enabled, scope, loc, children }: { enabled: boo
         const nextKey = `${state.vehicleId}:${state.shiftStart}`;
         if (key === nextKey) return;
         pause(); key = nextKey;
-        stop = startWebTracking(navigator.geolocation, state.vehicleId, setStatus, () => { pause(); void read(); }, fetch, k => onSpeed.current(k));
+        if (gateKey !== nextKey) { gate = newPingGate(); gateKey = nextKey; }
+        const rejected = () => {
+          pause(); if (retry) clearTimeout(retry);
+          retry = setTimeout(() => { retry = null; void read(); }, Math.max(PING_MIN_INTERVAL_MS, gate.nextAt - Date.now()));
+        };
+        stop = startWebTracking(navigator.geolocation, state.vehicleId, setStatus, rejected, fetch, k => onSpeed.current(k), { shiftStart: Date.parse(state.shiftStart), gate });
       } catch { if (!disposed && sequence === version) { pause(); setStatus({ gps: "error", lastAck: null }); } }
       finally { clearTimeout(timeout); }
     };
@@ -76,7 +83,7 @@ export function DriverTracking({ enabled, scope, loc, children }: { enabled: boo
     window.addEventListener("online", refresh.current); document.addEventListener("visibilitychange", visibility);
     void read();
     return () => {
-      disposed = true; ++version; request?.abort(); stop?.(); clearInterval(interval);
+      disposed = true; ++version; request?.abort(); stop?.(); clearInterval(interval); if (retry) clearTimeout(retry);
       window.removeEventListener("storage", storage); window.removeEventListener("qf-tracking-resume", shift);
       window.removeEventListener("qf-shift", shift); window.removeEventListener("qf-tracking-pause", shift);
       window.removeEventListener("online", refresh.current); document.removeEventListener("visibilitychange", visibility);

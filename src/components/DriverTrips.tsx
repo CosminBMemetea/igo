@@ -3,7 +3,7 @@ import Link from "next/link";
 import { outboxItems, type OutboxItem } from "@/lib/outbox";
 import { applyDriverTripUpdate, DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
 import { useEffect, useState, type ReactNode } from "react";
-import { tri, fmtDate, type Locale } from "@/lib/i18n";
+import { countTri, tri, fmtDate, type Locale } from "@/lib/i18n";
 import { groupDriverTrips, driverTripStage, type DriverTripSummary, type DriverTripStage } from "@/lib/driver-trips";
 import { tripChecklist, driverSections, CHECK_LABEL, CHECK_ACTION, DOC_KEYS, type TripDocs, type CheckState } from "@/lib/driver-checklist";
 function TripRoute({ title, loc }: { title: string; loc: Locale }) {
@@ -115,7 +115,7 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
   return <div className="driver-trips full">
     {block("sec-now", "Acum|Now|Teraz", nowRows, "Nimic de făcut acum.|Nothing to do now.|Nic do zrobienia teraz.", current || status ? currentBox : undefined)}
     {block("sec-next", "Următoarele|Upcoming|Nadchodzące", s.next, "Nicio cursă planificată.|No trips planned.|Brak zaplanowanych kursów.")}
-    {block("sec-done", "Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni", s.done, "Nicio cursă terminată.|No finished trips.|Brak zakończonych kursów.")}
+    {block("sec-done", "Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni", s.done, "Nicio cursă terminată.|No finished trips.|Brak zakończonych kursów.", s.oldMissing.length ? <p className="driver-trip-old"><Link className="link" href="/driver/docs">{countTri(loc, s.oldMissing.length, "cursă mai veche/curse mai vechi/de curse mai vechi|older trip/older trips|starszy kurs/starsze kursy/starszych kursów")} {tr("fără POD → Acte|without POD → Documents|bez POD → Dokumenty")}</Link></p> : undefined)}
     {s.cancelled.length ? <details className="driver-trip-group"><summary>{tr("Anulate|Cancelled|Anulowane")} · {s.cancelled.length}</summary><div className="driver-trip-list">{s.cancelled.map(card)}</div></details> : null}
   </div>;
 }

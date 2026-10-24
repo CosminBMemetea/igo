@@ -56,7 +56,7 @@ export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehic
     parts.harsh = clamp(1 - tele.harsh / 4); parts.speed = clamp(1 - tele.speeding / 10);
     parts.idle = clamp(1 - (tele.idle - 3) / 20); parts.ontime = clamp((tele.onTime - 70) / 30);
     parts.alerts = clamp(1 - nAl / 4);
-    return { id: v.id, driver: v.driver || v.name, plate: v.name, truckId: v.id, score: score(parts), l100: c, base: v.baselineRate, vsBase, harsh: tele.harsh, speeding: tele.speeding, idle: tele.idle, onTime: tele.onTime, alerts: nAl, km, speedPer100: null, parts, ...extremes(parts) };
+    return { id: v.id, driver: v.driver || v.name, plate: v.name, truckId: v.id, score: score(parts), l100: c, base: v.baselineRate, vsBase, harsh: tele.harsh, speeding: tele.speeding, idle: tele.idle, onTime: tele.onTime, alerts: nAl, km, speedPer100: tele.speeding /* demo: same unit as real firms (warnings / 100 km) */, parts, ...extremes(parts) };
   }).filter((x) => x.km > 0).sort((a, b) => b.score - a.score) : realDrivers(trucks, done, alerts, realSpeed, score, extremes, consPart);
   const trucksCmp: TruckCmp[] = per.filter((x) => x.l100 != null).map(({ v, l100: c, km }) => {
     const mine = done.filter((x) => x.vehicleId === v.id), a = l100(mine.filter((x) => day(x.date) <= 7)), b = l100(mine.filter((x) => day(x.date) > 7 && day(x.date) <= 14));

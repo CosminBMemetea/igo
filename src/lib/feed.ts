@@ -5,8 +5,8 @@ import type { Client, Vehicle } from "./fleet/seed";
 import type { AppAlert } from "./repo";
 import type { LiveVehicle, TripView } from "./query";
 import type { DriverRank } from "./ranking";
-import { fmtDate, fmtMoney, fmtNum, t, type Locale, type MsgKey } from "./i18n";
-import { FT, fill } from "./feed-i18n";
+import { fill as fillLoc, fmtDate, fmtMoney, fmtNum, t, type Locale, type MsgKey } from "./i18n";
+import { FT } from "./feed-i18n";
 
 export type Prio = "critical" | "normal" | "positive" | "trivial";
 export type Kind = "border" | "fuel" | "idle" | "delivered" | "group" | "doc" | "theft" | "eco" | "rank" | "ontime";
@@ -62,7 +62,7 @@ function waypointKm(t: Truck): number[] {
 
 export interface FeedInput { loc: Locale; vehicles: Vehicle[]; views: TripView[]; clients: Client[]; alerts: AppAlert[]; live: LiveVehicle[]; drivers: DriverRank[]; now?: number }
 export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers, now = DEMO_NOW_MIN }: FeedInput) {
-  const F = FT[loc], region = new Intl.DisplayNames([loc], { type: "region" });
+  const F = FT[loc], fill = (s: string, v: Record<string, string | number>) => fillLoc(loc, s, v), region = new Intl.DisplayNames([loc], { type: "region" });
   const evs: FeedEvent[] = [], queue: FeedEvent[] = [], stories: Story[] = [];
   const avgPrice = FILLS.reduce((a, f) => a + f.priceLei, 0) / FILLS.reduce((a, f) => a + f.litres, 0);
   const who = (v: Vehicle) => ({ vehicleId: v.id, plate: v.name, driver: v.driver, hue: hueOf(v.driver), initials: initialsOf(v.driver) });

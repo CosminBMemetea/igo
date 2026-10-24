@@ -2,7 +2,7 @@ import Link from "next/link";
 import FleetMap from "./FleetMap";
 import { CITY_CC, DEMO_NOW_MIN, TRUCKS } from "@/lib/fleet/data";
 import { flagOf } from "@/lib/feed";
-import { fmtNum, tri, type Locale } from "@/lib/i18n";
+import { countTri, fmtNum, tri, type Locale } from "@/lib/i18n";
 import { mapLabels } from "@/lib/labels";
 import type { LiveVehicle } from "@/lib/query";
 
@@ -14,7 +14,7 @@ export function DemoFleet({ live, loc, theme }: { live: LiveVehicle[]; loc: Loca
     <div className="demo-fleet-head">
       <div><div className="eyebrow">QUERRA FLEET · {tri(loc, "DEMO EUROPA|EUROPE DEMO|DEMO EUROPA")}</div>
         <h1 id="demo-fleet-title">{tri(loc, "Flota ta, dintr-o privire.|Your fleet at a glance.|Twoja flota w jednym miejscu.")}</h1>
-        <p>{live.length} {tri(loc, "camioane|trucks|ciężarówek")} · {new Set(live.map((v) => v.driver)).size} {tri(loc, "șoferi|drivers|kierowców")} · {countries.size} {tri(loc, "țări pe trasee|countries along the routes|krajów na trasach")}</p>
+        <p>{countTri(loc, live.length, "camion/camioane/de camioane|truck/trucks|ciężarówka/ciężarówki/ciężarówek")} · {countTri(loc, new Set(live.map((v) => v.driver)).size, "șofer/șoferi/de șoferi|driver/drivers|kierowca/kierowców/kierowców")} · {countTri(loc, countries.size, "țară/țări/de țări|country/countries|kraj/kraje/krajów")} {tri(loc, "pe trasee|along the routes|na trasach")}</p>
       </div>
       <Link className="btn sec" href="/live">{tri(loc, "Deschide harta|Open map|Otwórz mapę")} <span aria-hidden="true">↗</span></Link>
     </div>

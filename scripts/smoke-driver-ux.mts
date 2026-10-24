@@ -41,7 +41,13 @@ const s = driverSections(trips, today);
 assert.deepEqual(s.now.map(x => x.id), ["now", "ready"]);
 assert.deepEqual(s.next.map(x => x.id), ["future"], "cursele viitoare sunt vizibile");
 assert.ok(s.done.some(x => x.id === "done") && s.done.some(x => x.id === "pod") && !s.done.some(x => x.id === "old"), "terminate = 30 zile");
-assert.ok(s.done.some(x => x.id === "oldpod"), "fără POD rămâne vizibilă până se trimite");
+assert.ok(!s.done.some(x => x.id === "oldpod") && s.oldMissing.some(x => x.id === "oldpod"), "r26: „Terminate · 30 zile” exclude cursele >30 zile; cele fără POD trec la Acte");
+assert.ok(s.done.every(x => x.date >= "2026-09-24"), "r26: Terminate strict ultimele 30 de zile");
+{ // r26: POD încărcat ⇒ livrarea apare făcută (nu „de făcut” lângă „POD gata”)
+  const podOnly = tripChecklist(T("po", { date: today, loadedAt: "a" }), { cmr: 0, pod: 1 }, today);
+  assert.equal(podOnly.find(c => c.key === "delivery")?.state, "done"); assert.equal(podOnly.find(c => c.key === "pod")?.state, "done");
+  const podNoLoad = tripChecklist(T("pn", { date: today }), { cmr: 0, pod: 1 }, today);
+  assert.ok(podNoLoad.every(c => c.state === "done"), JSON.stringify(podNoLoad)); }
 assert.deepEqual(s.cancelled.map(x => x.id), ["canc"]);
 const miss = missingDocs(trips, { pod: { cmr: 1, pod: 0 } }, today);
 assert.deepEqual(miss.map(m => `${m.tripId}:${m.key}`), ["now:cmr", "pod:pod", "oldpod:cmr", "oldpod:pod"]);

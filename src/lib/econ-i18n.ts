@@ -14,7 +14,7 @@ const RO = {
   realProfit: "Profit calculat", freight: "Preț cursă", editTrip: "Ajustează prețul și tonajul", apply: "Recalculează",
   formula: "Profit calculat = preț cursă − motorină − taxe drum − șofer − AdBlue − anvelope − service − uzură din tonaj − cota din costurile fixe (pe km).",
   demoNote: "Demo: modificările rămân doar în sesiunea ta.", margin: "marjă", fleetAvg: "media flotei", thisTruck: "acest camion", trips: "curse", ownerOnly: "Doar patronul poate modifica costurile.",
-  kpiProfit: "Profit calculat pe curse", kpiProfitSub: "{n} curse · marjă {m}", kpiLoadSub: "tone-km folosite din capacitate", kpiEmptySub: "{p} din totalul de km",
+  kpiProfit: "Profit calculat pe curse", kpiProfitSub: "{n:cursă/curse/de curse} · marjă {m}", kpiLoadSub: "tone-km folosite din capacitate", kpiEmptySub: "{p} din totalul de km",
   costsLink: "Costuri pe camion", perTrip: "pe cursă", loss: "pe pierdere",
 };
 type L = typeof RO;
@@ -33,7 +33,7 @@ const EN: L = {
   realProfit: "Calculated profit", freight: "Freight price", editTrip: "Adjust price and tonnage", apply: "Recalculate",
   formula: "Calculated profit = freight price − fuel − road tolls − driver − AdBlue − tyres − service − load wear − share of fixed costs (per km).",
   demoNote: "Demo: changes stay in your session only.", margin: "margin", fleetAvg: "fleet average", thisTruck: "this truck", trips: "trips", ownerOnly: "Only the owner can change costs.",
-  kpiProfit: "Calculated profit on trips", kpiProfitSub: "{n} trips · {m} margin", kpiLoadSub: "tonne-km used out of capacity", kpiEmptySub: "{p} of all km",
+  kpiProfit: "Calculated profit on trips", kpiProfitSub: "{n:trip/trips} · {m} margin", kpiLoadSub: "tonne-km used out of capacity", kpiEmptySub: "{p} of all km",
   costsLink: "Costs per truck", perTrip: "per trip", loss: "loss",
 };
 const PL: L = {
@@ -48,10 +48,10 @@ const PL: L = {
   ofCap: "{t} t z {c} t", emptyOf: "{n} pustych km z {k} km", emptyShare: "km to puste przebiegi",
   archT: "Usuń ciężarówkę z floty", archB: "Historia kursów zostaje, ale ciężarówka nie jest już liczona w wynikach, na mapie ani w alertach. Możesz ją przywrócić w każdej chwili.", archGo: "Tak, usuń z floty",
   archived: "Usunięta z floty", archivedB: "Ciężarówka usunięta z floty: historia nadal jest uwzględniana w wynikach finansowych.", restore: "Przywróć do floty", archivedList: "Usunięte z floty",
-  realProfit: "Rzeczywisty zysk", freight: "Cena frachtu", editTrip: "Dostosuj cenę i tonaż", apply: "Przelicz",
-  formula: "Rzeczywisty zysk = cena frachtu − paliwo − opłaty drogowe − kierowca − AdBlue − opony − serwis − zużycie od tonażu − udział kosztów stałych (na km).",
+  realProfit: "Zysk wyliczony", freight: "Cena frachtu", editTrip: "Dostosuj cenę i tonaż", apply: "Przelicz",
+  formula: "Zysk wyliczony = cena frachtu − paliwo − opłaty drogowe − kierowca − AdBlue − opony − serwis − zużycie od tonażu − udział kosztów stałych (na km).",
   demoNote: "Demo: zmiany zostają tylko w Twojej sesji.", margin: "marża", fleetAvg: "średnia floty", thisTruck: "ta ciężarówka", trips: "kursy", ownerOnly: "Tylko właściciel może zmieniać koszty.",
-  kpiProfit: "Rzeczywisty zysk z kursów", kpiProfitSub: "{n} kursów · marża {m}", kpiLoadSub: "wykorzystane tonokilometry z ładowności", kpiEmptySub: "{p} wszystkich km",
+  kpiProfit: "Zysk wyliczony z kursów", kpiProfitSub: "{n:kurs/kursy/kursów} · marża {m}", kpiLoadSub: "wykorzystane tonokilometry z ładowności", kpiEmptySub: "{p} wszystkich km",
   costsLink: "Koszty na ciężarówkę", perTrip: "na kurs", loss: "strata",
 };
 export const EL: Record<Locale, L> = { ro: RO, en: EN, pl: PL };

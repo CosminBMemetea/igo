@@ -23,8 +23,8 @@ export default async function Crm(props: { searchParams: Promise<{ c?: string }>
       <main>
         <div className="eyebrow fade">{t(loc, "crm.title")}</div>
         <section className="hero" style={{ marginTop: 8 }}>
-          <div className="fade"><div className="big md"><CountUp value={Math.round(total)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.profit", { n: cs.length }) }} /></div>
-          <div className="fade d1"><div className="big md" style={{ color: "var(--fg2)" }}><CountUp value={Math.round(collect)} loc={loc} /><small>{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.toCollect", { overdue: fmtMoney(loc, overdue) }) }} /></div>
+          <div className="fade"><div className="big md"><CountUp value={Math.round(total)} loc={loc} /><small className="cur">{"\u00a0"}{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.profit", { n: cs.length }) }} /></div>
+          <div className="fade d1"><div className="big md" style={{ color: "var(--fg2)" }}><CountUp value={Math.round(collect)} loc={loc} /><small className="cur">{"\u00a0"}{t(loc, "cur")}</small></div><p className="sub" dangerouslySetInnerHTML={{ __html: t(loc, "crm.toCollect", { overdue: fmtMoney(loc, overdue) }) }} /></div>
         </section>
         <section className="grid2 section">
           <div className="list fade">

@@ -3,7 +3,7 @@ import { CATALOGS, LOCALES, fmtMoney, fmtNum } from "../src/lib/i18n";
 import { CATS, FEATURES, PLANS } from "../src/lib/features";
 let fail = 0;
 const keys = Object.keys(CATALOGS.ro);
-const ph = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(",");
+const ph = (s: string) => [...new Set([...s.matchAll(/\{(\w+)(?::[^}]*)?\}/g)].map((m) => m[1]))].sort().join(","); // {n} și {n:formă/forme} = același placeholder
 for (const l of LOCALES) {
   const c = CATALOGS[l] as Record<string, string>;
   const missing = keys.filter((k) => !c[k]?.trim()), extra = Object.keys(c).filter((k) => !keys.includes(k));

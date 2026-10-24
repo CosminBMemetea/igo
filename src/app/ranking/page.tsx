@@ -2,7 +2,7 @@ import Link from "next/link";
 import { realSpeedParts } from "@/lib/speed-report";
 import { getPrefs } from "@/lib/prefs";
 import { load } from "@/lib/data";
-import { t, tri, fmtNum, type MsgKey } from "@/lib/i18n";
+import { t, tri, fmtNum, type MsgKey, countTri } from "@/lib/i18n";
 import { store } from "@/lib/store";
 import { driverActivity } from "@/lib/driver-progress";
 import { splitRank, rankings, type Comp } from "@/lib/ranking";
@@ -26,7 +26,7 @@ export default async function Ranking() {
     return <main className="rk-page"><h1 className="h1">{tri(loc, "Activitatea șoferilor|Driver activity|Aktywność kierowców")}</h1>
       <p className="sub">{tri(loc, "Livrări cu POD în ultimele 30 de zile, atribuite șoferului cursei. Egalitățile au același loc. Nu este un scor de siguranță; volumul depinde și de alocările firmei.|Deliveries with POD in the last 30 days, attributed to each trip's driver. Ties share a rank. This is not a safety score; volume also depends on company assignments.|Dostawy z POD w ostatnich 30 dniach, przypisane kierowcy kursu. Remisy mają wspólne miejsce. To nie ocena bezpieczeństwa; liczba zależy też od przydziałów firmy.")}</p>
       {activity.participants < 3 ? <p className="hint">{tri(loc, "Locurile apar de la 3 șoferi cu livrări documentate în această perioadă.|Ranks appear from 3 drivers with documented deliveries in this period.|Miejsca pojawiają się od 3 kierowców z udokumentowanymi dostawami w tym okresie.")}</p> : null}
-      <div className="list">{activity.rows.map(row => <section className="sheet" key={row.id}><div className="head"><h2>{row.rank ? `#${row.rank} · ` : ""}{row.name}</h2><strong>{row.completed} POD</strong></div><p className="hint">{row.lifetime} {tri(loc, "livrări documentate în total · distincții la 1, 5, 10 și 25|documented deliveries overall · badges at 1, 5, 10 and 25|udokumentowanych dostaw łącznie · odznaki przy 1, 5, 10 i 25")}</p></section>)}</div>
+      <div className="list">{activity.rows.map(row => <section className="sheet" key={row.id}><div className="head"><h2>{row.rank ? `#${row.rank} · ` : ""}{row.name}</h2><strong>{row.completed} POD</strong></div><p className="hint">{countTri(loc, row.lifetime, "livrare documentată/livrări documentate/de livrări documentate|documented delivery/documented deliveries|udokumentowana dostawa/udokumentowane dostawy/udokumentowanych dostaw")} {tri(loc, "în total · distincții la 1, 5, 10 și 25|overall · badges at 1, 5, 10 and 25|łącznie · odznaki przy 1, 5, 10 i 25")}</p></section>)}</div>
       {!activity.rows.length ? <p className="sub">{tri(loc, "Nu ai încă șoferi cu acces activ.|No drivers with active access yet.|Brak kierowców z aktywnym dostępem.")}</p> : null}
       <section className="section" id="speed"><h2>{tri(loc, "Depășiri ale limitei setate|Set-limit warnings|Przekroczenia ustawionego limitu")}</h2>
         <p className="hint">{tri(loc, `Evenimente la 100 km, ultimele 30 de zile, din GPS-ul telefonului. Apare doar pentru șoferii cu cel puțin ${SPEED_MIN_KM} km în curse finalizate. Mai puțin = mai bine.|Events per 100 km, last 30 days, from the phone GPS. Shown only for drivers with at least ${SPEED_MIN_KM} km on finished trips. Lower is better.|Zdarzenia na 100 km, ostatnie 30 dni, z GPS telefonu. Tylko dla kierowców z co najmniej ${SPEED_MIN_KM} km w zakończonych kursach. Mniej = lepiej.`)}</p>
@@ -74,14 +74,14 @@ export default async function Ranking() {
       <section className="section fade d3">
         <div className="head"><h2>{t(loc, "rk.all")}</h2></div>
         <div className="rk-table" role="table">
-          <div className="rk-tr th" role="row"><span>#</span><span>{t(loc, "rk.driver")}</span><span>{t(loc, "rk.score")}</span>{cols.map((c) => <span key={c} className="c">{t(loc, `rk.c.${c}` as MsgKey)}</span>)}</div>
+          <div className="rk-tr th" role="row"><span>#</span><span>{t(loc, "rk.driver")}</span><span>{t(loc, "rk.score")}</span>{cols.map((c) => <span key={c} className="c">{t(loc, `rk.c.${c}` as MsgKey)}{c === "speed" ? <small>{tri(loc, "ev./100 km|ev./100 km|zd./100 km")}</small> : null}</span>)}</div>
           {R.drivers.map((x, i) => (
             <div key={x.id} className="rk-tr" role="row">
               <span className="rk-pos">{i + 1}</span>
               <span className="nm"><b>{x.driver}</b><small>{x.plate}</small></span>
               <span><ScoreRing s={x.score} size={38} /></span>
               {cols.map((c) => {
-                const p = x.parts[c], v = c === "cons" ? (x.l100 != null ? fmtNum(loc, x.l100, 1) : "—") : c === "harsh" ? fmtNum(loc, x.harsh ?? 0, 1) : c === "speed" ? `${fmtNum(loc, x.speeding ?? 0, 1)}%` : c === "idle" ? `${fmtNum(loc, x.idle ?? 0, 1)}%` : c === "ontime" ? `${x.onTime}%` : String(x.alerts);
+                const p = x.parts[c], v = c === "cons" ? (x.l100 != null ? fmtNum(loc, x.l100, 1) : "—") : c === "harsh" ? fmtNum(loc, x.harsh ?? 0, 1) : c === "speed" ? (x.speedPer100 != null ? fmtNum(loc, x.speedPer100, 1) : "—") : c === "idle" ? `${fmtNum(loc, x.idle ?? 0, 1)}%` : c === "ontime" ? `${x.onTime}%` : String(x.alerts);
                 return <span key={c} className={`c ${p == null ? "" : p >= 0.75 ? "pos" : p < 0.5 ? "neg" : ""}`}>{v}</span>;
               })}
             </div>

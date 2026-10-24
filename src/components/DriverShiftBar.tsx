@@ -17,8 +17,20 @@ const elapsed = (ms: number) => {
   return h ? `${h}h ${String(mm).padStart(2, "0")}m` : `${mm} min`;
 };
 
-export function ShiftBar({ state, start, now, loc, startLabel, stopLabel, offSub, onGo, onPriv, goRef, busy, msg, blocked }: {
-  blocked?: boolean; state: ShiftState; start?: string | null; now: number; loc: Locale; startLabel: string; stopLabel: string; offSub: string;
+/** Privat rămâne la o atingere (fără confirmare, decizia lui Cosmin); în schimb ~4 s se poate anula. */
+export const PRIV_UNDO_MS = 4000;
+export const privUndoText = (loc: Locale, on: boolean) => on
+  ? tri(loc, "Privat pornit · locația nu se mai trimite|Private on · location is not sent|Tryb prywatny włączony · lokalizacja nie jest wysyłana")
+  : tri(loc, "Privat oprit · locația se trimite din nou|Private off · location is sent again|Tryb prywatny wyłączony · lokalizacja znów wysyłana");
+export function usePrivUndo() {
+  const [undo, setUndo] = useState<boolean | null>(null);
+  useEffect(() => { if (undo === null) return; const i = setTimeout(() => setUndo(null), PRIV_UNDO_MS); return () => clearTimeout(i); }, [undo]);
+  return [undo, setUndo] as const;
+}
+export type PrivUndo = { on: boolean; onUndo: () => void } | null;
+
+export function ShiftBar({ state, start, now, loc, startLabel, stopLabel, offSub, onGo, onPriv, goRef, busy, msg, blocked, undo }: {
+  undo?: PrivUndo; blocked?: boolean; state: ShiftState; start?: string | null; now: number; loc: Locale; startLabel: string; stopLabel: string; offSub: string;
   onGo: () => void; onPriv: () => void; goRef?: Ref<HTMLButtonElement>; busy?: boolean; msg?: string;
 }) {
   const t0 = start ? Date.parse(start) : NaN;
@@ -27,7 +39,9 @@ export function ShiftBar({ state, start, now, loc, startLabel, stopLabel, offSub
     : `${tri(loc, "În tură|On shift|Na zmianie")}${Number.isNaN(t0) ? "" : ` ${elapsed(now - t0)}`}`;
   const privLabel = tri(loc, "Privat|Private|Prywatnie");
   return <div className={`dsb s-${state}`} role="region" aria-label={tri(loc, "Tura|Shift|Zmiana")}>
-    {msg ? <p className="dsb-msg" role="alert">{msg}</p> : null}
+    {undo ? <p className="dsb-msg dsb-undo" role="status" key={String(undo.on)}><span>{privUndoText(loc, undo.on)}</span>
+      <button type="button" className="dsb-undo-b" onClick={undo.onUndo} disabled={busy}>{tri(loc, "Anulează|Undo|Cofnij")}</button></p>
+      : msg ? <p className="dsb-msg" role="alert">{msg}</p> : null}
     <button ref={goRef} type="button" className={`dsb-go${state === "off" ? (blocked ? " blocked" : "") : " stop"}`} onClick={onGo} aria-disabled={state === "off" && blocked ? true : undefined} aria-busy={busy || undefined} disabled={busy}>
       <span className="dsb-ic" aria-hidden="true"><Icon name={state === "off" ? "play" : "pause"} size={20} /></span>
       <span className="dsb-t"><b>{state === "off" ? startLabel : stopLabel}</b><small key={state} suppressHydrationWarning>{sub}</small></span>
@@ -74,6 +88,7 @@ export function RemoteShiftBar({ vehicleId, plate, initial, serverNow, loc, labe
   const router = useRouter();
   const [on, setOn] = useState(!!initial), [priv, setPriv] = useState(!!initial?.priv), [start, setStart] = useState(initial?.start ?? null);
   const [now, setNow] = useState(serverNow), [ask, setAsk] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState("");
+  const [undo, setUndo] = usePrivUndo();
   const lock = useRef(false), mutationAt = useRef(0), dialog = useRef<HTMLDialogElement>(null), go = useRef<HTMLButtonElement>(null);
   useEffect(() => { setNow(Date.now()); const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
   useEffect(() => {
@@ -97,7 +112,7 @@ export function RemoteShiftBar({ vehicleId, plate, initial, serverNow, loc, labe
     setOn(false); setPriv(false); setStart(null); setMsg("");
     window.dispatchEvent(new CustomEvent("qf-shift", { detail: false })); done();
   }
-  async function togglePriv() {
+  async function togglePriv(fromUndo = false) {
     if (preview) { router.push("/driver"); return; }
     if (lock.current || !on) return; lock.current = true; setBusy(true);
     const next = !priv;
@@ -105,12 +120,13 @@ export function RemoteShiftBar({ vehicleId, plate, initial, serverNow, loc, labe
     const r = await postDriverControl("/api/driver/private", { vehicleId, on: next, ...(!demo && start ? { expectedShiftStart: start } : {}) });
     lock.current = false; setBusy(false);
     if (!r.ok) { if (!next) window.dispatchEvent(new CustomEvent("qf-shift", { detail: on && !priv })); setMsg(shiftControlError(loc, r.status)); return; }
-    setPriv(next); setMsg("");
+    setPriv(next); setMsg(""); setUndo(fromUndo ? null : next);
     window.dispatchEvent(new CustomEvent("qf-shift", { detail: !next })); done();
   }
   return <>
     <ShiftBar state={!on ? "off" : priv ? "priv" : "on"} start={start} now={now} loc={loc} startLabel={L.start} stopLabel={L.stop}
-      offSub={tri(loc, "Întâi verificarea|Check first|Najpierw kontrola")} onGo={onGo} onPriv={() => void togglePriv()} goRef={go} busy={busy} msg={msg} />
+      offSub={tri(loc, "Întâi verificarea|Check first|Najpierw kontrola")} onGo={onGo} onPriv={() => void togglePriv()} goRef={go} busy={busy} msg={msg}
+      undo={undo !== null && on ? { on: undo, onUndo: () => { setUndo(null); void togglePriv(true); } } : null} />
     {ask ? <ShiftConfirm kind="stop" plate={plate} start={start} now={now} loc={loc} dialogRef={dialog} onYes={() => { setAsk(false); void stop(); }} onNo={() => setAsk(false)} /> : null}
   </>;
 }

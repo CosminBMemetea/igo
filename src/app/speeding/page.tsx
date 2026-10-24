@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPrefs } from "@/lib/prefs";
-import { tri, fmtNum } from "@/lib/i18n";
+import { tri, countTri, fmtDate } from "@/lib/i18n";
 import { tenant } from "@/lib/tenant";
 import { store } from "@/lib/store";
 import { speedFilter, speedReport, fmtLocal, SPEED_PERIODS } from "@/lib/speed-report";
@@ -24,16 +24,16 @@ export default async function Speeding(props: { searchParams: Promise<{ days?: s
       {limit ? <> {tri(loc, "Limita ta|Your limit|Twój limit")}: <b>{limit.limitKmh} km/h</b> · <Link className="link" href="/settings#speed">{tri(loc, "Schimbă|Change|Zmień")}</Link></> : null}</p>
     {tn.demo ? <p className="hint" style={{ marginTop: 10 }}>{tri(loc, "În demo nu avem date reale de viteză. La firmele reale, evenimentele apar aici după primele ture cu aplicația șoferului.|There is no real speed data in the demo. For real companies, events appear here after the first shifts with the driver app.|W demo nie ma prawdziwych danych o prędkości. W firmach zdarzenia pojawią się tu po pierwszych zmianach z aplikacją kierowcy.")}</p> : null}
     {real ? <form className="sp-filter" method="get">
-      <label className="lf"><span>{tri(loc, "Perioadă|Period|Okres")}</span><select name="days" defaultValue={String(f.days)}>{SPEED_PERIODS.map(d => <option key={d} value={d}>{d} {tri(loc, "zile|days|dni")}</option>)}</select></label>
+      <label className="lf"><span>{tri(loc, "Perioadă|Period|Okres")}</span><select name="days" defaultValue={String(f.days)}>{SPEED_PERIODS.map(d => <option key={d} value={d}>{countTri(loc, d, "zi/zile/de zile|day/days|dzień/dni/dni")}</option>)}</select></label>
       <label className="lf"><span>{tri(loc, "Camion|Truck|Pojazd")}</span><select name="truck" defaultValue={f.truckId}><option value="">{tri(loc, "Toate|All|Wszystkie")}</option>{r.trucks.map(t => <option key={t.id} value={t.id}>{t.plate}</option>)}</select></label>
       <label className="lf"><span>{tri(loc, "Șofer|Driver|Kierowca")}</span><select name="driver" defaultValue={f.userId}><option value="">{tri(loc, "Toți|All|Wszyscy")}</option>{r.drivers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
       <div className="invrow"><button className="btn pri sm">{tri(loc, "Filtrează|Filter|Filtruj")}</button>{r.rows.length ? <a className="btn sec sm" href={`/api/speeding/csv?${qs}`} download>CSV</a> : null}</div>
     </form> : null}
     <SpeedMap theme={theme} pins={r.rows.map(({ e, plate }) => ({ id: e.id, lat: e.lat, lng: e.lng, over: e.maxKmh - e.limitKmh, label: `${plate} · ${Math.round(e.maxKmh)}/${e.limitKmh} km/h` }))} />
     <section className="section">
-      <div className="head"><h2>{fmtNum(loc, r.rows.length)} {tri(loc, "evenimente|events|zdarzeń")}</h2></div>
+      <div className="head"><h2>{countTri(loc, r.rows.length, "eveniment/evenimente/de evenimente|event/events|zdarzenie/zdarzenia/zdarzeń")}</h2></div>
       {r.rows.length ? <div className="list">{r.rows.map(({ e, plate, driver, unsent }) => <div key={e.id} className="it sp-row">
-        <div style={{ minWidth: 0 }}><div className="t">{plate}{driver ? ` · ${driver}` : ""}</div><div className="m">{fmtLocal(e.startAt).slice(0, 16)} · {dur(e.durationS)}{e.open ? ` · ${tri(loc, "în curs|ongoing|w toku")}` : ""}</div>
+        <div style={{ minWidth: 0 }}><div className="t">{plate}{driver ? ` · ${driver}` : ""}</div><div className="m">{fmtDate(loc, fmtLocal(e.startAt).slice(0, 16).replace(" ", "T"), true)} · {dur(e.durationS)}{e.open ? ` · ${tri(loc, "în curs|ongoing|w toku")}` : ""}</div>
           {unsent ? <div className="sp-unsent" role="status">{tri(loc, "Alertă netrimisă|Alert not sent|Alert niewysłany")}{unsent.length ? `: ${unsent.map(c => c === "inbox" ? tri(loc, "în aplicație|in app|w aplikacji") : c === "email" ? "e-mail" : "push").join(", ")}` : ""}</div> : null}</div>
         <b className={e.maxKmh - e.limitKmh >= 10 ? "neg" : ""}>{Math.round(e.maxKmh)}<small>/{e.limitKmh}{"\u00a0"}km/h</small></b>
       </div>)}</div> : <p className="sub">{tri(loc, "Nicio depășire în perioada aleasă.|No warnings in this period.|Brak przekroczeń w wybranym okresie.")}</p>}

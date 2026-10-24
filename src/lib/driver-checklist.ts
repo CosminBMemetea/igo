@@ -22,7 +22,8 @@ const NO_DOCS: TripDocs = { cmr: 0, pod: 0 };
 
 export function tripChecklist(t: DriverTripSummary, docs: TripDocs = NO_DOCS, today: string): CheckItem[] {
   if (t.cancelledAt) return [];
-  const loaded = !!t.loadedAt || !!t.deliveredAt, podDone = !!t.podReceived || docs.pod > 0;
+  // POD-ul înseamnă livrat (și deci pornit): nu lăsăm „Livrare · de făcut” lângă „POD · gata”
+  const podDone = !!t.podReceived || docs.pod > 0, delivered = !!t.deliveredAt || podDone, loaded = !!t.loadedAt || delivered;
   // cursă închisă de patron fără fluxul șoferului: șoferul nu mai poate încărca acte → nu o marcăm „lipsă”
   if (!t.planned && !t.deliveredAt) return [{ key: "start", state: "done" }, ...(docs.cmr ? [{ key: "cmr" as const, state: "done" as const }] : []), { key: "delivery", state: "done" }, ...(podDone ? [{ key: "pod" as const, state: "done" as const }] : [])];
   const due = t.date <= today;
@@ -31,23 +32,24 @@ export function tripChecklist(t: DriverTripSummary, docs: TripDocs = NO_DOCS, to
   return [
     { key: "start", state: loaded ? "done" : t.date < today ? "missing" : due ? "todo" : "later" },
     ...cmr,
-    { key: "delivery", state: t.deliveredAt ? "done" : loaded ? "todo" : "later" },
-    { key: "pod", state: podDone ? "done" : t.deliveredAt ? "missing" : "later" },
+    { key: "delivery", state: delivered ? "done" : loaded ? "todo" : "later" },
+    { key: "pod", state: podDone ? "done" : delivered ? "missing" : "later" },
   ];
 }
 
 export const minusDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) - n * 864e5).toISOString().slice(0, 10);
 
-/** Cele trei liste ale ecranului „Curse”: Acum · Următoarele · Terminate (ultimele 30 de zile; cele fără POD rămân până se trimite). */
+/** Cele trei liste ale ecranului „Curse”: Acum · Următoarele · Terminate (strict ultimele 30 de zile; cele mai vechi fără POD sunt în oldMissing → ecranul Acte). */
 export function driverSections(trips: DriverTripSummary[], today: string) {
   const g = groupDriverTrips(trips, today), since = minusDays(today, 30);
-  return { now: [...g.running, ...g.ready], next: g.upcoming, done: [...g.documents, ...g.finished.filter(x => x.date >= since)], cancelled: g.cancelled.filter(x => x.date >= since) };
+  // „Terminate · 30 zile” înseamnă strict ultimele 30 de zile; cursele mai vechi fără POD apar doar la Acte (oldMissing), nu în listă.
+  return { now: [...g.running, ...g.ready], next: g.upcoming, done: [...g.documents, ...g.finished].filter(x => x.date >= since), oldMissing: g.documents.filter(x => x.date < since), cancelled: g.cancelled.filter(x => x.date >= since) };
 }
 
 export interface MissingDoc { tripId: string; key: CheckKey; title: string; date: string; truckId: string | null }
 /** Actele lipsă ale șoferului (CMR după încărcare, POD după livrare) pe cursele vizibile. */
 export function missingDocs(trips: DriverTripSummary[], docs: Record<string, TripDocs>, today: string): MissingDoc[] {
   const s = driverSections(trips, today), out: MissingDoc[] = [];
-  for (const t of [...s.now, ...s.done]) for (const c of tripChecklist(t, docs[t.id], today)) if (c.state === "missing" && DOC_KEYS.includes(c.key)) out.push({ tripId: t.id, key: c.key, title: t.title, date: t.date, truckId: t.truckId });
+  for (const t of [...s.now, ...s.done, ...s.oldMissing]) for (const c of tripChecklist(t, docs[t.id], today)) if (c.state === "missing" && DOC_KEYS.includes(c.key)) out.push({ tripId: t.id, key: c.key, title: t.title, date: t.date, truckId: t.truckId });
   return out.sort((a, b) => b.date.localeCompare(a.date) || a.tripId.localeCompare(b.tripId));
 }
