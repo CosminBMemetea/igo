@@ -16,7 +16,7 @@ export default async function Speeding(props: { searchParams: Promise<{ days?: s
   const r = real ? await speedReport(store(), tn.firm!.id, f) : { rows: [], trucks: [], drivers: [] };
   const limit = real ? await store().speedSettings(tn.firm!.id) : null;
   const qs = new URLSearchParams({ days: String(f.days), ...(f.truckId ? { truck: f.truckId } : {}), ...(f.userId ? { driver: f.userId } : {}) }).toString();
-  const dur = (s: number) => s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`;
+  const dur = (s: number) => (s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`).replace(/ /g, "\u00a0"); // never wrap a lone "s"
   return <main className="sp-page">
     <div className="eyebrow fade">{tri(loc, "Siguranță|Safety|Bezpieczeństwo")} {tn.demo ? <DemoBadge loc={loc} /> : null}</div>
     <h1 className="h1 fade">{tri(loc, "Depășiri ale limitei de viteză|Speed limit warnings|Przekroczenia limitu prędkości")}</h1>
@@ -34,7 +34,7 @@ export default async function Speeding(props: { searchParams: Promise<{ days?: s
       <div className="head"><h2>{fmtNum(loc, r.rows.length)} {tri(loc, "evenimente|events|zdarzeń")}</h2></div>
       {r.rows.length ? <div className="list">{r.rows.map(({ e, plate, driver }) => <div key={e.id} className="it sp-row">
         <div style={{ minWidth: 0 }}><div className="t">{plate}{driver ? ` · ${driver}` : ""}</div><div className="m">{fmtLocal(e.startAt).slice(0, 16)} · {dur(e.durationS)}{e.open ? ` · ${tri(loc, "în curs|ongoing|w toku")}` : ""}</div></div>
-        <b className={e.maxKmh - e.limitKmh >= 10 ? "neg" : ""}>{Math.round(e.maxKmh)}<small>/{e.limitKmh} km/h</small></b>
+        <b className={e.maxKmh - e.limitKmh >= 10 ? "neg" : ""}>{Math.round(e.maxKmh)}<small>/{e.limitKmh}{"\u00a0"}km/h</small></b>
       </div>)}</div> : <p className="sub">{tri(loc, "Nicio depășire în perioada aleasă.|No warnings in this period.|Brak przekroczeń w wybranym okresie.")}</p>}
     </section>
   </main>;

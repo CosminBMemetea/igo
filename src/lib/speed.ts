@@ -1,8 +1,12 @@
 // Querra Fleet: avertizare la depășirea limitei setate de patron, din GPS-ul telefonului șoferului.
 // Nu este un instrument oficial de măsurare și nu previne amenzile; e o avertizare față de limita firmei.
 import { distanceKm } from "./web-tracking";
+import { bucharestDay, completedDay } from "./trip-stage";
 export interface SpeedSettings { limitKmh: number; truckLimits: Record<string, number>; ownerOverKmh: number; ownerAfterS: number; ownerAlerts: boolean }
-export interface SpeedEventRow { id: string; truckId: string; userId: string | null; startAt: string; endAt: string; lastAt: string; limitKmh: number; maxKmh: number; durationS: number; samples: number; lat: number; lng: number; highSince: string | null; highS: number; open: boolean; ownerNotified: boolean }
+export interface SpeedEventRow { id: string; truckId: string; userId: string | null; startAt: string; endAt: string; lastAt: string; limitKmh: number; maxKmh: number; durationS: number; samples: number; lat: number; lng: number; highSince: string | null; highS: number; open: boolean; ownerNotified: boolean;
+  /** Last reading above limit+over (null = none in the current run). */ highAt?: string | null;
+  /** Owner alert threshold crossed; delivery pending until ownerNotified. */ notifyDue?: boolean; notifyAttempts?: number; notifyNextAt?: string | null; notifyDone?: string[] }
+export type SpeedNotifyPatch = Partial<Pick<SpeedEventRow, "ownerNotified" | "notifyDue" | "notifyAttempts" | "notifyNextAt" | "notifyDone">>;
 export interface SpeedSample { at: string; lat: number; lng: number; accuracy: number | null; speedMs?: number | null }
 export const SPEED_DEFAULTS: SpeedSettings = { limitKmh: 90, truckLimits: {}, ownerOverKmh: 10, ownerAfterS: 60, ownerAlerts: true };
 /** GPS noise margin: speeds up to limit + 3 km/h are not counted. */
@@ -13,7 +17,7 @@ export const MAX_PLAUSIBLE_KMH = 140;
 export const GAP_S = 90;
 /** Single-sample events shorter than this are discarded as noise. */
 export const MIN_EVENT_S = 10;
-/** A dip below limit+over shorter than this does not reset the owner 60 s timer (the event itself closes only below limit+tolerance). */
+/** A dip below limit+over of at most this (measured from the last high reading) keeps the owner timer; the dip itself never counts. Longer dips start a fresh run. The event closes only below limit+tolerance. */
 export const HIGH_GRACE_S = 10;
 export const limitFor = (s: SpeedSettings, truckId: string) => s.truckLimits[truckId] ?? s.limitKmh;
 const sec = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 1000;
@@ -50,21 +54,33 @@ export type SpeedStep = { save: SpeedEventRow[]; drop: string[]; notify: SpeedEv
 /** Pure state transition for one reading. `open` is the truck's current open event, if any. */
 export function speedStep(open: SpeedEventRow | null, cur: SpeedSample, kmh: number | null, cfg: SpeedSettings, truckId: string, userId: string | null, newId: () => string): SpeedStep {
   const out: SpeedStep = { save: [], drop: [], notify: null };
-  const close = (e: SpeedEventRow) => { if (e.samples < 2 && e.durationS < MIN_EVENT_S) out.drop.push(e.id); else out.save.push({ ...e, open: false, highSince: null }); };
+  const close = (e: SpeedEventRow) => { if (e.samples < 2 && e.durationS < MIN_EVENT_S) out.drop.push(e.id); else out.save.push({ ...e, open: false, highSince: null, highAt: null }); };
   let ev = open;
   if (ev && sec(ev.lastAt, cur.at) > GAP_S) { close(ev); ev = null; }
   if (kmh == null) return out;
   const limit = ev?.limitKmh ?? limitFor(cfg, truckId);
   const over = kmh > limit + SPEED_TOLERANCE_KMH, high = kmh > limit + cfg.ownerOverKmh;
   if (ev && sec(ev.lastAt, cur.at) <= 0) return out; // duplicate (dt = 0) or out-of-order reading
-  // last moment the driver was above limit+over (highSince + highS), for the grace window
-  const lastHigh = ev?.highSince ? Date.parse(ev.highSince) + ev.highS * 1000 : null, inGrace = lastHigh != null && (Date.parse(cur.at) - lastHigh) / 1000 < HIGH_GRACE_S;
+  // last high reading (legacy rows without highAt: highSince + highS)
+  const prevHighAt = ev?.highAt ?? (ev?.highSince ? new Date(Date.parse(ev.highSince) + ev.highS * 1000).toISOString() : null);
+  const inGrace = prevHighAt != null && sec(prevHighAt, cur.at) <= HIGH_GRACE_S;
   if (!over) { if (ev) close(ev); return out; }
   const next: SpeedEventRow = ev
     ? { ...ev, endAt: cur.at, lastAt: cur.at, durationS: Math.round(sec(ev.startAt, cur.at)), samples: ev.samples + 1, maxKmh: Math.max(ev.maxKmh, kmh), ...(kmh > ev.maxKmh ? { lat: cur.lat, lng: cur.lng } : {}) }
-    : { id: newId(), truckId, userId, startAt: cur.at, endAt: cur.at, lastAt: cur.at, limitKmh: limit, maxKmh: kmh, durationS: 0, samples: 1, lat: cur.lat, lng: cur.lng, highSince: null, highS: 0, open: true, ownerNotified: false };
-  if (high) { next.highSince = next.highSince ?? cur.at; next.highS = Math.max(next.highS, Math.round(sec(next.highSince, cur.at))); } else if (!inGrace) { next.highSince = null; next.highS = 0; }
-  if (cfg.ownerAlerts && !next.ownerNotified && next.highS > cfg.ownerAfterS) { next.ownerNotified = true; out.notify = next; }
+    : { id: newId(), truckId, userId, startAt: cur.at, endAt: cur.at, lastAt: cur.at, limitKmh: limit, maxKmh: kmh, durationS: 0, samples: 1, lat: cur.lat, lng: cur.lng, highSince: null, highS: 0, open: true, ownerNotified: false, highAt: null, notifyDue: false, notifyAttempts: 0, notifyNextAt: null, notifyDone: [] };
+  // highS = seconds spent above limit+over in the current run, counted only between two consecutive high readings:
+  // time below the threshold (even inside the grace window) never counts. A run survives a dip shorter than HIGH_GRACE_S;
+  // a longer dip ends it, and the next high reading starts a fresh run at 0.
+  const run = ev?.highSince != null && prevHighAt != null;
+  if (high) {
+    if (run && ev!.lastAt === prevHighAt) { next.highS = ev!.highS + Math.round(sec(prevHighAt!, cur.at)); next.highSince = ev!.highSince; }
+    else if (run && inGrace) { next.highS = ev!.highS; next.highSince = ev!.highSince; } // resumed within the grace window: the dip adds nothing
+    else { next.highSince = cur.at; next.highS = 0; }
+    next.highAt = cur.at;
+  } else if (!inGrace) { next.highSince = null; next.highS = 0; next.highAt = null; }
+  else next.highAt = prevHighAt;
+  // Due once per event; delivery and retries (with backoff) are handled by the service, not on every reading.
+  if (cfg.ownerAlerts && !next.ownerNotified && !next.notifyDue && next.highS > cfg.ownerAfterS) { next.notifyDue = true; out.notify = next; }
   out.save.push(next);
   return out;
 }
@@ -99,18 +115,19 @@ export function driverAlert(st: DriverAlertState, kmh: number | null, limit: num
   return { st: { overSince, lastAlert: alert ? now : st.lastAlert }, alert, over };
 }
 /** Real-firm ranking input: per driver, events per 100 km over the last 30 days. km = completed trips attributed to the driver. */
-export const bucharestDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
-type RTrip = { driverId?: string | null; truckId?: string; km: number; date: string; cancelledAt?: string | null; deliveredAt?: string | null; planned?: boolean };
-/** Finished = delivered, not cancelled, not a plan; the day is the delivery day in Europe/Bucharest. */
-const finishedSince = (trips: RTrip[], sinceDay: string) => trips.filter(t => !t.cancelledAt && !t.planned && !!t.deliveredAt && Number.isFinite(Date.parse(t.deliveredAt)) && bucharestDay(t.deliveredAt) >= sinceDay);
+export { bucharestDay };
+type RTrip = { driverId?: string | null; truckId?: string; km: number; date: string; cancelledAt?: string | null; deliveredAt?: string | null; planned?: boolean; loadedAt?: string | null };
+/** Finished = the shared `completedDay` definition (same as the fuel score), within the window. */
+const finishedSince = (trips: RTrip[], sinceDay: string) => trips.filter(t => { const d = completedDay(t); return d != null && d >= sinceDay; });
 const sumKm = (ts: RTrip[]) => ts.reduce((a, t) => a + (Number.isFinite(t.km) && t.km > 0 ? t.km : 0), 0);
 type REvent = Pick<SpeedEventRow, "userId" | "truckId" | "durationS" | "open" | "samples" | "startAt">;
 /** Real-firm score input per truck (the ranking row is per truck): 0..1, only with enough km on finished trips. */
-export function speedParts(trips: RTrip[], events: REvent[], sinceDay: string): Record<string, number> {
-  const done = finishedSince(trips, sinceDay), out: Record<string, number> = {};
+export type SpeedPart = { part: number; per100: number; events: number; km: number };
+export function speedParts(trips: RTrip[], events: REvent[], sinceDay: string): Record<string, SpeedPart> {
+  const done = finishedSince(trips, sinceDay), out: Record<string, SpeedPart> = {};
   for (const id of new Set(done.map(t => t.truckId).filter((x): x is string => !!x))) {
-    const ex = speedExposure(events.filter(e => e.truckId === id && bucharestDay(e.startAt) >= sinceDay), sumKm(done.filter(t => t.truckId === id)), 0);
-    if (ex) out[id] = ex.score / 100;
+    const km = sumKm(done.filter(t => t.truckId === id)), ex = speedExposure(events.filter(e => e.truckId === id && bucharestDay(e.startAt) >= sinceDay), km, 0);
+    if (ex) out[id] = { part: ex.score / 100, per100: ex.per100, events: ex.events, km: Math.round(km) };
   }
   return out;
 }

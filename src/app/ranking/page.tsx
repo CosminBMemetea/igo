@@ -34,6 +34,22 @@ export default async function Ranking() {
           : <p className="sub">{tri(loc, "Încă nu sunt destule date.|Not enough data yet.|Za mało danych.")}</p>}
         <Link className="link" href="/speeding">{tri(loc, "Vezi raportul|Open the report|Otwórz raport")} →</Link>
       </section>
+      <section className="section" id="score"><h2>{tri(loc, "Scor orientativ|Indicative score|Wynik orientacyjny")}</h2>
+        <p className="sub">{t(loc, "rk.subReal")}</p>
+        {R.drivers.length ? <><div className="rk-table rk-real" role="table">
+          <div className="rk-tr th" role="row"><span>{t(loc, "rk.driver")}</span><span>{t(loc, "rk.score")}</span><span className="c">{t(loc, "rk.c.cons")}<small>L/100 km</small></span><span className="c">{t(loc, "rk.c.speed")}<small>{tri(loc, "ev./100 km|ev./100 km|zd./100 km")}</small></span><span className="c">{t(loc, "rk.c.alerts")}</span></div>
+          {R.drivers.map((x, i) => { const cls = (p?: number) => `c ${p == null ? "" : p >= 0.75 ? "pos" : p < 0.5 ? "neg" : ""}`; return (
+            <div key={x.id} className="rk-tr" role="row">
+              <span className="nm"><b>{i + 1}. {x.driver}</b><small>{x.plate}</small></span>
+              <span><ScoreRing s={x.score} size={34} /></span>
+              <span className={cls(x.parts.cons)}>{x.l100 != null ? fmtNum(loc, x.l100, 1) : "—"}</span>
+              <span className={cls(x.parts.speed)} title={x.speedPer100 == null ? tri(loc, `Sub ${SPEED_MIN_KM} km în curse finalizate|Under ${SPEED_MIN_KM} km on finished trips|Poniżej ${SPEED_MIN_KM} km w zakończonych kursach`) : undefined}>{x.speedPer100 != null ? fmtNum(loc, x.speedPer100, 1) : "—"}</span>
+              <span className={cls(x.parts.alerts)}>{x.alerts}</span>
+            </div>); })}
+        </div>
+        <p className="hint">{tri(loc, `Pe camion, din cursele finalizate în ultimele 30 de zile. Viteză = depășiri ale limitei setate la 100 km (GPS telefon), intră în scor doar de la ${SPEED_MIN_KM} km; „—” = încă prea puțini km.|Per truck, from trips finished in the last 30 days. Speed = set-limit warnings per 100 km (phone GPS), counted in the score only from ${SPEED_MIN_KM} km; “—” = not enough km yet.|Na pojazd, z kursów zakończonych w ostatnich 30 dniach. Prędkość = przekroczenia ustawionego limitu na 100 km (GPS telefonu), liczone w wyniku dopiero od ${SPEED_MIN_KM} km; „—” = za mało km.`)}</p></>
+          : <p className="sub">{t(loc, "rk.noData")}</p>}
+      </section>
       <section className="section"><h2>{t(loc, "rk.trucks")}</h2><p className="hint">{tri(loc, "Rate declarate/estimate pe camion. Nu le atribuim automat șoferului curent.|Declared/estimated rates by truck. We do not automatically attribute them to the current driver.|Zadeklarowane/szacowane zużycie pojazdu. Nie przypisujemy go automatycznie obecnemu kierowcy.")}</p><TruckBars rows={R.trucks} avg={R.fleetAvg} loc={loc} /></section>
     </main>;
   }

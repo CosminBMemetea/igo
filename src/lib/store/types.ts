@@ -161,6 +161,10 @@ export interface Store {
   /** Insert or update by id; the truck must belong to the firm. */
   saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow): Promise<void>;
   deleteSpeedEvent(firmId: string, id: string): Promise<void>;
+  /** Owner-alert delivery state only (never touches motion fields, so a concurrent reading cannot undo it). */
+  updateSpeedNotify(firmId: string, id: string, p: import("../speed").SpeedNotifyPatch): Promise<void>;
+  /** Due, undelivered owner alerts (open or closed). Without firmId: all firms (cron only). */
+  pendingSpeedNotifications(o: { firmId?: string; dueAt: string; maxAttempts: number; limit: number }): Promise<(import("../speed").SpeedEventRow & { firmId: string })[]>;
   speedEvents(firmId: string, o?: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number }): Promise<import("../speed").SpeedEventRow[]>;
   /** Retention: deletes speeding events that started before `beforeIso` (all firms). */
   purgeSpeedEvents(beforeIso: string): Promise<number>;

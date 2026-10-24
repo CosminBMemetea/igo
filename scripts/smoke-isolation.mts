@@ -34,7 +34,7 @@ const CLASS: Record<string, Cls> = {
   "/": "firm", "/login": "auth", "/signup": "auth", "/forgot": "auth", "/reset": "auth", "/join": "auth", "/join/ready": "auth", "/incearca": "public",
   "/terms": "public", "/privacy": "public", "/features": "public", "/plans": "public", "/visibility": "public", "/recomanda": "public", "/admin": "admin",
   "/api/auth/demo": "auth", "/api/auth/forgot": "auth", "/api/auth/join": "auth", "/api/auth/login": "auth", "/api/auth/logout": "auth", "/api/auth/mobile": "auth", "/api/auth/mobile/logout": "auth", "/api/auth/reset": "auth", "/api/auth/signup": "auth",
-  "/api/cron/deliveries": "cron", "/api/cron/reminders": "cron", "/api/health": "public", "/api/leads": "public", "/api/me/locale": "public",
+  "/api/cron/deliveries": "cron", "/api/cron/reminders": "cron", "/api/cron/speed-alerts": "cron", "/api/health": "public", "/api/leads": "public", "/api/me/locale": "public",
   "/api/admin/firm": "admin", "/api/admin/firm/delete": "admin", "/api/admin/reminders": "admin", "/api/admin/test-email": "admin",
 };
 const routes = scan(), isFirm = (r: Route) => (CLASS[r.path] ?? "firm") === "firm";

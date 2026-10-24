@@ -4,12 +4,15 @@
 import { mulberry32 } from "./fleet/data";
 import type { Vehicle } from "./fleet/seed";
 import type { TripView } from "./query";
+import { completedDay } from "./trip-stage";
+import type { SpeedPart } from "./speed";
 
 export type Comp = "cons" | "harsh" | "speed" | "idle" | "ontime" | "alerts";
 const W: Record<Comp, number> = { cons: 35, harsh: 20, speed: 15, idle: 10, ontime: 10, alerts: 10 };
 export interface DriverRank {
   id: string; driver: string; plate: string; score: number; l100: number | null; base: number; vsBase: number | null;
   harsh: number | null; speeding: number | null; idle: number | null; onTime: number | null; alerts: number; km: number;
+  /** Real firms: set-limit warnings per 100 km (phone GPS), only with enough km on finished trips. */ speedPer100?: number | null;
   parts: Partial<Record<Comp, number>>; worst: Comp | null; best: Comp | null;
 }
 export interface TruckCmp { id: string; plate: string; model: string; l100: number | null; base: number; vsFleet: number | null; trend: number | null; km: number }
@@ -32,10 +35,11 @@ function l100(views: TripView[]) {
   const km = views.reduce((a, v) => a + v.km, 0), L = views.reduce((a, v) => a + (v.km * v.actualRate) / 100, 0);
   return km > 0 ? { l100: Math.round((L / km) * 1000) / 10, km } : { l100: null, km: 0 };
 }
-export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehicleId: string }[], today: string, demo: boolean, realSpeed: Record<string, number> = {}) {
+export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehicleId: string }[], today: string, demo: boolean, realSpeed: Record<string, SpeedPart> = {}) {
   const trucks = vehicles.filter((v) => v.kind === "truck" && v.per100);
   const day = (d: string) => Math.round((Date.parse(today) - Date.parse(d)) / 864e5);
-  const done = views.filter((v) => !v.active && v.km > 0 && day(v.date) >= 0 && day(v.date) < 30);
+  // same finished-trip definition and day as the speed part (completedDay): not planned/in progress, not cancelled
+  const done = views.flatMap((v) => { const cd = completedDay(v); return cd && v.km > 0 && day(cd) >= 0 && day(cd) < 30 ? [{ ...v, date: cd }] : []; });
   const per = trucks.map((v) => ({ v, ...l100(done.filter((x) => x.vehicleId === v.id)) }));
   const fleetKm = per.reduce((a, x) => a + x.km, 0), fleetL = per.reduce((a, x) => a + ((x.l100 ?? 0) * x.km) / 100, 0);
   const fleetAvg = fleetKm ? Math.round((fleetL / fleetKm) * 1000) / 10 : null;
@@ -47,14 +51,14 @@ export function rankings(vehicles: Vehicle[], views: TripView[], alerts: { vehic
     if (vsBase != null) parts.cons = clamp(0.8 - vsBase * 4); // la normă = 80 (ok), −5% → 1, +8% → 0,48 (de ajutor), +20% → 0
     if (tele.harsh != null) parts.harsh = clamp(1 - tele.harsh / 4);
     if (tele.speeding != null) parts.speed = clamp(1 - tele.speeding / 10);
-    else if (!demo && Number.isFinite(realSpeed[v.id])) parts.speed = clamp(realSpeed[v.id]); // phone-GPS set-limit warnings, only with enough km (speedParts)
+    else if (!demo && realSpeed[v.id] && Number.isFinite(realSpeed[v.id].part)) parts.speed = clamp(realSpeed[v.id].part); // phone-GPS set-limit warnings, only with enough km (speedParts)
     if (tele.idle != null) parts.idle = clamp(1 - (tele.idle - 3) / 20);
     if (tele.onTime != null) parts.ontime = clamp((tele.onTime - 70) / 30);
     parts.alerts = clamp(1 - nAl / 4);
     const keys = Object.keys(parts) as Comp[], wsum = keys.reduce((a, k) => a + W[k], 0);
     const score = Math.round((keys.reduce((a, k) => a + W[k] * parts[k]!, 0) / (wsum || 1)) * 100);
     const sorted = [...keys].sort((a, b) => parts[a]! - parts[b]!), good = sorted.filter((k) => k !== "alerts");
-    return { id: v.id, driver: v.driver || v.name, plate: v.name, score, l100: c, base: v.baselineRate, vsBase, harsh: tele.harsh, speeding: tele.speeding, idle: tele.idle, onTime: tele.onTime, alerts: nAl, km, parts, worst: sorted[0] && parts[sorted[0]]! < 0.75 ? sorted[0] : null, best: good[good.length - 1] ?? null };
+    return { id: v.id, driver: v.driver || v.name, plate: v.name, score, l100: c, base: v.baselineRate, vsBase, harsh: tele.harsh, speeding: tele.speeding, idle: tele.idle, onTime: tele.onTime, alerts: nAl, km, speedPer100: !demo ? realSpeed[v.id]?.per100 ?? null : null, parts, worst: sorted[0] && parts[sorted[0]]! < 0.75 ? sorted[0] : null, best: good[good.length - 1] ?? null };
   }).filter((x) => x.km > 0).sort((a, b) => b.score - a.score);
   const trucksCmp: TruckCmp[] = per.filter((x) => x.l100 != null).map(({ v, l100: c, km }) => {
     const mine = done.filter((x) => x.vehicleId === v.id), a = l100(mine.filter((x) => day(x.date) <= 7)), b = l100(mine.filter((x) => day(x.date) > 7 && day(x.date) <= 14));

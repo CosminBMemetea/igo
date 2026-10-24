@@ -2,7 +2,7 @@ import { validCardId, validCardTime } from "../fuel/cards";
 import { nextCostMonth } from "../costs";
 import { SPEED_DEFAULTS } from "../speed";
 // Postgres (Neon în prod) prin Drizzle. Fiecare interogare de date e filtrată după firm_id.
-import { and, count, desc, eq, gt, gte, lt, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, lt, lte, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { mobileSessionRevocations, notificationJobs, pushDevices, complianceTasks, truckAssignments, authThrottle, driverEvents, leads, importMappings, documents, emailOutbox, files, firms, notifications, tripEvents, fuelCards, fuelCardPeriods, fuelImports, fuelTransactions, invites, positions, shifts, speedEvents, speedSettings, supportRequests, trips, trucks, users } from "@/db/schema";
 import { type DriverEventRow, newId, today, type LeadRow, type NewLead, type CardRow, type FuelTxRow, type ImportRow, type NewFuelTx, type PosRow, type ShiftRow, type Currency, type DocRow, type DocType, type NewDoc, type FileMeta, type NewFile, type NotificationRow, type NewNotification, type EmailRow, type EmailStatus, type TripEventRow, type TripEventKind, type FirmRow, type InviteRow, type Store, type SupportRow, type TripRow, type TruckRow, type UserRow } from "./types";
@@ -487,10 +487,18 @@ export class PgStore implements Store {
   }
   async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) {
     await this.ownTruck(firmId, e.truckId);
-    const { id, ...rest } = e;
-    const r = await this.d.insert(speedEvents).values({ ...e, firmId }).onConflictDoUpdate({ target: speedEvents.id, set: rest, setWhere: eq(speedEvents.firmId, firmId) }).returning({ id: speedEvents.id });
+    // delivery state (owner_notified, notify_*) is written only by updateSpeedNotify, so a concurrent reading cannot undo it
+    const { id: _id, ownerNotified: _o, notifyDue: _d, notifyAttempts: _a, notifyNextAt: _n, notifyDone: _x, ...rest } = e;
+    const r = await this.d.insert(speedEvents).values({ ...e, firmId, notifyDone: e.notifyDone ?? [] }).onConflictDoUpdate({ target: speedEvents.id, set: rest, setWhere: eq(speedEvents.firmId, firmId) }).returning({ id: speedEvents.id });
     if (!r.length) throw new Error("event");
-    void id;
+  }
+  async updateSpeedNotify(firmId: string, id: string, p: import("../speed").SpeedNotifyPatch) {
+    if (!Object.keys(p).length) return;
+    await this.d.update(speedEvents).set(p).where(and(eq(speedEvents.firmId, firmId), eq(speedEvents.id, id)));
+  }
+  async pendingSpeedNotifications(o: { firmId?: string; dueAt: string; maxAttempts: number; limit: number }) {
+    return this.d.select().from(speedEvents).where(and(o.firmId ? eq(speedEvents.firmId, o.firmId) : undefined, eq(speedEvents.notifyDue, true), eq(speedEvents.ownerNotified, false), lt(speedEvents.notifyAttempts, o.maxAttempts),
+      or(isNull(speedEvents.notifyNextAt), lte(speedEvents.notifyNextAt, o.dueAt)))).orderBy(asc(speedEvents.notifyNextAt)).limit(o.limit);
   }
   async deleteSpeedEvent(firmId: string, id: string) { await this.d.delete(speedEvents).where(and(eq(speedEvents.firmId, firmId), eq(speedEvents.id, id))); }
   async speedEvents(firmId: string, o: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number } = {}) {

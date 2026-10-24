@@ -328,7 +328,17 @@ export class MemStore implements Store {
   async speedSettings(firmId: string) { const r = this.SS.find(x => x.firmId === firmId); if (!r) return { ...SPEED_DEFAULTS, truckLimits: {} }; const { firmId: _f, ...v } = r; return { ...v, truckLimits: { ...v.truckLimits } }; }
   async setSpeedSettings(firmId: string, v: import("../speed").SpeedSettings) { for (const id of Object.keys(v.truckLimits)) if (!this.own(firmId, id)) throw new Error("truck"); this.SS = this.SS.filter(x => x.firmId !== firmId); this.SS.push({ ...v, truckLimits: { ...v.truckLimits }, firmId }); }
   async openSpeedEvent(firmId: string, truckId: string) { const r = this.SE.filter(x => x.firmId === firmId && x.truckId === truckId && x.open).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0]; if (!r) return null; const { firmId: _f, ...e } = r; return { ...e }; }
-  async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) { if (!this.own(firmId, e.truckId)) throw new Error("truck"); const i = this.SE.findIndex(x => x.id === e.id); if (i >= 0 && this.SE[i].firmId !== firmId) throw new Error("event"); if (i >= 0) this.SE[i] = { ...e, firmId }; else this.SE.push({ ...e, firmId }); }
+  async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) {
+    if (!this.own(firmId, e.truckId)) throw new Error("truck"); const i = this.SE.findIndex(x => x.id === e.id); if (i >= 0 && this.SE[i].firmId !== firmId) throw new Error("event");
+    const { ownerNotified, notifyDue, notifyAttempts, notifyNextAt, notifyDone, ...motion } = e;
+    if (i >= 0) this.SE[i] = { ...this.SE[i], ...motion, firmId }; // delivery state is owned by updateSpeedNotify
+    else this.SE.push({ ...motion, ownerNotified: !!ownerNotified, notifyDue: !!notifyDue, notifyAttempts: notifyAttempts ?? 0, notifyNextAt: notifyNextAt ?? null, notifyDone: [...(notifyDone ?? [])], highAt: e.highAt ?? null, firmId });
+  }
+  async updateSpeedNotify(firmId: string, id: string, p: import("../speed").SpeedNotifyPatch) { const r = this.SE.find(x => x.id === id && x.firmId === firmId); if (r) Object.assign(r, p, p.notifyDone ? { notifyDone: [...p.notifyDone] } : {}); }
+  async pendingSpeedNotifications(o: { firmId?: string; dueAt: string; maxAttempts: number; limit: number }) {
+    return this.SE.filter(x => (!o.firmId || x.firmId === o.firmId) && x.notifyDue && !x.ownerNotified && (x.notifyAttempts ?? 0) < o.maxAttempts && (!x.notifyNextAt || x.notifyNextAt <= o.dueAt))
+      .sort((a, b) => (a.notifyNextAt ?? "").localeCompare(b.notifyNextAt ?? "")).slice(0, o.limit).map(x => ({ ...x, notifyDone: [...(x.notifyDone ?? [])] }));
+  }
   async deleteSpeedEvent(firmId: string, id: string) { this.SE = this.SE.filter(x => !(x.id === id && x.firmId === firmId)); }
   async speedEvents(firmId: string, o: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number } = {}) { return this.SE.filter(x => x.firmId === firmId && (!o.sinceAt || x.startAt >= o.sinceAt) && (!o.untilAt || x.startAt < o.untilAt) && (!o.truckId || x.truckId === o.truckId) && (!o.userId || x.userId === o.userId)).sort((a, b) => b.startAt.localeCompare(a.startAt)).slice(0, o.limit ?? 2000).map(({ firmId: _f, ...e }) => ({ ...e })); }
   async purgeSpeedEvents(beforeIso: string) { const n = this.SE.length; this.SE = this.SE.filter(x => x.startAt >= beforeIso); return n - this.SE.length; }
