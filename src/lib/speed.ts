@@ -7,6 +7,20 @@ export interface SpeedEventRow { id: string; truckId: string; userId: string | n
   /** Last reading above limit+over (null = none in the current run). */ highAt?: string | null;
   /** Owner alert threshold crossed; delivery pending until ownerNotified. */ notifyDue?: boolean; notifyAttempts?: number; notifyNextAt?: string | null; notifyDone?: string[] }
 export type SpeedNotifyPatch = Partial<Pick<SpeedEventRow, "ownerNotified" | "notifyDue" | "notifyAttempts" | "notifyNextAt" | "notifyDone">>;
+/** Seconds to wait after failed attempt n (1-based). Capped at 1 h so a fixed config (e.g. APP_URL) is picked up within the hour (Testing r22 d). */
+export const NOTIFY_BACKOFF_S = [30, 120, 600, 1800, 3600, 3600, 3600];
+/** After this many failed attempts the alert is given up; /speeding then shows "Alertă netrimisă" with the missing channels. */
+export const NOTIFY_MAX_ATTEMPTS = 8;
+export type NotifyChannel = "inbox" | "email" | "push";
+/** Channels still missing on a given-up alert (null = not given up: sent, deduped, or still retrying). Owners = active owners now. */
+export function unsentChannels(e: Pick<SpeedEventRow, "notifyDue" | "ownerNotified" | "notifyAttempts" | "notifyDone">, owners: { id: string; email?: string | null; emailAlerts?: boolean | null }[]): NotifyChannel[] | null {
+  const done = e.notifyDone ?? [];
+  if (!e.notifyDue || e.ownerNotified || (e.notifyAttempts ?? 0) < NOTIFY_MAX_ATTEMPTS || done.includes("deduped")) return null;
+  const miss = new Set<NotifyChannel>();
+  if (!done.includes("inbox")) miss.add("inbox");
+  for (const u of owners) { if (u.email && u.emailAlerts !== false && !done.includes(`email:${u.id}`)) miss.add("email"); if (!done.includes(`push:${u.id}`)) miss.add("push"); }
+  return (["inbox", "email", "push"] as const).filter(c => miss.has(c));
+}
 export interface SpeedSample { at: string; lat: number; lng: number; accuracy: number | null; speedMs?: number | null }
 export const SPEED_DEFAULTS: SpeedSettings = { limitKmh: 90, truckLimits: {}, ownerOverKmh: 10, ownerAfterS: 60, ownerAlerts: true };
 /** GPS noise margin: speeds up to limit + 3 km/h are not counted. */
@@ -121,12 +135,12 @@ type RTrip = { driverId?: string | null; truckId?: string; km: number; date: str
 const finishedSince = (trips: RTrip[], sinceDay: string) => trips.filter(t => { const d = completedDay(t); return d != null && d >= sinceDay; });
 const sumKm = (ts: RTrip[]) => ts.reduce((a, t) => a + (Number.isFinite(t.km) && t.km > 0 ? t.km : 0), 0);
 type REvent = Pick<SpeedEventRow, "userId" | "truckId" | "durationS" | "open" | "samples" | "startAt">;
-/** Real-firm score input per truck (the ranking row is per truck): 0..1, only with enough km on finished trips. */
+/** Real-firm score input per driver (the ranking row is per driver; trucks vary): 0..1, only with enough km on finished trips. */
 export type SpeedPart = { part: number; per100: number; events: number; km: number };
 export function speedParts(trips: RTrip[], events: REvent[], sinceDay: string): Record<string, SpeedPart> {
   const done = finishedSince(trips, sinceDay), out: Record<string, SpeedPart> = {};
-  for (const id of new Set(done.map(t => t.truckId).filter((x): x is string => !!x))) {
-    const km = sumKm(done.filter(t => t.truckId === id)), ex = speedExposure(events.filter(e => e.truckId === id && bucharestDay(e.startAt) >= sinceDay), km, 0);
+  for (const id of new Set(done.map(t => t.driverId).filter((x): x is string => !!x))) {
+    const km = sumKm(done.filter(t => t.driverId === id)), ex = speedExposure(events.filter(e => e.userId === id && bucharestDay(e.startAt) >= sinceDay), km, 0);
     if (ex) out[id] = { part: ex.score / 100, per100: ex.per100, events: ex.events, km: Math.round(km) };
   }
   return out;

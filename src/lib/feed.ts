@@ -141,10 +141,10 @@ export function buildFeed({ loc, vehicles, views, clients, alerts, live, drivers
   // momente bune
   const eco = live.filter((x) => x.status !== "private" && x.todayUnit === "km" && x.today > 120).map((x) => ({ x, v: vehicles.find((v) => v.id === x.id)! })).filter((o) => o.v).sort((a, b) => a.x.rate / a.v.baselineRate - b.x.rate / b.v.baselineRate)[0];
   if (eco) { const t = TRUCKS.find((x) => x.id === eco.v.id)!; evs.push({ id: `e-${eco.v.id}`, kind: "eco", prio: "positive", min: now - 22, ...who(eco.v), title: fill(F.eco, { rate: fmtNum(loc, eco.x.rate, 1) }), sub: fill(F.ecoSub, { pct: `${fmtNum(loc, Math.abs((eco.x.rate / eco.v.baselineRate - 1) * 100), 0)}%`, km: fmtNum(loc, eco.x.today) }), map: t ? mini(t, Math.min(eco.x.today, routeTotalKm(t))) : undefined, clap: true }); }
-  const top = drivers[0], tv = top ? vehicles.find((v) => v.id === top.id) : null;
+  const top = drivers[0], tv = top ? vehicles.find((v) => v.id === top.truckId) : null;
   if (top && tv) evs.push({ id: `r-${top.id}`, kind: "rank", prio: "positive", min: 8 * 60 + 5, ...who(tv), title: fill(F.rank1, { driver: top.driver }), sub: fill(F.rankSub, { score: top.score, why: top.best ? t(loc, `rk.c.${top.best}` as MsgKey) : "" }), clap: true });
-  const ot = [...drivers].filter((d) => d.onTime != null && d.id !== top?.id).sort((a, b) => (b.onTime ?? 0) - (a.onTime ?? 0))[0], ov = ot ? vehicles.find((v) => v.id === ot.id) : null;
-  if (ot && ov) { const tr = TRUCKS.find((x) => x.id === ot.id); evs.push({ id: `o-${ot.id}`, kind: "ontime", prio: "positive", min: 10 * 60 + 40, ...who(ov), title: fill(F.ontimeStreak, { driver: ot.driver, n: 6 + (hueOf(ot.id) % 7) }), sub: fill(F.ontimeSub, { place: tr ? tr.route[tr.route.length - 1].name : "—" }), clap: true }); }
+  const ot = [...drivers].filter((d) => d.onTime != null && d.id !== top?.id).sort((a, b) => (b.onTime ?? 0) - (a.onTime ?? 0))[0], ov = ot ? vehicles.find((v) => v.id === ot.truckId) : null;
+  if (ot && ov) { const tr = TRUCKS.find((x) => x.id === ot.truckId); evs.push({ id: `o-${ot.id}`, kind: "ontime", prio: "positive", min: 10 * 60 + 40, ...who(ov), title: fill(F.ontimeStreak, { driver: ot.driver, n: 6 + (hueOf(ot.id) % 7) }), sub: fill(F.ontimeSub, { place: tr ? tr.route[tr.route.length - 1].name : "—" }), clap: true }); }
   // critice (fixate sus): suspiciune de furt + documente care expiră curând
   const pinned: FeedEvent[] = [];
   for (const a of alerts.filter((x) => x.theft && x.rule === "card-fara-camion").slice(0, 1)) {

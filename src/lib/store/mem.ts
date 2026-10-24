@@ -331,10 +331,15 @@ export class MemStore implements Store {
   async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) {
     if (!this.own(firmId, e.truckId)) throw new Error("truck"); const i = this.SE.findIndex(x => x.id === e.id); if (i >= 0 && this.SE[i].firmId !== firmId) throw new Error("event");
     const { ownerNotified, notifyDue, notifyAttempts, notifyNextAt, notifyDone, ...motion } = e;
-    if (i >= 0) this.SE[i] = { ...this.SE[i], ...motion, firmId }; // delivery state is owned by updateSpeedNotify
+    if (i >= 0) this.SE[i] = { ...this.SE[i], ...motion, firmId }; // delivery state is set on insert, then only by updateSpeedNotify/claimSpeedNotify
     else this.SE.push({ ...motion, ownerNotified: !!ownerNotified, notifyDue: !!notifyDue, notifyAttempts: notifyAttempts ?? 0, notifyNextAt: notifyNextAt ?? null, notifyDone: [...(notifyDone ?? [])], highAt: e.highAt ?? null, firmId });
   }
   async updateSpeedNotify(firmId: string, id: string, p: import("../speed").SpeedNotifyPatch) { const r = this.SE.find(x => x.id === id && x.firmId === firmId); if (r) Object.assign(r, p, p.notifyDone ? { notifyDone: [...p.notifyDone] } : {}); }
+  async claimSpeedNotify(firmId: string, id: string, nowIso: string, leaseUntilIso: string, maxAttempts: number) {
+    const x = this.SE.find(r => r.id === id && r.firmId === firmId);
+    if (!x || !x.notifyDue || x.ownerNotified || (x.notifyAttempts ?? 0) >= maxAttempts || (x.notifyNextAt && x.notifyNextAt > nowIso)) return null;
+    x.notifyNextAt = leaseUntilIso; const { firmId: _f, ...e } = x; return { ...e, notifyDone: [...(e.notifyDone ?? [])] };
+  }
   async pendingSpeedNotifications(o: { firmId?: string; dueAt: string; maxAttempts: number; limit: number }) {
     return this.SE.filter(x => (!o.firmId || x.firmId === o.firmId) && x.notifyDue && !x.ownerNotified && (x.notifyAttempts ?? 0) < o.maxAttempts && (!x.notifyNextAt || x.notifyNextAt <= o.dueAt))
       .sort((a, b) => (a.notifyNextAt ?? "").localeCompare(b.notifyNextAt ?? "")).slice(0, o.limit).map(x => ({ ...x, notifyDone: [...(x.notifyDone ?? [])] }));

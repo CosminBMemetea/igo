@@ -5,7 +5,9 @@ import { randomUUID } from "node:crypto";
 import { MemStore } from "../src/lib/store/mem";
 import type { Store } from "../src/lib/store/types";
 import { SPEED_DEFAULTS, estimateKmh, parseSpeedSettings, speedStep, driverAlert, speedRanking, speedExposure, speedCsv, limitFor, speedParts, bucharestDay, csvCell, SPEED_CSV_HEAD, type SpeedEventRow, type SpeedSample } from "../src/lib/speed";
-import { recordSpeed, retrySpeedAlerts, NOTIFY_MAX_ATTEMPTS, NOTIFY_BACKOFF_S } from "../src/lib/speed-service";
+import { recordSpeed, retrySpeedAlerts, deliverSpeedAlert, NOTIFY_MAX_ATTEMPTS, NOTIFY_BACKOFF_S } from "../src/lib/speed-service";
+import { unsentChannels } from "../src/lib/speed";
+assert.ok(Math.max(...NOTIFY_BACKOFF_S) <= 3600, "backoff capped at 1 h: a fixed APP_URL is picked up within the hour (Testing r22 d)");
 import { speedReport, isoLocal } from "../src/lib/speed-report";
 import { completedDay } from "../src/lib/trip-stage";
 import { driverAlert as nativeAlert } from "../apps/driver/src/speed-logic";
@@ -83,19 +85,36 @@ const rk = speedRanking([{ id: "a", name: "A" }, { id: "b", name: "B" }], trips,
 const ra = rk.find(r => r.id === "a")!;
 assert.equal(ra.km, 800, "only finished, non-cancelled, non-planned km; Bucharest day"); assert.equal(ra.ex!.events, 1, "event on Sep 30 Bucharest excluded, 01:00 Oct 1 included"); assert.equal(rk.find(r => r.id === "b"), undefined, "50 km is not enough data");
 // ---- real-firm score uses the speed part with weight 15 (review MAJOR 4)
-const sp = speedParts(trips, evs, "2026-10-01"); assert.deepEqual(Object.keys(sp), ["t1"], "t2 under 300 km gets no part"); const ex1 = speedExposure([evs[0]], 800, 0)!;
-assert.deepEqual(sp.t1, { part: ex1.score / 100, per100: ex1.per100, events: 1, km: 800 });
-const veh = [{ id: "t1", name: "T1", kind: "truck", per100: true, baselineRate: 30, driver: "A" }] as never[], views = [{ vehicleId: "t1", km: 600, actualRate: 30, date: "2026-10-10", active: false }] as never[];
+const sp = speedParts(trips, evs, "2026-10-01"); assert.deepEqual(Object.keys(sp), ["a"], "driver b under 300 km gets no part"); const ex1 = speedExposure([evs[0]], 800, 0)!;
+assert.deepEqual(sp.a, { part: ex1.score / 100, per100: ex1.per100, events: 1, km: 800 }, "speed part is per driver (events by userId, km by driverId)");
+const veh = [{ id: "t1", name: "T1", kind: "truck", per100: true, baselineRate: 30, driver: "A" }] as never[], views = [{ vehicleId: "t1", driverId: "a", driverName: "A", km: 600, actualRate: 30, date: "2026-10-10", active: false }] as never[];
 const zero = { part: 0, per100: 4.2, events: 25, km: 600 };
-const r0 = rankings(veh, views, [], "2026-10-20", false).drivers[0], r1 = rankings(veh, views, [], "2026-10-20", false, { t1: zero }).drivers[0];
+const r0 = rankings(veh, views, [], "2026-10-20", false).drivers[0], r1 = rankings(veh, views, [], "2026-10-20", false, { a: zero }).drivers[0];
 assert.equal(r0.parts.speed, undefined); assert.equal(r0.speedPer100, null); assert.equal(r1.parts.speed, 0); assert.equal(r1.speedPer100, 4.2, "per-100 km value shown on /ranking");
 assert.equal(r1.score, Math.round(((35 * r1.parts.cons! + 10 * r1.parts.alerts!) / (35 + 15 + 10)) * 100), "speed counts with weight 15");
 assert.equal(rankings(veh, views, [], "2026-10-20", true, { t1: zero }).drivers[0].parts.speed !== 0, true, "demo keeps its own sample speed part");
 // ---- one finished-trip definition for fuel and speed (Testing MUST-FIX A)
-const vw = (x: object) => ({ vehicleId: "t1", km: 400, actualRate: 30, date: "2026-10-10", active: false, ...x }) as never;
+const vw = (x: object) => ({ vehicleId: "t1", driverId: "a", driverName: "A", km: 400, actualRate: 30, date: "2026-10-10", active: false, ...x }) as never;
 assert.equal(completedDay(vw({})), "2026-10-10"); assert.equal(completedDay(vw({ cancelledAt: "x" })), null, "cancelled is not finished"); assert.equal(completedDay(vw({ active: true })), null);
 assert.equal(completedDay(vw({ deliveredAt: "2026-10-11T22:30:00Z" })), "2026-10-12", "delivery day in Bucharest");
 const rc = rankings(veh, [vw({}), vw({ cancelledAt: "x", actualRate: 90 })], [], "2026-10-20", false).drivers[0]; assert.equal(rc.km, 400, "fuel score skips cancelled trips"); assert.equal(rc.l100, 30);
+// ---- real firms: one row per driver, trucks vary; never the plate as a name (Testing r22 b)
+{
+  const v2 = [{ id: "t1", name: "B 1 ATZ", kind: "truck", per100: true, baselineRate: 30, driver: "Maria" }, { id: "t2", name: "CJ 2 QAA", kind: "truck", per100: true, baselineRate: 32, driver: "" }] as never[];
+  const tv = (x: object) => ({ vehicleId: "t1", km: 300, actualRate: 30, date: "2026-10-10", active: false, ...x }) as never;
+  const rows = rankings(v2, [
+    tv({ driverId: "ion", driverName: "Ion", vehicleId: "t2", km: 500, actualRate: 32 }), tv({ driverId: "ion", driverName: "Ion", vehicleId: "t1", km: 100, date: "2026-10-11" }),
+    tv({ driverId: "maria", driverName: "Maria", km: 400, actualRate: 33 }),
+    tv({ km: 200 }), // no driver on the trip: "—", not the plate
+  ], [{ vehicleId: "t2", time: "2026-10-10T08:00:00Z" }, { vehicleId: "t2", time: "2026-10-15T08:00:00Z" }, { vehicleId: "t1", time: "2026-10-11T21:30:00Z" }], "2026-10-20", false).drivers;
+  const by = (n: string) => rows.find(r => r.driver === n)!;
+  assert.equal(rows.length, 3); assert.deepEqual(rows.map(r => r.driver).sort(), ["Ion", "Maria", "—"]);
+  assert.ok(rows.every(r => r.driver !== r.plate && !/ATZ|QAA/.test(r.driver)), "plate never shown as the driver");
+  assert.equal(by("Ion").km, 600); assert.equal(by("Ion").plate, "CJ 2 QAA", "most-used truck"); assert.equal(by("Ion").truckId, "t2");
+  assert.equal(by("Ion").alerts, 1, "fuel alert only on a day Ion finished a trip with that truck (Oct 11 21:30Z = Oct 12 Bucharest: no)");
+  assert.equal(by("Maria").alerts, 0); assert.equal(by("Ion").id, "ion"); assert.equal(by("—").speedPer100, null);
+  assert.equal(by("Ion").base, Math.round(((500 * 32 + 100 * 30) / 600) * 10) / 10, "norm = km-weighted over the trucks driven");
+}
 // ---- CSV: numeric negatives stay numbers, text injection neutralised, localized headers with zone (review MINOR)
 assert.equal(csvCell(-25.123), "-25.123"); assert.equal(csvCell("-25.123456"), "-25.123456"); assert.equal(csvCell("-cmd"), `"'-cmd"`); assert.equal(csvCell("=1+1"), `"'=1+1"`); assert.equal(csvCell("@x"), `"'@x"`);
 const csvRow = { plate: "B 1 QRT", driver: 'Ion "X"', e: { ...closed.save[0], lng: -3.7038, lat: 40.4168 } };
@@ -106,9 +125,9 @@ assert.notEqual(SPEED_CSV_HEAD.ro[0], SPEED_CSV_HEAD.en[0]); assert.notEqual(SPE
 const src = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 for (const [p, re] of [["src/components/DriverTracking.tsx", /setSpeedWarn\(\{[^}]*\}\);[^\n]*\n\s*if \(!r\.alert\) return;/], ["apps/driver/src/speed-alert.ts", /write\("speed-warning", warning\);[^\n]*\n\s*if \(!r\.alert\) return;/]] as const)
   assert.match(src(p), re, `${p}: banner updates on every over reading, only effects throttled`);
-const rp = src("src/app/ranking/page.tsx"); assert.match(rp, /COLS: Comp\[\] = \[[^\]]*"speed"/); assert.match(rp, /d\.demo && R\.telematics/); assert.match(rp, /Exemplu demo/); assert.match(rp, /DemoBadge/);
+const rp = src("src/app/ranking/page.tsx"); for (const l of src("src/app/globals.css").split("\n").filter(l => l.includes(".rk-real"))) assert.doesNotMatch(l, /word-break:\s*break-all|overflow-wrap:\s*anywhere/, "no mid-word breaks in the score table (Testing r22 a)"); assert.match(rp, /COLS: Comp\[\] = \[[^\]]*"speed"/); assert.match(rp, /d\.demo && R\.telematics/); assert.match(rp, /Exemplu demo/); assert.match(rp, /DemoBadge/);
 for (const p of ["src/app/ranking/page.tsx", "src/app/feed/page.tsx", "src/app/page.tsx"]) assert.match(src(p), /rankings\([^\n]*await realSpeedParts\(store\(\), d\.tn\.firm\?\.id, d\.demo\)\)/, `${p}: real speed part wired`);
-assert.match(src("src/app/api/speeding/csv/route.ts"), /speedCsv\(rows, isoLocal, loc\)/);
+assert.match(src("src/app/api/speeding/csv/route.ts"), /speedCsv\(rows, isoLocal, loc\)/); assert.match(src("src/app/speeding/page.tsx"), /unsent \? <div className="sp-unsent"[^\n]*Alertă netrimisă\|Alert not sent\|Alert niewysłany/, "/speeding shows given-up alerts");
 // CSV time = Romania local time with its UTC offset; 03:00–04:00 on 25 Oct 2026 happens twice (Testing E)
 assert.equal(isoLocal("2026-10-25T00:30:00Z"), "2026-10-25T03:30:00+03:00"); assert.equal(isoLocal("2026-10-25T01:30:00Z"), "2026-10-25T03:30:00+02:00");
 assert.equal(isoLocal("2026-03-29T00:59:59Z"), "2026-03-29T02:59:59+02:00"); assert.equal(isoLocal("2026-03-29T01:00:00Z"), "2026-03-29T04:00:00+03:00"); assert.equal(isoLocal("2026-12-31T22:00:00.500Z"), "2027-01-01T00:00:00+02:00");
@@ -238,6 +257,20 @@ async function failingChannel(s: MemStore, firmId: string, truckId: string, user
     for (let d = 1; d <= NOTIFY_MAX_ATTEMPTS + 3; d++) await retrySpeedAlerts(flaky, b3 + d * 86400_000);
     const e3 = (await s.speedEvents(firmId, {})).find(e => e.startAt === new Date(b3).toISOString())!; assert.equal(e3.notifyAttempts, NOTIFY_MAX_ATTEMPTS); assert.equal(e3.ownerNotified, false);
     assert.equal((await s.pendingSpeedNotifications({ dueAt: new Date(b3 + 99 * 86400_000).toISOString(), maxAttempts: NOTIFY_MAX_ATTEMPTS, limit: 10 })).length, 0, "gives up after max attempts");
+    // given-up alert is visible on /speeding with the missing channel(s); deduped ones are not (Testing r22 c)
+    const own = (await s.users(firmId)).filter(u => u.role === "owner"), rep = await speedReport(s, firmId, { days: 365, truckId: "", userId: "" }, b3 + 86400_000);
+    const un = rep.rows.find(x => x.e.id === e3.id)!.unsent; assert.ok(un && un.includes("inbox"), `given up → badge with channel ${JSON.stringify(un)}`);
+    assert.equal(rep.rows.find(x => x.e.id === e2.id)!.unsent, null, "delivered → no badge");
+    assert.equal(unsentChannels({ ...e3, notifyDone: ["deduped"] }, own), null, "deduped → no badge"); assert.equal(unsentChannels({ ...e3, notifyAttempts: 3 }, own), null, "still retrying → no badge");
+    // claim: only one concurrent attempt delivers (Testing r22 e)
+    const t0 = new Date(b3 + 200 * 86400_000).toISOString(), lease = new Date(b3 + 200 * 86400_000 + 120_000).toISOString();
+    await s.updateSpeedNotify(firmId, e3.id, { notifyAttempts: 0, notifyNextAt: null });
+    assert.ok(await s.claimSpeedNotify(firmId, e3.id, t0, lease, NOTIFY_MAX_ATTEMPTS), "due → claimed"); assert.equal(await s.claimSpeedNotify(firmId, e3.id, t0, lease, NOTIFY_MAX_ATTEMPTS), null, "already leased → skipped");
+    assert.equal(await s.claimSpeedNotify("other-firm", e3.id, lease, lease, NOTIFY_MAX_ATTEMPTS), null, "claim is firm-scoped");
+    await s.updateSpeedNotify(firmId, e3.id, { notifyNextAt: null }); fail = false; const m0 = await mails();
+    const both = await Promise.all([deliverSpeedAlert(flaky, firmId, e3, b3 + 200 * 86400_000), deliverSpeedAlert(flaky, firmId, e3, b3 + 200 * 86400_000)]);
+    assert.deepEqual(both.map(x => x.status).sort(), ["busy", "queued"], "concurrent duplicate skipped"); assert.equal(await mails(), m0, "email went out on attempt 1, never resent");
+    assert.equal(await s.claimSpeedNotify(firmId, e3.id, lease, lease, NOTIFY_MAX_ATTEMPTS), null, "delivered → not claimable");
   } finally { console.error = ce; }
 }
 await storeChecks(new MemStore(), "memory");

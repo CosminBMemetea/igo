@@ -1,6 +1,7 @@
 import type { Store } from "./store/types";
 import { newId } from "./store/types";
-import { estimateKmh, limitFor, speedStep, type SpeedEventRow, type SpeedSample } from "./speed";
+import { estimateKmh, limitFor, speedStep, NOTIFY_BACKOFF_S, NOTIFY_MAX_ATTEMPTS, type SpeedEventRow, type SpeedSample } from "./speed";
+export { NOTIFY_BACKOFF_S, NOTIFY_MAX_ATTEMPTS };
 import { queueEmail } from "./email";
 import { queuePush } from "./alert-delivery";
 import { appOrigin } from "./app-origin";
@@ -27,15 +28,18 @@ export async function recordSpeed(s: Store, firmId: string, userId: string, truc
     queued = (await deliverSpeedAlert(s, firmId, step.notify, now)).queued;
   }
   // Opportunistic retry of this firm's due, unsent alerts (open or closed events), with backoff; the daily cron covers idle firms.
+  // Cheap: LIMIT 3 on the partial index speed_events_firm_pending_ix (only undelivered rows); usually returns nothing.
   const pending = await s.pendingSpeedNotifications({ firmId, dueAt: new Date(now).toISOString(), maxAttempts: NOTIFY_MAX_ATTEMPTS, limit: 3 }).catch(() => []);
   for (const e of pending) if (e.id !== step.notify?.id && (await deliverSpeedAlert(s, firmId, e, now)).queued) queued = true;
   return { kmh, limit: limitFor(cfg, truckId), notify: !!step.notify, queued };
 }
-/** Seconds to wait after attempt n (1-based) failed; after NOTIFY_MAX_ATTEMPTS the alert stays unsent (visible on /speeding). */
-export const NOTIFY_BACKOFF_S = [30, 120, 600, 1800, 7200, 21600, 43200];
-export const NOTIFY_MAX_ATTEMPTS = 8;
-/** One delivery attempt for a due alert. Channels already done are skipped; every key is idempotent, so overlapping attempts cannot double-send. */
-export async function deliverSpeedAlert(s: Store, firmId: string, e: SpeedEventRow, now = Date.now()): Promise<{ queued: boolean; status: "queued" | "deduped" | "failed" }> {
+/** While an attempt runs, the row is leased so a concurrent reading or the cron skips it (no duplicate delivery). */
+const NOTIFY_LEASE_MS = 120_000;
+/** One delivery attempt for a due alert. It first claims the row (due → leased); if another reading or the cron holds it, it does nothing.
+ *  Channels already done are skipped and outbox keys are idempotent, so even an expired lease cannot double-send. */
+export async function deliverSpeedAlert(s: Store, firmId: string, row: SpeedEventRow, now = Date.now()): Promise<{ queued: boolean; status: "queued" | "deduped" | "failed" | "busy" }> {
+  const e = await s.claimSpeedNotify(firmId, row.id, new Date(now).toISOString(), new Date(now + NOTIFY_LEASE_MS).toISOString(), NOTIFY_MAX_ATTEMPTS);
+  if (!e) return { queued: false, status: "busy" };
   const done = new Set(e.notifyDone ?? []), attempts = (e.notifyAttempts ?? 0) + 1;
   const r = await notifyOwners(s, firmId, e, now, done).catch((err) => ({ status: "failed" as const, errors: [`setup: ${err instanceof Error ? err.message : String(err)}`] }));
   const notifyDone = [...done];
@@ -53,9 +57,9 @@ export async function deliverSpeedAlert(s: Store, firmId: string, e: SpeedEventR
 /** Cron pass over all firms: due, unsent alerts. */
 export async function retrySpeedAlerts(s: Store, now = Date.now(), limit = 200) {
   const rows = await s.pendingSpeedNotifications({ dueAt: new Date(now).toISOString(), maxAttempts: NOTIFY_MAX_ATTEMPTS, limit });
-  let sent = 0, failed = 0;
-  for (const e of rows) { const r = await deliverSpeedAlert(s, e.firmId, e, now); if (r.status === "failed") failed++; else sent++; }
-  return { processed: rows.length, sent, failed };
+  let sent = 0, failed = 0, busy = 0;
+  for (const e of rows) { const r = await deliverSpeedAlert(s, e.firmId, e, now); if (r.status === "failed") failed++; else if (r.status === "busy") busy++; else sent++; }
+  return { processed: rows.length, sent, failed, busy };
 }
 /** Channels: "inbox", "email:<ownerId>", "push:<ownerId>" (recorded in `done`). The APP_URL check only gates email (the only channel with a link in its body). */
 async function notifyOwners(s: Store, firmId: string, e: SpeedEventRow, now: number, done: Set<string>): Promise<{ status: "queued" | "deduped" | "failed"; errors: string[] }> {

@@ -32,8 +32,9 @@ export default async function Speeding(props: { searchParams: Promise<{ days?: s
     <SpeedMap theme={theme} pins={r.rows.map(({ e, plate }) => ({ id: e.id, lat: e.lat, lng: e.lng, over: e.maxKmh - e.limitKmh, label: `${plate} · ${Math.round(e.maxKmh)}/${e.limitKmh} km/h` }))} />
     <section className="section">
       <div className="head"><h2>{fmtNum(loc, r.rows.length)} {tri(loc, "evenimente|events|zdarzeń")}</h2></div>
-      {r.rows.length ? <div className="list">{r.rows.map(({ e, plate, driver }) => <div key={e.id} className="it sp-row">
-        <div style={{ minWidth: 0 }}><div className="t">{plate}{driver ? ` · ${driver}` : ""}</div><div className="m">{fmtLocal(e.startAt).slice(0, 16)} · {dur(e.durationS)}{e.open ? ` · ${tri(loc, "în curs|ongoing|w toku")}` : ""}</div></div>
+      {r.rows.length ? <div className="list">{r.rows.map(({ e, plate, driver, unsent }) => <div key={e.id} className="it sp-row">
+        <div style={{ minWidth: 0 }}><div className="t">{plate}{driver ? ` · ${driver}` : ""}</div><div className="m">{fmtLocal(e.startAt).slice(0, 16)} · {dur(e.durationS)}{e.open ? ` · ${tri(loc, "în curs|ongoing|w toku")}` : ""}</div>
+          {unsent ? <div className="sp-unsent" role="status">{tri(loc, "Alertă netrimisă|Alert not sent|Alert niewysłany")}{unsent.length ? `: ${unsent.map(c => c === "inbox" ? tri(loc, "în aplicație|in app|w aplikacji") : c === "email" ? "e-mail" : "push").join(", ")}` : ""}</div> : null}</div>
         <b className={e.maxKmh - e.limitKmh >= 10 ? "neg" : ""}>{Math.round(e.maxKmh)}<small>/{e.limitKmh}{"\u00a0"}km/h</small></b>
       </div>)}</div> : <p className="sub">{tri(loc, "Nicio depășire în perioada aleasă.|No warnings in this period.|Brak przekroczeń w wybranym okresie.")}</p>}
     </section>

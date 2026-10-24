@@ -254,7 +254,7 @@ export const speedEvents = pgTable("speed_events", {
   notifyAttempts: integer("notify_attempts").notNull().default(0),
   notifyNextAt: text("notify_next_at"),
   notifyDone: jsonb("notify_done").$type<string[]>().notNull().default([]),
-}, (t) => [index("speed_events_notify_ix").on(t.notifyDue, t.ownerNotified, t.notifyNextAt), index("speed_events_firm_start_ix").on(t.firmId, t.startAt), index("speed_events_firm_truck_open_ix").on(t.firmId, t.truckId, t.open)]);
+}, (t) => [index("speed_events_notify_ix").on(t.notifyDue, t.ownerNotified, t.notifyNextAt), index("speed_events_firm_start_ix").on(t.firmId, t.startAt), index("speed_events_firm_truck_open_ix").on(t.firmId, t.truckId, t.open), index("speed_events_firm_pending_ix").on(t.firmId, t.notifyNextAt).where(sql`notify_due and not owner_notified`)]);
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 /** Fișiere (poze CMR/POD, scanuri de documente). storage = blob (Vercel Blob, url) sau db (bytea, max ~2 MB). */

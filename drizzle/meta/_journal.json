@@ -176,6 +176,13 @@
       "when": 1793000000000,
       "tag": "0024_speed_notify_retry",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793100000000,
+      "tag": "0025_speed_notify_pending_ix",
+      "breakpoints": true
     }
   ]
 }

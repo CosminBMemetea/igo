@@ -163,6 +163,8 @@ export interface Store {
   deleteSpeedEvent(firmId: string, id: string): Promise<void>;
   /** Owner-alert delivery state only (never touches motion fields, so a concurrent reading cannot undo it). */
   updateSpeedNotify(firmId: string, id: string, p: import("../speed").SpeedNotifyPatch): Promise<void>;
+  /** Atomically leases a due, undelivered alert (notify_next_at := leaseUntil) and returns its fresh row; null if not due or already claimed. */
+  claimSpeedNotify(firmId: string, id: string, nowIso: string, leaseUntilIso: string, maxAttempts: number): Promise<import("../speed").SpeedEventRow | null>;
   /** Due, undelivered owner alerts (open or closed). Without firmId: all firms (cron only). */
   pendingSpeedNotifications(o: { firmId?: string; dueAt: string; maxAttempts: number; limit: number }): Promise<(import("../speed").SpeedEventRow & { firmId: string })[]>;
   speedEvents(firmId: string, o?: { sinceAt?: string; untilAt?: string; truckId?: string; userId?: string; limit?: number }): Promise<import("../speed").SpeedEventRow[]>;

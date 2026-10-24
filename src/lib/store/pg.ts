@@ -487,7 +487,7 @@ export class PgStore implements Store {
   }
   async saveSpeedEvent(firmId: string, e: import("../speed").SpeedEventRow) {
     await this.ownTruck(firmId, e.truckId);
-    // delivery state (owner_notified, notify_*) is written only by updateSpeedNotify, so a concurrent reading cannot undo it
+    // motion only: delivery state (owner_notified, notify_*) is set on insert, then changed only by updateSpeedNotify/claimSpeedNotify, so a concurrent reading cannot undo it
     const { id: _id, ownerNotified: _o, notifyDue: _d, notifyAttempts: _a, notifyNextAt: _n, notifyDone: _x, ...rest } = e;
     const r = await this.d.insert(speedEvents).values({ ...e, firmId, notifyDone: e.notifyDone ?? [] }).onConflictDoUpdate({ target: speedEvents.id, set: rest, setWhere: eq(speedEvents.firmId, firmId) }).returning({ id: speedEvents.id });
     if (!r.length) throw new Error("event");
@@ -495,6 +495,11 @@ export class PgStore implements Store {
   async updateSpeedNotify(firmId: string, id: string, p: import("../speed").SpeedNotifyPatch) {
     if (!Object.keys(p).length) return;
     await this.d.update(speedEvents).set(p).where(and(eq(speedEvents.firmId, firmId), eq(speedEvents.id, id)));
+  }
+  async claimSpeedNotify(firmId: string, id: string, nowIso: string, leaseUntilIso: string, maxAttempts: number) {
+    const [r] = await this.d.update(speedEvents).set({ notifyNextAt: leaseUntilIso }).where(and(eq(speedEvents.firmId, firmId), eq(speedEvents.id, id), eq(speedEvents.notifyDue, true), eq(speedEvents.ownerNotified, false),
+      lt(speedEvents.notifyAttempts, maxAttempts), or(isNull(speedEvents.notifyNextAt), lte(speedEvents.notifyNextAt, nowIso)))).returning();
+    if (!r) return null; const { firmId: _f, ...e } = r; return e;
   }
   async pendingSpeedNotifications(o: { firmId?: string; dueAt: string; maxAttempts: number; limit: number }) {
     return this.d.select().from(speedEvents).where(and(o.firmId ? eq(speedEvents.firmId, o.firmId) : undefined, eq(speedEvents.notifyDue, true), eq(speedEvents.ownerNotified, false), lt(speedEvents.notifyAttempts, o.maxAttempts),
