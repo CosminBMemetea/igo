@@ -1,8 +1,10 @@
 {
-  "CFBundleDisplayName": "Querra Driver",
-  "NSLocationWhenInUseUsageDescription": "Querra sends the truck's position to your company only when you turn on GPS during a shift.",
-  "NSLocationAlwaysAndWhenInUseUsageDescription": "During a shift, Querra also sends the position with the screen locked, for the company map and the warning when you exceed the speed limit set by your company. Private mode and Stop GPS pause collection.",
-  "NSLocationAlwaysUsageDescription": "Querra uses background location only after you turn on GPS during a shift. You can stop collection from the app.",
-  "NSCameraUsageDescription": "Take a photo of the CMR or proof of delivery for your trip.",
-  "NSPhotoLibraryUsageDescription": "Choose the photo of the document you want to send to your company."
+  "ios": {
+    "CFBundleDisplayName": "Querra Driver",
+    "NSLocationWhenInUseUsageDescription": "Querra sends the truck's position to your company only when you turn on GPS during a shift.",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "During a shift, Querra also sends the position with the screen locked, for the company map and the warning when you exceed the speed limit set by your company. Private mode and Stop GPS pause collection.",
+    "NSLocationAlwaysUsageDescription": "Querra uses background location only after you turn on GPS during a shift. You can stop collection from the app.",
+    "NSCameraUsageDescription": "Take a photo of the CMR or proof of delivery for your trip.",
+    "NSPhotoLibraryUsageDescription": "Choose the photo of the document you want to send to your company."
+  }
 }
