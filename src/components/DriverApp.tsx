@@ -7,7 +7,7 @@ import { loadReceiptDraft, saveReceiptDraft } from "@/lib/receipt-draft";
 import { enqueue, flushOutbox, outboxItems } from "@/lib/outbox";
 import { tri } from "@/lib/i18n";
 import { saveThumb } from "./ReceiptThumb";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { shrinkImage } from "@/lib/shrink";
 import { sniffImage, MAX_PHOTO_IN } from "@/lib/imgsniff";
 import { fmtNum, type Locale } from "@/lib/i18n";
@@ -24,7 +24,7 @@ async function blankImage(file: File): Promise<boolean | null> {
   } catch { return null; } // nu se poate decoda
 }
 const CURS = ["RON", "EUR", "PLN", "HUF", "CZK", "BGN", "CHF", "GBP", "SEK", "DKK", "NOK"];
-export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo, hasWork: serverHasWork = false, workTripIds }: { hasWork?: boolean; workTripIds?: string[]; queueScope?: string; actorId?: string; switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
+export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, labels: L, lastFill, loc, initial, demoKm, serverNow, demo, preview, today, switchTo, hasWork: serverHasWork = false, workTripIds, top, trip }: { top?: ReactNode; trip?: ReactNode; hasWork?: boolean; workTripIds?: string[]; queueScope?: string; actorId?: string; switchTo?: { id: string; name: string }[]; today?: { km: number; hours: number } | null; preview?: boolean; demo?: boolean; serverNow: number; demoKm?: number | null; initial?: { start: string; priv: boolean } | null; vehicleId: string; vehicleName: string; hello: string; labels: Record<string, string>; lastFill: string; loc: Locale }) {
   const [localDelivered, setLocalDelivered] = useState<string[]>([]), [ackDelivered, setAckDelivered] = useState<string[]>([]);
   const [readScope, setReadScope] = useState<string | null>(null), [queueError, setQueueError] = useState(false);
   const queueReady = !queueScope || demo || readScope === queueScope;
@@ -207,12 +207,18 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   }
   const trackingOk = gps === "ok" && lastAck !== null && now - lastAck < 90000;
   const w = work.current, hours = (w.ms + (w.since !== null ? Math.max(0, now - w.since) : 0)) / 3600000;
+  const state = !on ? "off" : priv ? "priv" : "on";
+  const stateLabel = !on ? L["drv.offShift"] : priv ? tri(loc, "Pauză privată|Private break|Przerwa prywatna") : L["drv.onShift"];
+  // o singură frază: ce vede patronul acum (aceeași regulă ca pe server: poziții doar în tură, niciuna în privat)
+  const ownerLine = !on ? tri(loc, "În afara turei nu se trimite nicio poziție.|Off shift: no location is sent.|Poza zmianą lokalizacja nie jest wysyłana.")
+    : priv ? tri(loc, "Patronul vede doar „Privat”, fără poziție.|The owner sees only “Private”, no location.|Właściciel widzi tylko „Prywatnie”, bez lokalizacji.")
+    : tri(loc, "Patronul vede camionul pe hartă. Privat = fără poziție.|The owner sees the truck on the map. Private = no location.|Właściciel widzi pojazd na mapie. Prywatnie = bez lokalizacji.");
+  const gpsIssue = on && !priv && !demo && !held && (gps === "error" || gps === "off" || !trackingOk);
   return (
-    <div className="phone">
+    <div className="phone drv-home">
       {preview ? <div className="pvbar fade" role="note"><b>{L["drv.preview"]}</b><span>{L["drv.previewHint"]}</span></div> : null}
-      <div className="eyebrow fade">{vehicleName}</div>
-      <h1 className="fade" style={{ fontWeight: 300, fontSize: 40, letterSpacing: "-.02em", marginTop: 8 }}>{hello}</h1>
-      <div className="pill fade d1" style={{ marginTop: 14 }}><span className="dot" style={{ background: on ? "var(--pos)" : "var(--fg3)", margin: 0 }} />{on ? L["drv.onShift"] : L["drv.offShift"]}</div>
+      <div className="drv-hello fade"><div><div className="eyebrow">{vehicleName}</div><h1>{hello}</h1></div><span className={`drv-state s-${state}`} role="status"><i aria-hidden="true" />{stateLabel}</span></div>
+      {top}
       {!on && !preview && switchTo && switchTo.length ? (
         <div className="drvtruck fade d1">
           <div><span className="eyebrow">{L["drv.truckQ"]}</span><b>{vehicleName}</b></div>
@@ -220,31 +226,33 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
         </div>
       ) : null}
       {held && !demo ? <div className="msg warn driver-gps-hold" role="status"><span>{tri(loc, "GPS rămâne oprit pe acest dispozitiv. Reîncearcă operația neconfirmată sau reia GPS explicit.|GPS remains stopped on this device. Retry the unconfirmed action or explicitly resume GPS.|GPS pozostaje wyłączony. Ponów niepotwierdzoną operację lub wznów GPS.")}</span><button type="button" className="btn sec sm" onClick={() => window.dispatchEvent(new Event("qf-tracking-resume"))}>{tri(loc, "Reia GPS|Resume GPS|Wznów GPS")}</button></div> : null}
-      {!on || priv ? (
-        <div className={`privbox fade d1${priv ? " on" : ""}`} role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /></svg><div><b>{L["priv.on"]}</b><span>{priv ? L["priv.break"] : L["priv.offShift"]}</span><small className="geo-off">⌀ {L["priv.geoOff"]}</small></div></div>
-      ) : held && !demo ? null : <div className="privbox track fade d1" role="status"><span className="dot" style={{ background: demo || trackingOk ? "var(--pos)" : "var(--fg3)", margin: 0 }} /><div><b>{gps === "error" && !demo ? tri(loc, "Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : L["priv.tracking" + (demo || trackingOk ? "" : gps === "off" ? "Off" : "Wait")]}</b><span>{L[gps === "off" && !demo ? "priv.trackingOffHint" : "priv.trackingHint"]}</span></div></div>}
-      <div className="driver-stats fade d1">
-        <div><div className="drv-big" suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</div><div className="eyebrow">{L["drv.kmToday"]}</div></div>
-        <div><div className="drv-big" style={{ color: "var(--fg2)" }} suppressHydrationWarning>{fmtNum(loc, hours, 1)}<span style={{ fontSize: ".5em" }}>h</span></div><div className="eyebrow">{L["drv.hoursToday"]}</div></div>
-      </div>
-      {!on && queueReady && (hasWork || withoutTrip) ? (
-        <div className="sheet fade d2">
-          <div className="eyebrow">{L["drv.check"]}</div>
-          {CHECKS.map((c) => <div key={c} className="chkrow" role="checkbox" aria-checked={checks.includes(c)} tabIndex={0} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.currentTarget.click(); } }} onClick={() => setChecks((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))}><span>{L[c]}</span><span className={`chkbox${checks.includes(c) ? " on" : ""}`}>{checks.includes(c) ? <Icon name="check" /> : null}</span></div>)}
+      <section className={`drv-shift fade d1 s-${state}`} aria-label={tri(loc, "Tura|Shift|Zmiana")}>
+        <div className="drv-shift-stats">
+          <div><b suppressHydrationWarning>{fmtNum(loc, shownKm, 1)}</b><span>{L["drv.kmToday"]}</span></div>
+          <div><b suppressHydrationWarning>{fmtNum(loc, hours, 1)}<small>h</small></b><span>{L["drv.hoursToday"]}</span></div>
         </div>
-      ) : null}
-      <div className="fade d2" style={{ marginTop: 16, display: "grid", gap: 12 }}>
+        {!on && queueReady && (hasWork || withoutTrip) ? (
+          <div className="drv-check">
+            <div className="eyebrow">{L["drv.check"]}</div>
+            {CHECKS.map((c) => <div key={c} className="chkrow" role="checkbox" aria-checked={checks.includes(c)} tabIndex={0} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.currentTarget.click(); } }} onClick={() => setChecks((x) => (x.includes(c) ? x.filter((y) => y !== c) : [...x, c]))}><span>{L[c]}</span><span className={`chkbox${checks.includes(c) ? " on" : ""}`}>{checks.includes(c) ? <Icon name="check" /> : null}</span></div>)}
+          </div>
+        ) : null}
         {!on && !queueReady && <p role="status" className="sub">{tri(loc, queueError ? "Operațiunile locale nu pot fi citite. Reîncarcă pagina înainte de a începe tura.|Local actions could not be read. Reload before starting the shift.|Nie można odczytać operacji lokalnych. Odśwież stronę przed rozpoczęciem zmiany." : "Verificăm operațiunile salvate pe telefon…|Checking actions saved on this device…|Sprawdzanie operacji zapisanych na urządzeniu…")}</p>}
-        {!on && queueReady && !hasWork && !withoutTrip ? <><p className="sub">{tri(loc, "Nu ai o cursă disponibilă de început pe acest camion.|No trip is available to start on this truck.|Brak kursu do rozpoczęcia tym pojazdem.")}</p><button className="btn sec start" onClick={() => setWithoutTrip(true)}>{tri(loc, "Lucrez fără cursă alocată|Work without an assigned trip|Praca bez przypisanego kursu")}</button></> : null}
-        {on || queueReady && (hasWork || withoutTrip) ? <button ref={shiftTrigger} className="btn pri start" style={on ? { background: "var(--neg)" } : undefined} onClick={toggle}>{on ? L["drv.stop"] : L["drv.start"]}</button> : null}
-        {askEnd ? <dialog ref={endDialog} className="msheet-bg any" aria-labelledby="endq" onCancel={() => setAskEnd(false)} onClick={(e) => { if (e.target === e.currentTarget) setAskEnd(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
-          <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
-          <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>
-          <button className="btn sec" onClick={() => setAskEnd(false)}>{L["drv.endNo"]}</button>
-        </div></dialog> : null}
-        {on ? <button className={`btn sec start privbtn${priv ? " on" : ""}`} onClick={togglePriv} aria-pressed={priv}>{priv ? L["priv.resume"] : L["priv.toggle"]}</button> : null}
-        <button className="btn sec start" disabled={!draftReady} onClick={() => setForm((x) => !x)}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span></button>
-      </div>
+        {!on && queueReady && !hasWork && !withoutTrip ? <><p className="sub">{tri(loc, "Nicio cursă de pornit pe acest camion.|No trip to start on this truck.|Brak kursu do rozpoczęcia tym pojazdem.")}</p><button className="btn sec start" onClick={() => setWithoutTrip(true)}>{tri(loc, "Lucrez fără cursă alocată|Work without an assigned trip|Praca bez przypisanego kursu")}</button></> : null}
+        <div className="drv-shift-row">
+          {on || queueReady && (hasWork || withoutTrip) ? <button ref={shiftTrigger} className={`drv-go${on ? " stop" : ""}`} onClick={toggle}><Icon name={on ? "pause" : "play"} size={22} /><span>{on ? L["drv.stop"] : L["drv.start"]}</span></button> : null}
+          <button className={`drv-priv${priv ? " on" : ""}`} onClick={togglePriv} disabled={!on} aria-pressed={priv} title={on ? L["priv.toggle"] : tri(loc, "Privat merge doar în timpul turei|Private works only during a shift|Tryb prywatny działa tylko w trakcie zmiany")}><svg viewBox="0 0 24 24" aria-hidden="true">{priv ? <path d="M3 3l18 18M10.6 5.1A9.8 9.8 0 0 1 12 5c5 0 9 5 9 7a10 10 0 0 1-2.6 3.5M6.1 6.4C4 7.8 3 10.7 3 12c0 2 4 7 9 7 1.5 0 2.9-.4 4.1-1" /> : <><path d="M3 12c0-2 4-7 9-7s9 5 9 7-4 7-9 7-9-5-9-7z" /><circle cx="12" cy="12" r="3" /></>}</svg><span>{priv ? L["priv.resume"] : tri(loc, "Privat|Private|Prywatnie")}</span></button>
+        </div>
+        <p className="drv-owner-line">{ownerLine}</p>
+        {gpsIssue ? <p className="drv-gps-line" role="status">{gps === "error" ? tri(loc, "Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : L[gps === "off" ? "priv.trackingOff" : "priv.trackingWait"]}{gps === "off" ? <small>{L["priv.trackingOffHint"]}</small> : null}</p> : null}
+      </section>
+      {askEnd ? <dialog ref={endDialog} className="msheet-bg any" aria-labelledby="endq" onCancel={() => setAskEnd(false)} onClick={(e) => { if (e.target === e.currentTarget) setAskEnd(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
+        <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
+        <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>
+        <button className="btn sec" onClick={() => setAskEnd(false)}>{L["drv.endNo"]}</button>
+      </div></dialog> : null}
+      {trip}
+      <button className="btn sec start drv-fuel fade d2" disabled={!draftReady} onClick={() => setForm((x) => !x)} aria-expanded={form}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span><small className="ell">{last}</small></button>
       {msg.t ? <p className={`msg ${msg.k}`}>{msg.t}</p> : null}
       {draftError ? <p className="msg warn" role="alert">{tri(loc, "Salvarea automată pe telefon nu este disponibilă. Păstrează pagina deschisă până trimiți bonul.|Autosave is unavailable. Keep this page open until you send the receipt.|Automatyczny zapis jest niedostępny. Nie zamykaj strony przed wysłaniem paragonu.")}</p> : null}
       {form && draftReady ? (
@@ -258,8 +266,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
           <button className="btn pri start" style={{ height: 60, marginTop: 8 }} disabled={busy || preview || read === L["drv.reading"]} aria-busy={busy} title={preview ? L["drv.previewNo"] : undefined}>{busy ? L["drv.sending"] : L["drv.send"]}</button>
         </form>
       ) : null}
-      <div className="sheet fade d3"><div className="field" style={{ padding: "4px 0" }}><span style={{ whiteSpace: "nowrap" }}>{L["drv.lastFill"]}</span><span className="ell" title={last} style={{ color: "var(--fg2)", fontSize: 14 }}>{last}</span></div></div>
-      <p className="sub" style={{ fontSize: 12, marginTop: 20, textAlign: "center" }}>{L["drv.consent"]}</p>
+      <p className="sub drv-consent">{L["drv.consent"]}</p>
     </div>
   );
 }

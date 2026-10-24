@@ -158,6 +158,35 @@ try {
   for (const [u, who] of [[`/replay?v=${Bf.truckId}`, A.o], [`/replay?trip=${Bf.tripId}`, A.o], [`/vehicles/${Bf.truckId}/history`, A.o], [`/driver/trips/${Bf.tripId}`, A.d]] as const) {
     const res = await req(who, "GET", u); ok(`${who.name} GET ${u.split("?")[0]} cu id B → 404`, res.status === 404, `→ ${res.status} ${res.loc}`);
   }
+  // ---------- 2b. aceeași firmă: un șofer nu vede cursele / actele altui șofer (ecranele /driver/*) ----------
+  {
+    await req(A.o, "POST", "/api/setup/invite", form({ name: "Sofer Doi", phone: "0744500600" }));
+    const page = await req(A.o, "GET", "/setup?step=3");
+    const tokens = [...page.text.matchAll(/\/join\?t=([^"'<\s&]+)/g)].map(m => decodeURIComponent(m[1]));
+    const d2 = jar("A2-driver");
+    for (const t of tokens.reverse()) { await req(d2, "POST", "/api/auth/join", form({ t, phone: "0744500600", pin: "593104", pin2: "593104" })); if (d2.cookie.includes("igo-session")) break; }
+    ok("șofer 2 în firma A: cont activ", d2.cookie.includes("igo-session"));
+    const [u2] = await q("select id from users where firm_id=$1 and role='driver' and id<>$2", [A.firmId, A.driverId]);
+    await req(A.o, "POST", "/api/setup/truck", form({ plate: "IS 99 DOI", model: "MAN", tank: "500", l100: "29" }));
+    const [tr2] = await q("select id from trucks where firm_id=$1 and id<>$2", [A.firmId, A.truckId]);
+    await req(A.o, "POST", "/api/drivers/assign", form({ uid: u2?.id ?? "", truck: tr2?.id ?? "" }));
+    const tr = await req(A.o, "POST", "/api/trips/new", { from: "Satu Mare", to: "Graz", km: 1050, date: new Date().toISOString().slice(0, 10), driverId: u2?.id, truckId: tr2?.id });
+    const t2 = JSON.parse(tr.text).id as string; if (!t2) console.log("trip2", tr.status, tr.text.slice(0, 200), tr2, u2);
+    const dr1 = await req(A.o, "POST", "/api/docs", form({ scope: "driver", type: "licence", target: A.driverId, expires: "2027-03-01", file: new Blob([JPEG], { type: "image/jpeg" }) }));
+    await req(A.o, "POST", "/api/docs", form({ scope: "driver", type: "medical", target: u2?.id ?? "", expires: "2027-04-01", file: new Blob([JPEG], { type: "image/jpeg" }) }));
+    const f1 = (await q("select file_id from documents where user_id=$1", [A.driverId]))[0]?.file_id as string, f2 = (await q("select file_id from documents where user_id=$1", [u2?.id]))[0]?.file_id as string;
+    ok("acte personale create pentru ambii șoferi", !!f1 && !!f2 && !!t2, `${dr1.status} ${dr1.loc} ${f1} ${f2} ${t2}`);
+    for (const path of ["/driver", "/driver/trips", "/driver/docs", "/driver/profile"]) {
+      const mine = await req(A.d, "GET", path), other = await req(d2, "GET", path);
+      ok(`șofer 1 ${path}: 200, fără cursa/actele șoferului 2`, mine.status === 200 && !mine.text.includes(t2) && !mine.text.includes("Graz") && !mine.text.includes(f2) && !mine.text.includes("Sofer Doi"), `${mine.status}`);
+      ok(`șofer 2 ${path}: 200, fără cursa/actele șoferului 1`, other.status === 200 && !other.text.includes(A.tripId) && !other.text.includes("Arad") && !other.text.includes(f1) && !other.text.includes("Sofer A"), `${other.status}`);
+    }
+    ok("șofer 1 /driver/trips își vede cursa", (await req(A.d, "GET", "/driver/trips")).text.includes(A.tripId));
+    ok("șofer 2 /driver/trips își vede cursa", (await req(d2, "GET", "/driver/trips")).text.includes(t2));
+    ok("șofer 1 /driver/docs își vede actul", (await req(A.d, "GET", "/driver/docs")).text.includes(f1));
+    ok("șofer 1 /driver/trips/[cursa șoferului 2] → 404", (await req(A.d, "GET", `/driver/trips/${t2}`)).status === 404);
+    await req(A.o, "POST", "/api/trips/delete", form({ id: t2 }));
+  }
   const after = await snap(Bf.firmId);
   for (const t of Object.keys(before)) ok(`tabela ${t} a firmei B neschimbată`, before[t] === after[t]);
   // ---------- 3. ștergeri proprii (patron), refuzate pentru șofer ----------

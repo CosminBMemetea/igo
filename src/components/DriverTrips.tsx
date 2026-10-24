@@ -2,9 +2,10 @@
 import Link from "next/link";
 import { outboxItems, type OutboxItem } from "@/lib/outbox";
 import { applyDriverTripUpdate, DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { tri, fmtDate, type Locale } from "@/lib/i18n";
 import { groupDriverTrips, driverTripStage, type DriverTripSummary, type DriverTripStage } from "@/lib/driver-trips";
+import { tripChecklist, driverSections, CHECK_LABEL, CHECK_ACTION, DOC_KEYS, type TripDocs, type CheckState } from "@/lib/driver-checklist";
 function TripRoute({ title, loc }: { title: string; loc: Locale }) {
   const stops = title.split(/\s+(?:→|·|–|—)\s+/);
   if (stops.length < 2) return <strong className="driver-route-title">{title}</strong>;
@@ -18,7 +19,7 @@ const labels: Record<DriverTripStage, string> = {
   finished: "Încheiată|Completed|Zakończony",
   cancelled: "Anulată|Cancelled|Anulowany",
 };
-export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false, demo = false, queueScope }: { queueScope?: string; trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean; demo?: boolean }) {
+export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, embedded = false, demo = false, queueScope, docs = {}, variant = "full" }: { queueScope?: string; trips: DriverTripSummary[]; today: string; truckId?: string | null; trucks: { id: string; name: string }[]; loc: Locale; selectedId?: string; embedded?: boolean; demo?: boolean; docs?: Record<string, TripDocs>; variant?: "home" | "full" }) {
   const [queued, setQueued] = useState<OutboxItem[]>([]);
   const [readScope, setReadScope] = useState<string | null>(null), [queueError, setQueueError] = useState(false);
   const queueReady = !queueScope || demo || readScope === queueScope;
@@ -63,43 +64,58 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
       localUpdates.push({ tripId: event.tripId, kind: event.kind, at: event.occurredAt });
   }
   const visibleTrips = trips.map(trip => (demo ? updates : [...updates, ...localUpdates]).reduce(applyDriverTripUpdate, trip));
-  const selected = visibleTrips.find(x => x.id === selectedId);
-  const selectedStage = selected ? driverTripStage(selected, today) : null;
-  const selectedView = selectedStage === "upcoming" ? "next" : selectedStage === "documents" || selectedStage === "finished" || selectedStage === "cancelled" ? "history" : "now";
-  const [view, setView] = useState<"now" | "next" | "history">(selectedView);
-  useEffect(() => { setView(selectedView); }, [selectedId, selectedView]);
   const groups = groupDriverTrips(visibleTrips, today), current = groups.running.find(x => x.truckId === truckId);
   const next = groups.ready.find(x => x.truckId === truckId) ?? groups.upcoming.find(x => x.truckId === truckId);
   const href = (x: DriverTripSummary) => embedded ? `/driver?v=${encodeURIComponent(truckId ?? "")}&trip=${encodeURIComponent(x.id)}#trip-paperwork` : `/driver/trips/${encodeURIComponent(x.id)}`;
   const tr = (s: string) => tri(loc, s);
-  const counts = { now: groups.running.length + groups.ready.length, next: groups.upcoming.length, history: groups.documents.length + groups.finished.length };
+  const plate = (x: DriverTripSummary) => trucks.find(v => v.id === x.truckId)?.name;
+  const when = (x: DriverTripSummary) => { const at = x.loadedAt && Number.isFinite(Date.parse(x.loadedAt)) ? new Date(x.loadedAt).toLocaleTimeString(loc === "en" ? "en-GB" : loc, { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Bucharest" }) : null; return [fmtDate(loc, x.date, true), at].filter(Boolean).join(" · "); };
+  const ICON: Record<CheckState, string> = { done: "✓", todo: "!", missing: "!", later: "·" };
+  const checklist = (x: DriverTripSummary) => {
+    const items = tripChecklist(x, docs[x.id], today);
+    if (!items.length) return null;
+    const missing = items.filter(c => c.state === "missing" && DOC_KEYS.includes(c.key));
+    return <>
+      <ul className="dchk" aria-label={tr("Ce ai de făcut|To do|Do zrobienia")}>{items.map(c => <li key={c.key} className={`dchk-i s-${c.state}`}><i aria-hidden="true">{ICON[c.state]}</i><span>{tr(CHECK_LABEL[c.key])}</span><span className="sr-only">{tr(c.state === "done" ? "gata|done|gotowe" : c.state === "missing" ? "lipsește|missing|brak" : c.state === "todo" ? "de făcut|to do|do zrobienia" : "mai târziu|later|później")}</span></li>)}</ul>
+      {missing.length ? <div className="dchk-acts">{missing.map(c => <Link key={c.key} className="btn dact" href={`${href(x).replace(/#.*$/, "")}#pw-${c.key}`}><span aria-hidden="true">📷</span>{tr(CHECK_ACTION[c.key]!)}</Link>)}</div> : null}
+    </>;
+  };
   const card = (x: DriverTripSummary) => {
     const stage = driverTripStage(x, today);
-    return <Link key={x.id} className={`driver-trip-card stage-${stage}${x.id === selectedId ? " selected" : ""}`} href={href(x)} aria-current={x.id === selectedId ? "true" : undefined}>
-      <div className="driver-trip-meta"><span>{fmtDate(loc, x.date, true)}</span><span className={`badge ${stage === "documents" ? "warn" : stage === "running" ? "ok" : ""}`}>{tr(stage === "finished" && x.deliveredAt && x.podReceived ? "Livrată · POD trimis|Delivered · POD sent|Dostarczony · POD wysłany" : labels[stage])}</span></div>
-      {pendingIds.has(x.id) && <span className="driver-trip-warning">{tr("Operațiuni locale · așteaptă confirmarea firmei|Local actions · awaiting company confirmation|Operacje lokalne · oczekują na potwierdzenie")}</span>}
-      <TripRoute title={x.title} loc={loc} /><span className="driver-trip-assignment">{[trucks.find(v => v.id === x.truckId)?.name, x.client].filter(value => value && value !== "—").join(" · ")}</span>
-      {stage === "ready" && x.date < today ? <span className="driver-trip-warning">{tr("Data planificată a trecut · verifică cu patronul|Scheduled date passed · check with the owner|Termin minął · sprawdź z właścicielem")}</span> : null}
-      {!x.cancelledAt && !x.deliveredAt && x.planned && x.truckId !== truckId ? <span className="driver-trip-warning">{tr("Camion diferit de cel alocat · contactează patronul|Different truck assigned · contact the owner|Inny przypisany pojazd · skontaktuj się z właścicielem")}</span> : null}
-      {x.cancelledAt && x.cancelReason ? <span className="sub">{x.cancelReason}</span> : null}
-      <span className="driver-trip-open">{tr(x.id === selectedId ? "Deschisă mai jos ↓|Open below ↓|Otwarty poniżej ↓" : stage === "documents" ? "Trimite POD →|Send POD →|Wyślij POD →" : "Vezi cursa →|View trip →|Zobacz kurs →")}</span>
-    </Link>;
+    return <article key={x.id} className={`driver-trip-card stage-${stage}${x.id === selectedId ? " selected" : ""}`}>
+      <Link className="dtc-link" href={href(x)} aria-current={x.id === selectedId ? "true" : undefined}>
+        <div className="driver-trip-meta"><span>{when(x)}</span><span className={`badge ${stage === "documents" ? "warn" : stage === "running" ? "ok" : ""}`}>{tr(stage === "finished" && x.deliveredAt && x.podReceived ? "Livrată · POD trimis|Delivered · POD sent|Dostarczony · POD wysłany" : labels[stage])}</span></div>
+        {pendingIds.has(x.id) && <span className="driver-trip-warning">{tr("Salvat pe telefon · se trimite|Saved on phone · sending|Zapisane w telefonie · wysyłanie")}</span>}
+        <TripRoute title={x.title} loc={loc} /><span className="driver-trip-assignment">{[plate(x), x.client].filter(value => value && value !== "—").join(" · ")}</span>
+        {stage === "ready" && x.date < today ? <span className="driver-trip-warning">{tr("Data a trecut · întreabă patronul|Date passed · ask the owner|Termin minął · zapytaj właściciela")}</span> : null}
+        {!x.cancelledAt && !x.deliveredAt && x.planned && x.truckId !== truckId ? <span className="driver-trip-warning">{tr("Alt camion · întreabă patronul|Different truck · ask the owner|Inny pojazd · zapytaj właściciela")}</span> : null}
+        {x.cancelledAt && x.cancelReason ? <span className="sub">{x.cancelReason}</span> : null}
+      </Link>
+      {checklist(x)}
+    </article>;
   };
-  const rows = view === "now" ? [...groups.running, ...groups.ready].filter(x => x.id !== current?.id) : view === "next" ? groups.upcoming : [...groups.documents, ...groups.finished];
-  return <section className="driver-trips" aria-labelledby="my-trips-title">
-    <h2 className="h2" id="my-trips-title">{tr("Cursele mele|My trips|Moje kursy")}</h2>
-    <div className={`driver-current${current ? " active" : ""}`}>
-      {!queueReady ? <p role="status">{tr(queueError ? "Operațiunile locale nu pot fi citite. Reîncarcă pagina înainte de a continua.|Local actions could not be read. Reload before continuing.|Nie można odczytać operacji lokalnych. Odśwież stronę przed kontynuowaniem." : "Verificăm operațiunile salvate pe telefon…|Checking actions saved on this device…|Sprawdzanie operacji zapisanych na urządzeniu…")}</p> : <>
-      <p className="eyebrow">{tr(current ? "Cursa în desfășurare|Current trip|Bieżący kurs" : "Nicio cursă în desfășurare|No trip in progress|Brak kursu w trakcie")}</p>
-      {current ? <><TripRoute title={current.title} loc={loc} /><p>{tr("Marfă încărcată · așteaptă descărcarea|Cargo loaded · awaiting unloading|Ładunek załadowany · oczekuje na rozładunek")}</p><div className="driver-trip-meta">{fmtDate(loc, current.date, true)} · {trucks.find(v => v.id === current.truckId)?.name}</div><Link className="btn pri" href={href(current)}>{tr(pendingIds.has(current.id) ? "Verifică sincronizarea cursei|Check trip sync|Sprawdź synchronizację kursu" : "Continuă cursa|Continue trip|Kontynuuj kurs")}</Link></> : <><p>{next ? `${tr("Următoarea cursă|Next trip|Następny kurs")}: ${next.title} · ${fmtDate(loc, next.date, true)}` : tr("Patronul nu ți-a atribuit alte curse.|The owner has not assigned any more trips.|Właściciel nie przypisał kolejnych kursów.")}</p>{next ? <Link className="btn sec" href={href(next)}>{tr("Vezi următoarea cursă|View next trip|Zobacz następny kurs")}</Link> : null}</>}
-      {groups.running.length > 1 ? <p className="driver-trip-warning">{tr("Ai mai multe curse marcate încărcate. Verifică situația cu patronul.|Multiple trips are marked loaded. Check with the owner.|Kilka kursów oznaczono jako załadowane. Sprawdź z właścicielem.")}</p> : null}
-      </>}
-    </div>
-    {groups.documents.length ? <button className="driver-pod-reminder" onClick={() => setView("history")}>{groups.documents.length}{" "}{tr(groups.documents.length === 1 ? "livrare fără POD · vezi documentele →|delivery missing POD · view documents →|dostawa bez POD · zobacz dokumenty →" : "livrări fără POD · vezi documentele →|deliveries missing POD · view documents →|dostaw bez POD · zobacz dokumenty →")}</button> : null}
-    <div className="driver-trip-tabs" role="group" aria-label={tr("Alege lista de curse|Choose trip list|Wybierz listę kursów")}>{(["now", "next", "history"] as const).map(key => <button key={key} aria-pressed={view === key} onClick={() => setView(key)}><span>{tr(key === "now" ? "Acum|Now|Teraz" : key === "next" ? "Urmează|Upcoming|Nadchodzące" : "Livrate|Delivered|Dostarczone")}</span><b>{counts[key]}</b></button>)}</div>
-    <p className="driver-trip-explanation">{tr(view === "now" ? "Cursele începute și cele de încărcat azi sau restante.|Started trips and loads due today or overdue.|Rozpoczęte kursy i załadunki na dziś lub zaległe." : view === "next" ? "Curse planificate pentru zilele următoare, încă neîncepute.|Trips scheduled for upcoming days, not yet started.|Kursy zaplanowane na kolejne dni, jeszcze nierozpoczęte." : "Livrările tale. Cele fără dovada livrării apar primele.|Your deliveries. Missing delivery proof appears first.|Twoje dostawy. Najpierw te bez potwierdzenia.")}</p>
-    <div className="driver-trip-list">{rows.map(card)}</div>
-    {!rows.length && !(view === "now" && current) ? <p className="driver-trip-empty">{tr(view === "now" ? "Nu ai curse de făcut acum.|No trips to handle now.|Brak kursów do realizacji teraz." : view === "next" ? "Nu ai încă alte curse planificate.|No upcoming trips assigned yet.|Nie przypisano jeszcze kolejnych kursów." : "Nu ai încă livrări înregistrate.|No deliveries recorded yet.|Nie zapisano jeszcze dostaw.")}</p> : null}
-    {view === "history" && groups.cancelled.length ? <details className="driver-trip-group"><summary>{tr("Anulate|Cancelled|Anulowane")} · {groups.cancelled.length}</summary><div className="driver-trip-list">{groups.cancelled.map(card)}</div></details> : null}
+  const status = !queueReady ? <p role="status" className="sub">{tr(queueError ? "Operațiunile locale nu pot fi citite. Reîncarcă pagina înainte de a continua.|Local actions could not be read. Reload before continuing.|Nie można odczytać operacji lokalnych. Odśwież stronę przed kontynuowaniem." : "Verificăm operațiunile salvate pe telefon…|Checking actions saved on this device…|Sprawdzanie operacji zapisanych na urządzeniu…")}</p> : null;
+  const currentBox = <div className={`driver-current${current ? " active" : ""}`}>
+    {status ?? <>
+      <p className="eyebrow">{tr(current ? "Cursa de acum|Current trip|Bieżący kurs" : next ? "Următoarea cursă|Next trip|Następny kurs" : "Nicio cursă acum|No trip now|Brak kursu")}</p>
+      {current ? <><TripRoute title={current.title} loc={loc} /><div className="driver-trip-meta">{when(current)} · {plate(current)}</div>{checklist(current)}<Link className="btn pri" href={href(current)}>{tr(pendingIds.has(current.id) ? "Verifică sincronizarea cursei|Check trip sync|Sprawdź synchronizację kursu" : "Continuă cursa|Continue trip|Kontynuuj kurs")}</Link></>
+        : next ? <><TripRoute title={next.title} loc={loc} /><div className="driver-trip-meta">{when(next)} · {plate(next)}</div>{checklist(next)}<Link className="btn sec" href={href(next)}>{tr("Vezi cursa|View trip|Zobacz kurs")}</Link></>
+        : <p>{tr("Patronul nu ți-a dat alte curse.|No more trips assigned.|Brak kolejnych kursów.")}</p>}
+      {groups.running.length > 1 ? <p className="driver-trip-warning">{tr("Mai multe curse încărcate · întreabă patronul|Several trips loaded · ask the owner|Kilka kursów załadowanych · zapytaj właściciela")}</p> : null}
+    </>}
+  </div>;
+  if (variant === "home") return <section className="driver-trips home" aria-label={tr("Cursa ta|Your trip|Twój kurs")}>{currentBox}</section>;
+  const s = driverSections(visibleTrips, today);
+  const nowRows = s.now.filter(x => x.id !== current?.id);
+  const block = (id: string, title: string, rows: DriverTripSummary[], empty: string, extra?: ReactNode) => <section className="dsec" aria-labelledby={id}>
+    <h2 className="dsec-h" id={id}><span>{tr(title)}</span><b>{rows.length + (id === "sec-now" && current ? 1 : 0)}</b></h2>
+    {extra}
+    {rows.length ? <div className="driver-trip-list">{rows.map(card)}</div> : extra ? null : <p className="driver-trip-empty">{tr(empty)}</p>}
   </section>;
+  return <div className="driver-trips full">
+    {block("sec-now", "Acum|Now|Teraz", nowRows, "Nimic de făcut acum.|Nothing to do now.|Nic do zrobienia teraz.", current || status ? currentBox : undefined)}
+    {block("sec-next", "Următoarele|Upcoming|Nadchodzące", s.next, "Nicio cursă planificată.|No trips planned.|Brak zaplanowanych kursów.")}
+    {block("sec-done", "Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni", s.done, "Nicio cursă terminată.|No finished trips.|Brak zakończonych kursów.")}
+    {s.cancelled.length ? <details className="driver-trip-group"><summary>{tr("Anulate|Cancelled|Anulowane")} · {s.cancelled.length}</summary><div className="driver-trip-list">{s.cancelled.map(card)}</div></details> : null}
+  </div>;
 }

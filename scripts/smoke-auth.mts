@@ -47,6 +47,7 @@ ok("sesiune owner/driver se verifică", (await verifySession(await signSession(o
 ok("rol necunoscut → respins", (await verifySession(await signSession({ ...owner, role: "root" as never }, SECRET), SECRET)) === null);
 ok("/signup și /join publice", decide("/signup", null).kind === "allow" && decide("/join", null).kind === "allow");
 ok("șofer: doar /driver și API-ul lui", decide("/driver", driver).kind === "allow" && decide("/api/driver/fill", driver).kind === "allow" && decide("/", driver).kind === "forbidden" && decide("/api/trips", driver).kind === "forbidden");
+ok("șofer: taburile Curse / Acte / Profil sunt permise, restul /driver/* nu", ["/driver/trips", "/driver/docs", "/driver/profile", "/driver/trips/t_1"].every((p) => decide(p, driver).kind === "allow") && decide("/driver/admin", driver).kind === "forbidden" && decide("/driver/docs/x", driver).kind === "forbidden");
 ok("setup doar owner/admin", decide("/setup", owner).kind === "allow" && decide("/setup", admin).kind === "allow" && decide("/setup", user).kind === "forbidden" && decide("/api/setup/truck", driver).kind === "forbidden");
 ok("/admin doar admin", decide("/admin", admin).kind === "allow" && decide("/admin", owner).kind === "forbidden" && decide("/api/admin/firm", owner).kind === "forbidden");
 ok("owner nu poate schimba planul", !canSwitchPlan(owner) && !canSwitchPlan(driver));

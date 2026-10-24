@@ -156,7 +156,7 @@ export function TripPaperwork({ queueScope, actorId, readOnly, tripId, title, de
       <p className="hint">{L["pw.waitHint"]}</p></>}
       {msg.t && !(blocked && msg.event) ? <p ref={msgRef} role={msg.k === "ok" ? "status" : "alert"} style={{ overflowWrap: "anywhere" }} className={`msg ${msg.k}`}>{msg.t}</p> : null}
       {(["cmr", "pod"] as const).map((k) => (
-        <div key={k} className="pwdoc">
+        <div key={k} id={`pw-${k}`} className="pwdoc">
           <div className="head"><h3>{L[`pw.${k}`]}</h3><button className="btn sec sm" disabled={!!busy || readOnly} onClick={() => (k === "cmr" ? cmr : pod).current?.click()}>{busy === k ? "…" : `+ ${L["pw.photo"]}`}</button></div>
           <input ref={k === "cmr" ? cmr : pod} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" multiple hidden onChange={(e) => { upload(k, e.target.files); e.target.value = ""; }} />
           <div className="thumbs">{files(k).length ? files(k).map((f, i) => <a key={f.id} href={f.src} target="_blank" rel="noreferrer">{/\.pdf$/i.test(f.name) ? <span className="pwpdf" aria-label={`${L[`pw.${k}`]} ${i + 1} PDF`}>PDF</span> : <img src={f.src} alt={`${L[`pw.${k}`]} ${i + 1}`} loading="lazy" />}</a>) : <span className="hint">{L["pw.none"]}</span>}</div>
