@@ -12,7 +12,7 @@ import { shrinkImage } from "@/lib/shrink";
 import { sniffImage, MAX_PHOTO_IN } from "@/lib/imgsniff";
 import { fmtNum, type Locale } from "@/lib/i18n";
 import { Icon } from "./icons";
-import { ShiftBar, shiftControlError } from "./DriverShiftBar";
+import { ShiftBar, ShiftConfirm, shiftControlError } from "./DriverShiftBar";
 
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 /** Poză aproape uniformă (albă/neagră/goală) → nu e bon; nu o trimitem la AI. */
@@ -83,7 +83,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
 
   const shiftBusy = useRef(false), shiftStart = useRef(initial?.start), [startAt, setStartAt] = useState(initial?.start), [barMsg, setBarMsg] = useState("");
   useEffect(() => { if (!barMsg) return; const i = setTimeout(() => setBarMsg(""), 6000); return () => clearTimeout(i); }, [barMsg]);
-  const [askEnd, setAskEnd] = useState(false);
+  const [ask, setAsk] = useState<"start" | "stop" | null>(null);
   const { gps, lastAck, held } = useDriverTracking();
   const controlError = (status: number) => shiftControlError(loc, status);
   // Ignore snapshots racing a local action briefly; do not compare phone and server clocks.
@@ -97,7 +97,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
   }, [serverNow, initial?.start, initial?.priv, today?.km, today?.hours, vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
   const endDialog = useRef<HTMLDialogElement>(null);
   const shiftTrigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (!askEnd) return; const dialog = endDialog.current, trigger = shiftTrigger.current; dialog?.showModal(); document.documentElement.classList.add("msheet-open"); return () => { dialog?.close(); document.documentElement.classList.remove("msheet-open"); trigger?.focus(); }; }, [askEnd]);
+  useEffect(() => { if (!ask) return; const dialog = endDialog.current, trigger = shiftTrigger.current; dialog?.showModal(); document.documentElement.classList.add("msheet-open"); return () => { dialog?.close(); document.documentElement.classList.remove("msheet-open"); trigger?.focus(); }; }, [ask]);
   // „Termină tura”: întâi confirmare (foaie proprie), abia apoi oprim tura
   const [needCheck, setNeedCheck] = useState(false);
   const checkBox = useRef<HTMLDivElement>(null), shiftCard = useRef<HTMLElement>(null);
@@ -118,7 +118,14 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
     if (!queueReady || !hasWork && !withoutTrip) { shiftCard.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setNeedCheck(true); return; }
     toggle();
   }
-  function toggle() { if (on && !preview) { setAskEnd(true); return; } void doToggle(); }
+  function toggle() {
+    if (preview) { void doToggle(); return; }
+    if (on) { setAsk("stop"); return; }
+    // pornirea: întâi verificarea de dimineață, apoi confirmarea „Pornești tura acum?”
+    if (!queueReady || !hasWork && !withoutTrip) return;
+    if (checks.length < 3) { showCheck(); return; }
+    setAsk("start");
+  }
   async function doToggle() {
     if (!on && (!queueReady || !hasWork && !withoutTrip)) return;
     if (!on && checks.length < 3) { showCheck(); return; }
@@ -265,11 +272,7 @@ export function DriverApp({ queueScope, actorId, vehicleId, vehicleName, hello, 
       <ShiftBar state={state} blocked={!on && (!queueReady || (!hasWork && !withoutTrip))} start={on ? startAt : null} msg={barMsg} now={now} loc={loc} startLabel={L["drv.start"]} stopLabel={L["drv.stop"]} goRef={shiftTrigger}
         offSub={!queueReady ? tri(loc, "Se verifică telefonul…|Checking this device…|Sprawdzanie urządzenia…") : !hasWork && !withoutTrip ? tri(loc, "Nicio cursă de pornit|No trip to start|Brak kursu") : checks.length >= 3 ? tri(loc, "Verificare gata ✓|Check done ✓|Kontrola gotowa ✓") : tri(loc, `Verificare ${checks.length}/${CHECKS.length}|Check ${checks.length}/${CHECKS.length}|Kontrola ${checks.length}/${CHECKS.length}`)}
         onGo={onGo} onPriv={() => void togglePriv()} />
-      {askEnd ? <dialog ref={endDialog} className="msheet-bg any" aria-labelledby="endq" onCancel={() => setAskEnd(false)} onClick={(e) => { if (e.target === e.currentTarget) setAskEnd(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
-        <div className="msheet-grab" /><h3 id="endq">{L["drv.endQ"]}</h3><p>{L["drv.endTxt"]}</p>
-        <button className="btn pri danger" autoFocus onClick={() => { setAskEnd(false); void doToggle(); }}>{L["drv.endYes"]}</button>
-        <button className="btn sec" onClick={() => setAskEnd(false)}>{L["drv.endNo"]}</button>
-      </div></dialog> : null}
+      {ask ? <ShiftConfirm kind={ask} plate={vehicleName} start={startAt} now={now} loc={loc} dialogRef={endDialog} onYes={() => { setAsk(null); void doToggle(); }} onNo={() => setAsk(null)} /> : null}
       {trip}
       <button className="btn sec start drv-fuel fade d2" disabled={!draftReady} onClick={() => setForm((x) => !x)} aria-expanded={form}><Icon name="fuel" size={20} /><span>{L["drv.fill"]}</span><small className="ell">{last}</small></button>
       {msg.t ? <p className={`msg ${msg.k}`}>{msg.t}</p> : null}

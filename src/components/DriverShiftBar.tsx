@@ -1,7 +1,7 @@
 "use client";
 // Bara de tură fixă deasupra meniului de jos: Pornește/Termină tura + Privat la o atingere, pe toate taburile.
 // Acasă o alimentează DriverApp (verificarea de dimineață e acolo); Curse/Acte/Profil folosesc RemoteShiftBar.
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { tri, type Locale } from "@/lib/i18n";
 import { postDriverControl } from "@/lib/driver-control";
@@ -40,10 +40,36 @@ export function ShiftBar({ state, start, now, loc, startLabel, stopLabel, offSub
   </div>;
 }
 
-type Labels = { start: string; stop: string; endQ: string; endTxt: string; endYes: string; endNo: string };
+/** Confirmarea de pornire/oprire a turei: întrebare scurtă + camion + ce se întâmplă cu locația; Da / Anulează. */
+export function ShiftConfirm({ kind, plate, start, now, loc, dialogRef, onYes, onNo }: {
+  kind: "start" | "stop"; plate: string; start?: string | null; now: number; loc: Locale; dialogRef: RefObject<HTMLDialogElement | null>; onYes: () => void; onNo: () => void;
+}) {
+  const t0 = start ? Date.parse(start) : NaN;
+  const q = kind === "start" ? tri(loc, "Pornești tura acum?|Start your shift now?|Zacząć zmianę teraz?") : tri(loc, "Termini tura acum?|End your shift now?|Zakończyć zmianę teraz?");
+  const meta = kind === "start" ? tri(loc, "Verificare făcută ✓|Check done ✓|Kontrola gotowa ✓")
+    : Number.isNaN(t0) ? tri(loc, "În tură|On shift|Na zmianie") : `${tri(loc, "În tură de|On shift for|Na zmianie od")} ${elapsed(now - t0)}`;
+  const txt = kind === "start"
+    ? tri(loc, "Locația camionului se trimite firmei cât ești în tură. O poți opri oricând cu Privat.|The truck's location is shared with your company while you're on shift. Pause it anytime with Private.|Lokalizacja pojazdu jest wysyłana firmie w trakcie zmiany. Możesz ją wstrzymać przyciskiem Prywatnie.")
+    : tri(loc, "Se oprește trimiterea locației. Cursa rămâne deschisă până apeși „Am descărcat”.|Location sharing stops. The trip stays open until you tap “Unloaded”.|Wysyłanie lokalizacji zostanie zatrzymane. Kurs pozostaje otwarty do „Rozładowano”.");
+  const yes = kind === "start" ? tri(loc, "Da, pornește tura|Yes, start shift|Tak, zacznij zmianę") : tri(loc, "Da, termină tura|Yes, end shift|Tak, zakończ zmianę");
+  const id = `shq-${kind}`;
+  return <dialog ref={dialogRef} className={`msheet-bg any shq-${kind}`} aria-labelledby={id} aria-describedby={`${id}-d`} onCancel={(e) => { e.preventDefault(); onNo(); }} onClick={(e) => { if (e.target === e.currentTarget) onNo(); }}>
+    <div className="msheet endsheet shq" onClick={(e) => e.stopPropagation()}>
+      <div className="msheet-grab" />
+      <span className={`shq-ic ${kind === "start" ? "shq-ic-go" : "shq-ic-end"}`} aria-hidden="true"><Icon name={kind === "start" ? "play" : "pause"} size={22} /></span>
+      <h3 id={id}>{q}</h3>
+      <p className="shq-meta"><b>{plate}</b><span aria-hidden="true"> · </span><span suppressHydrationWarning>{meta}</span></p>
+      <p id={`${id}-d`}>{txt}</p>
+      <button type="button" className={`btn pri ${kind === "start" ? "go" : "danger"}`} autoFocus onClick={onYes}>{yes}</button>
+      <button type="button" className="btn sec" onClick={onNo}>{tri(loc, "Anulează|Cancel|Anuluj")}</button>
+    </div>
+  </dialog>;
+}
+
+type Labels = { start: string; stop: string };
 /** Curse / Acte / Profil: aceeași tură, aceleași API-uri; pornirea trece prin verificarea de pe Acasă. */
-export function RemoteShiftBar({ vehicleId, initial, serverNow, loc, labels: L, preview, demo }: {
-  vehicleId: string; initial: { start: string; priv: boolean } | null; serverNow: number; loc: Locale; labels: Labels; preview?: boolean; demo?: boolean;
+export function RemoteShiftBar({ vehicleId, plate, initial, serverNow, loc, labels: L, preview, demo }: {
+  vehicleId: string; plate: string; initial: { start: string; priv: boolean } | null; serverNow: number; loc: Locale; labels: Labels; preview?: boolean; demo?: boolean;
 }) {
   const router = useRouter();
   const [on, setOn] = useState(!!initial), [priv, setPriv] = useState(!!initial?.priv), [start, setStart] = useState(initial?.start ?? null);
@@ -85,10 +111,6 @@ export function RemoteShiftBar({ vehicleId, initial, serverNow, loc, labels: L, 
   return <>
     <ShiftBar state={!on ? "off" : priv ? "priv" : "on"} start={start} now={now} loc={loc} startLabel={L.start} stopLabel={L.stop}
       offSub={tri(loc, "Întâi verificarea|Check first|Najpierw kontrola")} onGo={onGo} onPriv={() => void togglePriv()} goRef={go} busy={busy} msg={msg} />
-    {ask ? <dialog ref={dialog} className="msheet-bg any" aria-labelledby="dsb-endq" onCancel={() => setAsk(false)} onClick={(e) => { if (e.target === e.currentTarget) setAsk(false); }}><div className="msheet endsheet" onClick={(e) => e.stopPropagation()}>
-      <div className="msheet-grab" /><h3 id="dsb-endq">{L.endQ}</h3><p>{L.endTxt}</p>
-      <button className="btn pri danger" autoFocus onClick={() => { setAsk(false); void stop(); }}>{L.endYes}</button>
-      <button className="btn sec" onClick={() => setAsk(false)}>{L.endNo}</button>
-    </div></dialog> : null}
+    {ask ? <ShiftConfirm kind="stop" plate={plate} start={start} now={now} loc={loc} dialogRef={dialog} onYes={() => { setAsk(false); void stop(); }} onNo={() => setAsk(false)} /> : null}
   </>;
 }

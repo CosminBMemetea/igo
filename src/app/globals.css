@@ -1864,3 +1864,11 @@ body:has(details.acct[open]) .tinv{display:none}
 @keyframes dsbNeed{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px color-mix(in srgb,var(--neg) 55%,transparent);border-radius:14px}}
 @media(max-width:360px){.dsb{gap:6px}.dsb-go{padding:0 10px 0 6px;gap:8px}.dsb-t b{font-size:16px}.dsb-priv{padding:0 9px;gap:6px;font-size:13px}.dsb-sw{width:30px}.dsb-priv.on .dsb-sw i{transform:translateX(10px)}}
 @media(prefers-reduced-motion:reduce){.dsb,.dsb-go,.dsb-priv,.dsb-sw,.dsb-sw i{transition:none}.dsb-t small,.dsb-msg,.drv-shift.need .drv-check{animation:none}.dsb-go:active:not(:disabled),.dsb-priv:active:not(:disabled){transform:none}}
+/* r25: confirmare la pornire/oprire tură */
+.shq{align-items:stretch}.shq h3{text-align:left}
+.shq-ic{align-self:flex-start;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;margin-top:4px}
+.shq-ic-go{background:color-mix(in srgb,var(--pos) 18%,transparent);color:var(--pos)}.shq-ic-end{background:color-mix(in srgb,var(--neg) 18%,transparent);color:var(--neg)}
+.endsheet p.shq-meta{margin:0;color:var(--fg);font-size:15px}.shq-meta b{font-weight:600;letter-spacing:.02em}.shq-meta span:last-child{color:var(--fg2)}
+.endsheet .btn.pri.go,.endsheet .btn.pri.go:not(:disabled):hover{background:var(--pos);border-color:var(--pos);color:#04140d;font-weight:600;box-shadow:0 3px 12px color-mix(in srgb,var(--pos) 30%,transparent)}
+[data-theme=light] .endsheet .btn.pri.go{color:#fff}
+.endsheet.shq .btn.pri.danger{color:#2a0606!important}[data-theme=light] .endsheet.shq .btn.pri.danger{color:#fff!important}

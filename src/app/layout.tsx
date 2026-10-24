@@ -19,8 +19,17 @@ import { DemoTour } from "@/components/DemoTour";
 import { tourSteps, tourLabels } from "@/lib/tour";
 
 const inter = Inter({ subsets: ["latin", "latin-ext"], weight: ["200", "300", "400", "500", "600"], variable: "--font-inter", display: "swap" });
-export const metadata: Metadata = { title: "Querra Fleet", appleWebApp: { capable: true, title: "Querra Fleet", statusBarStyle: "default" }, icons: { icon: "/icons/icon-32.png", apple: "/icons/apple-touch-icon.png" }, manifest: "/manifest.webmanifest", description: "Querra Fleet: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0b0b0c" };
+const BASE_META: Metadata = { title: "Querra Fleet", applicationName: "Querra Fleet", icons: { icon: "/icons/icon-32.png", apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }] }, manifest: "/manifest.webmanifest", formatDetection: { telephone: false }, description: "Querra Fleet: profit pe cursă și economie la motorină pentru flote și utilaje.", robots: { index: false } };
+// Pe iPhone (Adaugă pe ecranul principal): tema închisă → bara de stare transparentă peste antet (antetul are deja safe-area-inset-top);
+// tema deschisă → bara de stare standard, ca textul ceasului să rămână vizibil.
+export async function generateMetadata(): Promise<Metadata> {
+  const { theme } = await getPrefs();
+  return { ...BASE_META, appleWebApp: { capable: true, title: "Querra Fleet", statusBarStyle: theme === "light" ? "default" : "black-translucent" } };
+}
+export async function generateViewport(): Promise<Viewport> {
+  const { theme } = await getPrefs();
+  return { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: theme === "light" ? "#ffffff" : "#0b0b0c" };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const prefs = (await getPrefs());
@@ -38,7 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const ctx = { ...firm, alerts, who: me?.name ?? null, plate, path: h.get("x-igo-path") ?? "/", denied: h.get("x-igo-denied") };
   return (
     <html suppressHydrationWarning lang={prefs.loc} data-theme={prefs.theme} data-role={lookOf(prefs.role) ?? undefined} className={inter.variable}>
-      <head><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /><script dangerouslySetInnerHTML={{ __html: BSIZE_BOOT }} /></head>
+      <head><meta name="apple-mobile-web-app-capable" content="yes" /><link rel="preconnect" href="https://server.arcgisonline.com" /><link rel="dns-prefetch" href="https://server.arcgisonline.com" /><script dangerouslySetInnerHTML={{ __html: BSIZE_BOOT }} /></head>
       <body className={prefs.role && prefs.plan === "trial" && !prefs.adminView && !ctx.demo ? "has-trial" : undefined}>
         <Header prefs={prefs} firm={ctx} />
         <WheelX />

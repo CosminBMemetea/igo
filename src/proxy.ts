@@ -24,6 +24,8 @@ export async function proxy(req: NextRequest) {
     catch { return NextResponse.json({ error: "unavailable" }, { status: 503 }); }
   }
   if (s && (path === "/login" || path === "/signup") && req.method === "GET") { const u = req.nextUrl.clone(); u.pathname = roleHome(s.role); u.search = ""; return NextResponse.redirect(u); }
+  // aplicația instalată pe ecranul principal pornește din „/”: șoferul ajunge direct pe /driver (fără mesajul „acces refuzat”)
+  if (s?.role === "driver" && path === "/" && req.method === "GET") { const u = req.nextUrl.clone(); u.pathname = "/driver"; u.search = ""; return NextResponse.redirect(u); }
   const d = decide(path, s);
   if (d.kind === "unauthorized") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (d.kind === "forbidden") {

@@ -14,6 +14,6 @@ export async function DriverShiftDock() {
   if (!v) return null;
   const nowMs = Date.now();
   const shift = await currentShift(tn, v.id, nowMs).catch(() => null);
-  const labels = { start: t(loc, "drv.start"), stop: t(loc, "drv.stop"), endQ: t(loc, "drv.endQ"), endTxt: t(loc, "drv.endTxt"), endYes: t(loc, "drv.endYes"), endNo: t(loc, "drv.endNo") };
-  return <RemoteShiftBar vehicleId={v.id} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} serverNow={nowMs} loc={loc} labels={labels} preview={tn.role !== "driver"} demo={tn.demo} />;
+  const labels = { start: t(loc, "drv.start"), stop: t(loc, "drv.stop") };
+  return <RemoteShiftBar vehicleId={v.id} plate={v.name} initial={shift && !shift.end ? { start: shift.start, priv: !!shift.privateSince } : null} serverNow={nowMs} loc={loc} labels={labels} preview={tn.role !== "driver"} demo={tn.demo} />;
 }
