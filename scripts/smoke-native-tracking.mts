@@ -25,7 +25,7 @@ function load(name:string):any {
  if(modules.has(name))return modules.get(name);
  const output=ts.transpileModule(fs.readFileSync(`apps/driver/src/${name}.ts`,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
  const module={exports:{}};
- new Function("require","module","exports",output)((dep:string)=>dep==="expo-task-manager"?{defineTask:(_name:string,fn:typeof callback)=>{callback=fn;}}:dep==="expo-location"?location:dep==="react-native"?native:dep==="./api"?service:load(dep.slice(2)),module,module.exports);
+ new Function("require","module","exports",output)((dep:string)=>dep==="expo-task-manager"?{defineTask:(_name:string,fn:typeof callback)=>{callback=fn;}}:dep==="expo-location"?location:dep==="react-native"?native:dep==="expo-notifications"?{AndroidImportance:{HIGH:4},setNotificationChannelAsync:async()=>{},scheduleNotificationAsync:async()=>"n"}:dep==="./api"?service:load(dep.slice(2)),module,module.exports);
  modules.set(name,module.exports);return module.exports;
 }
 const t=load("tracking"), c=load("controls");
@@ -81,3 +81,13 @@ foregroundGranted=true;backgroundGranted=false;await assert.rejects(t.startGPS()
 backgroundGranted=true;canAskAgain=true;state.enabled=false;await assert.rejects(t.startGPS(),/tură deschisă/);assert.equal(foregroundRequests,fgCount);state.enabled=true;
 await t.startGPS();running=false;await t.reconcileGPS();assert.equal(memory.has("gps-gate"),false);assert.match(JSON.stringify(memory.get("gps-status")),/Telefonul a oprit/);
 console.log("PASS permission persistence: no repeat prompts when granted; permanent denial opens no dialog; closed shift cannot prompt; killed native service clears stale GPS status");
+{ // r26 ping rules, same as web: 5 s cap, exponential backoff, 429 waits ≥ 60 s, a dropped (422 before-shift) fix does not back off.
+  const z={last:0,until:0,fails:0}, now=1_000_000;
+  assert.equal(t.mayPing(null,now),true);
+  const ok=t.nextThrottle(z,now,"ok");assert.equal(t.mayPing(ok,now+4999),false);assert.equal(t.mayPing(ok,now+5000),true);
+  const f1=t.nextThrottle(ok,now,"fail"), f2=t.nextThrottle(f1,now,"fail");assert.equal(f1.until-now,10000);assert.equal(f2.until-now,20000);
+  assert.equal(t.nextThrottle({last:0,until:0,fails:20},now,"fail").until-now,300000);
+  assert.ok(t.nextThrottle(z,now,"limited").until-now>=60000);
+  const d=t.nextThrottle(f2,now,"drop");assert.equal(d.fails,2);assert.equal(t.nextThrottle(d,now,"ok").fails,0);
+  console.log("PASS ping throttle: 5 s cap, backoff, 429 pause, before-shift drop keeps GPS");
+}

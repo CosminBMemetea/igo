@@ -1,27 +1,34 @@
 import { logout, recoverLogout } from "./src/logout";
 import { pendingRevocations, syncRevocations } from "./src/cleanup";
 import { enablePush, disablePush, syncPush, pushActive, testPush, listenPush } from "./src/notifications";
-import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { Alert, AppState, Keyboard, KeyboardAvoidingView, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import { Alert, AppState, Keyboard, KeyboardAvoidingView, Platform, Linking, Pressable, ScrollView, StatusBar, StyleSheet, TextInput, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
 import { api, apiOrigin, ApiError, read, write, rememberLogoutReceipt, type Login, type Gate, type Pending, sessionScope } from "./src/api";
 import { startGPS, stopGPS, preparePrivateOrStop, syncPending, reconcileGPS, type GPSStatus } from "./src/tracking";
 import { pendingControl } from "./src/controls";
 import { createActions } from "./src/actions";
 import { tripFocus, invitationPhone, type Board, type Trip } from "./src/board";
-import { TripOverview, DriverDetails } from "./src/DriverOverview";
 import { workQueue, workId, discardWork, cleanConfirmedPhotos, watchWork } from "./src/work-storage";
-import { projectedBoard, unconfirmed, eventLabel, type WorkEntry, type EventKind } from "./src/work-queue";
+import { projectedBoard, unconfirmed, type WorkEntry, type EventKind } from "./src/work-queue";
 import { confirmTripEvent } from "./src/trip-confirmation";
 import { captureDocument, recoverDocument } from "./src/paperwork";
-import { PaperworkPanel, DocumentPreview } from "./src/PaperworkPanel";
 import type { SpeedWarning } from "./src/speed-alert";
-type Page = "today" | "trips" | "documents" | "account";
-const checks = [["chk.tyres", "Anvelope"], ["chk.fluids", "Lichide"], ["chk.docs", "Documente"], ["chk.damage", "Starea camionului"]];
+import { C, F, mix } from "./src/theme";
+import { LocContext, LOCS, deviceLoc, tri, type Loc } from "./src/i18n";
+import { boardToday, missingDocs, tripDocs } from "./src/checklist";
+import { Btn, Note, T } from "./src/ui/kit";
+import { ShiftBar } from "./src/ui/ShiftBar";
+import { TabBar, type Page } from "./src/ui/TabBar";
+import { DocumentPreview } from "./src/ui/DocumentPreview";
+import { Docs, Home, Profile, TripDetail, Trips, setOrigin, type Ctx } from "./src/ui/screens";
+setOrigin(apiOrigin);
+const EVENT_TITLE: Record<EventKind, string> = { loaded: "Încărcare|Loading|Załadunek", unloaded: "Descărcare|Unloading|Rozładunek", wait_start: "Început așteptare|Waiting started|Początek oczekiwania", wait_end: "Sfârșit așteptare|Waiting ended|Koniec oczekiwania" };
 function Screen() {
   const [logged, setLogged] = useState(false), [ready, setReady] = useState(false), [phone, setPhone] = useState(""), [pin, setPin] = useState("");
   const [board, setBoard] = useState<Board | null>(null), [gps, setGPS] = useState<GPSStatus | null>(null), [gate, setGate] = useState<Gate | null>(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState(""), [selected, setSelected] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [pushEnabled, setPushEnabled] = useState(false), [pushMessage, setPushMessage] = useState("");
   const [pushActionMessage, setPushActionMessage] = useState("");
   const authRevision = useRef(0), signingOut = useRef(false);
@@ -31,7 +38,7 @@ function Screen() {
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [online, setOnline] = useState(false), [syncing, setSyncing] = useState(false);
   const [reviewId, setReviewId] = useState<string | null>(null);
-  const [gpsExpanded, setGpsExpanded] = useState(false);
+  const [lang, setLang] = useState<Loc | null>(null), [openTrip, setOpenTrip] = useState<string | null>(null);
   const loadedDrafts = useRef(false);
   const localRevision = useRef(0);
   const boardScope = useRef("");
@@ -52,7 +59,7 @@ function Screen() {
   const workKey = useRef("");
   const refreshing = useRef<Promise<void> | null>(null);
   const [actions] = useState(() => createActions(() => refreshing.current, setBusy));
-  function navigate(next: Page) { setPage(next); scroll.current?.scrollTo({ y: 0, animated: false }); }
+  function navigate(next: Page) { setPage(next); setOpenTrip(null); scroll.current?.scrollTo({ y: 0, animated: false }); }
   async function refresh(force = false) {
     if (refreshing.current) return refreshing.current;
     const revision = authRevision.current;
@@ -73,7 +80,7 @@ function Screen() {
         const active = await read<Gate>("gps-gate");
         if (active && (!value.truck || value.truck.id !== active.vehicleId || value.shift?.start !== active.shiftStart || value.shift.end || value.shift.privateSince)) await stopGPS("GPS oprit • tura s-a schimbat");
         const key = `${value.truck?.id}:${value.shift?.start}:${value.shift?.end}`;
-        if (key !== workKey.current) { setSelected([]); setWithoutTrip(false); workKey.current = key; }
+        if (key !== workKey.current) { setWithoutTrip(false); workKey.current = key; }
         await workQueue.cache(scope, value);
         await cleanConfirmedPhotos(scope);
         if (revision !== authRevision.current) return;
@@ -153,7 +160,7 @@ function Screen() {
       try {
       if (!await read<Login>("login")) {
         setLogged(false); setBoard(null); setEntries([]); setPending(null); setReviewId(null); setSyncedAt(null); setOnline(false);
-        setPushEnabled(false); setPushMessage(""); setPushActionMessage(""); setGPS(null); setGate(null); setSelected([]); setWithoutTrip(false);
+        setPushEnabled(false); setPushMessage(""); setPushActionMessage(""); setGPS(null); setGate(null); setWithoutTrip(false);
         loadedDrafts.current = false; boardScope.current = ""; workKey.current = ""; navigate("today");
         setCleanupCount(await pendingRevocations()); void syncRevocations().catch(() => {});
       }
@@ -161,11 +168,12 @@ function Screen() {
       signingOut.current = false;
     }
   }
-  async function run(fn: () => Promise<void>, prepare?: () => Promise<void>) {
+  /** Serialized action; resolves true only when it finished without an error (ShiftBar uses it for the Private undo toast). */
+  async function run(fn: () => Promise<void>, prepare?: () => Promise<void>): Promise<boolean> {
     const revision = authRevision.current;
     setError("");
-    try { await actions.run(fn, prepare ? async () => { try { await prepare(); } finally { await refreshLocal(); } } : undefined); }
-    catch (e) { if (revision === authRevision.current) setError(e instanceof Error ? e.message : "Operația nu a reușit."); }
+    try { await actions.run(fn, prepare ? async () => { try { await prepare(); } finally { await refreshLocal(); } } : undefined); return true; }
+    catch (e) { if (revision === authRevision.current) setError(e instanceof Error ? e.message : "Operația nu a reușit."); return false; }
     finally { await refreshLocal(); }
   }
   async function pushAction(task: () => Promise<void>) {
@@ -180,8 +188,12 @@ function Screen() {
     finally { await refreshLocal(); localLock.current = false; setLocalBusy(false); }
   }
   function syncSoon() { void refresh().catch(e => setError(e instanceof ApiError ? e.message : "Conexiunea nu este disponibilă. Operațiunile salvate rămân pe telefon.")); }
-  const button = (label: string, action: () => Promise<void>, secondary = false, prepare?: () => Promise<void>) => <Pressable accessibilityRole="button" disabled={busy && !prepare} onPress={() => void run(action, prepare)} accessibilityState={{ disabled: busy && !prepare }} style={[s.button, secondary && s.secondary, busy && !prepare && { opacity: .5 }]}><Text style={[s.buttonText, secondary && { color: "#eef4ff" }]}>{label}</Text></Pressable>;
   const focus = tripFocus(board);
+  const savedLang = useRef(false);
+  useEffect(() => { void read<Loc>("lang").then(v => { if (v && LOCS.includes(v)) setLang(v); }).catch(() => {}).finally(() => { savedLang.current = true; }); }, []);
+  const loc: Loc = lang ?? (board?.locale && (LOCS as string[]).includes(board.locale) ? board.locale as Loc : deviceLoc());
+  const t = (s: string) => tri(loc, s);
+  function chooseLang(next: Loc | null) { setLang(next); void write("lang", next).catch(() => {}); }
   async function activateGPS() {
     if (consentOpen.current || busy) return;
     consentOpen.current = true;
@@ -189,7 +201,7 @@ function Screen() {
       const scope = await sessionScope();
       const saved = await read<{ scope: string; version: number }>("gps-disclosure");
       if (saved?.scope === scope && saved.version === 1) { await run(startGPS); return; }
-      const accepted = await new Promise<boolean>(resolve => Alert.alert("GPS în tură", "Poziția este trimisă firmei inclusiv cu ecranul blocat, numai după activarea ta. Privat, Oprește GPS și încheierea turei opresc colectarea. Fără internet rămân goluri în traseu.", [{ text: "Mai târziu", style: "cancel", onPress: () => resolve(false) }, { text: "Activează GPS", onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
+      const accepted = await new Promise<boolean>(resolve => Alert.alert(t("GPS în tură|GPS on shift|GPS na zmianie"), t("Poziția este trimisă firmei inclusiv cu ecranul blocat, numai după activarea ta. Privat, Oprește GPS și încheierea turei opresc colectarea. Fără internet rămân goluri în traseu.|Your position is sent to the company even with the screen locked, only after you turn it on. Private, Stop GPS and ending the shift stop collection. Without internet there will be gaps in the route.|Pozycja jest wysyłana firmie także przy zablokowanym ekranie, tylko po Twojej zgodzie. Tryb prywatny, Wyłącz GPS i koniec zmiany zatrzymują zbieranie. Bez internetu powstaną luki w trasie."), [{ text: t("Mai târziu|Later|Później"), style: "cancel", onPress: () => resolve(false) }, { text: t("Activează GPS|Turn on GPS|Włącz GPS"), onPress: () => resolve(true) }], { cancelable: true, onDismiss: () => resolve(false) }));
       if (accepted && await sessionScope() === scope) await run(async () => { await startGPS(); await write("gps-disclosure", { scope, version: 1 }); });
     } catch (e) { setError(e instanceof Error ? e.message : "GPS nu a pornit."); }
     finally { consentOpen.current = false; }
@@ -197,7 +209,7 @@ function Screen() {
   const stale = !syncedAt || Date.now() - syncedAt > 86400000 || Date.now() < syncedAt - 300000;
   function tripEvent(trip: Trip, kind: EventKind) {
     const expectedScope = boardScope.current;
-    Alert.alert(`${eventLabel[kind]} · confirmi?`, trip.title + (kind === "unloaded" ? "\nDupă descărcare, adaugă dovada livrării (POD)." : ""), [{ text: "Anulează", style: "cancel" }, { text: "Confirmă", onPress: () => void localRun(async () => {
+    Alert.alert(`${t(EVENT_TITLE[kind])} · ${t("confirmi?|confirm?|potwierdzasz?")}`, trip.title + (kind === "unloaded" ? `\n${t("După descărcare, adaugă dovada livrării (POD).|After unloading, add the proof of delivery (POD).|Po rozładunku dodaj potwierdzenie dostawy (POD).")}` : ""), [{ text: t("Anulează|Cancel|Anuluj"), style: "cancel" }, { text: t("Confirmă|Confirm|Potwierdź"), onPress: () => void localRun(async () => {
       const scope = await sessionScope();
       if (scope !== expectedScope || !board?.shift || pending || await pendingControl()) throw new Error("Actualizează datele cursei înainte de a confirma etapa.");
       const [snapshot, local] = await Promise.all([workQueue.snapshot(scope), workQueue.list(scope)]);
@@ -209,8 +221,8 @@ function Screen() {
   }
   function chooseDocument(trip: Trip, kind: "cmr" | "pod", replaceId?: string) {
     const expectedScope = boardScope.current;
-    Alert.alert(`${kind.toUpperCase()} · ${trip.title}`, "Alege o fotografie clară a documentului.", [
-      { text: "Camera", onPress: () => capture("camera") }, { text: "Galerie", onPress: () => capture("library") }, { text: "Anulează", style: "cancel" },
+    Alert.alert(`${kind.toUpperCase()} · ${trip.title}`, t("Alege o fotografie clară a documentului.|Choose a clear photo of the document.|Wybierz wyraźne zdjęcie dokumentu."), [
+      { text: t("Camera|Camera|Aparat"), onPress: () => capture("camera") }, { text: t("Galerie|Gallery|Galeria"), onPress: () => capture("library") }, { text: t("Anulează|Cancel|Anuluj"), style: "cancel" },
     ]);
     function capture(source: "camera" | "library") { void localRun(async () => {
       if (await sessionScope() !== expectedScope) throw new Error("Contul s-a schimbat. Reia operația în contul corect.");
@@ -221,78 +233,84 @@ function Screen() {
     }); }
   }
   function discard(id: string) {
-    Alert.alert("Elimini operația de pe telefon?", "O operație deja primită de firmă nu poate fi anulată de aici. Etapele care depind de aceasta vor necesita verificare.", [{ text: "Păstrează", style: "cancel" }, { text: "Elimină local", style: "destructive", onPress: () => void localRun(async () => { await discardWork(await sessionScope(), id); if (reviewId === id) setReviewId(null); }) }]);
+    Alert.alert(t("Elimini operația de pe telefon?|Remove this action from the phone?|Usunąć operację z telefonu?"), t("O operație deja primită de firmă nu poate fi anulată de aici. Etapele care depind de aceasta vor necesita verificare.|An action the company already received cannot be undone here. Steps that depend on it will need checking.|Operacji odebranej już przez firmę nie można tu cofnąć. Zależne etapy będą wymagały sprawdzenia."), [{ text: t("Păstrează|Keep|Zachowaj"), style: "cancel" }, { text: t("Elimină local|Remove locally|Usuń lokalnie"), style: "destructive", onPress: () => void localRun(async () => { await discardWork(await sessionScope(), id); if (reviewId === id) setReviewId(null); }) }]);
   }
   async function retry(id: string) { const scope = await sessionScope(); await workQueue.submit(scope, id); await refreshLocal(); syncSoon(); }
   const review = entries.find(e => e.id === reviewId) ?? null;
   const pendingWork = entries.filter(unconfirmed).length;
   const attention = entries.filter(e => e.status === "attention").length;
-  const localCount = `${pendingWork} ${pendingWork === 1 ? "operațiune locală" : "operațiuni locale"}`;
-  const overviewProps = board ? { board: pending || !online ? { ...board, position: null } : board, busy: busy || localBusy || !!pending || stale,
+  const insets = useSafeAreaInsets();
+  const onShift = !!board?.shift && !board.shift.end, priv = onShift && !!board?.shift?.privateSince;
+  const today = board ? boardToday(board) : "";
+  const docs = board ? tripDocs(board, entries) : {};
+  const missing = board ? missingDocs(board, docs, today) : [];
+  const ctx: Ctx | null = board ? { board: pending || !online ? { ...board, position: null } : board, entries, today, docs, missing,
+    busy: busy || localBusy || !!pending || stale, canWork: onShift && !priv, locked: !!pending || stale,
     blockedTrips: entries.filter(e => e.status === "attention").map(e => e.tripId), onEvent: tripEvent, onDocument: chooseDocument,
-    onOpen: (url: string) => { void run(async () => { await Linking.openURL(url); }); } } : null;
-  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" /><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "android" ? "height" : undefined}>{speedWarn && gate ? <View style={s.speed} accessibilityRole="alert"><Text style={s.speedText}>Ai depășit limita setată de firmă ({speedWarn.limit} km/h)</Text><Text style={s.speedNum}>{speedWarn.kmh}</Text></View> : null}<ScrollView onLayout={() => { if (Keyboard.isVisible()) revealInput(); }} ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
-    <Text style={s.eyebrow}>QUERRA / ȘOFER</Text><Text style={s.title}>{logged ? ({ today: "Ziua ta de lucru", trips: "Cursele tale", documents: "Acte și sincronizare", account: "Contul tău" })[page] : "Bun venit la bord"}</Text>
-    <Text style={s.muted}>{logged ? board ? `${board.name} · ${board.firm}` : "Conectăm datele firmei…" : "Camionul, cursele și tura ta, într-un singur loc."}</Text>
-    {!!error && <View accessibilityRole="alert" style={s.error}><Text style={s.text}>{error}</Text></View>}
-    {!ready ? <Text style={s.text}>Se încarcă…</Text> : !logged ? <View style={s.card}>
-      {cleanupCount > 0 && <Text style={s.muted}>Ești deconectat pe acest telefon. Revocarea accesului și notificărilor pe server se confirmă când revine internetul și aplicația este deschisă.</Text>}
-      <Text style={s.label}>Telefon</Text><TextInput accessibilityLabel="Telefon" onFocus={revealInput} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" style={s.input} />
-      <Text style={s.label}>PIN / parolă</Text><TextInput accessibilityLabel="PIN sau parolă" onFocus={revealInput} value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
-      {button("Intră în cont", async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); await recoverLogout(); const login = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); ++authRevision.current; await write("login", { ...login, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); })}
+    openTrip: id => { setOpenTrip(id); setPage("trips"); scroll.current?.scrollTo({ y: 0, animated: false }); }, goDocs: () => navigate("documents") } : null;
+  const shiftBlocked = !board?.truck || !!pending || (!onShift && !focus.hasWork && !withoutTrip);
+  const syncTone = attention ? C.neg : online && !pendingWork && !pending && !stale ? C.pos : C.warn;
+  const syncLabel = attention ? t(`${attention} de verificat|${attention} to check|${attention} do sprawdzenia`) : syncing ? t("Sincronizare…|Syncing…|Synchronizacja…") : pendingWork ? t(`${pendingWork} pe telefon|${pendingWork} on phone|${pendingWork} w telefonie`) : online && !pending && !stale ? t("Actualizat|Up to date|Aktualne") : t("Offline");
+  const tripOpen = openTrip ? Object.values(board?.trips ?? {}).flat().find(x => x.id === openTrip) ?? null : null;
+  const login = async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); await recoverLogout(); const value = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); ++authRevision.current; await write("login", { ...value, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); };
+  return <LocContext.Provider value={loc}><SafeAreaView edges={["top", "left", "right"]} style={s.safe}><StatusBar barStyle="light-content"/><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "android" ? "height" : undefined}>
+    {speedWarn && gate ? <View style={s.speed} accessibilityRole="alert"><T w="bold" style={{ color: "#fff", fontSize: 15, flex: 1 }}>{t(`Ai depășit limita setată de firmă (${speedWarn.limit} km/h)|Over the company limit (${speedWarn.limit} km/h)|Przekroczono limit firmy (${speedWarn.limit} km/h)`)}</T><T w="bold" style={{ color: "#fff", fontSize: 30, lineHeight: 36 }}>{speedWarn.kmh}</T></View> : null}
+    {logged ? <View style={s.header}>
+      <View style={s.brand}><View style={s.mark}><T w="bold" style={{ color: "#fff", fontSize: 15, lineHeight: 20 }}>Q</T></View><T w="semi" style={{ fontSize: 17 }}>{t("Șofer|Driver|Kierowca")}</T></View>
+      <Pressable accessibilityRole="button" accessibilityLabel={syncLabel} onPress={() => navigate("documents")} style={s.pill}><View style={[s.dot, { backgroundColor: syncTone }]} /><T w="medium" style={{ fontSize: 13, color: C.fg2 }}>{syncLabel}</T></Pressable>
+    </View> : null}
+    <ScrollView onLayout={() => { if (Keyboard.isVisible()) revealInput(); }} ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+    {!!error && <Note tone="bad">{error}</Note>}
+    {!ready ? <T style={{ color: C.fg2 }}>{t("Se încarcă…|Loading…|Ładowanie…")}</T> : !logged ? <View style={{ gap: 14, marginTop: 24 }}>
+      <View style={[s.mark, { width: 56, height: 56, borderRadius: 16 }]}><T w="bold" style={{ color: "#fff", fontSize: 28, lineHeight: 34 }}>Q</T></View>
+      <T w="semi" style={{ fontSize: 30, lineHeight: 36 }}>Querra {t("Șofer|Driver|Kierowca")}</T>
+      <T style={{ color: C.fg2 }}>{t("Camionul, cursele și tura ta, într-un singur loc.|Your truck, trips and shift in one place.|Twój pojazd, kursy i zmiana w jednym miejscu.")}</T>
+      {cleanupCount > 0 && <Note tone="info">{t("Ești deconectat pe acest telefon. Revocarea accesului pe server se confirmă când revine internetul.|You are signed out on this phone. Server-side revocation is confirmed when internet returns.|Wylogowano na tym telefonie. Odwołanie dostępu na serwerze potwierdzi się po powrocie internetu.")}</Note>}
+      <T w="medium" style={s.label}>{t("Telefon|Phone|Telefon")}</T><TextInput accessibilityLabel={t("Telefon|Phone|Telefon")} onFocus={revealInput} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" placeholderTextColor={C.fg3} placeholder="07xx xxx xxx" style={s.input} />
+      <T w="medium" style={s.label}>{t("PIN / parolă|PIN / password|PIN / hasło")}</T><TextInput accessibilityLabel={t("PIN sau parolă|PIN or password|PIN lub hasło")} onFocus={revealInput} value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
+      <Btn style={{ alignSelf: "stretch", marginTop: 6 }} disabled={busy} label={t("Intră în cont|Sign in|Zaloguj się")} onPress={() => void run(login)} />
     </View> : <>
-      {!!pending && <View accessibilityRole="alert" style={s.notice}><Text style={s.text}>{pending.path === "/api/driver/shift" ? "Încheierea turei" : "Modul Privat"} așteaptă confirmarea firmei. GPS este oprit pe acest telefon. Reîncercăm automat când revii în aplicație și ai internet.</Text></View>}
-      <Pressable accessibilityRole="button" onPress={() => navigate("documents")} style={s.sync}><View style={[s.dot, { backgroundColor: attention ? "#ff9ba8" : online && !pendingWork && !pending && !stale ? "#80e2c2" : "#f6cb86" }]} /><View style={{ flex: 1 }}><Text style={s.text}>{attention ? `${attention} ${attention === 1 ? "operațiune de verificat" : "operațiuni de verificat"}` : syncing ? "Sincronizare în curs…" : pendingWork ? localCount : online && !pending && !stale ? "Actualizat cu firma" : "Date salvate pe telefon"}</Text><Text style={s.muted}>{syncedAt ? `Ultima actualizare: ${new Date(syncedAt).toLocaleString("ro-RO")}` : "Prima conectare necesită internet"}</Text></View></Pressable>
-      {!board && button("Reîncearcă actualizarea", () => refresh(true))}
-      {stale && !!board && <Text style={s.muted}>Datele au peste 24 de ore sau ora telefonului s-a schimbat. Reconectează-te înainte de a confirma etape.</Text>}
-      {overviewProps && (page === "today" || page === "trips") && <TripOverview key={page} {...overviewProps} compact={page === "today"} onShowTrips={() => navigate("trips")} />}
-      {page === "today" && <>
-      <View style={s.card}><Text style={s.label}>CAMIONUL TĂU</Text><Text style={s.truck}>{board?.truck?.plate ?? "Niciun camion atribuit"}</Text>
-        <Text style={s.muted}>{board?.shift && !board.shift.end ? board.shift.privateSince ? "Tură deschisă • mod Privat" : "Tură deschisă" : "În afara turei"}</Text>
-        {!!board?.truck && (!board.shift || board.shift.end) && !focus.hasWork && !withoutTrip && <><Text style={s.muted}>Nu ai o cursă de început cu acest camion. Poți deschide separat o tură pentru deplasări sau alte sarcini.</Text>{button("Lucrez fără cursă alocată", async () => { setWithoutTrip(true); }, true)}</>}
-        {!!board?.truck && (!board.shift || board.shift.end) && (focus.hasWork || withoutTrip) && <><Text style={s.text}>Verifică minimum 3 puncte înainte de plecare:</Text>{checks.map(([id,label]) => <Pressable key={id} accessibilityRole="checkbox" accessibilityState={{ checked: selected.includes(id) }} disabled={busy} style={s.check} onPress={() => setSelected(old => old.includes(id) ? old.filter(x => x !== id) : [...old,id])}><Text style={s.text}>{selected.includes(id) ? "☑" : "☐"}  {label}</Text></Pressable>)}{button("Începe tura de lucru", async () => { if (selected.length < 3) throw new Error("Bifează minimum 3 verificări."); await api("/api/driver/shift", { vehicleId: board.truck!.id, action: "start", checklist: selected }); await refresh(); })}</>}
-        {!!board?.truck && !!board.shift && !board.shift.end && <>
-          {button(board.shift.privateSince ? "Revino din Privat" : "Activează modul Privat", async () => { if (board.shift!.privateSince) await api("/api/driver/private", { vehicleId: board.truck!.id, expectedShiftStart: board.shift!.start, on: false }); await refresh(); }, true, board.shift.privateSince ? undefined : () => preparePrivateOrStop({ path: "/api/driver/private", body: { vehicleId: board.truck!.id, expectedShiftStart: board.shift!.start, on: true } }))}
-          {button("Încheie tura", refresh, true, () => preparePrivateOrStop({ path: "/api/driver/shift", body: { vehicleId: board.truck!.id, expectedShiftStart: board.shift!.start, action: "stop" } }))}
-        </>}
-      </View>
-      <View style={s.card}><Text style={s.label}>GPS PE ACEST TELEFON</Text><Text style={s.subtitle}>{gate ? "Colectare activată" : "Colectare oprită"}</Text><Text style={s.muted}>{gate && gps?.lastAck && Date.now() - Date.parse(gps.lastAck) > 90000 ? "GPS neconfirmat de peste 90 de secunde. Verifică internetul și permisiunile." : gps?.message ?? "Activează GPS după ce începi tura."}</Text>
-        {!!gps?.lastAck && <Text style={s.muted}>Ultima confirmare: {new Date(gps.lastAck).toLocaleString("ro-RO")}</Text>}
-        {gpsExpanded && <><Text style={s.muted}>Sistemul poate întrerupe localizarea dacă închizi forțat aplicația. Verifică ultima confirmare înainte de plecare.</Text></>}
-        {gate ? button("Oprește GPS", async () => {}, true, stopGPS) : <Pressable accessibilityRole="button" disabled={busy || !!pending || !board?.shift || !!board.shift.end || !!board.shift.privateSince} style={[s.button, (busy || !!pending || !board?.shift || !!board.shift.end || !!board.shift.privateSince) && { opacity: .4 }]} onPress={() => void activateGPS()}><Text style={s.buttonText}>Activează GPS în fundal</Text></Pressable>}
-        {button(gpsExpanded ? "Mai puține detalii" : "Detalii și permisiuni GPS", async () => { setGpsExpanded(!gpsExpanded); }, true)}
-        {gpsExpanded && button("Setările permisiunilor", async () => { await Linking.openSettings(); }, true)}
-      </View>
-      </>}
-      {page === "documents" && <>
-      {board && <PaperworkPanel board={board} entries={entries} busy={busy || localBusy} onCapture={chooseDocument} onReview={setReviewId} onRetry={id => void localRun(() => retry(id))} onDiscard={discard} />}
-      {overviewProps && <DriverDetails {...overviewProps} section="road" />}
-      <View style={s.card}><Text style={s.subtitle}>Alertele tale · {board?.alerts?.length ?? 0}</Text>
-        {board?.alerts?.length ? board.alerts.map(alert => <View key={alert.id} style={s.trip}><Text style={s.text}>{alert.kind === "compliance-task" ? "Verificare solicitată" : "Document de verificat"} · {alert.label}</Text><Text style={s.muted}>{({ rca: "RCA", itp: "ITP", vignette: "Rovinietă", licence: "Permis", cpc: "Atestat", tachoCard: "Card tahograf", medical: "Aviz medical" } as Record<string, string>)[alert.type] ?? alert.type} · {alert.expires}</Text></View>) : <Text style={s.muted}>Nu ai alerte active.</Text>}
-      </View>
-      {button("Sincronizează acum", () => refresh(true), true)}
-      </>}
-      {page === "account" && <>
-      <View style={s.card}><Text style={s.subtitle}>Notificări și acces</Text>
-        {!!(pushActionMessage || pushMessage) && <Text accessibilityRole="alert" style={s.muted}>{pushActionMessage || pushMessage}</Text>}
-        <Text style={s.muted}>{pushEnabled ? "Notificări activate pe acest dispozitiv. Sunt legate de sesiunea ta; reautentifică-te când expiră." : "Activează notificările pentru documente și verificări. Detaliile apar doar în aplicație."}</Text>
-        {<>{button(pushEnabled ? "Oprește notificările" : "Activează notificările", () => pushAction(async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }), true)}{pushEnabled && button("Testează notificarea", () => pushAction(async () => { await testPush(); Alert.alert("Test acceptat", "Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon; acceptarea nu confirmă recepția."); }), true)}</>}
-        {button("Setările notificărilor", async () => { await Linking.openSettings(); }, true)}
-      </View>
-      <Text style={s.muted}>CMR/POD sunt disponibile în Acte. Interfața web rămâne disponibilă pentru celelalte opțiuni ale contului.</Text>
-      {button("Deschide interfața web", async () => { await Linking.openURL(`${apiOrigin()}/driver`); }, true)}
-      {button("Reîmprospătează", () => refresh(true), true)}
-      {!!pendingWork && <Text style={s.muted}>Ai {localCount}. După deconectare se păstrează pentru același cont; sincronizează înainte de a șterge aplicația.</Text>}
-      {!!pending && <Text style={s.muted}>Comanda de tură așteaptă internetul. Dacă te deconectezi, o reluăm la următoarea autentificare în același cont; GPS rămâne oprit.</Text>}
-      {cleanupCount > 0 && <Text style={s.muted}>Oprirea notificărilor pe server așteaptă conexiunea.</Text>}
-      <Pressable accessibilityRole="button" onPress={() => void signOut()} style={[s.button, s.secondary]}><Text style={s.buttonText}>Deconectare • oprește GPS</Text></Pressable>
-      {overviewProps && <DriverDetails {...overviewProps} section="account" />}
-      </>}
+      {!!pending && <Note>{t(pending.path === "/api/driver/shift" ? "Încheierea turei așteaptă confirmarea firmei. GPS este oprit pe acest telefon; reîncercăm automat când ai internet.|Ending the shift is waiting for the company. GPS is off on this phone; we retry automatically when you are online.|Zakończenie zmiany czeka na firmę. GPS jest wyłączony; ponowimy automatycznie po połączeniu." : "Modul Privat așteaptă confirmarea firmei. GPS este oprit pe acest telefon; reîncercăm automat când ai internet.|Private mode is waiting for the company. GPS is off on this phone; we retry automatically when you are online.|Tryb prywatny czeka na firmę. GPS jest wyłączony; ponowimy automatycznie po połączeniu.")}</Note>}
+      {!board && <><T style={{ color: C.fg2 }}>{t("Conectăm datele firmei…|Loading company data…|Ładowanie danych firmy…")}</T><Btn label={t("Reîncearcă actualizarea|Retry update|Ponów aktualizację")} disabled={busy} onPress={() => void run(() => refresh(true))} /></>}
+      {stale && !!board && <Note>{t("Datele au peste 24 de ore sau ora telefonului s-a schimbat. Reconectează-te înainte de a confirma etape.|Data is over 24 hours old or the phone clock changed. Reconnect before confirming steps.|Dane mają ponad 24 godziny lub zmieniono zegar telefonu. Połącz się przed potwierdzeniem etapów.")}</Note>}
+      {ctx && page === "today" && <Home c={ctx} gps={gps} gate={!!gate} gpsBlocked={busy || !!pending || !onShift || priv} onActivateGPS={() => void activateGPS()} onStopGPS={() => void run(async () => {}, stopGPS)} withoutTrip={withoutTrip} onWithoutTrip={() => setWithoutTrip(true)} />}
+      {ctx && page === "trips" && (tripOpen ? <TripDetail c={ctx} trip={tripOpen} onBack={() => setOpenTrip(null)} /> : <Trips c={ctx} />)}
+      {ctx && page === "documents" && <Docs c={ctx} onReview={setReviewId} onRetry={id => void localRun(() => retry(id))} onDiscard={discard} onSync={() => void run(() => refresh(true))} syncedAt={syncedAt} syncing={syncing} />}
+      {ctx && page === "account" && <Profile c={ctx} lang={lang} onLang={chooseLang} onSignOut={() => void signOut()} onRefresh={() => void run(() => refresh(true))} pendingWork={pendingWork} cleanup={cleanupCount} pendingControl={!!pending}
+        push={{ enabled: pushEnabled, message: pushActionMessage || pushMessage, toggle: () => void pushAction(async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }),
+          test: () => void pushAction(async () => { await testPush(); Alert.alert(t("Test acceptat|Test accepted|Test przyjęty"), t("Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon.|The provider accepted it. Check that the notification arrives.|Dostawca przyjął wysyłkę. Sprawdź, czy powiadomienie dotarło.")); }),
+          settings: () => void Linking.openSettings() }} />}
     </>}
   </ScrollView></KeyboardAvoidingView>
-    {logged && <View style={s.navigation}>{([["today", "Azi", "◉"], ["trips", "Curse", "↗"], ["documents", "Acte", "▤"], ["account", "Cont", "●"]] as const).map(([key, label, icon]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: page === key }} accessibilityLabel={label + (key === "documents" && pendingWork ? `, ${localCount}` : "")} style={[s.navItem, page === key && s.navSelected]} onPress={() => navigate(key)}><Text style={[s.navIcon, page === key && s.navActive]}>{key === "documents" && pendingWork ? pendingWork : icon}</Text><Text style={[s.navLabel, page === key && s.navActive]}>{label}</Text></Pressable>)}</View>}
-    <DocumentPreview entry={review} busy={busy || localBusy} onClose={() => setReviewId(null)} onSend={() => { if (review) void localRun(async () => { const id = review.id; setReviewId(null); await retry(id); }); }} onRetake={() => { if (review?.type === "file") { const trip = Object.values(board?.trips ?? {}).flat().find(t => t.id === review.tripId); if (trip && !trip.cancelledAt) chooseDocument(trip, review.kind, review.id); else Alert.alert("Cursa nu mai este disponibilă", "Fotografia rămâne pe telefon. Verifică alocarea cu patronul înainte de a o înlocui sau trimite."); } }} />
-  </SafeAreaView>;
+    {logged && board ? <ShiftBar state={!onShift ? "off" : priv ? "priv" : "on"} start={onShift ? board.shift?.start : null} plate={board.truck?.plate ?? ""} busy={busy || localBusy} blocked={shiftBlocked}
+      offSub={!board.truck ? t("Niciun camion alocat|No truck assigned|Brak przypisanego pojazdu") : pending ? t("Așteaptă confirmarea firmei|Waiting for the company|Czeka na firmę") : !focus.hasWork && !withoutTrip ? t("Nicio cursă de pornit|No trip to start|Brak kursu") : t("Verifică camionul și pornește|Check the truck and start|Sprawdź pojazd i zacznij")}
+      gpsNote={onShift && !priv && !gate ? t("GPS oprit pe telefon|GPS off on phone|GPS wyłączony w telefonie") : undefined}
+      onStart={async checks => { const ok = await run(async () => { await api("/api/driver/shift", { vehicleId: board.truck!.id, action: "start", checklist: checks }); await refresh(); }); if (ok) void activateGPS(); return ok; }}
+      onStop={() => run(refresh, () => preparePrivateOrStop({ path: "/api/driver/shift", body: { vehicleId: board.truck!.id, expectedShiftStart: board.shift!.start, action: "stop" } }))}
+      onPrivate={async on => {
+        if (on) return run(refresh, () => preparePrivateOrStop({ path: "/api/driver/private", body: { vehicleId: board.truck!.id, expectedShiftStart: board.shift!.start, on: true } }));
+        const ok = await run(async () => { await api("/api/driver/private", { vehicleId: board.truck!.id, expectedShiftStart: board.shift!.start, on: false }); await refresh(); });
+        if (ok) void activateGPS(); return ok;
+      }} /> : null}
+    {logged ? <TabBar page={page} onPage={navigate} badge={missing.length} bottom={insets.bottom} /> : null}
+    <DocumentPreview entry={review} busy={busy || localBusy} onClose={() => setReviewId(null)} onSend={() => { if (review) void localRun(async () => { const id = review.id; setReviewId(null); await retry(id); }); }} onRetake={() => { if (review?.type === "file") { const trip = Object.values(board?.trips ?? {}).flat().find(x => x.id === review.tripId); if (trip && !trip.cancelledAt) chooseDocument(trip, review.kind, review.id); else Alert.alert(t("Cursa nu mai este disponibilă|Trip no longer available|Kurs niedostępny"), t("Fotografia rămâne pe telefon. Verifică alocarea cu patronul.|The photo stays on the phone. Check the assignment with the owner.|Zdjęcie zostaje w telefonie. Sprawdź przydział z właścicielem.")); } }} />
+  </SafeAreaView></LocContext.Provider>;
 }
-export default function App() { return <SafeAreaProvider><Screen /></SafeAreaProvider>; }
-const s = StyleSheet.create({ sync: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, backgroundColor: "#122534", padding: 14 }, dot: { width: 8, height: 8, borderRadius: 4 }, navigation: { flexDirection: "row", paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4, gap: 6, borderTopWidth: 1, borderColor: "#253853", backgroundColor: "#0d1929" }, navItem: { flex: 1, minHeight: 60, paddingVertical: 7, alignItems: "center", justifyContent: "center", gap: 3, borderRadius: 14 }, navSelected: { backgroundColor: "#213d3a" }, navIcon: { color: "#8499b3", fontSize: 20, fontWeight: "600" }, navLabel: { color: "#aabbd1", fontSize: 12, fontWeight: "600" }, navActive: { color: "#80e2c2" }, safe: { flex: 1, backgroundColor: "#0a1220" }, content: { padding: 20, gap: 16, width: "100%", maxWidth: 680, alignSelf: "center", paddingBottom: 40 }, eyebrow: { color: "#80e2c2", fontSize: 12, fontWeight: "700", letterSpacing: 2 }, title: { color: "#f5f7fc", fontSize: 30, fontWeight: "700" }, subtitle: { color: "#f5f7fc", fontSize: 20, fontWeight: "600" }, truck: { color: "#f5f7fc", fontSize: 28, fontWeight: "700" }, text: { color: "#eef4ff", fontSize: 16, lineHeight: 24 }, muted: { color: "#aabbd1", fontSize: 14, lineHeight: 22 }, card: { backgroundColor: "#142137", padding: 20, borderRadius: 22, gap: 14, borderColor: "#253853", borderWidth: 1 }, label: { color: "#aabbd1", fontSize: 13, fontWeight: "600" }, input: { backgroundColor: "#0a1220", borderRadius: 12, padding: 16, color: "white", fontSize: 18, minHeight: 54, borderColor: "#3b506a", borderWidth: 1 }, button: { minHeight: 54, backgroundColor: "#80e2c2", borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 14 }, secondary: { backgroundColor: "#22364e" }, buttonText: { color: "#09241c", fontSize: 16, fontWeight: "700", textAlign: "center", flexShrink: 1 }, check: { paddingVertical: 12 }, trip: { paddingTop: 12, borderTopWidth: 1, borderColor: "#30445e", gap: 4 }, notice: { backgroundColor: "#284039", padding: 16, borderRadius: 12 }, error: { backgroundColor: "#532932", padding: 16, borderRadius: 12 }, speed: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#b3261e", paddingHorizontal: 16, paddingVertical: 12 }, speedText: { color: "white", fontSize: 15, fontWeight: "700", flex: 1 }, speedNum: { color: "white", fontSize: 30, fontWeight: "800" } });
+function Fonts({ children }: { children: ReactNode }) {
+  // Android embeds Inter through the expo-font config plugin; this also loads it for expo web previews.
+  useFonts({ "Inter-Regular": require("./assets/fonts/Inter-Regular.ttf"), "Inter-Medium": require("./assets/fonts/Inter-Medium.ttf"), "Inter-SemiBold": require("./assets/fonts/Inter-SemiBold.ttf"), "Inter-Bold": require("./assets/fonts/Inter-Bold.ttf") });
+  return <>{children}</>;
+}
+export default function App() { return <SafeAreaProvider><Fonts><Screen /></Fonts></SafeAreaProvider>; }
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: 1, borderColor: C.line },
+  brand: { flexDirection: "row", alignItems: "center", gap: 10 },
+  mark: { width: 30, height: 30, borderRadius: 9, backgroundColor: C.accBtn, alignItems: "center", justifyContent: "center" },
+  pill: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 36, paddingHorizontal: 12, borderRadius: 18, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  content: { padding: 20, paddingBottom: 32, gap: 14, width: "100%", maxWidth: 680, alignSelf: "center" },
+  label: { color: C.fg2, fontSize: 14 },
+  input: { backgroundColor: C.bg2, borderRadius: 12, padding: 16, color: C.fg, fontSize: 18, minHeight: 56, borderColor: C.line, borderWidth: 1, fontFamily: F.regular },
+  speed: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: mix(C.neg, 80, "#000000"), paddingHorizontal: 16, paddingVertical: 12 },
+});

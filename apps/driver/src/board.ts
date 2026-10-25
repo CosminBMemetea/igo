@@ -2,13 +2,15 @@ export type Trip = { id: string; truckId: string; title: string; date: string; c
 export type Board = {
   logoutReceipt?: string;
   alerts?: { id: string; kind: string; label: string; type: string; expires: string }[];
-  name: string; firm: string; truck: { id: string; plate: string } | null;
+  name: string; phone?: string | null; locale?: string | null; firm: string; truck: { id: string; plate: string } | null;
   shift: { start: string; end: string | null; privateSince?: string | null } | null;
   trips: Record<string, Trip[]>;
   road?: { regime: "vignette" | "tollro" | "unknown"; category: string | null; mtmaKg: number | null; euro: string | null; documents: { type: string; state: string; expires: string | null }[] } | null;
   progress?: { completed: number; lifetime: number; rank: number | null; participants: number; badges: { count: number; label: string }[]; next: { count: number; label: string } | null };
   position?: { lat: number; lng: number; at: string; accuracy: number | null } | null;
   serverTime: string;
+  plates?: Record<string, string>;
+  myDocs?: { type: string; state: string; expires: string | null }[];
   paperwork?: { id: string; tripId: string; kind: "cmr" | "pod"; name: string; createdAt: string }[];
 };
 export function tripFocus(board: Board | null) {
