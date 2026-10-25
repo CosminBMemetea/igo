@@ -36,7 +36,7 @@ const config: ExpoConfig = {
         { NSPrivacyCollectedDataType: "NSPrivacyCollectedDataTypeDeviceID", NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ["NSPrivacyCollectedDataTypePurposeAppFunctionality"] },
       ],
     } },
-  android: { package: androidPackage, ...(hasFirebase ? { googleServicesFile: firebaseFile } : {}), versionCode: 3, allowBackup: false,
+  android: { package: androidPackage, ...(hasFirebase ? { googleServicesFile: firebaseFile } : {}), versionCode: 4, allowBackup: false,
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", monochromeImage: "./assets/monochrome-icon.png", backgroundColor: "#0b0b0c" },
     blockedPermissions: ["android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.RECORD_AUDIO", "android.permission.SYSTEM_ALERT_WINDOW"] },
   plugins: [["expo-font", { fonts: ["./assets/fonts/Inter-Regular.ttf", "./assets/fonts/Inter-Medium.ttf", "./assets/fonts/Inter-SemiBold.ttf", "./assets/fonts/Inter-Bold.ttf"] }], ["expo-splash-screen", { image: "./assets/splash-icon.png", imageWidth: 200, resizeMode: "contain", backgroundColor: "#0b0b0c" }], ["expo-image-picker", { cameraPermission: "Fotografiază documentul CMR sau dovada livrării pentru cursa ta.", photosPermission: "Alege fotografia documentului pe care vrei să o trimiți firmei.", microphonePermission: false }], ["expo-notifications", { defaultChannel: "qfleet-alerts", mode: process.env.EXPO_PUBLIC_APNS_ENVIRONMENT === "sandbox" ? "development" : "production" }], "./plugins/withAndroidTransport.cjs", ["expo-secure-store", { faceIDPermission: false }], ["expo-location", {

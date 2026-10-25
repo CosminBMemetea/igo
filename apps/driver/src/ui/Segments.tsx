@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from "react-native";
 import * as Haptics from "expo-haptics";
+import { alignOffset, pageAt } from "./pager";
 import { C, F, mix } from "../theme";
 
 export type Segment = { key: string; label: string; count: number; page: ReactNode };
@@ -9,34 +10,59 @@ export type PagerMemo = { y: Record<string, number> };
 const native = Platform.OS !== "web";
 function tick() { if (native) void Haptics.selectionAsync().catch(() => {}); }
 
-/** Segmented control pinned on top + horizontally swipeable pages, each with its own vertical scroll. */
+/**
+ * Segmented control pinned on top + horizontally swipeable pages, each with its own vertical scroll.
+ * The thumb and the highlighted tab come only from the pager's real offset (onScroll), so they can never
+ * disagree with the visible page. Jumps to the active page wait until width and content width are known,
+ * are re-checked on layout/content/width/index changes, and retried until the reported offset matches.
+ */
 export function SegmentPager({ segments, index, onIndex, memo, label }: { segments: Segment[]; index: number; onIndex: (i: number) => void; memo: PagerMemo; label: string }) {
-  const [w, setW] = useState(0), [barW, setBarW] = useState(0);
+  const [w, setW] = useState(0), [barW, setBarW] = useState(0), [shown, setShown] = useState(0), [ready, setReady] = useState(false);
   const pager = useRef<ScrollViewInstance>(null), x = useRef(new Animated.Value(0)).current;
-  const cur = useRef(index), target = useRef<number | null>(null), laidOut = useRef(0);
   const n = segments.length, segW = barW ? (barW - 8) / n : 0, compact = segW > 0 && segW < 128;
-  const go = (i: number, animated = true) => { if (!w) return; target.current = animated ? i : null; pager.current?.scrollTo({ x: i * w, animated }); if (!animated) x.setValue(i * w); };
-  // first layout / rotation: jump to the active page without animation
-  useEffect(() => { if (w && laidOut.current !== w) { laidOut.current = w; go(cur.current, false); } });
-  // the parent changed the segment (e.g. an empty-state shortcut)
-  useEffect(() => { if (index !== cur.current) { cur.current = index; go(index); tick(); } }, [index]);
+  const r = useRef({ w: 0, n, contentW: 0, x: 0, cur: index, target: null as number | null, busy: false, aligning: null as number | null, onIndex, timers: [] as ReturnType<typeof setTimeout>[] }).current;
+  r.n = n; r.onIndex = onIndex;
+  const later = (ms: number, f: () => void) => { r.timers.push(setTimeout(f, ms)); };
+  useEffect(() => () => { r.timers.forEach(clearTimeout); }, [r]);
+  /** Jump (no animation) to the active page if the real offset is elsewhere. Idempotent; safe to call often. */
+  const align = () => {
+    const tx = alignOffset({ w: r.w, contentW: r.contentW, n: r.n, x: r.x, want: r.cur, busy: r.busy || r.target != null });
+    if (tx == null) { if (r.w && r.contentW >= r.w * r.n - 1 && pageAt(r.x, r.w, r.n) === r.cur) setReady(true); return; }
+    r.aligning = tx; pager.current?.scrollTo({ x: tx, y: 0, animated: false });
+    later(300, () => { if (r.aligning === tx) r.aligning = null; });
+  };
+  const settle = () => { for (const ms of [0, 50, 150, 400, 900]) later(ms, align); later(700, () => setReady(true)); };
+  // width known / changed (first layout, rotation, split screen) or a different number of pages
+  useEffect(() => { r.w = w; if (w) settle(); }, [w, n]);
+  // the parent changed the segment (empty-state shortcut, counts changed)
+  useEffect(() => {
+    if (index === r.cur) return;
+    r.cur = index;
+    if (!r.w || !ready) { settle(); return; }
+    r.target = index; pager.current?.scrollTo({ x: index * r.w, y: 0, animated: true }); tick();
+    later(700, () => { if (r.target === index) r.target = null; align(); });
+  }, [index]);
   const onScroll = Animated.event([{ nativeEvent: { contentOffset: { x } } }], {
     useNativeDriver: native,
     listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (!w) return;
-      const i = Math.max(0, Math.min(n - 1, Math.round(e.nativeEvent.contentOffset.x / w)));
-      if (target.current != null) { if (i === target.current && Math.abs(e.nativeEvent.contentOffset.x - i * w) < 2) target.current = null; return; }
-      if (i !== cur.current) { cur.current = i; onIndex(i); tick(); }
+      const ox = e.nativeEvent.contentOffset.x; r.x = ox;
+      if (!r.w) return;
+      const i = pageAt(ox, r.w, r.n); setShown(i);
+      if (r.aligning != null) { if (Math.abs(ox - r.aligning) < 2) { r.aligning = null; if (i === r.cur) setReady(true); } return; }
+      if (r.target != null) { if (i === r.target && Math.abs(ox - i * r.w) < 2) r.target = null; return; }
+      if (i !== r.cur) { r.cur = i; r.onIndex(i); tick(); }
     },
   });
-  const press = (i: number) => { if (i === cur.current) return; cur.current = i; onIndex(i); tick(); go(i); };
-  const shift = w && segW ? x.interpolate({ inputRange: [0, w * (n - 1)], outputRange: [0, segW * (n - 1)], extrapolate: "clamp" }) : 0;
+  const press = (i: number) => { if (i === r.cur) return; r.cur = i; onIndex(i); tick(); if (!r.w) return; r.target = i; pager.current?.scrollTo({ x: i * r.w, y: 0, animated: true }); later(700, () => { if (r.target === i) r.target = null; align(); }); };
+  const endDrag = () => { later(350, () => { if (r.busy) { r.busy = false; align(); } }); };
+  const shift = w && segW ? x.interpolate({ inputRange: [0, Math.max(1, w * (n - 1))], outputRange: [0, segW * (n - 1)], extrapolate: "clamp" }) : 0;
+  const active = ready ? shown : index;
   return <View style={{ flex: 1 }} onLayout={(e: LayoutChangeEvent) => setW(Math.round(e.nativeEvent.layout.width))}>
     <View style={st.barWrap}>
       <View accessibilityRole="tablist" accessibilityLabel={label} style={st.bar} onLayout={e => setBarW(e.nativeEvent.layout.width)}>
-        {segW ? <Animated.View pointerEvents="none" style={[st.thumb, { width: segW, transform: [{ translateX: shift }] }]} /> : null}
+        {segW ? <Animated.View pointerEvents="none" style={[st.thumb, { width: segW, opacity: ready ? 1 : 0, transform: [{ translateX: shift }] }]} /> : null}
         {segments.map((sg, i) => {
-          const on = i === index;
+          const on = i === active;
           return <Pressable key={sg.key} accessibilityRole="tab" accessibilityState={{ selected: on }} aria-selected={on} accessibilityLabel={`${sg.label}, ${sg.count}`} onPress={() => press(i)}
             style={({ pressed }) => [st.seg, compact && st.segCompact, pressed && { opacity: .7 }]}>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.85} style={[st.label, compact && { fontSize: segW < 100 ? 12 : 13, lineHeight: 16 }, { color: on ? C.fg : C.fg2 }]}>{sg.label}</Text>
@@ -45,7 +71,10 @@ export function SegmentPager({ segments, index, onIndex, memo, label }: { segmen
         })}
       </View>
     </View>
-    <Animated.ScrollView ref={pager} horizontal pagingEnabled bounces={false} overScrollMode="never" showsHorizontalScrollIndicator={false} scrollEventThrottle={16} onScroll={onScroll} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
+    <Animated.ScrollView ref={pager} horizontal pagingEnabled bounces={false} overScrollMode="never" showsHorizontalScrollIndicator={false} scrollEventThrottle={16} onScroll={onScroll} keyboardShouldPersistTaps="handled"
+      onContentSizeChange={(cw: number) => { r.contentW = cw; align(); }} onLayout={() => align()}
+      onScrollBeginDrag={() => { r.busy = true; r.target = null; r.aligning = null; }} onScrollEndDrag={endDrag}
+      onMomentumScrollEnd={() => { r.busy = false; align(); }} style={{ flex: 1, opacity: ready ? 1 : 0 }}>
       {w ? segments.map(sg => <ScrollView key={sg.key} style={{ width: w }} contentContainerStyle={st.page} contentOffset={{ x: 0, y: memo.y[sg.key] ?? 0 }} scrollEventThrottle={64}
         onScroll={e => { memo.y[sg.key] = e.nativeEvent.contentOffset.y; }} keyboardShouldPersistTaps="handled" accessibilityLabel={sg.label}>
         {sg.page}

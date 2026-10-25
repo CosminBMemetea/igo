@@ -8,6 +8,7 @@ import { useFonts } from "expo-font";
 import { api, apiOrigin, ApiError, read, write, rememberLogoutReceipt, type Login, type Gate, type Pending, sessionScope } from "./src/api";
 import { startGPS, stopGPS, preparePrivateOrStop, syncPending, reconcileGPS, type GPSStatus } from "./src/tracking";
 import { pendingControl } from "./src/controls";
+import { openLocationSettings, useLocationServices } from "./src/location-services";
 import { createActions } from "./src/actions";
 import { tripFocus, invitationPhone, type Board, type Trip } from "./src/board";
 import { workQueue, workId, discardWork, cleanConfirmedPhotos, watchWork } from "./src/work-storage";
@@ -241,6 +242,7 @@ function Screen() {
   const attention = entries.filter(e => e.status === "attention").length;
   const insets = useSafeAreaInsets();
   const onShift = !!board?.shift && !board.shift.end, priv = onShift && !!board?.shift?.privateSince;
+  const location = useLocationServices(logged && (onShift || !!gate));
   const today = board ? boardToday(board) : "";
   const docs = board ? tripDocs(board, entries) : {};
   const missing = board ? missingDocs(board, docs, today) : [];
@@ -280,7 +282,8 @@ function Screen() {
       {pendingNote}
       {!board && <><T style={{ color: C.fg2 }}>{t("Conectăm datele firmei…|Loading company data…|Ładowanie danych firmy…")}</T><Btn label={t("Reîncearcă actualizarea|Retry update|Ponów aktualizację")} disabled={busy} onPress={() => void run(() => refresh(true))} /></>}
       {staleNote}
-      {ctx && page === "today" && <Home c={ctx} gps={gps} gate={!!gate} gpsBlocked={busy || !!pending || !onShift || priv} onActivateGPS={() => void activateGPS()} onStopGPS={() => void run(async () => {}, stopGPS)} withoutTrip={withoutTrip} onWithoutTrip={() => setWithoutTrip(true)} />}
+      {ctx && page === "today" && <Home c={ctx} gps={gps} gate={!!gate} gpsBlocked={busy || !!pending || !onShift || priv} onActivateGPS={() => void activateGPS()} onStopGPS={() => void run(async () => {}, stopGPS)} withoutTrip={withoutTrip} onWithoutTrip={() => setWithoutTrip(true)}
+        locationOff={location.off} onLocationSettings={() => void openLocationSettings().then(() => location.check())} />}
       {ctx && page === "trips" && tripOpen ? <TripDetail c={ctx} trip={tripOpen} onBack={() => setOpenTrip(null)} /> : null}
       {ctx && page === "documents" && <Docs c={ctx} onReview={setReviewId} onRetry={id => void localRun(() => retry(id))} onDiscard={discard} onSync={() => void run(() => refresh(true))} syncedAt={syncedAt} syncing={syncing} />}
       {ctx && page === "account" && <Profile c={ctx} lang={lang} onLang={chooseLang} onSignOut={() => void signOut()} onRefresh={() => void run(() => refresh(true))} pendingWork={pendingWork} cleanup={cleanupCount} pendingControl={!!pending}

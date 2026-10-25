@@ -9,6 +9,7 @@ import { countTri, fmtDate, fmtDateTime, fmtTime, LOCS, useT, type Loc } from ".
 import { CHECK_ACTION, CHECK_LABEL, DOC_KEYS, STAGE_LABEL, driverSections, stageOf, tripChecklist, type MissingDoc, type TripDocs } from "../checklist";
 import { Badge, Btn, Card, Chips, Icon, Note, Section, T, TripRoute } from "./kit";
 import { SegmentPager, type PagerMemo } from "./Segments";
+import { defaultSeg, reconcileSeg } from "./pager";
 
 export type Ctx = {
   board: Board; entries: WorkEntry[]; today: string; docs: Record<string, TripDocs>; missing: MissingDoc[];
@@ -68,7 +69,7 @@ function TripCard({ c, trip }: { c: Ctx; trip: Trip }) {
     <DocActions c={c} trip={trip} />
   </View>;
 }
-export function Home({ c, gps, gate, gpsBlocked, onActivateGPS, onStopGPS, withoutTrip, onWithoutTrip }: { c: Ctx; gps: GPSStatus | null; gate: boolean; gpsBlocked: boolean; onActivateGPS: () => void; onStopGPS: () => void; withoutTrip: boolean; onWithoutTrip: () => void }) {
+export function Home({ c, gps, gate, gpsBlocked, onActivateGPS, onStopGPS, withoutTrip, onWithoutTrip, locationOff = false, onLocationSettings }: { c: Ctx; gps: GPSStatus | null; gate: boolean; gpsBlocked: boolean; onActivateGPS: () => void; onStopGPS: () => void; withoutTrip: boolean; onWithoutTrip: () => void; locationOff?: boolean; onLocationSettings?: () => void }) {
   const { t, loc } = useT();
   const b = c.board, on = !!b.shift && !b.shift.end, priv = on && !!b.shift?.privateSince;
   const first = (b.name ?? "").trim().split(/\s+/)[0] ?? "";
@@ -87,7 +88,14 @@ export function Home({ c, gps, gate, gpsBlocked, onActivateGPS, onStopGPS, witho
         <T style={{ color: C.fg2, fontSize: 13 }}>{t("Atinge ca să le rezolvi|Tap to fix|Dotknij, aby uzupełnić")}</T></View>
       <T style={{ color: C.fg2, fontSize: 22 }}>›</T>
     </Pressable> : null}
-    {on && !priv ? <View style={[st.gps, !gate || silent ? { borderColor: mix(C.warn, 45, C.bg2), backgroundColor: mix(C.warn, 9, C.bg2) } : null]}>
+    {on && !priv && locationOff ? <View accessibilityRole="alert" style={[st.gps, st.locOff]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <Icon name="pin" size={22} color={C.neg} />
+        <T w="semi" style={{ flex: 1 }}>{t("Locația telefonului e oprită|Phone location is off|Lokalizacja telefonu jest wyłączona")}</T>
+      </View>
+      <T style={{ color: C.fg2, fontSize: 13 }}>{t("Patronul nu vede camionul pe hartă. Pornește Locația din setările telefonului.|The owner can't see the truck on the map. Turn on Location in the phone settings.|Właściciel nie widzi pojazdu na mapie. Włącz Lokalizację w ustawieniach telefonu.")}</T>
+      <Btn kind="danger" label={t("Pornește locația|Turn on location|Włącz lokalizację")} onPress={() => onLocationSettings?.()} />
+    </View> : on && !priv ? <View style={[st.gps, !gate || silent ? { borderColor: mix(C.warn, 45, C.bg2), backgroundColor: mix(C.warn, 9, C.bg2) } : null]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Icon name="pin" size={22} color={!gate || silent ? C.warn : C.pos} />
         <T w="semi" style={{ flex: 1 }}>{!gate ? t("GPS-ul nu rulează pe acest telefon|GPS is not running on this phone|GPS nie działa na tym telefonie") : silent ? t("Poziția nu este confirmată de server|Position not confirmed by server|Pozycja niepotwierdzona przez serwer") : t("GPS activ în fundal|GPS active in background|GPS aktywny w tle")}</T>
@@ -104,7 +112,7 @@ export function Home({ c, gps, gate, gpsBlocked, onActivateGPS, onStopGPS, witho
   </View>;
 }
 /** Kept while the app runs: back from a trip (or another tab) returns to the same segment and scroll spot. */
-const tripsMemo: PagerMemo & { seg: number | null; at: number } = { seg: null, at: 0, y: {} };
+const tripsMemo: PagerMemo & { seg: number | null; at: number; picked: boolean } = { seg: null, at: 0, picked: false, y: {} };
 function Empty({ icon, title, sub, children }: { icon: "trips" | "check" | "pause"; title: string; sub?: string; children?: ReactNode }) {
   return <View style={st.emptyBox}>
     <View style={st.emptyIc}><Icon name={icon} size={26} color={C.fg2} /></View>
@@ -118,10 +126,14 @@ export function Trips({ c }: { c: Ctx }) {
   const { t, loc } = useT();
   const s = driverSections(c.board, c.today), { current } = focus(c);
   const nowRows = s.now.filter(x => x.id !== current?.id), nowCount = nowRows.length + (current ? 1 : 0);
-  const fresh = tripsMemo.seg != null && Date.now() - tripsMemo.at < 30 * 60_000;
-  const [seg, setSeg] = useState(() => fresh ? tripsMemo.seg! : nowCount ? 0 : s.next.length ? 1 : 2);
-  const choose = (i: number) => { tripsMemo.seg = i; tripsMemo.at = Date.now(); setSeg(i); };
-  useEffect(() => { tripsMemo.seg = seg; tripsMemo.at = Date.now(); }, [seg]);
+  const counts = [nowCount, s.next.length, s.done.length], key = counts.join(",");
+  const fresh = tripsMemo.seg != null && tripsMemo.picked && Date.now() - tripsMemo.at < 30 * 60_000;
+  const [seg, setSeg] = useState(() => fresh ? tripsMemo.seg! : defaultSeg(counts));
+  const [picked, setPicked] = useState(fresh), [seen, setSeen] = useState(key);
+  // counts changed while the screen is open (e.g. a trip moved from Acum to Terminate): adjust during render
+  if (seen !== key) { setSeen(key); const v = reconcileSeg(seg, picked, seen.split(",").map(Number), counts); if (v !== seg) { setSeg(v); setPicked(false); } }
+  const choose = (i: number) => { tripsMemo.seg = i; tripsMemo.at = Date.now(); tripsMemo.picked = true; setPicked(true); setSeg(i); };
+  useEffect(() => { tripsMemo.seg = seg; tripsMemo.at = Date.now(); tripsMemo.picked = picked; }, [seg, picked]);
   const now = nowCount ? <>
     {current ? <CurrentBox c={c} /> : null}
     {nowRows.map(x => <TripCard key={x.id} c={c} trip={x} />)}
@@ -296,6 +308,7 @@ export const st = StyleSheet.create({
   banner: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, padding: 14, borderRadius: 16, backgroundColor: mix(C.neg, 12, C.bg2), borderWidth: 1, borderColor: mix(C.neg, 35, C.bg2) },
   bannerN: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.neg, alignItems: "center", justifyContent: "center" },
   gps: { marginTop: 16, padding: 16, borderRadius: 16, gap: 10, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg2 },
+  locOff: { borderColor: mix(C.neg, 60, C.bg2), backgroundColor: mix(C.neg, 14, C.bg2) },
   back: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, alignSelf: "flex-start", paddingRight: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   docRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line },
