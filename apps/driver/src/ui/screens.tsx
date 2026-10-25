@@ -1,4 +1,5 @@
 // The four driver tabs, ported from the web /driver, /driver/trips, /driver/docs and /driver/profile screens.
+import { useEffect, useState, type ReactNode } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import type { Board, Trip } from "../board";
 import type { WorkEntry, EventKind } from "../work-queue";
@@ -7,6 +8,7 @@ import { C, mix } from "../theme";
 import { countTri, fmtDate, fmtDateTime, fmtTime, LOCS, useT, type Loc } from "../i18n";
 import { CHECK_ACTION, CHECK_LABEL, DOC_KEYS, STAGE_LABEL, driverSections, stageOf, tripChecklist, type MissingDoc, type TripDocs } from "../checklist";
 import { Badge, Btn, Card, Chips, Icon, Note, Section, T, TripRoute } from "./kit";
+import { SegmentPager, type PagerMemo } from "./Segments";
 
 export type Ctx = {
   board: Board; entries: WorkEntry[]; today: string; docs: Record<string, TripDocs>; missing: MissingDoc[];
@@ -101,26 +103,47 @@ export function Home({ c, gps, gate, gpsBlocked, onActivateGPS, onStopGPS, witho
     <View style={{ marginTop: 16 }}><CurrentBox c={c} /></View>
   </View>;
 }
+/** Kept while the app runs: back from a trip (or another tab) returns to the same segment and scroll spot. */
+const tripsMemo: PagerMemo & { seg: number | null; at: number } = { seg: null, at: 0, y: {} };
+function Empty({ icon, title, sub, children }: { icon: "trips" | "check" | "pause"; title: string; sub?: string; children?: ReactNode }) {
+  return <View style={st.emptyBox}>
+    <View style={st.emptyIc}><Icon name={icon} size={26} color={C.fg2} /></View>
+    <T w="semi" style={{ fontSize: 17, textAlign: "center" }}>{title}</T>
+    {sub ? <T style={{ color: C.fg2, fontSize: 14, textAlign: "center" }}>{sub}</T> : null}
+    {children}
+  </View>;
+}
+/** Curse: Acum / Următoarele / Terminate as swipeable sub-tabs under a pinned segmented control. */
 export function Trips({ c }: { c: Ctx }) {
   const { t, loc } = useT();
   const s = driverSections(c.board, c.today), { current } = focus(c);
-  const nowRows = s.now.filter(x => x.id !== current?.id);
-  return <View>
-    <PageTitle>{t("Cursele mele|My trips|Moje kursy")}</PageTitle>
-    <Section title={t("Acum|Now|Teraz")} count={nowRows.length + (current ? 1 : 0)}>
-      {current ? <CurrentBox c={c} /> : null}
-      {nowRows.map(x => <TripCard key={x.id} c={c} trip={x} />)}
-      {!current && !nowRows.length ? <T style={st.empty}>{t("Nimic de făcut acum.|Nothing to do now.|Nic do zrobienia teraz.")}</T> : null}
-    </Section>
-    <Section title={t("Următoarele|Upcoming|Nadchodzące")} count={s.next.length}>
-      {s.next.length ? s.next.map(x => <TripCard key={x.id} c={c} trip={x} />) : <T style={st.empty}>{t("Nicio cursă planificată.|No trips planned.|Brak zaplanowanych kursów.")}</T>}
-    </Section>
-    <Section title={t("Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni")} count={s.done.length}>
-      {s.oldMissing.length ? <Pressable onPress={c.goDocs} accessibilityRole="link"><T style={{ color: C.acc, fontSize: 14 }}>{`${countTri(loc, s.oldMissing.length, "cursă mai veche/curse mai vechi/de curse mai vechi|older trip/older trips|starszy kurs/starsze kursy/starszych kursów")} ${t("fără POD → Acte|without POD → Documents|bez POD → Dokumenty")}`}</T></Pressable> : null}
-      {s.done.length ? s.done.map(x => <TripCard key={x.id} c={c} trip={x} />) : <T style={st.empty}>{t("Nicio cursă terminată.|No finished trips.|Brak zakończonych kursów.")}</T>}
-    </Section>
+  const nowRows = s.now.filter(x => x.id !== current?.id), nowCount = nowRows.length + (current ? 1 : 0);
+  const fresh = tripsMemo.seg != null && Date.now() - tripsMemo.at < 30 * 60_000;
+  const [seg, setSeg] = useState(() => fresh ? tripsMemo.seg! : nowCount ? 0 : s.next.length ? 1 : 2);
+  const choose = (i: number) => { tripsMemo.seg = i; tripsMemo.at = Date.now(); setSeg(i); };
+  useEffect(() => { tripsMemo.seg = seg; tripsMemo.at = Date.now(); }, [seg]);
+  const now = nowCount ? <>
+    {current ? <CurrentBox c={c} /> : null}
+    {nowRows.map(x => <TripCard key={x.id} c={c} trip={x} />)}
+  </> : <Empty icon="pause" title={t("Nicio cursă acum|No trip right now|Brak kursu teraz")} sub={t("Când patronul îți dă o cursă, o vezi aici.|When the owner assigns a trip, it shows up here.|Gdy właściciel przydzieli kurs, zobaczysz go tutaj.")}>
+    {s.next.length ? <Btn kind="sec" label={`${t("Vezi următoarele|See upcoming|Zobacz nadchodzące")} (${s.next.length})`} onPress={() => choose(1)} style={{ alignSelf: "stretch", marginTop: 4 }} /> : null}
+  </Empty>;
+  const next = s.next.length ? s.next.map(x => <TripCard key={x.id} c={c} trip={x} />)
+    : <Empty icon="trips" title={t("Nicio cursă planificată|No trips planned|Brak zaplanowanych kursów")} sub={t("Cursele noi apar aici imediat ce sunt alocate.|New trips appear here as soon as they are assigned.|Nowe kursy pojawią się tu od razu po przydzieleniu.")} />;
+  const done = <>
+    <View style={st.doneHead}>
+      <T w="semi" style={st.doneH}>{t("Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni")}</T>
+      {s.oldMissing.length ? <Pressable onPress={c.goDocs} accessibilityRole="link" hitSlop={8}><T style={{ color: C.acc, fontSize: 14 }}>{`${countTri(loc, s.oldMissing.length, "cursă mai veche/curse mai vechi/de curse mai vechi|older trip/older trips|starszy kurs/starsze kursy/starszych kursów")} ${t("fără POD → Acte|without POD → Documents|bez POD → Dokumenty")}`}</T></Pressable> : null}
+    </View>
+    {s.done.length ? s.done.map(x => <TripCard key={x.id} c={c} trip={x} />)
+      : <Empty icon="check" title={t("Nicio cursă terminată|No finished trips|Brak zakończonych kursów")} sub={t("Cursele livrate în ultimele 30 de zile apar aici.|Trips delivered in the last 30 days appear here.|Kursy dostarczone w ostatnich 30 dniach pojawią się tutaj.")} />}
     {s.cancelled.length ? <Section title={t("Anulate|Cancelled|Anulowane")} count={s.cancelled.length}>{s.cancelled.map(x => <TripCard key={x.id} c={c} trip={x} />)}</Section> : null}
-  </View>;
+  </>;
+  return <SegmentPager label={t("Cursele mele|My trips|Moje kursy")} index={seg} onIndex={choose} memo={tripsMemo} segments={[
+    { key: "now", label: t("Acum|Now|Teraz"), count: nowCount, page: now },
+    { key: "next", label: t("Următoarele|Upcoming|Nadchodzące"), count: s.next.length, page: next },
+    { key: "done", label: t("Terminate|Finished|Zakończone"), count: s.done.length, page: done },
+  ]} />;
 }
 export function TripDetail({ c, trip, onBack }: { c: Ctx; trip: Trip; onBack: () => void }) {
   const { t, loc } = useT();
@@ -266,6 +289,10 @@ export const st = StyleSheet.create({
   meta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   warn: { color: C.warn, fontSize: 14, lineHeight: 20 },
   empty: { color: C.fg2, fontSize: 14 },
+  emptyBox: { alignItems: "center", gap: 8, paddingVertical: 28, paddingHorizontal: 18, borderWidth: 1, borderStyle: "dashed", borderColor: C.line, borderRadius: 16, marginTop: 6 },
+  emptyIc: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.bg2, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  doneHead: { gap: 6 },
+  doneH: { color: C.fg2, fontSize: 13, letterSpacing: 0.8, textTransform: "uppercase" },
   banner: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16, padding: 14, borderRadius: 16, backgroundColor: mix(C.neg, 12, C.bg2), borderWidth: 1, borderColor: mix(C.neg, 35, C.bg2) },
   bannerN: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.neg, alignItems: "center", justifyContent: "center" },
   gps: { marginTop: 16, padding: 16, borderRadius: 16, gap: 10, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg2 },

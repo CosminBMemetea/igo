@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { outboxItems, type OutboxItem } from "@/lib/outbox";
 import { applyDriverTripUpdate, DRIVER_TRIP_UPDATE, type DriverTripUpdate } from "@/lib/driver-trip-update";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type KeyboardEvent, type TouchEvent } from "react";
 import { countTri, tri, fmtDate, type Locale } from "@/lib/i18n";
 import { groupDriverTrips, driverTripStage, type DriverTripSummary, type DriverTripStage } from "@/lib/driver-trips";
 import { tripChecklist, driverSections, CHECK_LABEL, CHECK_ACTION, DOC_KEYS, type TripDocs, type CheckState } from "@/lib/driver-checklist";
@@ -11,6 +11,7 @@ function TripRoute({ title, loc }: { title: string; loc: Locale }) {
   if (stops.length < 2) return <strong className="driver-route-title">{title}</strong>;
   return <div className="driver-route">{stops.map((stop, i) => <div className="driver-route-stop" key={i}><span className="driver-route-dot" aria-hidden="true" /><div><small>{tri(loc, i === 0 ? "Plecare|From|Wyjazd" : i === stops.length - 1 ? "Destinație|To|Cel" : "Pe traseu|Via|Przez")}</small><strong>{stop}</strong></div></div>)}</div>;
 }
+const SEG_KEY = "qf-driver-trips-seg";
 const labels: Record<DriverTripStage, string> = {
   running: "Încărcată · în desfășurare|Loaded · in progress|Załadowany · w trakcie",
   ready: "De încărcat|Ready for loading|Do załadunku",
@@ -104,18 +105,72 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
       {groups.running.length > 1 ? <p className="driver-trip-warning">{tr("Mai multe curse încărcate · întreabă patronul|Several trips loaded · ask the owner|Kilka kursów załadowanych · zapytaj właściciela")}</p> : null}
     </>}
   </div>;
-  if (variant === "home") return <section className="driver-trips home" aria-label={tr("Cursa ta|Your trip|Twój kurs")}>{currentBox}</section>;
   const s = driverSections(visibleTrips, today);
   const nowRows = s.now.filter(x => x.id !== current?.id);
-  const block = (id: string, title: string, rows: DriverTripSummary[], empty: string, extra?: ReactNode) => <section className="dsec" aria-labelledby={id}>
-    <h2 className="dsec-h" id={id}><span>{tr(title)}</span><b>{rows.length + (id === "sec-now" && current ? 1 : 0)}</b></h2>
-    {extra}
-    {rows.length ? <div className="driver-trip-list">{rows.map(card)}</div> : extra ? null : <p className="driver-trip-empty">{tr(empty)}</p>}
-  </section>;
+  const counts = [nowRows.length + (current ? 1 : 0), s.next.length, s.done.length];
+  const [seg, setSeg] = useState(counts[0] || status ? 0 : counts[1] ? 1 : 2);
+  const tabsRef = useRef<HTMLDivElement>(null), scrollY = useRef<number[]>([0, 0, 0]), from = useRef<number | null>(null), swipe = useRef<{ x: number; y: number; t: number } | null>(null);
+  const [dir, setDir] = useState<"l" | "r" | "">("");
+  // back from a trip within 30 min → same segment
+  useEffect(() => {
+    if (variant === "home") return;
+    let v: { i: number; at: number } | null = null;
+    try { v = JSON.parse(sessionStorage.getItem(SEG_KEY) ?? "null"); } catch {}
+    if (!v || !(v.i >= 0 && v.i < 3) || Date.now() - v.at > 30 * 60_000) return;
+    const i = v.i, raf = requestAnimationFrame(() => setSeg(i));
+    return () => cancelAnimationFrame(raf);
+  }, [variant]);
+  const pick = (i: number) => {
+    if (i === seg || i < 0 || i > 2) return;
+    scrollY.current[seg] = window.scrollY; from.current = seg; setDir(i > seg ? "l" : "r"); setSeg(i);
+    try { sessionStorage.setItem(SEG_KEY, JSON.stringify({ i, at: Date.now() })); } catch {}
+  };
+  // each segment keeps its own scroll spot once the control is pinned
+  useLayoutEffect(() => {
+    if (from.current == null || !tabsRef.current) return;
+    from.current = null;
+    const pin = tabsRef.current.getBoundingClientRect().top + window.scrollY - 8;
+    if (window.scrollY > pin) window.scrollTo({ top: Math.max(pin, scrollY.current[seg]), behavior: "instant" as ScrollBehavior });
+  }, [seg]);
+  if (variant === "home") return <section className="driver-trips home" aria-label={tr("Cursa ta|Your trip|Twój kurs")}>{currentBox}</section>;
+  const empty = (icon: string, title: string, sub: string, extra?: ReactNode) => <div className="dseg-empty"><span className="dseg-empty-ic" aria-hidden="true">{icon}</span><strong>{tr(title)}</strong><p>{tr(sub)}</p>{extra}</div>;
+  const panels: { key: string; label: string; body: ReactNode }[] = [
+    { key: "now", label: "Acum|Now|Teraz", body: current || status || nowRows.length ? <>
+      {current || status ? currentBox : null}
+      {nowRows.length ? <div className="driver-trip-list">{nowRows.map(card)}</div> : null}
+    </> : empty("⏸", "Nicio cursă acum|No trip right now|Brak kursu teraz", "Când patronul îți dă o cursă, o vezi aici.|When the owner assigns a trip, it shows up here.|Gdy właściciel przydzieli kurs, zobaczysz go tutaj.",
+      s.next.length ? <button type="button" className="btn sec" onClick={() => pick(1)}>{tr("Vezi următoarele|See upcoming|Zobacz nadchodzące")} ({s.next.length})</button> : null) },
+    { key: "next", label: "Următoarele|Upcoming|Nadchodzące", body: s.next.length ? <div className="driver-trip-list">{s.next.map(card)}</div>
+      : empty("🗓", "Nicio cursă planificată|No trips planned|Brak zaplanowanych kursów", "Cursele noi apar aici imediat ce sunt alocate.|New trips appear here as soon as they are assigned.|Nowe kursy pojawią się tu od razu po przydzieleniu.") },
+    { key: "done", label: "Terminate|Finished|Zakończone", body: <>
+      <h2 className="dsec-h dseg-sub">{tr("Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni")}</h2>
+      {s.oldMissing.length ? <p className="driver-trip-old"><Link className="link" href="/driver/docs">{countTri(loc, s.oldMissing.length, "cursă mai veche/curse mai vechi/de curse mai vechi|older trip/older trips|starszy kurs/starsze kursy/starszych kursów")} {tr("fără POD → Acte|without POD → Documents|bez POD → Dokumenty")}</Link></p> : null}
+      {s.done.length ? <div className="driver-trip-list">{s.done.map(card)}</div>
+        : empty("✓", "Nicio cursă terminată|No finished trips|Brak zakończonych kursów", "Cursele livrate în ultimele 30 de zile apar aici.|Trips delivered in the last 30 days appear here.|Kursy dostarczone w ostatnich 30 dniach pojawią się tutaj.")}
+      {s.cancelled.length ? <details className="driver-trip-group"><summary>{tr("Anulate|Cancelled|Anulowane")} · {s.cancelled.length}</summary><div className="driver-trip-list">{s.cancelled.map(card)}</div></details> : null}
+    </> },
+  ];
+  const key = (e: KeyboardEvent) => {
+    const i = e.key === "ArrowRight" ? seg + 1 : e.key === "ArrowLeft" ? seg - 1 : e.key === "Home" ? 0 : e.key === "End" ? 2 : -1;
+    if (i < 0 || i > 2) return;
+    e.preventDefault(); pick(i); tabsRef.current?.querySelectorAll<HTMLButtonElement>("[role=tab]")[i]?.focus();
+  };
+  const touchStart = (e: TouchEvent) => { const t = e.touches[0]; swipe.current = e.touches.length === 1 && !(e.target as HTMLElement).closest("input,textarea,select,[data-noswipe]") ? { x: t.clientX, y: t.clientY, t: Date.now() } : null; };
+  const touchEnd = (e: TouchEvent) => {
+    const a = swipe.current, t = e.changedTouches[0]; swipe.current = null;
+    if (!a || !t) return;
+    const dx = t.clientX - a.x, dy = t.clientY - a.y;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - a.t < 700) pick(seg + (dx < 0 ? 1 : -1));
+  };
   return <div className="driver-trips full">
-    {block("sec-now", "Acum|Now|Teraz", nowRows, "Nimic de făcut acum.|Nothing to do now.|Nic do zrobienia teraz.", current || status ? currentBox : undefined)}
-    {block("sec-next", "Următoarele|Upcoming|Nadchodzące", s.next, "Nicio cursă planificată.|No trips planned.|Brak zaplanowanych kursów.")}
-    {block("sec-done", "Terminate · 30 zile|Finished · 30 days|Zakończone · 30 dni", s.done, "Nicio cursă terminată.|No finished trips.|Brak zakończonych kursów.", s.oldMissing.length ? <p className="driver-trip-old"><Link className="link" href="/driver/docs">{countTri(loc, s.oldMissing.length, "cursă mai veche/curse mai vechi/de curse mai vechi|older trip/older trips|starszy kurs/starsze kursy/starszych kursów")} {tr("fără POD → Acte|without POD → Documents|bez POD → Dokumenty")}</Link></p> : undefined)}
-    {s.cancelled.length ? <details className="driver-trip-group"><summary>{tr("Anulate|Cancelled|Anulowane")} · {s.cancelled.length}</summary><div className="driver-trip-list">{s.cancelled.map(card)}</div></details> : null}
+    <div className="dsegc" ref={tabsRef} role="tablist" aria-label={tr("Cursele mele|My trips|Moje kursy")} onKeyDown={key} style={{ ["--i" as string]: seg }}>
+      <span className="dsegc-thumb" aria-hidden="true" />
+      {panels.map((p, i) => <button key={p.key} type="button" role="tab" id={`dseg-${p.key}`} aria-selected={i === seg} aria-controls={`dpanel-${p.key}`} tabIndex={i === seg ? 0 : -1} className={i === seg ? "on" : undefined} onClick={() => pick(i)}>
+        <span className="dsegc-l">{tr(p.label)}</span><b className="dsegc-n">{counts[i]}</b>
+      </button>)}
+    </div>
+    <div className="dseg-panels" onTouchStart={touchStart} onTouchEnd={touchEnd}>
+      {panels.map((p, i) => <section key={p.key} role="tabpanel" id={`dpanel-${p.key}`} aria-labelledby={`dseg-${p.key}`} hidden={i !== seg} className={`dseg-panel${i === seg && dir ? ` in-${dir}` : ""}`}>{p.body}</section>)}
+    </div>
   </div>;
 }

@@ -252,6 +252,10 @@ function Screen() {
   const syncTone = attention ? C.neg : online && !pendingWork && !pending && !stale ? C.pos : C.warn;
   const syncLabel = attention ? t(`${attention} de verificat|${attention} to check|${attention} do sprawdzenia`) : syncing ? t("Sincronizare…|Syncing…|Synchronizacja…") : pendingWork ? t(`${pendingWork} pe telefon|${pendingWork} on phone|${pendingWork} w telefonie`) : online && !pending && !stale ? t("Actualizat|Up to date|Aktualne") : t("Offline");
   const tripOpen = openTrip ? Object.values(board?.trips ?? {}).flat().find(x => x.id === openTrip) ?? null : null;
+  const pendingNote = !!pending && <Note>{t(pending.path === "/api/driver/shift" ? "Încheierea turei așteaptă confirmarea firmei. GPS este oprit pe acest telefon; reîncercăm automat când ai internet.|Ending the shift is waiting for the company. GPS is off on this phone; we retry automatically when you are online.|Zakończenie zmiany czeka na firmę. GPS jest wyłączony; ponowimy automatycznie po połączeniu." : "Modul Privat așteaptă confirmarea firmei. GPS este oprit pe acest telefon; reîncercăm automat când ai internet.|Private mode is waiting for the company. GPS is off on this phone; we retry automatically when you are online.|Tryb prywatny czeka na firmę. GPS jest wyłączony; ponowimy automatycznie po połączeniu.")}</Note>;
+  const staleNote = stale && !!board && <Note>{t("Datele au peste 24 de ore sau ora telefonului s-a schimbat. Reconectează-te înainte de a confirma etape.|Data is over 24 hours old or the phone clock changed. Reconnect before confirming steps.|Dane mają ponad 24 godziny lub zmieniono zegar telefonu. Połącz się przed potwierdzeniem etapów.")}</Note>;
+  // Curse list owns its scrolling: pinned segmented control + swipeable pages, each with its own vertical scroll.
+  const tripsList = ready && logged && !!ctx && page === "trips" && !tripOpen;
   const login = async () => { Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: true }); await recoverLogout(); const value = await api<Login>("/api/auth/mobile", { login: phone.trim(), password: pin }, { anonymous: true }); await stopGPS(); ++authRevision.current; await write("login", { ...value, origin: apiOrigin() }); setPin(""); setLogged(true); await refresh(); };
   return <LocContext.Provider value={loc}><SafeAreaView edges={["top", "left", "right"]} style={s.safe}><StatusBar barStyle="light-content"/><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "android" ? "height" : undefined}>
     {speedWarn && gate ? <View style={s.speed} accessibilityRole="alert"><T w="bold" style={{ color: "#fff", fontSize: 15, flex: 1 }}>{t(`Ai depășit limita setată de firmă (${speedWarn.limit} km/h)|Over the company limit (${speedWarn.limit} km/h)|Przekroczono limit firmy (${speedWarn.limit} km/h)`)}</T><T w="bold" style={{ color: "#fff", fontSize: 30, lineHeight: 36 }}>{speedWarn.kmh}</T></View> : null}
@@ -259,7 +263,10 @@ function Screen() {
       <View style={s.brand}><View style={s.mark}><T w="bold" style={{ color: "#fff", fontSize: 15, lineHeight: 20 }}>Q</T></View><T w="semi" style={{ fontSize: 17 }}>{t("Șofer|Driver|Kierowca")}</T></View>
       <Pressable accessibilityRole="button" accessibilityLabel={syncLabel} onPress={() => navigate("documents")} style={s.pill}><View style={[s.dot, { backgroundColor: syncTone }]} /><T w="medium" style={{ fontSize: 13, color: C.fg2 }}>{syncLabel}</T></Pressable>
     </View> : null}
-    <ScrollView onLayout={() => { if (Keyboard.isVisible()) revealInput(); }} ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+    {tripsList && ctx ? <View style={{ flex: 1 }}>
+      {error || pendingNote || staleNote ? <View style={s.notes}>{!!error && <Note tone="bad">{error}</Note>}{pendingNote}{staleNote}</View> : null}
+      <Trips c={ctx} />
+    </View> : <ScrollView onLayout={() => { if (Keyboard.isVisible()) revealInput(); }} ref={scroll} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
     {!!error && <Note tone="bad">{error}</Note>}
     {!ready ? <T style={{ color: C.fg2 }}>{t("Se încarcă…|Loading…|Ładowanie…")}</T> : !logged ? <View style={{ gap: 14, marginTop: 24 }}>
       <View style={[s.mark, { width: 56, height: 56, borderRadius: 16 }]}><T w="bold" style={{ color: "#fff", fontSize: 28, lineHeight: 34 }}>Q</T></View>
@@ -270,18 +277,18 @@ function Screen() {
       <T w="medium" style={s.label}>{t("PIN / parolă|PIN / password|PIN / hasło")}</T><TextInput accessibilityLabel={t("PIN sau parolă|PIN or password|PIN lub hasło")} onFocus={revealInput} value={pin} onChangeText={setPin} secureTextEntry autoComplete="current-password" style={s.input} />
       <Btn style={{ alignSelf: "stretch", marginTop: 6 }} disabled={busy} label={t("Intră în cont|Sign in|Zaloguj się")} onPress={() => void run(login)} />
     </View> : <>
-      {!!pending && <Note>{t(pending.path === "/api/driver/shift" ? "Încheierea turei așteaptă confirmarea firmei. GPS este oprit pe acest telefon; reîncercăm automat când ai internet.|Ending the shift is waiting for the company. GPS is off on this phone; we retry automatically when you are online.|Zakończenie zmiany czeka na firmę. GPS jest wyłączony; ponowimy automatycznie po połączeniu." : "Modul Privat așteaptă confirmarea firmei. GPS este oprit pe acest telefon; reîncercăm automat când ai internet.|Private mode is waiting for the company. GPS is off on this phone; we retry automatically when you are online.|Tryb prywatny czeka na firmę. GPS jest wyłączony; ponowimy automatycznie po połączeniu.")}</Note>}
+      {pendingNote}
       {!board && <><T style={{ color: C.fg2 }}>{t("Conectăm datele firmei…|Loading company data…|Ładowanie danych firmy…")}</T><Btn label={t("Reîncearcă actualizarea|Retry update|Ponów aktualizację")} disabled={busy} onPress={() => void run(() => refresh(true))} /></>}
-      {stale && !!board && <Note>{t("Datele au peste 24 de ore sau ora telefonului s-a schimbat. Reconectează-te înainte de a confirma etape.|Data is over 24 hours old or the phone clock changed. Reconnect before confirming steps.|Dane mają ponad 24 godziny lub zmieniono zegar telefonu. Połącz się przed potwierdzeniem etapów.")}</Note>}
+      {staleNote}
       {ctx && page === "today" && <Home c={ctx} gps={gps} gate={!!gate} gpsBlocked={busy || !!pending || !onShift || priv} onActivateGPS={() => void activateGPS()} onStopGPS={() => void run(async () => {}, stopGPS)} withoutTrip={withoutTrip} onWithoutTrip={() => setWithoutTrip(true)} />}
-      {ctx && page === "trips" && (tripOpen ? <TripDetail c={ctx} trip={tripOpen} onBack={() => setOpenTrip(null)} /> : <Trips c={ctx} />)}
+      {ctx && page === "trips" && tripOpen ? <TripDetail c={ctx} trip={tripOpen} onBack={() => setOpenTrip(null)} /> : null}
       {ctx && page === "documents" && <Docs c={ctx} onReview={setReviewId} onRetry={id => void localRun(() => retry(id))} onDiscard={discard} onSync={() => void run(() => refresh(true))} syncedAt={syncedAt} syncing={syncing} />}
       {ctx && page === "account" && <Profile c={ctx} lang={lang} onLang={chooseLang} onSignOut={() => void signOut()} onRefresh={() => void run(() => refresh(true))} pendingWork={pendingWork} cleanup={cleanupCount} pendingControl={!!pending}
         push={{ enabled: pushEnabled, message: pushActionMessage || pushMessage, toggle: () => void pushAction(async () => { if (pushEnabled) await disablePush(); else await enablePush(); setPushEnabled(await pushActive()); }),
           test: () => void pushAction(async () => { await testPush(); Alert.alert(t("Test acceptat|Test accepted|Test przyjęty"), t("Furnizorul a acceptat trimiterea. Verifică dacă notificarea ajunge pe telefon.|The provider accepted it. Check that the notification arrives.|Dostawca przyjął wysyłkę. Sprawdź, czy powiadomienie dotarło.")); }),
           settings: () => void Linking.openSettings() }} />}
     </>}
-  </ScrollView></KeyboardAvoidingView>
+  </ScrollView>}</KeyboardAvoidingView>
     {logged && board ? <ShiftBar state={!onShift ? "off" : priv ? "priv" : "on"} start={onShift ? board.shift?.start : null} plate={board.truck?.plate ?? ""} busy={busy || localBusy} blocked={shiftBlocked}
       offSub={!board.truck ? t("Niciun camion alocat|No truck assigned|Brak przypisanego pojazdu") : pending ? t("Așteaptă confirmarea firmei|Waiting for the company|Czeka na firmę") : !focus.hasWork && !withoutTrip ? t("Nicio cursă de pornit|No trip to start|Brak kursu") : t("Verifică camionul și pornește|Check the truck and start|Sprawdź pojazd i zacznij")}
       gpsNote={onShift && !priv && !gate ? t("GPS oprit pe telefon|GPS off on phone|GPS wyłączony w telefonie") : undefined}
@@ -311,6 +318,7 @@ const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   content: { padding: 20, paddingBottom: 32, gap: 14, width: "100%", maxWidth: 680, alignSelf: "center" },
   label: { color: C.fg2, fontSize: 14 },
+  notes: { paddingHorizontal: 20, paddingTop: 12, gap: 10, width: "100%", maxWidth: 680, alignSelf: "center" },
   input: { backgroundColor: C.bg2, borderRadius: 12, padding: 16, color: C.fg, fontSize: 18, minHeight: 56, borderColor: C.line, borderWidth: 1, fontFamily: F.regular },
   speed: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: mix(C.neg, 80, "#000000"), paddingHorizontal: 16, paddingVertical: 12 },
 });
