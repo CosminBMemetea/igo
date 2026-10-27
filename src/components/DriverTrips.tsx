@@ -108,7 +108,7 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
   const s = driverSections(visibleTrips, today);
   const nowRows = s.now.filter(x => x.id !== current?.id);
   const counts = [nowRows.length + (current ? 1 : 0), s.next.length, s.done.length];
-  const [seg, setSeg] = useState(counts[0] || status ? 0 : counts[1] ? 1 : 2);
+  const [seg, setSeg] = useState(() => counts[0] ? 0 : counts[1] ? 1 : counts[2] ? 2 : 0);
   const tabsRef = useRef<HTMLDivElement>(null), scrollY = useRef<number[]>([0, 0, 0]), from = useRef<number | null>(null), swipe = useRef<{ x: number; y: number; t: number } | null>(null);
   const [dir, setDir] = useState<"l" | "r" | "">("");
   // back from a trip within 30 min → same segment
@@ -169,6 +169,7 @@ export function DriverTrips({ trips, today, truckId, trucks, loc, selectedId, em
         <span className="dsegc-l">{tr(p.label)}</span><b className="dsegc-n">{counts[i]}</b>
       </button>)}
     </div>
+    {queueError && seg !== 0 ? status : null}
     <div className="dseg-panels" onTouchStart={touchStart} onTouchEnd={touchEnd}>
       {panels.map((p, i) => <section key={p.key} role="tabpanel" id={`dpanel-${p.key}`} aria-labelledby={`dseg-${p.key}`} hidden={i !== seg} className={`dseg-panel${i === seg && dir ? ` in-${dir}` : ""}`}>{p.body}</section>)}
     </div>
