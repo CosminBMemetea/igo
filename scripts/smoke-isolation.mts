@@ -53,7 +53,7 @@ const stop = () => { try { process.kill(-srv.pid!); } catch { /* oprit */ } blob
 for (let i = 0; i < 80; i++) { try { await fetch(`${B}/login`); break; } catch { await new Promise((r) => setTimeout(r, 500)); } }
 
 type Jar = { cookie: string; name: string };
-const jar = (name: string): Jar => ({ cookie: "", name });
+const jar = (name: string): Jar => ({ cookie: "igo-locale=ro", name });
 async function req(j: Jar | null, method: string, path: string, body?: FormData | object) {
   const headers: Record<string, string> = { origin: B };
   if (j?.cookie) headers.cookie = j.cookie;

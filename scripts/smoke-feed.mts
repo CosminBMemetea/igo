@@ -37,7 +37,7 @@ const setLoc = (j: Jar, l: string) => { j.cookie = [...j.cookie.split("; ").filt
 
 try {
   // ---------- demo ----------
-  const demo: Jar = { cookie: "" }; await req(demo, "POST", "/api/auth/demo");
+  const demo: Jar = { cookie: "igo-locale=ro" }; await req(demo, "POST", "/api/auth/demo");
   await req(demo, "GET", "/feed"); // încălzire
   const f = await req(demo, "GET", "/feed");
   ok("demo /feed 200", f.status === 200, String(f.status));
@@ -52,7 +52,7 @@ try {
 
   // ---------- firme reale ----------
   async function firm(tag: string, plate: string, ip: string) {
-    const o: Jar = { cookie: "" }, email = `${tag.toLowerCase()}@feed.test`;
+    const o: Jar = { cookie: "igo-locale=ro" }, email = `${tag.toLowerCase()}@feed.test`;
     await fetch(B + "/api/auth/signup", { method: "POST", headers: { origin: B, "x-forwarded-for": ip }, body: form({ firm: `Flux ${tag} SRL`, email, password: "testpass12345", consent: "on" }), redirect: "manual" }).then((r) => { for (const c of r.headers.getSetCookie()) o.cookie = [o.cookie, c.split(";")[0]].filter(Boolean).join("; "); });
     if (!o.cookie.includes("igo-session")) throw new Error(`signup ${tag} failed`);
     await req(o, "POST", "/api/setup/truck", form({ plate, model: "DAF", tank: "600", l100: "30" }));

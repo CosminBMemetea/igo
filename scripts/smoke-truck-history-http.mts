@@ -23,7 +23,7 @@ try {
   const truck = await s.addTruck(firm.id, { plate: "HISTORY QA", model: null, vin: null, tankL: 700, normalL100: 30 });
   const other = await s.addTruck(foreign.id, { plate: "OTHER QA", model: null, vin: null, tankL: 700, normalL100: 30 });
   const owner = await s.createUser({ firmId: firm.id, role: "owner", name: "Test owner", phone: null, email: randomUUID() + "@example.test", passwordHash: "test", truckId: null });
-  const cookie = "igo-session=" + await signSession({ role: "owner", email: owner.email!, firm: firm.id, uid: owner.id, exp: Math.floor(Date.now() / 1000) + 3600 }, secret);
+  const cookie = "igo-session=" + await signSession({ role: "owner", email: owner.email!, firm: firm.id, uid: owner.id, exp: Math.floor(Date.now() / 1000) + 3600 }, secret) + "; igo-locale=ro";
   const req = (path: string) => fetch(baseURL + path, { redirect: "manual", headers: { cookie } });
   const base = { truckId: truck.id, driverId: null, client: "QA", date: "2026-01-17", km: 60, revenue: 1234, litres: 18, fuelPrice: 7, tolls: 0, driverCost: 100, other: 0, planned: false };
   const first = await s.addTrip(firm.id, { ...base, title: "Morning route", loadedAt: "2026-01-17T06:00:00Z", deliveredAt: "2026-01-17T07:00:00Z" });

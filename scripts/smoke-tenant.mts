@@ -30,7 +30,7 @@ const stop = () => { try { process.kill(-srv.pid!); } catch { /* deja oprit */ }
 for (let i = 0; i < 60; i++) { try { await fetch(`${BASE}/login`); break; } catch { await new Promise((r) => setTimeout(r, 500)); } }
 
 class Agent {
-  jar = new Map<string, string>();
+  jar = new Map<string, string>([["igo-locale", "ro"]]);
   async json(path: string, body: unknown) {
     const r = await fetch(BASE + path, { method: "POST", redirect: "manual", headers: { cookie: [...this.jar].map(([k,v]) => `${k}=${v}`).join("; "), "content-type": "application/json" }, body: JSON.stringify(body) });
     for (const c of r.headers.getSetCookie()) { const [kv] = c.split(";"); const i = kv.indexOf("="); this.jar.set(kv.slice(0, i), kv.slice(i + 1)); }
