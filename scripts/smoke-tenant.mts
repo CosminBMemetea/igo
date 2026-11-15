@@ -60,7 +60,7 @@ try {
   const tA = (await db.query("select * from trucks where firm_id=$1", [firmA.id])).rows;
   ok("camion salvat în Postgres (plăcuță normalizată)", tA.length === 1 && tA[0].plate === "BH 21 QRT" && tA[0].tank_l === 600 && tA[0].normal_l100 === 29.5, JSON.stringify(tA));
   ok("camion citit înapoi prin API", (await vehiclesOf(A))?.[0]?.name === "BH 21 QRT");
-  const inv = await A.go("/api/setup/invite", { name: "Ioan Pop", phone: "0744 123 456" });
+  const inv = await A.go("/api/setup/invite", { name: "Ioan Pop", phone: "0744 123 456", locale: "ro" });
   ok("pas 3 invitație", inv.loc.includes("step=3&inv="));
   ok("pas 4 document", (await A.go("/api/setup/doc", { truck: tA[0].id, type: "itp", expires: "2026-12-01" })).loc.includes("ok=1"));
   ok("pas 5 prima cursă", (await A.go("/api/setup/trip", { truck: tA[0].id, client: "Dedeman SRL", title: "Oradea → Sibiu", date: "2026-10-10", km: "330", revenue: "2500", litres: "", fuelPrice: "7.3", tolls: "120", driver: "450" })).loc.includes("ok=1"));
@@ -128,7 +128,8 @@ try {
   ok("invitație acceptată → /join/ready", j.status === 303 && j.loc.endsWith("/join/ready"), `${j.status} ${j.loc}`);
   ok("QR generat local pentru invitație", s3.text.includes("data:image/png;base64,"));
   { const ready = (await D.go("/join/ready")).text; // r26: șoferii reali instalează aplicația web (PWA), nu aplicația de test
-    ok("activare → pași de instalare PWA, fără scheme native/aplicație de test", ready.includes("Adaugă pe ecranul principal") && ready.includes("Instalează aplicația") && !ready.includes("qfleet-driver") && !ready.includes("de test"), ready.slice(0, 200)); }
+    const pwa = (ready.includes("Adaugă pe ecranul principal") && ready.includes("Instalează aplicația")) || (ready.includes("Do ekranu początkowego") && ready.includes("Zainstaluj aplikację")) || (ready.includes("Add to Home Screen") && ready.includes("Install app"));
+    ok("activare → pași de instalare PWA, fără scheme native/aplicație de test", pwa && !ready.includes("qfleet-driver") && !ready.includes("de test"), ready.slice(0, 200)); }
   const drv = (await db.query("select * from users where firm_id=$1 and role='driver'", [firmA.id])).rows;
   ok("șofer în DB, telefon normalizat, invitație consumată", drv.length === 1 && drv[0].phone === "+40744123456" && (await db.query("select used_at from invites where firm_id=$1", [firmA.id])).rows[0].used_at != null);
   ok("pagina de șofer vede camionul firmei", (await D.go("/driver")).text.includes("BH 21 QRT"));
