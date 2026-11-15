@@ -3,6 +3,7 @@ import { readInvite } from "@/lib/invite";
 import { hashPassword } from "@/lib/scrypt";
 import { store } from "@/lib/store";
 import { clip, isPhone, isPin, weakPin, normPhone } from "@/lib/validate";
+import { localeOrDefault } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 /** Șoferul acceptă invitația: își confirmă telefonul și își alege un PIN de 6 cifre. */
 export async function POST(req: Request) {
@@ -34,6 +35,6 @@ export async function POST(req: Request) {
     if (code === "23505" || (e as Error).message === "exists") return back(req, `${q}&e=phoneused`);
     throw e;
   }
-  const res = back(req, "/join/ready"); res.cookies.set("igo-locale", row.locale ?? "ro", { path: "/", maxAge: 31536000, sameSite: "lax" });
+  const res = back(req, "/join/ready"); res.cookies.set("igo-locale", localeOrDefault(row.locale), { path: "/", maxAge: 31536000, sameSite: "lax" });
   return withSession(res, { role: "driver", email: phone, firm: firm.id, uid, trial: firm.trialStart });
 }

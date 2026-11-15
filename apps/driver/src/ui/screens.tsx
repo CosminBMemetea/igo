@@ -5,7 +5,7 @@ import type { Board, Trip } from "../board";
 import type { WorkEntry, EventKind } from "../work-queue";
 import type { GPSStatus } from "../tracking";
 import { C, mix } from "../theme";
-import { countTri, fmtDate, fmtDateTime, fmtTime, LOCS, useT, type Loc } from "../i18n";
+import { countTri, fmtDate, fmtDateTime, fmtTime, LOC_OPTIONS, useT, type Loc } from "../i18n";
 import { CHECK_ACTION, CHECK_LABEL, DOC_KEYS, STAGE_LABEL, driverSections, stageOf, tripChecklist, type MissingDoc, type TripDocs } from "../checklist";
 import { Badge, Btn, Card, Chips, Icon, Note, Section, T, TripRoute } from "./kit";
 import { SegmentPager, type PagerMemo } from "./Segments";
@@ -260,7 +260,7 @@ export function Profile({ c, onLang, lang, push, onSignOut, onRefresh, pendingWo
     </View>
     <Section title={t("Camionul meu|My truck|Mój pojazd")}><Card><T w="semi" style={{ fontSize: 22, lineHeight: 28 }}>{b.truck?.plate ?? t("Nealocat|Unassigned|Nieprzypisany")}</T></Card></Section>
     <Section title={t("Limba|Language|Język")}>
-      <View style={{ flexDirection: "row", gap: 8 }}>{LOCS.map(l => <Pressable key={l} accessibilityRole="radio" accessibilityState={{ selected: loc === l }} onPress={() => onLang(l)} style={[st.lang, loc === l && { backgroundColor: mix(C.acc, 14, C.bg2), borderColor: C.acc }]}><T w="semi" style={{ color: loc === l ? C.acc : C.fg2 }}>{l.toUpperCase()}</T></Pressable>)}
+      <View style={{ flexDirection: "row", gap: 8 }}>{LOC_OPTIONS.map(l => <Pressable key={l} accessibilityRole="radio" accessibilityState={{ selected: loc === l }} onPress={() => onLang(l)} style={[st.lang, loc === l && { backgroundColor: mix(C.acc, 14, C.bg2), borderColor: C.acc }]}><T w="semi" style={{ color: loc === l ? C.acc : C.fg2 }}>{l.toUpperCase()}</T></Pressable>)}
         {lang ? <Pressable accessibilityRole="button" onPress={() => onLang(null)} style={st.lang}><T style={{ color: C.fg2, fontSize: 13 }}>{t("Ca telefonul|Like phone|Jak telefon")}</T></Pressable> : null}</View>
     </Section>
     {p ? <Section title={t("Progres|Progress|Postępy")}><Card>

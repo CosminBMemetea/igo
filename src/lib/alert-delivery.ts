@@ -1,7 +1,7 @@
 import { appOrigin } from "./app-origin";
 import type { Store, UserRow, DeliveryContext } from "./store/types";
 import { queueEmail, type EmailProvider } from "./email";
-import { tri, type Locale } from "./i18n";
+import { localeOrDefault, tri} from "./i18n";
 export async function queuePush(s: Store, firmId: string, user: UserRow, key: string, context: DeliveryContext) {
   if (user.disabledAt || !user.passwordHash) return;
   for (const device of await s.pushDevices(firmId, user.id)) {
@@ -18,7 +18,7 @@ export async function queueTaskAlerts(s: Store, firmId: string, email: EmailProv
     if (!truck || !driver) continue;
     const recipients = task.status === "open" ? [driver] : users.filter(u => u.role === "owner" && !u.disabledAt);
     for (const user of recipients) {
-      const loc = (["ro", "en", "pl"].includes(user.locale ?? "") ? user.locale : "ro") as Locale;
+      const loc = localeOrDefault(user.locale);
       const key = `task:${task.id}:${task.status}:${user.id}`;
       const context: DeliveryContext = { kind: "task", userId: user.id, taskId: task.id, status: task.status };
       const subject = task.status === "open" ? tri(loc, "Verificare solicitată|Check requested|Prośba o sprawdzenie") : tri(loc, "Șoferul a preluat verificarea|Driver acknowledged the check|Kierowca potwierdził zadanie");

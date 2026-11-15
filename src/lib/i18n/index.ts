@@ -4,7 +4,10 @@ import { pl } from "./pl";
 import { pluralForm } from "./plural";
 
 export type Locale = "ro" | "en" | "pl";
-export const LOCALES: Locale[] = ["ro", "en", "pl"];
+export const LOCALES: Locale[] = ["ro", "en", "pl"]; // order used by tri() for "ro|en|pl" strings — do not reorder
+export const DEFAULT_LOCALE: Locale = "pl";
+/** UI listing / preselect order. Separate from LOCALES so tri() stays correct. */
+export const LOCALE_OPTIONS: Locale[] = ["pl", "ro", "en"];
 export const LOCALE_COOKIE = "igo-locale";
 export const CATALOGS: Record<Locale, Record<MsgKey, string>> = { ro, en, pl };
 export type { MsgKey };
@@ -25,12 +28,13 @@ export function t(loc: Locale, key: MsgKey, vars?: Vars): string {
 /** „N formă” dintr-un șir inline „ro1/ro2/ro3|en1/en2|pl1/pl2/pl3” (aceeași ordine ca tri). */
 export const countTri = (loc: Locale, n: number, s: string) => `${fmtNum(loc, n)} ${pluralForm(loc, n, tri(loc, s).replace(/\//g, "|"))}`;
 export const isLocale = (x: unknown): x is Locale => x === "ro" || x === "en" || x === "pl";
+export const localeOrDefault = (x: unknown): Locale => (isLocale(x) ? x : DEFAULT_LOCALE);
 export function pickLocale(acceptLanguage: string | null | undefined): Locale {
   for (const part of (acceptLanguage ?? "").split(",")) {
     const code = part.trim().slice(0, 2).toLowerCase();
     if (isLocale(code)) return code;
   }
-  return "ro";
+  return DEFAULT_LOCALE;
 }
 /** Forma de plural: cheia are „unu|câțiva|mulți” (ro: 1 cursă, 2 curse, 20 de curse). */
 export function plural(loc: Locale, n: number, key: MsgKey): string {

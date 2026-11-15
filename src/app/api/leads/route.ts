@@ -6,7 +6,7 @@ import { queueEmail } from "@/lib/email";
 import { clip, isEmail, isPhone, normEmail, normPhone } from "@/lib/validate";
 import { normRef } from "@/lib/referral";
 import { LT, lfill, FUEL_CARDS } from "@/lib/lead-i18n";
-import type { Locale } from "@/lib/i18n";
+import { localeOrDefault } from "@/lib/i18n";
 export const dynamic = "force-dynamic";
 // limitare: în memoria instanței (rafale) + în DB pe hash de IP (3 / 10 min, 10 / zi)
 const hits = new Map<string, number[]>();
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const n = Math.round(Number(fd.get("trucks"))), trucks = Number.isFinite(n) && n >= 1 && n <= 5000 ? n : null;
   const card = String(fd.get("fuelCard") ?? ""), fuelCard = (FUEL_CARDS as readonly string[]).includes(card) ? card : null;
   const gps = fd.get("gps") === "yes" ? true : fd.get("gps") === "no" ? false : null;
-  const loc = (["ro", "en", "pl"].includes(String(fd.get("locale"))) ? String(fd.get("locale")) : "ro") as Locale;
+  const loc = localeOrDefault(fd.get("locale"));
   if (firm.length < 2 || person.length < 2 || !isPhone(phone) || !isEmail(email) || !trucks || fd.get("consent") !== "1") return back(req, `/incearca?e=1${keep}`);
   const utm = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].map((k) => [k, clip(fd.get(k), 80)]).filter(([, v]) => v);
   hits.set(ipHash, [...recent, now]); if (hits.size > 5000) hits.clear();

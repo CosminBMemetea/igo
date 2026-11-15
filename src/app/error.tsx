@@ -1,14 +1,14 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { tri, type Locale } from "@/lib/i18n";
+import { tri, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 
 const subscribe = () => () => {};
-const language = (): Locale => document.documentElement.lang === "en" ? "en" : document.documentElement.lang === "pl" ? "pl" : "ro";
+const language = (): Locale => isLocale(document.documentElement.lang) ? document.documentElement.lang : DEFAULT_LOCALE;
 
 /** Recover from a failed page request without exposing server error details. */
 export default function PageError({ retry }: { error: unknown; retry: () => void }) {
-  const loc = useSyncExternalStore(subscribe, language, () => "ro" as Locale);
+  const loc = useSyncExternalStore(subscribe, language, () => DEFAULT_LOCALE);
   return <main>
     <section className="sheet" role="alert">
       <h1>{tri(loc, "Pagina nu s-a încărcat|Page could not load|Nie udało się załadować strony")}</h1>

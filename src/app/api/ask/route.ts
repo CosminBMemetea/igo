@@ -2,7 +2,7 @@ import { activeFleet } from "@/lib/econ-store";
 import { NextResponse } from "next/server";
 import { tenant } from "@/lib/tenant";
 import { TOOLS, detectLocale, parseToolCall, render, ruleIntent, type ToolCall } from "@/lib/ask";
-import { isLocale, type Locale } from "@/lib/i18n";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n";
 import { groqChat } from "@/lib/groq";
 import { checkLimits, clientIp } from "@/lib/rate-limit";
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
   const q = typeof body.question === "string" ? body.question.trim() : "";
   if (!q || q.length > 500) return NextResponse.json({ error: "question" }, { status: 400 });
-  const loc: Locale = detectLocale(q, isLocale(body.locale) ? body.locale : "ro");
+  const loc: Locale = detectLocale(q, isLocale(body.locale) ? body.locale : DEFAULT_LOCALE);
   const tn = await tenant(), r = tn.repo;
   const [v0, t0, clients, a0] = await Promise.all([r.vehicles(), r.trips(), r.clients(), r.alerts()]);
   const { vehicles, trips } = (await activeFleet(tn.demo, v0, t0)), alerts = a0.filter((a) => vehicles.some((v) => v.id === (a as { vehicleId?: string }).vehicleId) || !(a as { vehicleId?: string }).vehicleId);

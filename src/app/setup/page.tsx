@@ -4,7 +4,7 @@ import { InviteQR } from "@/components/InviteQR";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getPrefs } from "@/lib/prefs";
-import { fmtDate, fmtMoney, t, tri, type MsgKey } from "@/lib/i18n";
+import { fmtDate, fmtMoney, t, tri, LOCALE_OPTIONS, type MsgKey } from "@/lib/i18n";
 import { store, DOC_TYPES } from "@/lib/store";
 import { writableFirm } from "@/lib/tenant";
 import { STEPS, setupState, type Step } from "@/lib/setup";
@@ -50,7 +50,7 @@ export default async function Setup(
         {step === 1 ? (
           <form className="sheet" action="/api/setup/firm" method="post">
             <div className="lf"><span>{t(loc, "set.lang")}</span>
-              <div className="radio">{([["ro", "🇷🇴 Română"], ["en", "🇬🇧 English"], ["pl", "🇵🇱 Polski"]] as const).map(([l, n]) => <label key={l}><input type="radio" name="locale" value={l} defaultChecked={loc === l} /><i>{n}</i></label>)}</div>
+              <div className="radio">{([["pl", "🇵🇱 Polski"], ["ro", "🇷🇴 Română"], ["en", "🇬🇧 English"]] as const).map(([l, n]) => <label key={l}><input type="radio" name="locale" value={l} defaultChecked={loc === l} /><i>{n}</i></label>)}</div>
             </div>
             <label className="lf"><span>{t(loc, "su.firm")}</span><input name="name" required defaultValue={st.firm!.name} maxLength={120} /></label>
             <label className="lf"><span>{t(loc, "su.cui")}</span><input name="cui" defaultValue={st.firm!.cui ?? ""} maxLength={20} placeholder="RO12345678" /></label>
@@ -84,7 +84,7 @@ export default async function Setup(
             <form className="sheet" action="/api/setup/invite" method="post">
               <label className="lf"><span>{t(loc, "set.drvName")}</span><input name="name" required maxLength={80} placeholder="Ioan Pop" /></label>
               <label className="lf"><span>{t(loc, "set.drvPhone")}</span><input name="phone" type="tel" placeholder="07xx xxx xxx" /></label>
-              <label className="lf"><span>{t(loc, "set.drvLang")}</span><select name="locale" defaultValue="ro"><option value="ro">🇷🇴 Română</option><option value="en">🇬🇧 English</option><option value="pl">🇵🇱 Polski</option></select></label>
+              <label className="lf"><span>{t(loc, "set.drvLang")}</span><select name="locale" defaultValue={loc}>{LOCALE_OPTIONS.map((l) => <option key={l} value={l}>{l === "pl" ? "🇵🇱 Polski" : l === "ro" ? "🇷🇴 Română" : "🇬🇧 English"}</option>)}</select></label>
               <button className="btn pri">{t(loc, "set.invite")}</button>
               <p className="hint">{t(loc, "set.inviteHint")}</p>
             </form>

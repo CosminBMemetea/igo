@@ -4,11 +4,11 @@ import { reminderDocuments } from "./compliance-reminders";
 // Querra Fleet: jobul zilnic de reamintiri (Vercel Cron ~06:00 Europe/Bucharest). Idempotent: chei unice pe notificări și emailuri.
 import { dueReminders, type RDoc } from "./docs";
 import { queueEmail, emailProvider, type EmailProvider } from "./email";
-import { t, type Locale, type MsgKey } from "./i18n";
+import { DEFAULT_LOCALE, t, type Locale, type MsgKey } from "./i18n";
 import type { Store } from "./store/types";
 import { localNow } from "./validate";
 
-export async function runReminders(s: Store, today = localNow().slice(0, 10), p: EmailProvider | null = emailProvider(), loc: Locale = "ro", options: { defer?: boolean } = {}) {
+export async function runReminders(s: Store, today = localNow().slice(0, 10), p: EmailProvider | null = emailProvider(), loc: Locale = DEFAULT_LOCALE, options: { defer?: boolean } = {}) {
   const res = { firms: 0, notifications: 0, emails: { sent: 0, queued: 0, failed: 0 } };
   for (const f of await s.firms()) {
     const [docs, users, trucks] = await Promise.all([s.docs(f.id), s.users(f.id), s.trucks(f.id)]);

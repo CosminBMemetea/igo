@@ -19,7 +19,7 @@ const config: ExpoConfig = {
   name: androidPreview ? "Querra Șofer Test" : "Querra Șofer", slug: "qfleet-driver", version: "0.1.0", scheme: androidPreview ? "qfleet-driver-test" : "qfleet-driver",
   orientation: "portrait", userInterfaceStyle: "dark", icon: "./assets/icon.png",
   locales: { ro: "./locales/ro.json", en: "./locales/en.json", pl: "./locales/pl.json" },
-  ios: { bundleIdentifier: "com.querra.qfleet.driver", supportsTablet: true, buildNumber: "1", infoPlist: { CFBundleDevelopmentRegion: "ro", CFBundleAllowMixedLocalizations: true, ITSAppUsesNonExemptEncryption: false },
+  ios: { bundleIdentifier: "com.querra.qfleet.driver", supportsTablet: true, buildNumber: "1", infoPlist: { CFBundleDevelopmentRegion: "pl", CFBundleAllowMixedLocalizations: true, ITSAppUsesNonExemptEncryption: false },
     privacyManifests: {
       NSPrivacyTracking: false, NSPrivacyTrackingDomains: [],
       NSPrivacyAccessedAPITypes: [

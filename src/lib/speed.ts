@@ -114,7 +114,7 @@ export const SPEED_CSV_HEAD = {
   en: ["Start (Romania time)", "End (Romania time)", "Truck", "Driver", "Limit km/h", "Max km/h", "Over limit km/h", "Duration s", "Lat", "Lng"],
   pl: ["Początek (czas Rumunii)", "Koniec (czas Rumunii)", "Ciężarówka", "Kierowca", "Limit km/h", "Maks. km/h", "Ponad limit km/h", "Czas s", "Lat", "Lng"],
 } as const;
-export function speedCsv(rows: { plate: string; driver: string; e: SpeedEventRow }[], fmt: (iso: string) => string, loc: "ro" | "en" | "pl" = "ro") {
+export function speedCsv(rows: { plate: string; driver: string; e: SpeedEventRow }[], fmt: (iso: string) => string, loc: "ro" | "en" | "pl" = "pl") {
   const q = csvCell, head = SPEED_CSV_HEAD[loc].map(h => q(h));
   return [head.join(","), ...rows.map(({ plate, driver, e }) => [fmt(e.startAt), fmt(e.endAt), plate, driver, e.limitKmh, e.maxKmh, Math.round((e.maxKmh - e.limitKmh) * 10) / 10, e.durationS, e.lat.toFixed(5), e.lng.toFixed(5)].map(q).join(","))].join("\r\n") + "\r\n";
 }

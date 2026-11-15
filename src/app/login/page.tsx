@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { DEMO_SID } from "@/lib/demo-shift";
 import { getPrefs } from "@/lib/prefs";
-import { t, type MsgKey } from "@/lib/i18n";
+import { t, LOCALE_OPTIONS, type MsgKey } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 import { ClearDrafts } from "@/components/ClearDrafts";
 import { LT } from "@/lib/lead-i18n";
@@ -80,7 +80,7 @@ export default async function Login(
         </form>
       ) : <p className="sheet sub fade d1">{t(loc, "acct.disabled")}</p>}
       {as === "admin" ? <p className="admlink"><Link href="/login">← {t(loc, "rl.back")}</Link></p> : null}
-      <nav className="loglang" aria-label={t(loc, "login.lang")}>{(["ro", "en", "pl"] as const).map((l) => <a key={l} href={`?lang=${l}`} className={l === loc ? "on" : ""} hrefLang={l}>{l.toUpperCase()}</a>)}</nav>
+      <nav className="loglang" aria-label={t(loc, "login.lang")}>{LOCALE_OPTIONS.map((l) => <a key={l} href={`?lang=${l}`} className={l === loc ? "on" : ""} hrefLang={l}>{l.toUpperCase()}</a>)}</nav>
     </main>
   );
 }

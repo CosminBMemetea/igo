@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
 
-const LANGS = [["ro", "🇷🇴", "Română"], ["en", "🇬🇧", "English"], ["pl", "🇵🇱", "Polski"]] as const;
+const LANGS = [["pl", "🇵🇱", "Polski"], ["ro", "🇷🇴", "Română"], ["en", "🇬🇧", "English"]] as const;
 export function langHref(path: string, sp: URLSearchParams | null, l: string) { const q = new URLSearchParams(sp?.toString() ?? ""); q.set("lang", l); return `${path}?${q.toString()}`; }
 
 export function LangPicker({ loc, title, inline, persist }: { loc: string; title: string; inline?: boolean; persist?: boolean }) {

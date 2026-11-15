@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { writableFirm, tenant } from "@/lib/tenant";
 import { getPrefs } from "@/lib/prefs";
 import { store } from "@/lib/store";
-import { t, tri } from "@/lib/i18n";
+import { t, tri, LOCALE_OPTIONS } from "@/lib/i18n";
 import { inviteToken, INVITE_TTL_S } from "@/lib/invite";
 import { ActionForm } from "@/components/ActionForm";
 import { CopyLink } from "@/components/CopyLink";
@@ -32,7 +32,7 @@ export default async function Drivers(props: { searchParams: Promise<{ q?: strin
       <ActionForm action="/api/setup/invite" returnTo="/drivers" loc={loc} reset>
         <label className="lf"><span>{t(loc, "set.drvName")}</span><input name="name" required minLength={2} maxLength={80} autoComplete="name" /></label>
         <label className="lf"><span>{t(loc, "set.drvPhone")}</span><input name="phone" type="tel" required autoComplete="tel" placeholder="+407…" /></label>
-        <label className="lf"><span>{t(loc, "set.drvLang")}</span><select name="locale" defaultValue={loc}><option value="ro">Română</option><option value="en">English</option><option value="pl">Polski</option></select></label>
+        <label className="lf"><span>{t(loc, "set.drvLang")}</span><select name="locale" defaultValue={loc}>{LOCALE_OPTIONS.map((l) => <option key={l} value={l}>{l === "pl" ? "Polski" : l === "ro" ? "Română" : "English"}</option>)}</select></label>
         <button className="btn pri">{tr("Adaugă șoferul|Add driver|Dodaj kierowcę")}</button>
         <p className="hint">{tr("După salvare apare codul QR: șoferul îl scanează și își alege PIN-ul. Poți distribui și linkul invitației.|After saving, a QR code appears: the driver scans it and chooses a PIN. You can also share the invitation link.|Po zapisaniu pojawia się kod QR: kierowca skanuje go i wybiera PIN. Możesz też udostępnić link.")}</p>
       </ActionForm>

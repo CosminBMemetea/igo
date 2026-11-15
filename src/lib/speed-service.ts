@@ -5,7 +5,7 @@ export { NOTIFY_BACKOFF_S, NOTIFY_MAX_ATTEMPTS };
 import { queueEmail } from "./email";
 import { queuePush } from "./alert-delivery";
 import { appOrigin } from "./app-origin";
-import { tri, type Locale } from "./i18n";
+import { localeOrDefault, tri} from "./i18n";
 import { localNow } from "./validate";
 /** Skip owner alerts for an event starting within this window after an earlier, already-notified event on the same truck (the event is still recorded). */
 export const OWNER_DEDUPE_MS = 15 * 60_000;
@@ -73,7 +73,7 @@ async function notifyOwners(s: Store, firmId: string, e: SpeedEventRow, now: num
   const attempt = async (channel: string, f: () => Promise<unknown>) => { if (done.has(channel)) return; try { await f(); done.add(channel); } catch (err) { errors.push(`${channel}: ${err instanceof Error ? err.message : String(err)}`); } };
   await attempt("inbox", () => s.addNotifications(firmId, [{ key: `speed:${e.id}`, userId: null, kind: "speeding", docId: null, params: { eventId: e.id, label: plate, driver, kmh, limit: e.limitKmh, at: e.startAt } }]));
   for (const u of users.filter(u => u.role === "owner" && !u.disabledAt)) {
-    const loc = (["ro", "en", "pl"].includes(u.locale ?? "") ? u.locale : "ro") as Locale;
+    const loc = localeOrDefault(u.locale);
     const key = `speed:${e.id}:${u.id}`, context = { kind: "speed" as const, userId: u.id, eventId: e.id };
     const subject = `${tri(loc, "Depășire a limitei setate|Set limit exceeded|Przekroczenie ustawionego limitu")} · ${plate}`;
     if (u.email && u.emailAlerts !== false) await attempt(`email:${u.id}`, () => {
